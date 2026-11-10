@@ -889,24 +889,19 @@ export default function App() {
     try {
       const saved = localStorage.getItem('ollday_users_v2');
       return saved ? JSON.parse(saved) : {
-        "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true },
-        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true }
+        "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
       };
     } catch (e) {
       return {
-        "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true },
-        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true }
+        "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
       };
     }
   });
 
-  const [activePin, setActivePin] = useState(() => {
-    try {
-      return localStorage.getItem('ollday_active_pin');
-    } catch (e) {
-      return null;
-    }
-  });
+  // Always require PIN authentication whenever the app is opened
+  const [activePin, setActivePin] = useState(null);
 
   const [activeTab, setActiveTab] = useState('grind');
   const [sessionState, setSessionState] = useState(null); 
@@ -917,13 +912,18 @@ export default function App() {
 
   const handleLogin = (pin) => { 
     setActivePin(pin); 
-    try { localStorage.setItem('ollday_active_pin', pin); } catch (e) {}
+  };
+
+  const handleLogout = () => {
+    setActivePin(null);
+    setSessionState(null);
+    setActiveTab('grind');
   };
 
   const handleAddUser = (name, pin) => {
     const nextUsers = { 
       ...users, 
-      [pin]: { pin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true } 
+      [pin]: { pin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true } 
     };
     setUsers(nextUsers);
     try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
@@ -940,8 +940,11 @@ export default function App() {
     day: 1,
     stats: {},
     targetGoal: 3.5,
-    timerEnabled: true
+    timerEnabled: true,
+    fingertricksEnabled: true
   };
+
+  const isFingertricksOn = currentUser.fingertricksEnabled !== false;
 
   const updateCurrentUser = (updates) => {
     const nextUsers = { ...users, [activePin]: { ...currentUser, ...updates } };
@@ -978,12 +981,10 @@ export default function App() {
           <div className="flex items-center gap-3">
             <SuneCubeLogo className="w-10 h-10" />
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] uppercase font-black tracking-widest text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">32-Day Master</span>
-              </div>
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-1">
                 OLLDay <span className="text-orange-500">Everyday</span>
               </h1>
+              <p className="text-[11px] text-slate-400 font-medium">Daily OLL Training</p>
             </div>
           </div>
           <div className="text-right flex flex-col items-end">
@@ -1008,7 +1009,7 @@ export default function App() {
           {!sessionState && activeTab === 'algorithms' && (
             <AlgorithmsView 
               onSelectCase={(c) => setDrillCase(c)} 
-              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
+              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
             />
           )}
 
@@ -1025,8 +1026,10 @@ export default function App() {
               currentUser={currentUser} 
               setTimerEnabled={(val) => updateCurrentUser({ timerEnabled: val })} 
               setTargetGoal={(val) => updateCurrentUser({ targetGoal: val })} 
+              setFingertricksEnabled={(val) => updateCurrentUser({ fingertricksEnabled: val })}
               onRequestReset={() => setShowResetModal(true)} 
               onOpenAdmin={() => setShowAdminModal(true)} 
+              onLockApp={handleLogout}
             />
           )}
 
@@ -1035,7 +1038,7 @@ export default function App() {
               algs={todaysAlgs} 
               onClose={() => setSessionState(null)} 
               onComplete={() => { updateDay(currentDay + 1); setSessionState(null); }} 
-              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
+              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
             />
           )}
 
@@ -1048,7 +1051,7 @@ export default function App() {
               onRecordTime={handleRecordTime} 
               onClose={() => setSessionState(null)} 
               onComplete={() => { updateDay(currentDay + 1); setSessionState(null); }} 
-              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
+              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
             />
           )}
 
@@ -1059,7 +1062,7 @@ export default function App() {
               solveTimes={(currentUser.stats && currentUser.stats[drillCase.id]) || []} 
               onRecordTime={(t) => handleRecordTime(drillCase.id, t)} 
               onClose={() => setDrillCase(null)} 
-              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
+              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
             />
           )}
 
@@ -1161,7 +1164,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
           
           <div className="flex flex-col items-center">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Active Phase</span>
-            <h3 className="text-4xl font-black text-white tracking-tighter mt-0.5">Day {currentDay} <span className="text-xs font-normal text-slate-400">/ 32</span></h3>
+            <h3 className="text-4xl font-black text-white tracking-tighter mt-0.5">Day {currentDay}</h3>
           </div>
 
           <button 
@@ -1267,16 +1270,18 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[11px] text-slate-400 font-medium">Tap to drill</span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onOpenFingertrick) onOpenFingertrick(alg);
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all"
-                    >
-                      <Zap size={10} className="text-amber-400" />
-                      <span>Fingertricks</span>
-                    </button>
+                    {onOpenFingertrick && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenFingertrick(alg);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all"
+                      >
+                        <Zap size={10} className="text-amber-400" />
+                        <span>Fingertricks</span>
+                      </button>
+                    )}
                   </div>
                 </div>
                 <ChevronRight size={18} className="text-slate-500" />
@@ -1398,94 +1403,290 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
   );
 };
 
-// --- TAB 4: SETTINGS ---
-const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, onRequestReset, onOpenAdmin }) => {
+// --- TAB 4: SETTINGS (CREATIVE STACKED 3D SWIPEABLE FLOATING CARDS) ---
+const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertricksEnabled, onRequestReset, onOpenAdmin, onLockApp }) => {
   const [activeNotation, setActiveNotation] = useState(0);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const touchStartY = useRef(0);
+
   const userGoal = (currentUser && currentUser.targetGoal) || 3.5;
   const isTimerOn = currentUser && currentUser.timerEnabled !== false;
+  const isFingertricksOn = currentUser && currentUser.fingertricksEnabled !== false;
+
+  const cardTitles = ["Preferences", "Notation Key", "Account & Security"];
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    const diff = touchStartY.current - e.changedTouches[0].clientY;
+    if (diff > 45 && activeCardIndex < 2) {
+      setActiveCardIndex(prev => prev + 1); // Swipe Up -> Next card
+    } else if (diff < -45 && activeCardIndex > 0) {
+      setActiveCardIndex(prev => prev - 1); // Swipe Down -> Prev card
+    }
+  };
+
+  const getCardStyle = (index) => {
+    const diff = index - activeCardIndex;
+    if (diff === 0) {
+      return {
+        transform: 'translateY(0px) scale(1)',
+        opacity: 1,
+        zIndex: 30,
+        pointerEvents: 'auto',
+        transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
+      };
+    } else if (diff < 0) {
+      // Swiped up: smoothly dissolves and floats upward into nothingness
+      return {
+        transform: `translateY(${diff * 130}px) scale(${1 - Math.abs(diff) * 0.15})`,
+        opacity: 0,
+        zIndex: 10,
+        pointerEvents: 'none',
+        transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
+      };
+    } else {
+      // Stacked cards waiting beneath
+      return {
+        transform: `translateY(${diff * 22}px) scale(${1 - diff * 0.06})`,
+        opacity: diff === 1 ? 0.45 : diff === 2 ? 0.15 : 0,
+        zIndex: 30 - diff * 5,
+        pointerEvents: 'none',
+        transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
+      };
+    }
+  };
 
   return (
-    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full">
-      <div className="mb-6">
-        <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Preferences</p>
-        <h2 className="text-3xl font-black tracking-tight text-white">Settings</h2>
-      </div>
-
-      <GlassCard className="p-5 mb-6 !rounded-[1.75rem]">
-        <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 mb-4 flex items-center gap-2">
-          <Timer size={16} /> Training Preferences
-        </h3>
-        <div className="flex items-center justify-between py-2 border-b border-white/5">
+    <div 
+      className="p-6 pt-5 pb-32 min-h-full flex flex-col justify-between select-none"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div>
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <span className="text-sm font-bold text-white block">Speedcube Stopwatch</span>
-            <span className="text-xs text-slate-400">Track execution times in Practice</span>
+            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px] mb-0.5">Control Center</p>
+            <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
           </div>
-          <button 
-            onClick={() => setTimerEnabled(!isTimerOn)} 
-            className={`w-12 h-7 rounded-full p-1 transition-colors ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
-          >
-            <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isTimerOn ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
-        </div>
-        <div className="flex items-center justify-between py-3">
-          <div>
-            <span className="text-sm font-bold text-white block">Target Execution Goal</span>
-            <span className="text-xs text-slate-400">Target benchmark time (seconds)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setTargetGoal(Math.max(1, +(userGoal - 0.25).toFixed(2)))} 
-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90"
-            >
-              -
-            </button>
-            <span className="font-mono text-sm font-black text-orange-400 w-12 text-center">{userGoal.toFixed(2)}s</span>
-            <button 
-              onClick={() => setTargetGoal(+(userGoal + 0.25).toFixed(2))} 
-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </GlassCard>
-
-      <GlassCard className="p-5 mb-6 !rounded-[1.75rem]">
-        <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 mb-3 flex items-center gap-2">
-          <Compass size={16} /> Algorithm Notation Key
-        </h3>
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-4">
-          {NOTATION_GROUPS.map((grp, idx) => (
-            <button 
-              key={grp.title} 
-              onClick={() => setActiveNotation(idx)} 
-              className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full whitespace-nowrap transition-all border ${activeNotation === idx ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' : 'bg-white/5 text-slate-400 border-white/10'}`}
-            >
-              {grp.title.split(' ')[0]}
-            </button>
-          ))}
-        </div>
-        <div className="bg-slate-950/80 rounded-2xl p-4 border border-white/5">
-          <div className="text-xs font-bold text-white mb-1">{NOTATION_GROUPS[activeNotation].title}</div>
-          <div className="text-[11px] text-slate-400 mb-3">{NOTATION_GROUPS[activeNotation].description}</div>
-          <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto no-scrollbar">
-            {NOTATION_GROUPS[activeNotation].moves.map(m => (
-              <div key={m.move} className="flex items-center gap-3 p-2 bg-slate-900/60 rounded-xl border border-white/5">
-                <span className="font-mono text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20 w-16 text-center">{m.move}</span>
-                <span className="text-xs text-slate-200">{m.desc}</span>
-              </div>
+          {/* Card Indicator Pills */}
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+            {cardTitles.map((title, idx) => (
+              <button
+                key={title}
+                onClick={() => setActiveCardIndex(idx)}
+                className={`transition-all duration-300 rounded-full ${
+                  activeCardIndex === idx 
+                    ? 'w-5 h-2 bg-orange-500 shadow-sm shadow-orange-500/50' 
+                    : 'w-2 h-2 bg-white/20 hover:bg-white/40'
+                }`}
+                title={title}
+              />
             ))}
           </div>
         </div>
-      </GlassCard>
+        <p className="text-[11px] text-slate-400 font-medium">Swipe cards up or down to navigate</p>
+      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Button variant="danger" onClick={onRequestReset} className="py-4 text-xs font-black px-2 shadow-none">
-          <RotateCcw size={16} /> Reset My Progress
-        </Button>
-        <Button variant="secondary" onClick={onOpenAdmin} className="py-4 text-xs font-black px-2 shadow-none border-dashed border-white/20">
-          <Users size={16} /> Admin Panel
-        </Button>
+      {/* Floating Stacked Cards Viewport */}
+      <div className="relative w-full h-[470px] my-auto flex items-center justify-center">
+
+        {/* CARD 0: TRAINING PREFERENCES */}
+        <div 
+          style={getCardStyle(0)}
+          className="absolute inset-x-0 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+              <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                <Timer size={16} /> Training Preferences
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-400">Card 1/3</span>
+            </div>
+
+            <div className="space-y-4">
+              {/* Stopwatch Toggle */}
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <span className="text-sm font-bold text-white block">Speedcube Stopwatch</span>
+                  <span className="text-xs text-slate-400">Track execution times in Practice</span>
+                </div>
+                <button 
+                  onClick={() => setTimerEnabled(!isTimerOn)} 
+                  className={`w-12 h-7 rounded-full p-1 transition-colors ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isTimerOn ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Fingertricks Toggle */}
+              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-3">
+                <div>
+                  <span className="text-sm font-bold text-white block">Fingertrick Guides</span>
+                  <span className="text-xs text-slate-400">Show trigger pills & finger mechanics</span>
+                </div>
+                <button 
+                  onClick={() => setFingertricksEnabled(!isFingertricksOn)} 
+                  className={`w-12 h-7 rounded-full p-1 transition-colors ${isFingertricksOn ? 'bg-orange-500' : 'bg-slate-800'}`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isFingertricksOn ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Target Goal */}
+              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-3">
+                <div>
+                  <span className="text-sm font-bold text-white block">Execution Goal</span>
+                  <span className="text-xs text-slate-400">Target benchmark time</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setTargetGoal(Math.max(1, +(userGoal - 0.25).toFixed(2)))} 
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono text-sm font-black text-orange-400 w-12 text-center">{userGoal.toFixed(2)}s</span>
+                  <button 
+                    onClick={() => setTargetGoal(+(userGoal + 0.25).toFixed(2))} 
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-3 text-center border-t border-white/5">
+            <button 
+              onClick={() => setActiveCardIndex(1)}
+              className="text-xs text-orange-400 font-bold hover:underline inline-flex items-center gap-1"
+            >
+              <span>Swipe up for Notation Key</span>
+              <span>↑</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CARD 1: ALGORITHM NOTATION KEY */}
+        <div 
+          style={getCardStyle(1)}
+          className="absolute inset-x-0 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+              <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                <Compass size={16} /> Algorithm Notation
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-400">Card 2/3</span>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-3">
+              {NOTATION_GROUPS.map((grp, idx) => (
+                <button 
+                  key={grp.title} 
+                  onClick={() => setActiveNotation(idx)} 
+                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap transition-all border ${
+                    activeNotation === idx 
+                      ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' 
+                      : 'bg-white/5 text-slate-400 border-white/10'
+                  }`}
+                >
+                  {grp.title.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-slate-950/80 rounded-2xl p-3 border border-white/5">
+              <div className="text-xs font-bold text-white mb-0.5">{NOTATION_GROUPS[activeNotation].title}</div>
+              <div className="text-[10px] text-slate-400 mb-2">{NOTATION_GROUPS[activeNotation].description}</div>
+              <div className="grid grid-cols-1 gap-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                {NOTATION_GROUPS[activeNotation].moves.map(m => (
+                  <div key={m.move} className="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded-xl border border-white/5">
+                    <span className="font-mono text-xs font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 w-14 text-center">{m.move}</span>
+                    <span className="text-xs text-slate-300 truncate">{m.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-between items-center text-xs text-slate-400 border-t border-white/5">
+            <button onClick={() => setActiveCardIndex(0)} className="hover:text-white flex items-center gap-1">↓ Preferences</button>
+            <button onClick={() => setActiveCardIndex(2)} className="text-orange-400 font-bold hover:underline flex items-center gap-1">Security ↑</button>
+          </div>
+        </div>
+
+        {/* CARD 2: SECURITY & PROFILE */}
+        <div 
+          style={getCardStyle(2)}
+          className="absolute inset-x-0 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+              <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                <Lock size={16} /> Profile & Security
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-400">Card 3/3</span>
+            </div>
+
+            <div className="bg-black/40 border border-white/5 rounded-2xl p-4 mb-4 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Logged In As</span>
+                <span className="text-base font-black text-white">{currentUser.name}</span>
+              </div>
+              <button 
+                onClick={onLockApp}
+                className="px-3.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 rounded-full text-orange-400 text-xs font-bold active:scale-95 transition-all"
+              >
+                Lock App
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <Button variant="secondary" onClick={onOpenAdmin} className="py-3 text-xs font-black shadow-none border-dashed border-white/20">
+                <Users size={16} /> Admin Panel
+              </Button>
+              <Button variant="danger" onClick={onRequestReset} className="py-3 text-xs font-black shadow-none">
+                <RotateCcw size={16} /> Reset My Progress
+              </Button>
+            </div>
+          </div>
+
+          <div className="pt-3 text-center border-t border-white/5">
+            <button 
+              onClick={() => setActiveCardIndex(1)}
+              className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1"
+            >
+              <span>↓ Swipe down for Notation</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Floating Bottom Navigator Pills */}
+      <div className="flex justify-center items-center gap-3 pt-2">
+        <button 
+          disabled={activeCardIndex === 0}
+          onClick={() => setActiveCardIndex(prev => prev - 1)}
+          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-xs font-bold text-orange-400 font-mono tracking-wide">
+          {cardTitles[activeCardIndex]}
+        </span>
+        <button 
+          disabled={activeCardIndex === 2}
+          onClick={() => setActiveCardIndex(prev => prev + 1)}
+          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5"
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
     </div>
   );
