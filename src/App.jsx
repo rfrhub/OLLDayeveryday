@@ -741,7 +741,7 @@ const AuthScreen = ({ users, onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden p-6">
+    <div className="fixed inset-0 w-screen h-screen bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden overscroll-none touch-none p-6">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="z-10 w-full">
         <PinPad 
@@ -910,6 +910,24 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
 
+  // Prevent rubber-banding / browser window dragging on mobile devices
+  useEffect(() => {
+    document.documentElement.style.overscrollBehavior = 'none';
+    document.body.style.overscrollBehavior = 'none';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    return () => {
+      document.documentElement.style.overscrollBehavior = '';
+      document.body.style.overscrollBehavior = '';
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
+  }, []);
+
   const handleLogin = (pin) => { 
     setActivePin(pin); 
   };
@@ -972,12 +990,12 @@ export default function App() {
   const todaysAlgs = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk));
 
   return (
-    <div className="min-h-screen bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden flex justify-center">
+    <div className="fixed inset-0 w-screen h-screen bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden overscroll-none flex justify-center touch-none">
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[45vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
       <div className="fixed bottom-0 right-0 w-3/4 h-[40vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
 
-      <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c]/70 backdrop-blur-3xl border-x border-white/5">
-        <header className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/40 backdrop-blur-md">
+      <div className="w-full max-w-md h-full flex flex-col relative z-10 shadow-2xl bg-[#090e1c]/70 backdrop-blur-3xl border-x border-white/5 overflow-hidden">
+        <header className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/40 backdrop-blur-md select-none flex-shrink-0">
           <div className="flex items-center gap-3">
             <SuneCubeLogo className="w-10 h-10" />
             <div>
@@ -996,7 +1014,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto no-scrollbar relative">
+        <main className={`flex-1 relative no-scrollbar ${activeTab === 'settings' ? 'overflow-hidden touch-none' : 'overflow-y-auto overscroll-contain touch-pan-y'}`}>
           {!sessionState && activeTab === 'grind' && (
             <GrindView 
               currentDay={currentDay} 
@@ -1106,7 +1124,7 @@ export default function App() {
         </main>
 
         {!sessionState && !drillCase && (
-          <nav className="absolute bottom-0 left-0 w-full bg-[#090e1c]/90 backdrop-blur-3xl border-t border-white/10 pb-7 pt-2.5 px-4 z-40 rounded-t-[2.5rem]">
+          <nav className="absolute bottom-0 left-0 w-full bg-[#090e1c]/90 backdrop-blur-3xl border-t border-white/10 pb-7 pt-2.5 px-4 z-40 rounded-t-[2.5rem] select-none flex-shrink-0">
             <div className="flex justify-around items-center max-w-sm mx-auto">
               <TabIcon icon={Target} label="The Grind" active={activeTab === 'grind'} onClick={() => setActiveTab('grind')} />
               <TabIcon icon={Layers} label="Algorithms" active={activeTab === 'algorithms'} onClick={() => setActiveTab('algorithms')} />
@@ -1142,7 +1160,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
   const algCount = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk)).length;
 
   return (
-    <div className="p-6 pt-6 pb-32 flex flex-col min-h-full">
+    <div className="p-6 pt-6 pb-32 flex flex-col min-h-full touch-pan-y overscroll-contain">
       <div className="mb-4">
         <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Training Hub</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Daily Grind</h2>
@@ -1241,7 +1259,7 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
   if (selectedGroup) {
     const algs = groups.find(g => g[0] === selectedGroup)?.[1] || [];
     return (
-      <div className="p-6 pt-6 pb-36 animate-in fade-in slide-in-from-right-4 min-h-full">
+      <div className="p-6 pt-6 pb-36 animate-in fade-in slide-in-from-right-4 min-h-full touch-pan-y overscroll-contain">
         <button 
           onClick={() => setSelectedGroup(null)} 
           className="mb-5 flex items-center gap-2 text-orange-400 font-bold active:scale-95 transition-transform px-4 py-2 bg-orange-500/10 rounded-full border border-orange-500/20 text-xs uppercase tracking-wider"
@@ -1297,7 +1315,7 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
   }
 
   return (
-    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full">
+    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full touch-pan-y overscroll-contain">
       <div className="mb-6">
         <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Knowledge Base</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Algorithms</h2>
@@ -1350,7 +1368,7 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
   }, [solveTimes]);
 
   return (
-    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full">
+    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full touch-pan-y overscroll-contain">
       <div className="mb-5">
         <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Performance</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Statistics</h2>
@@ -1461,7 +1479,7 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
 
   return (
     <div 
-      className="p-6 pt-5 pb-32 min-h-full flex flex-col justify-between select-none"
+      className="p-6 pt-5 pb-32 h-full flex flex-col justify-between select-none touch-none overscroll-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
