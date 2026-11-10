@@ -1,11 +1,190 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Target, Layers, BarChart3, Settings, Eye, EyeOff, 
-  Dumbbell, BookOpenCheck, ChevronRight, ChevronLeft, 
-  X, Play, RotateCcw, Award, CheckCircle2, Trophy, 
-  Timer, Compass, Info, Flame, Sparkles, Lock, 
-  UserPlus, Users, ShieldAlert
-} from 'lucide-react';
+
+// --- INLINE SVG ICON SYSTEM (RESOLVES CDN REACT VERSION & $$typeof CONFLICTS) ---
+const IconWrapper = ({ size = 20, className = "", strokeWidth = 2, children }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth={strokeWidth} 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    {children}
+  </svg>
+);
+
+const Target = (props) => (
+  <IconWrapper {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+  </IconWrapper>
+);
+
+const Layers = (props) => (
+  <IconWrapper {...props}>
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </IconWrapper>
+);
+
+const BarChart3 = (props) => (
+  <IconWrapper {...props}>
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </IconWrapper>
+);
+
+const Settings = (props) => (
+  <IconWrapper {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </IconWrapper>
+);
+
+const Eye = (props) => (
+  <IconWrapper {...props}>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </IconWrapper>
+);
+
+const EyeOff = (props) => (
+  <IconWrapper {...props}>
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" y1="2" x2="22" y2="22" />
+  </IconWrapper>
+);
+
+const Dumbbell = (props) => (
+  <IconWrapper {...props}>
+    <path d="m6.5 6.5 11 11" />
+    <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-1.5 1.5a2 2 0 0 1-2.83 0l-7.34-7.34a2 2 0 0 1 0-2.83l1.5-1.5a2 2 0 0 0 0-2.83L6 6" />
+    <path d="m3 3 1 1a2 2 0 0 0 2.83 0l1.5-1.5a2 2 0 0 1 2.83 0l7.34 7.34a2 2 0 0 1 0 2.83l-1.5 1.5a2 2 0 0 0 0 2.83L18 18" />
+  </IconWrapper>
+);
+
+const BookOpenCheck = (props) => (
+  <IconWrapper {...props}>
+    <path d="M8 3H2v15h7c1.7 0 3 1.3 3 3V7c0-2.2-1.8-4-4-4Z" />
+    <path d="m16 12 2 2 4-4" />
+    <path d="M22 6V3h-6c-2.2 0-4 1.8-4 4v14c0-1.7 1.3-3 3-3h7v-2.3" />
+  </IconWrapper>
+);
+
+const ChevronRight = (props) => (
+  <IconWrapper {...props}>
+    <polyline points="9 18 15 12 9 6" />
+  </IconWrapper>
+);
+
+const ChevronLeft = (props) => (
+  <IconWrapper {...props}>
+    <polyline points="15 18 9 12 15 6" />
+  </IconWrapper>
+);
+
+const X = (props) => (
+  <IconWrapper {...props}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </IconWrapper>
+);
+
+const RotateCcw = (props) => (
+  <IconWrapper {...props}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </IconWrapper>
+);
+
+const CheckCircle2 = (props) => (
+  <IconWrapper {...props}>
+    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </IconWrapper>
+);
+
+const Trophy = (props) => (
+  <IconWrapper {...props}>
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </IconWrapper>
+);
+
+const Timer = (props) => (
+  <IconWrapper {...props}>
+    <line x1="10" y1="2" x2="14" y2="2" />
+    <line x1="12" y1="14" x2="15" y2="11" />
+    <circle cx="12" cy="14" r="8" />
+  </IconWrapper>
+);
+
+const Compass = (props) => (
+  <IconWrapper {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+  </IconWrapper>
+);
+
+const Lock = (props) => (
+  <IconWrapper {...props}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </IconWrapper>
+);
+
+const UserPlus = (props) => (
+  <IconWrapper {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <line x1="19" y1="8" x2="19" y2="14" />
+    <line x1="22" y1="11" x2="16" y2="11" />
+  </IconWrapper>
+);
+
+const Users = (props) => (
+  <IconWrapper {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </IconWrapper>
+);
+
+const ShieldAlert = (props) => (
+  <IconWrapper {...props}>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </IconWrapper>
+);
+
+const Zap = (props) => (
+  <IconWrapper {...props}>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </IconWrapper>
+);
+
+const BackspaceIcon = ({ className = "w-6 h-6" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+    <line x1="18" y1="9" x2="12" y2="15" />
+    <line x1="12" y1="9" x2="18" y2="15" />
+  </svg>
+);
 
 // --- DATA MODEL: ALL 57 OLL CASES (9 CHUNKS FOR 32-DAY PROGRAM) ---
 const OLL_DATA = [
@@ -85,7 +264,7 @@ const OLL_DATA = [
   { id: 57, chunk: 9, name: "Nazi", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'" }
 ];
 
-// --- NOTATION KEY REPOSITORY ---
+// --- NOTATION GROUPS FOR REFERENCE ---
 const NOTATION_GROUPS = [
   {
     title: "Single Face Moves",
@@ -161,6 +340,188 @@ const NOTATION_GROUPS = [
   }
 ];
 
+// --- FINGERTRICK DATABASE & SMART TRIGGER PARSER ---
+const FINGERTRICK_DATABASE = {
+  1: {
+    grip: "Standard Home Grip (Right thumb on front center, middle & ring on back)",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "R U R'", label: "Sune Opener", tip: "Right wrist turns R up, right index flicks U forward, right wrist pulls R' down. Keep your right thumb anchored on the front face." },
+      { moves: "U", label: "Setup Flick", tip: "Right index flicks U again smoothly without shifting your hand position." },
+      { moves: "R U2' R'", label: "Double-Flick Finisher", tip: "Right wrist turns R up, then execute U2' as an index-then-middle double flick with your right hand. Finish with R' wrist pull." }
+    ],
+    proTip: "Do not regrip between the U turns! Let your index finger spring back quickly so the entire 7-move algorithm flows as one continuous reflex."
+  },
+  2: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "R U2", label: "Double Flick Opener", tip: "Right wrist turns R up, right index followed by right middle finger double-flicks U2." },
+      { moves: "R' U'", label: "Push Transition", tip: "Right wrist pulls R' down, right index pushes U' from behind." },
+      { moves: "R U' R'", label: "Sune Finisher", tip: "Right wrist turns R up, right index pushes U' again, right wrist pulls R' down." }
+    ],
+    proTip: "Use your right index finger to push U' from the back corner so your hand never has to change grip."
+  },
+  3: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "(R U2 R')", label: "Double Flick Pair", tip: "Wrist R, index-then-middle double flick U2, wrist R'." },
+      { moves: "(U' R U R')", label: "Reverse Sexy Insert", tip: "Index push U', wrist R, index flick U, wrist R'." },
+      { moves: "(U' R U' R')", label: "Closing Insert", tip: "Index push U', wrist R, index push U', wrist R'." }
+    ],
+    proTip: "Treat this as three 4-move F2L pairs chained together. Maintain an even, rhythmic turning speed."
+  },
+  4: {
+    grip: "Wide Home Grip (Right thumb spans two layers)",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Turn wide r with right thumb and middle, index flicks U, outer R' down, index push U'." },
+      { moves: "(r' F R F')", label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." }
+    ],
+    proTip: "Because r turns two layers, stabilize the left block with your left hand while your right hand glides through the wide triggers."
+  },
+  5: {
+    grip: "Home Grip with Left Hand Support",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger pinches F' counter-clockwise from the top-right corner." },
+      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Right thumb & middle lift wide r, index flicks U, outer R' down, index push U'." },
+      { moves: "r' F R", label: "Recovery Trigger", tip: "Wide r' down, thumb push F up, right wrist R up to finish." }
+    ],
+    proTip: "The opening F' is done with a quick pinch so your right hand is already in position for the wide r lift."
+  },
+  8: {
+    grip: "Home Grip (No pre-turn regrip)",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F", label: "Thumb Push F", tip: "Push the front face clockwise from the bottom-right corner with your right thumb (or left index flicking down)." },
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "The classic 4-move trigger: R wrist up, U index flick, R' wrist down, U' index push." },
+      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger reaches to the top-right corner of F and pinches upward/counter-clockwise to close." }
+    ],
+    proTip: "The index finger pinch for F' is what makes this a sub-0.7s PB breaker. Never take your right hand off the cube to turn F' with your thumb."
+  },
+  9: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." },
+      { moves: "(R' F R F')", label: "Sledgehammer", tip: "R' wrist down, right index pushes F down, right wrist pulls R up, right thumb pushes F' up." }
+    ],
+    proTip: "Flow the ending of Sexy Move directly into the Sledgehammer — the R' move is already prepared by your wrist angle."
+  },
+  20: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "f", label: "Wide Thumb Push f", tip: "Right thumb pushes both front layers clockwise (or left index pushes down)." },
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger executed from standard home grip." },
+      { moves: "f'", label: "Wide Pinch f'", tip: "Right index finger pinches both front layers counter-clockwise from the top." }
+    ],
+    proTip: "Make sure your index finger catches both the F and S slices together on the f' pinch so the middle slice doesn't drag."
+  },
+  21: {
+    grip: "Left Hand Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "f'", label: "Left Index Pinch f'", tip: "Left index finger pinches both front layers counter-clockwise." },
+      { moves: "(L' U' L U)", label: "Lefty Sexy Move", tip: "Left wrist up, left index push U', left wrist down, left index flick U." },
+      { moves: "f", label: "Left Thumb Push f", tip: "Left thumb pushes both front layers clockwise from bottom." }
+    ],
+    proTip: "Mirrors normal P on the left hand. Keep wrists relaxed and let the index fingers do all U-layer turning."
+  },
+  26: {
+    grip: "Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F", label: "Thumb Push F", tip: "Right thumb pushes F clockwise." },
+      { moves: "(R U' R' U')", label: "Inverse Sexy Variant", tip: "R wrist up, index push U', R' wrist down, index push U'." },
+      { moves: "(R U R' F')", label: "Sledge-Finisher", tip: "R wrist up, index flick U, R' wrist down, index pinch F'." }
+    ],
+    proTip: "Smooth index pushes on the U' moves keep your grip rock solid throughout."
+  },
+  32: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F", label: "Thumb Push F", tip: "Right thumb pushes F clockwise from the bottom edge." },
+      { moves: "(R U R' U') x2", label: "Double Sexy Move", tip: "Two consecutive Sexy Moves without pause. R U R' U' followed immediately by R U R' U'." },
+      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger pinches the front face counter-clockwise from the top-right." }
+    ],
+    proTip: "Practice rolling the two sexy moves together without hesitation; your index finger should be spring-loaded after the first U'."
+  },
+  52: {
+    grip: "Left hand firm on L block, Right hand home grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "M U", label: "Slice Opener", tip: "Right or left ring finger pushes M slice from bottom back, right index flicks U." },
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger on right side." },
+      { moves: "M'", label: "Slice Return", tip: "Ring finger pulls M' slice upward from the bottom back." },
+      { moves: "(R' F R F')", label: "Sledgehammer", tip: "R' wrist down, index push F, R up, thumb push F'." }
+    ],
+    proTip: "Practice the M push with your left ring finger while your right hand stays in home grip ready for the Sexy Move."
+  }
+};
+
+const describeFallbackTrigger = (chunk) => {
+  const c = chunk.trim();
+  if (c.includes("R U R' U'")) return { moves: c, label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." };
+  if (c.includes("R' F R F'")) return { moves: c, label: "Sledgehammer", tip: "R' wrist down, index push F, R wrist up, thumb push F'." };
+  if (c.includes("r U R' U'")) return { moves: c, label: "Fat Sexy Move", tip: "Wide r lift with thumb and middle, index flick U, R' down, index push U'." };
+  if (c.includes("r' F R F'")) return { moves: c, label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." };
+  if (c.includes("U2")) return { moves: c, label: "Double Flick U2", tip: "Right index flick followed immediately by right middle finger flick." };
+  if (c === "F") return { moves: c, label: "Thumb Push F", tip: "Right thumb pushes front layer clockwise from bottom right." };
+  if (c === "F'") return { moves: c, label: "Index Pinch F'", tip: "Right index finger pinches front layer counter-clockwise from top right." };
+  if (c === "f") return { moves: c, label: "Wide Push f", tip: "Right thumb pushes two front layers clockwise." };
+  if (c === "f'") return { moves: c, label: "Wide Pinch f'", tip: "Right index finger pinches two front layers counter-clockwise." };
+  if (c.includes("M")) return { moves: c, label: "Slice Trigger", tip: "Left or right ring finger operates the inner M slice from bottom-back." };
+  return { moves: c, label: "Trigger Segment", tip: `Execute ${c} smoothly with index flicks and light wrist turns.` };
+};
+
+const getFingertrickData = (caseItem) => {
+  if (!caseItem) return null;
+  if (FINGERTRICK_DATABASE[caseItem.id]) {
+    return FINGERTRICK_DATABASE[caseItem.id];
+  }
+
+  const alg = caseItem.alg || "";
+  const parenMatches = alg.match(/\([^\)]+\)/g);
+  let triggers = [];
+
+  if (parenMatches && parenMatches.length > 0) {
+    let remaining = alg;
+    parenMatches.forEach(paren => {
+      const idx = remaining.indexOf(paren);
+      if (idx > 0) {
+        const lead = remaining.slice(0, idx).trim();
+        if (lead) triggers.push(describeFallbackTrigger(lead));
+      }
+      triggers.push(describeFallbackTrigger(paren));
+      remaining = remaining.slice(idx + paren.length).trim();
+    });
+    if (remaining) triggers.push(describeFallbackTrigger(remaining));
+  } else {
+    const parts = alg.split(' ').filter(Boolean);
+    const chunkSize = Math.max(2, Math.ceil(parts.length / 3));
+    for (let i = 0; i < parts.length; i += chunkSize) {
+      const chunk = parts.slice(i, i + chunkSize).join(' ');
+      triggers.push(describeFallbackTrigger(chunk));
+    }
+  }
+
+  let grip = "Standard Home Grip (Thumbs on front center, middle & ring on back)";
+  if (alg.includes("r") || alg.includes("l")) grip = "Wide Home Grip (Thumb spans two layers for wide turns)";
+  else if (alg.startsWith("L") || alg.startsWith("f'")) grip = "Lefty Home Grip (Dominant left-hand lead)";
+  else if (alg.includes("M")) grip = "Middle Slice Grip (Ring finger rested on bottom-back M slice)";
+
+  return {
+    grip,
+    regrips: alg.includes("y") || alg.includes("x") ? "1 Regrip (Cube Rotation)" : "0 Regrips (High TPS Flow)",
+    triggers: triggers.filter(Boolean),
+    proTip: "Keep finger movements light and close to the cube. Minimize wrist travel by flicking U moves with your index finger."
+  };
+};
+
 // --- APP HELPERS ---
 const getImageUrl = (alg) => {
   const sanitized = alg.replace(/[()]/g, '').trim();
@@ -202,7 +563,7 @@ const getScheduleForDay = (day = 1) => {
   return { type: 'Learn', chunks: [1], title: 'Learn Chunk 1' };
 };
 
-// --- CUSTOM SUNE CUBE LOGO (SUPPORTS OLLDayEveryday.svg WITH INLINE VECTOR FALLBACK) ---
+// --- CUSTOM SUNE CUBE LOGO ---
 const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
   const [imgError, setImgError] = useState(false);
 
@@ -222,7 +583,6 @@ const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Dark Navy / Black Outer Silhouette */}
           <path 
             d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z" 
             fill="#090a14" 
@@ -231,8 +591,6 @@ const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
             strokeLinejoin="round" 
             strokeLinecap="round" 
           />
-
-          {/* Back Rotated Layer (Mid-Turn, all black stickers) */}
           <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round" fill="#000000">
             <polygon points="524,180 594,228 534,268 464,220" />
             <polygon points="604,236 674,288 614,328 544,276" />
@@ -241,40 +599,23 @@ const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
             <polygon points="716,432 790,428 752,492 680,498" />
             <polygon points="676,506 748,502 708,552 638,558" />
           </g>
-
-          {/* Front Block - Top Facets */}
           <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-            {/* Top-Left: Sune Orange Headlight pointing up */}
             <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
-            {/* Top-Mid: Black */}
             <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
-            {/* Top-Right: Black */}
             <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
           </g>
-
-          {/* Front Block - Right Side Facets */}
           <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-            {/* Top-Right Cubie Side: Sune Orange Headlight pointing right */}
             <polygon points="544,432 616,375 610,466 538,523" fill="#d96528" />
-            {/* Mid-Right Cubie Side: Black */}
             <polygon points="537,537 609,480 603,571 531,628" fill="#090a12" />
-            {/* Bot-Right Cubie Side: Black */}
             <polygon points="530,642 602,585 596,676 524,733" fill="#090a12" />
           </g>
-
-          {/* Front 3x3 Face: True Affine Projection with Smooth Rounded Stickers */}
           <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
-            {/* Row 1 */}
             <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
             <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
             <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
-
-            {/* Row 2 */}
             <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
             <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
             <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
-
-            {/* Row 3 */}
             <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
             <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
             <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
@@ -284,15 +625,6 @@ const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
     </div>
   );
 };
-
-// Native Fail-Safe Backspace Icon
-const BackspaceIcon = ({ className = "w-6 h-6" }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
-    <line x1="18" y1="9" x2="12" y2="15" />
-    <line x1="12" y1="9" x2="18" y2="15" />
-  </svg>
-);
 
 // --- REUSABLE UI TOKENS ---
 const GlassCard = ({ children, className = '', onClick }) => (
@@ -551,7 +883,7 @@ const AdminModal = ({ users, onClose, onAddUser }) => {
   );
 };
 
-// --- APP ROOT COMPONENT (HANDLES MULTI-USER STATE) ---
+// --- APP ROOT COMPONENT ---
 export default function App() {
   const [users, setUsers] = useState(() => {
     try {
@@ -581,17 +913,11 @@ export default function App() {
   const [drillCase, setDrillCase] = useState(null); 
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
 
   const handleLogin = (pin) => { 
     setActivePin(pin); 
     try { localStorage.setItem('ollday_active_pin', pin); } catch (e) {}
-  };
-
-  const handleLogout = () => { 
-    setActivePin(null); 
-    try { localStorage.removeItem('ollday_active_pin'); } catch (e) {}
-    setSessionState(null); 
-    setActiveTab('grind'); 
   };
 
   const handleAddUser = (name, pin) => {
@@ -680,7 +1006,10 @@ export default function App() {
           )}
 
           {!sessionState && activeTab === 'algorithms' && (
-            <AlgorithmsView onSelectCase={(c) => setDrillCase(c)} />
+            <AlgorithmsView 
+              onSelectCase={(c) => setDrillCase(c)} 
+              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
+            />
           )}
 
           {!sessionState && activeTab === 'stats' && (
@@ -706,6 +1035,7 @@ export default function App() {
               algs={todaysAlgs} 
               onClose={() => setSessionState(null)} 
               onComplete={() => { updateDay(currentDay + 1); setSessionState(null); }} 
+              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
             />
           )}
 
@@ -718,6 +1048,7 @@ export default function App() {
               onRecordTime={handleRecordTime} 
               onClose={() => setSessionState(null)} 
               onComplete={() => { updateDay(currentDay + 1); setSessionState(null); }} 
+              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
             />
           )}
 
@@ -728,6 +1059,15 @@ export default function App() {
               solveTimes={(currentUser.stats && currentUser.stats[drillCase.id]) || []} 
               onRecordTime={(t) => handleRecordTime(drillCase.id, t)} 
               onClose={() => setDrillCase(null)} 
+              onOpenFingertrick={(c) => setFingertrickModalCase(c)}
+            />
+          )}
+
+          {/* Floating Fingertrick Dossier Modal */}
+          {fingertrickModalCase && (
+            <FingertrickDossierModal 
+              caseData={fingertrickModalCase} 
+              onClose={() => setFingertrickModalCase(null)} 
             />
           )}
 
@@ -884,7 +1224,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
 };
 
 // --- TAB 2: ALGORITHMS ---
-const AlgorithmsView = ({ onSelectCase }) => {
+const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const groups = useMemo(() => {
     const map = new Map();
@@ -925,7 +1265,19 @@ const AlgorithmsView = ({ onSelectCase }) => {
                     <h4 className="text-lg font-black text-white truncate">{alg.name}</h4>
                     <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded-md">#{alg.id}</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 font-medium">Tap to launch isolated drill</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[11px] text-slate-400 font-medium">Tap to drill</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onOpenFingertrick) onOpenFingertrick(alg);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all"
+                    >
+                      <Zap size={10} className="text-amber-400" />
+                      <span>Fingertricks</span>
+                    </button>
+                  </div>
                 </div>
                 <ChevronRight size={18} className="text-slate-500" />
               </div>
@@ -1140,7 +1492,7 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, onRequestRe
 };
 
 // --- LEARN SESSION ---
-const LearnSession = ({ algs, onClose, onComplete }) => {
+const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
   const [index, setIndex] = useState(0);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -1185,12 +1537,25 @@ const LearnSession = ({ algs, onClose, onComplete }) => {
           <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mt-0.5">OLL Case #{currentAlg.id}</span>
         </div>
         <div className="bg-slate-900/80 border border-white/10 w-full max-w-sm rounded-[2.5rem] p-6 flex flex-col items-center shadow-2xl relative">
-          <div className="w-44 h-44 bg-slate-200 rounded-3xl mb-5 flex items-center justify-center p-3 shadow-inner">
+          <div className="w-44 h-44 bg-slate-200 rounded-3xl mb-4 flex items-center justify-center p-3 shadow-inner">
             <img src={getImageUrl(currentAlg.alg)} alt={currentAlg.name} className="w-full h-full object-contain" />
           </div>
+
           <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-4 text-center shadow-inner">
             <div className="font-mono text-xl text-orange-400 font-bold tracking-wider leading-relaxed">{currentAlg.alg}</div>
           </div>
+
+          {/* Discreet Fingertrick Pill Button */}
+          {onOpenFingertrick && (
+            <button 
+              onClick={() => onOpenFingertrick(currentAlg)}
+              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm"
+            >
+              <Zap size={13} className="text-amber-400" />
+              <span>Fingertrick Guide</span>
+            </button>
+          )}
+
           <div className="flex items-center justify-between w-full mt-4 text-[11px] text-slate-400 px-2 font-medium">
             <span>← Swipe for previous</span>
             <span>Swipe for next →</span>
@@ -1222,7 +1587,7 @@ const LearnSession = ({ algs, onClose, onComplete }) => {
 };
 
 // --- PRACTICE SESSION ---
-const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, onClose, onComplete }) => {
+const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, onClose, onComplete, onOpenFingertrick }) => {
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
@@ -1313,6 +1678,17 @@ const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, o
               <div className="bg-[#050811] border border-white/10 py-2.5 px-4 rounded-xl text-center shadow-inner max-w-full">
                 <span className="font-mono text-base text-orange-400 font-bold tracking-wider">{currentAlg.alg}</span>
               </div>
+              
+              {/* Discreet Fingertrick Pill Button */}
+              {onOpenFingertrick && (
+                <button 
+                  onClick={() => onOpenFingertrick(currentAlg)}
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm"
+                >
+                  <Zap size={12} className="text-amber-400" />
+                  <span>Fingertrick Guide</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="text-center py-8">
@@ -1339,7 +1715,7 @@ const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, o
 };
 
 // --- ISOLATED DRILL MODAL ---
-const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordTime, onClose }) => {
+const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordTime, onClose, onOpenFingertrick }) => {
   const [showAlg, setShowAlg] = useState(false);
   const [scramble, setScramble] = useState(reverseAlg(caseData.alg));
   const [timerRunning, setTimerRunning] = useState(false);
@@ -1376,7 +1752,9 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
         <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90">
           <X size={20} />
         </button>
-        <span className="text-xs font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">Isolated Drill</span>
+        <span className="text-xs font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
+          Isolated Drill
+        </span>
         <div className="w-8" />
       </div>
       <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full text-center">
@@ -1405,8 +1783,19 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
             <img src={getImageUrl(caseData.alg)} alt={caseData.name} className="w-full h-full object-contain" />
           </div>
           {showAlg ? (
-            <div className="font-mono text-sm font-bold text-orange-400 bg-slate-950/80 p-3 rounded-xl border border-white/5 w-full">
-              {caseData.alg}
+            <div className="w-full flex flex-col items-center">
+              <div className="font-mono text-sm font-bold text-orange-400 bg-slate-950/80 p-3 rounded-xl border border-white/5 w-full">
+                {caseData.alg}
+              </div>
+              {onOpenFingertrick && (
+                <button 
+                  onClick={() => onOpenFingertrick(caseData)}
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm"
+                >
+                  <Zap size={12} className="text-amber-400" />
+                  <span>Fingertrick Guide</span>
+                </button>
+              )}
             </div>
           ) : (
             <button onClick={() => setShowAlg(true)} className="text-xs text-orange-400 font-bold py-2 px-4 bg-orange-500/10 rounded-full border border-orange-500/20">
@@ -1422,6 +1811,108 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
         </Button>
         <Button variant="primary" onClick={onClose}>
           <span>Done</span>
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// --- OPTION A: FLOATING FINGERTRICK DOSSIER MODAL ---
+const FingertrickDossierModal = ({ caseData, onClose }) => {
+  const data = useMemo(() => getFingertrickData(caseData), [caseData]);
+  const [activeTriggerIdx, setActiveTriggerIdx] = useState(0);
+
+  if (!data) return null;
+  const activeTrigger = data.triggers[activeTriggerIdx] || data.triggers[0];
+
+  return (
+    <div className="fixed inset-0 z-[220] bg-black/85 backdrop-blur-2xl flex flex-col p-6 pt-7 animate-in fade-in overflow-y-auto">
+      <div className="flex justify-between items-center mb-4 max-w-sm mx-auto w-full">
+        <button onClick={onClose} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 transition-all">
+          <X size={20} />
+        </button>
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 rounded-full border border-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-wider">
+          <Zap size={14} className="text-amber-400" />
+          <span>Fingertrick Dossier</span>
+        </div>
+        <div className="w-8" />
+      </div>
+
+      <div className="flex-1 flex flex-col items-center max-w-sm mx-auto w-full space-y-4">
+        <div className="text-center w-full">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">Case #{caseData.id} • {caseData.group}</span>
+          <h3 className="text-2xl font-black text-white mt-0.5">{caseData.name}</h3>
+        </div>
+
+        <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3.5 text-center shadow-inner">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Full Sequence</span>
+          <div className="font-mono text-base font-bold text-orange-300 tracking-wide">{caseData.alg}</div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 w-full">
+          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3 text-left">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Starting Grip</span>
+            <span className="text-xs font-bold text-white leading-tight block">{data.grip.split('(')[0]}</span>
+          </div>
+          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3 text-left">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Regrip Efficiency</span>
+            <span className="text-xs font-bold text-green-400 font-mono leading-tight block">{data.regrips}</span>
+          </div>
+        </div>
+
+        <div className="w-full bg-slate-900/80 border border-white/10 rounded-3xl p-4 shadow-xl text-center">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Interactive Trigger Breakdown</span>
+            <span className="text-[10px] text-slate-500 font-medium">Tap pill to inspect</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2 justify-center mb-3">
+            {data.triggers.map((trig, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveTriggerIdx(idx)}
+                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 border flex items-center gap-1.5 ${
+                  activeTriggerIdx === idx
+                    ? 'bg-orange-500/25 border-orange-400 text-orange-300 shadow-md shadow-orange-500/20 scale-105'
+                    : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/20'
+                }`}
+              >
+                <span>{trig.moves}</span>
+                {trig.label && <span className="text-[9px] font-sans opacity-70 font-normal">• {trig.label}</span>}
+              </button>
+            ))}
+          </div>
+
+          {activeTrigger && (
+            <div className="bg-slate-950 border border-orange-500/25 rounded-2xl p-3.5 text-left shadow-inner transition-all animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-sm font-black text-orange-400">{activeTrigger.moves}</span>
+                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
+                  {activeTrigger.label}
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                {activeTrigger.tip}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl p-3.5 text-left shadow-sm">
+          <div className="flex items-center gap-1.5 text-orange-400 text-[11px] font-black uppercase tracking-wider mb-1">
+            <span>⚡</span>
+            <span>Speedcoach Execution Note</span>
+          </div>
+          <p className="text-xs text-orange-200/90 leading-relaxed">
+            {data.proTip}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 max-w-sm mx-auto w-full pt-2">
+        <Button variant="primary" onClick={onClose} className="py-3.5 text-sm">
+          <span>Got It, Back to Practice</span>
+          <CheckCircle2 size={18} />
         </Button>
       </div>
     </div>
