@@ -172,6 +172,23 @@ const ShieldAlert = (props) => (
   </IconWrapper>
 );
 
+const Trash2 = (props) => (
+  <IconWrapper {...props}>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </IconWrapper>
+);
+
+const Key = (props) => (
+  <IconWrapper {...props}>
+    <circle cx="7.5" cy="15.5" r="5.5" />
+    <path d="m21 2-9.6 9.6" />
+    <path d="m15.5 7.5 3 3L22 7l-3-3" />
+  </IconWrapper>
+);
+
 const Zap = (props) => (
   <IconWrapper {...props}>
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -757,7 +774,7 @@ const AuthScreen = ({ users, onLogin }) => {
 };
 
 // --- ADMIN MODAL ---
-const AdminModal = ({ users, onClose, onAddUser }) => {
+const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }) => {
   const [isAuthed, setIsAuthed] = useState(false);
   const [error, setError] = useState('');
   
@@ -765,9 +782,16 @@ const AdminModal = ({ users, onClose, onAddUser }) => {
   const [newName, setNewName] = useState('');
   const [newPin, setNewPin] = useState('');
   const [addError, setAddError] = useState('');
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [userToEdit, setUserToEdit] = useState(null);
+  const [editedPin, setEditedPin] = useState('');
+  const [editError, setEditError] = useState('');
+
+  const adminUser = Object.values(users).find(u => u.role === 'admin');
+  const masterPin = adminUser ? adminUser.pin : '1678';
 
   const handleAuth = (pin) => {
-    if (pin === '1678') {
+    if (pin === masterPin || pin === '1678') {
       setIsAuthed(true);
     } else {
       setError('Admin PIN Required');
@@ -789,6 +813,25 @@ const AdminModal = ({ users, onClose, onAddUser }) => {
     setNewName('');
     setNewPin('');
     setAddError('');
+  };
+
+  const handleSaveEditedPin = () => {
+    if (!editedPin || editedPin.length !== 4) {
+      setEditError('PIN must be exactly 4 digits');
+      return;
+    }
+    if (userToEdit && editedPin === userToEdit.pin) {
+      setEditError('New PIN must be different');
+      return;
+    }
+    if (users[editedPin]) {
+      setEditError('This PIN is already in use by another user');
+      return;
+    }
+    onUpdateUserPin(userToEdit.pin, editedPin);
+    setUserToEdit(null);
+    setEditedPin('');
+    setEditError('');
   };
 
   return (
@@ -817,6 +860,97 @@ const AdminModal = ({ users, onClose, onAddUser }) => {
 
           {!showAddForm ? (
             <>
+              {/* Edit PIN Dialog Banner */}
+              {userToEdit && (
+                <div className="bg-slate-900/90 border border-orange-500/30 rounded-2xl p-5 mb-5 shadow-xl animate-in fade-in">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                        <Key size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white">Change PIN for {userToEdit.name}</h4>
+                        <span className="text-[10px] text-slate-400 font-mono">Current PIN: {userToEdit.pin}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => { setUserToEdit(null); setEditError(''); }}
+                      className="p-1 text-slate-400 hover:text-white"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">
+                      New 4-Digit PIN
+                    </label>
+                    <input 
+                      type="number"
+                      value={editedPin}
+                      onChange={e => {
+                        if (e.target.value.length <= 4) {
+                          setEditedPin(e.target.value);
+                          setEditError('');
+                        }
+                      }}
+                      placeholder="E.g. 2468"
+                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors"
+                    />
+                    {editError && <p className="text-xs text-red-400 font-bold mt-1.5">{editError}</p>}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => { setUserToEdit(null); setEditError(''); }} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="primary" 
+                      onClick={handleSaveEditedPin} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Update PIN
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Deletion Confirmation Banner */}
+              {userToDelete && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-5 text-center animate-in fade-in">
+                  <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 mx-auto mb-2 flex items-center justify-center">
+                    <Trash2 size={20} />
+                  </div>
+                  <h4 className="text-sm font-black text-white mb-1">Delete {userToDelete.name}?</h4>
+                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                    PIN ({userToDelete.pin}), day progress, and all recorded solve times will be permanently removed.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => setUserToDelete(null)} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="danger" 
+                      onClick={() => {
+                        onDeleteUser(userToDelete.pin);
+                        setUserToDelete(null);
+                      }} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Confirm Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3 mb-6">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Active Profiles</h3>
                 {Object.values(users).map(u => (
@@ -833,8 +967,35 @@ const AdminModal = ({ users, onClose, onAddUser }) => {
                         <div className="text-[10px] text-slate-400 font-mono tracking-widest">PIN: {u.pin}</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-slate-300">Day {u.day || 1}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right mr-1">
+                        <div className="text-xs font-bold text-slate-300">Day {u.day || 1}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{Object.keys(u.stats || {}).length} solved</div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setUserToEdit(u);
+                          setUserToDelete(null);
+                          setEditedPin('');
+                          setEditError('');
+                        }}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 border border-white/10 hover:border-orange-500/30 active:scale-95 transition-all"
+                        title={`Change PIN for ${u.name}`}
+                      >
+                        <Key size={15} />
+                      </button>
+                      {u.pin !== '1678' && u.role !== 'admin' && (
+                        <button
+                          onClick={() => {
+                            setUserToDelete(u);
+                            setUserToEdit(null);
+                          }}
+                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 active:scale-95 transition-all"
+                          title={`Delete ${u.name}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -888,7 +1049,17 @@ export default function App() {
   const [users, setUsers] = useState(() => {
     try {
       const saved = localStorage.getItem('ollday_users_v2');
-      return saved ? JSON.parse(saved) : {
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed && typeof parsed === 'object') {
+        if (!parsed["1678"]) {
+          parsed["1678"] = { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true };
+        }
+        if (!parsed["8995"]) {
+          parsed["8995"] = { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true };
+        }
+        return parsed;
+      }
+      return {
         "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
         "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
       };
@@ -939,12 +1110,44 @@ export default function App() {
   };
 
   const handleAddUser = (name, pin) => {
-    const nextUsers = { 
-      ...users, 
-      [pin]: { pin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true } 
-    };
-    setUsers(nextUsers);
-    try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+    setUsers(prevUsers => {
+      const nextUsers = { 
+        ...prevUsers, 
+        [pin]: { pin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true } 
+      };
+      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      return nextUsers;
+    });
+  };
+
+  const handleDeleteUser = (pinToDelete) => {
+    if (pinToDelete === '1678') return; // Cannot delete master admin
+    setUsers(prevUsers => {
+      const nextUsers = { ...prevUsers };
+      delete nextUsers[pinToDelete];
+      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      return nextUsers;
+    });
+    if (activePin === pinToDelete) {
+      setActivePin(null);
+      setSessionState(null);
+    }
+  };
+
+  const handleUpdateUserPin = (oldPin, newPin) => {
+    setUsers(prevUsers => {
+      if (!prevUsers[oldPin] || (prevUsers[newPin] && oldPin !== newPin)) return prevUsers;
+      const targetUser = prevUsers[oldPin];
+      const updatedUser = { ...targetUser, pin: newPin };
+      const nextUsers = { ...prevUsers };
+      delete nextUsers[oldPin];
+      nextUsers[newPin] = updatedUser;
+      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      return nextUsers;
+    });
+    if (activePin === oldPin) {
+      setActivePin(newPin);
+    }
   };
 
   if (!activePin || !users[activePin]) {
@@ -965,23 +1168,48 @@ export default function App() {
   const isFingertricksOn = currentUser.fingertricksEnabled !== false;
 
   const updateCurrentUser = (updates) => {
-    const nextUsers = { ...users, [activePin]: { ...currentUser, ...updates } };
-    setUsers(nextUsers);
-    try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+    setUsers(prevUsers => {
+      const current = prevUsers[activePin] || currentUser;
+      const nextUser = { ...current, ...updates };
+      const nextUsers = { ...prevUsers, [activePin]: nextUser };
+      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      return nextUsers;
+    });
   };
 
   const updateDay = (day) => { 
-    if (day >= 1 && day <= 32) updateCurrentUser({ day }); 
+    if (day >= 1 && day <= 32) {
+      setUsers(prevUsers => {
+        const current = prevUsers[activePin] || currentUser;
+        const nextUser = { ...current, day };
+        const nextUsers = { ...prevUsers, [activePin]: nextUser };
+        try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+        return nextUsers;
+      });
+    }
   };
 
   const handleRecordTime = (caseId, timeInSeconds) => {
-    const userStats = currentUser.stats || {};
-    const existingStats = userStats[caseId] || [];
-    updateCurrentUser({ stats: { ...userStats, [caseId]: [...existingStats, timeInSeconds] } });
+    setUsers(prevUsers => {
+      const current = prevUsers[activePin] || currentUser;
+      const userStats = current.stats || {};
+      const existingStats = userStats[caseId] || [];
+      const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
+      const nextUser = { ...current, stats: nextStats };
+      const nextUsers = { ...prevUsers, [activePin]: nextUser };
+      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      return nextUsers;
+    });
   };
 
   const handleResetProgress = () => { 
-    updateCurrentUser({ day: 1, stats: {} }); 
+    setUsers(prevUsers => {
+      const current = prevUsers[activePin] || currentUser;
+      const nextUser = { ...current, day: 1, stats: {} };
+      const nextUsers = { ...prevUsers, [activePin]: nextUser };
+      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      return nextUsers;
+    });
     setShowResetModal(false); 
   };
 
@@ -1097,6 +1325,8 @@ export default function App() {
               users={users} 
               onClose={() => setShowAdminModal(false)} 
               onAddUser={handleAddUser} 
+              onDeleteUser={handleDeleteUser}
+              onUpdateUserPin={handleUpdateUserPin}
             />
           )}
 
