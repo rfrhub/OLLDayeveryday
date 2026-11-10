@@ -1334,7 +1334,6 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          // Safety guard: ensure the master admin profile is always preserved so the owner is never locked out
           const hasAdmin = Object.values(parsed).some(u => u.role === 'admin' || String(u.pin) === '1678');
           if (!hasAdmin) {
             parsed["1678"] = defaultUsers["1678"];
@@ -1343,7 +1342,6 @@ export default function App() {
           return parsed;
         }
       }
-      // First-time launch on this device: seed default accounts into localStorage
       localStorage.setItem('ollday_users_v2', JSON.stringify(defaultUsers));
       return defaultUsers;
     } catch (e) {
@@ -1424,20 +1422,19 @@ export default function App() {
 
   const handleAddUser = (name, pin) => {
     const cleanPin = String(pin).trim();
+    const newUser = { 
+      pin: cleanPin, 
+      name: name.trim(), 
+      role: "user", 
+      day: 1, 
+      stats: {}, 
+      targetGoal: 3.5, 
+      timerEnabled: true, 
+      fingertricksEnabled: true 
+    };
+
     setUsers(prevUsers => {
-      const nextUsers = { 
-        ...prevUsers, 
-        [cleanPin]: { 
-          pin: cleanPin, 
-          name: name.trim(), 
-          role: "user", 
-          day: 1, 
-          stats: {}, 
-          targetGoal: 3.5, 
-          timerEnabled: true, 
-          fingertricksEnabled: true 
-        } 
-      };
+      const nextUsers = { ...prevUsers, [cleanPin]: newUser };
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
@@ -1451,7 +1448,6 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers };
       delete nextUsers[clean];
-      // Clean up any stray entries matching this PIN
       Object.keys(nextUsers).forEach(key => {
         if (String(nextUsers[key]?.pin).trim() === clean) {
           delete nextUsers[key];
@@ -1462,6 +1458,7 @@ export default function App() {
       } catch (e) {}
       return nextUsers;
     });
+
     if (activePin === clean) {
       setActivePin(null);
       setSessionState(null);
@@ -1471,6 +1468,8 @@ export default function App() {
   const handleUpdateUserPin = (oldPin, newPin) => {
     const cleanOld = String(oldPin).trim();
     const cleanNew = String(newPin).trim();
+    let updatedProfile = null;
+
     setUsers(prevUsers => {
       const targetKey = Object.keys(prevUsers).find(k => 
         String(k).trim() === cleanOld || String(prevUsers[k]?.pin).trim() === cleanOld
@@ -1481,11 +1480,11 @@ export default function App() {
       }
 
       const targetUser = prevUsers[targetKey];
-      const updatedUser = { ...targetUser, pin: cleanNew };
+      updatedProfile = { ...targetUser, pin: cleanNew };
       const nextUsers = { ...prevUsers };
       delete nextUsers[targetKey];
       delete nextUsers[cleanOld];
-      nextUsers[cleanNew] = updatedUser;
+      nextUsers[cleanNew] = updatedProfile;
 
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
@@ -1531,12 +1530,13 @@ export default function App() {
   const isFingertricksOn = currentUser ? currentUser.fingertricksEnabled !== false : true;
 
   const updateCurrentUser = (updates) => {
+    const targetKey = Object.keys(users).find(k => 
+      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
+    ) || activePin;
+    const current = users[targetKey] || currentUser || {};
+    const nextUser = { ...current, ...updates };
+
     setUsers(prevUsers => {
-      const targetKey = Object.keys(prevUsers).find(k => 
-        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
-      ) || activePin;
-      const current = prevUsers[targetKey] || currentUser || {};
-      const nextUser = { ...current, ...updates };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
@@ -1545,12 +1545,13 @@ export default function App() {
 
   const updateDay = (day) => { 
     if (day >= 1 && day <= 32) {
+      const targetKey = Object.keys(users).find(k => 
+        String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = users[targetKey] || currentUser || {};
+      const nextUser = { ...current, day };
+
       setUsers(prevUsers => {
-        const targetKey = Object.keys(prevUsers).find(k => 
-          String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
-        ) || activePin;
-        const current = prevUsers[targetKey] || currentUser || {};
-        const nextUser = { ...current, day };
         const nextUsers = { ...prevUsers, [targetKey]: nextUser };
         try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
         return nextUsers;
@@ -1559,15 +1560,16 @@ export default function App() {
   };
 
   const handleRecordTime = (caseId, timeInSeconds) => {
+    const targetKey = Object.keys(users).find(k => 
+      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
+    ) || activePin;
+    const current = users[targetKey] || currentUser || {};
+    const userStats = current.stats || {};
+    const existingStats = userStats[caseId] || [];
+    const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
+    const nextUser = { ...current, stats: nextStats };
+
     setUsers(prevUsers => {
-      const targetKey = Object.keys(prevUsers).find(k => 
-        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
-      ) || activePin;
-      const current = prevUsers[targetKey] || currentUser || {};
-      const userStats = current.stats || {};
-      const existingStats = userStats[caseId] || [];
-      const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
-      const nextUser = { ...current, stats: nextStats };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
@@ -1575,16 +1577,18 @@ export default function App() {
   };
 
   const handleResetProgress = () => { 
+    const targetKey = Object.keys(users).find(k => 
+      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
+    ) || activePin;
+    const current = users[targetKey] || currentUser || {};
+    const nextUser = { ...current, day: 1, stats: {} };
+
     setUsers(prevUsers => {
-      const targetKey = Object.keys(prevUsers).find(k => 
-        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
-      ) || activePin;
-      const current = prevUsers[targetKey] || currentUser || {};
-      const nextUser = { ...current, day: 1, stats: {} };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
+
     setShowResetModal(false); 
   };
 
@@ -1629,7 +1633,13 @@ export default function App() {
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-1">
                 OLLDay <span className="text-orange-500">Everyday</span>
               </h1>
-              <p className="text-[11px] text-slate-400 font-medium">Daily OLL Training</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-slate-400 font-medium">Daily OLL Training</span>
+                <span className="text-slate-600">•</span>
+                <span className="text-[10px] text-orange-400 font-bold">
+                  Day {currentDay}
+                </span>
+              </div>
             </div>
           </div>
           <div className="text-right flex flex-col items-end">
