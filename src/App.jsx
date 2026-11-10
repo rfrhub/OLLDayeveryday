@@ -1,19 +1,8 @@
 import * as _React from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
 
 // Guarantee element compatibility with host ReactDOM (prevents CDN $$typeof mismatch)
 const React = (typeof window !== 'undefined' && window.React) ? window.React : _React;
 const { useState, useEffect, useMemo, useRef } = React;
-
-// --- CLOUD STORAGE INITIALIZATION ---
-const hasFirebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config;
-const firebaseConfig = hasFirebaseConfig ? (typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config) : null;
-const app = firebaseConfig ? initializeApp(firebaseConfig) : null;
-const auth = app ? getAuth(app) : null;
-const db = app ? getFirestore(app) : null;
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 // --- INLINE SVG ICON SYSTEM (RESOLVES CDN REACT VERSION & $$typeof CONFLICTS) ---
 const IconWrapper = ({ size = 20, className = "", strokeWidth = 2, children }) => (
@@ -222,19 +211,6 @@ const ArrowDownToLine = (props) => (
     <path d="M12 17V3" />
     <path d="m6 11 6 6 6-6" />
     <path d="M19 21H5" />
-  </IconWrapper>
-);
-
-const Cloud = (props) => (
-  <IconWrapper {...props}>
-    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-  </IconWrapper>
-);
-
-const CloudCheck = (props) => (
-  <IconWrapper {...props}>
-    <path d="m9 13 2 2 4-4" />
-    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
   </IconWrapper>
 );
 
@@ -857,7 +833,7 @@ const AuthScreen = ({ users, onLogin, onOpenAdmin }) => {
 };
 
 // --- ADMIN MODAL (ROBUST STRING PIN INPUT WITH LEADING ZERO PRESERVATION) ---
-const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin, onImportData, cloudStatus }) => {
+const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin, onImportData }) => {
   const [isAuthed, setIsAuthed] = useState(false);
   const [error, setError] = useState('');
   
@@ -1026,28 +1002,6 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin, 
             <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
               <X size={20} />
             </button>
-          </div>
-
-          {/* Cloud Sync Status Banner */}
-          <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3.5 mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-400 flex items-center justify-center">
-                {cloudStatus === 'synced' ? <CloudCheck size={18} className="text-green-400" /> : <Cloud size={18} />}
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Automatic Cloud Sync</span>
-                <span className="text-xs font-bold text-white">
-                  {cloudStatus === 'synced' ? 'Active & Synchronized ☁️' : 'Local Mode / Connecting...'}
-                </span>
-              </div>
-            </div>
-            <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border ${
-              cloudStatus === 'synced' 
-                ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                : 'bg-white/5 text-slate-400 border-white/10'
-            }`}>
-              {cloudStatus === 'synced' ? 'Live' : 'Standby'}
-            </span>
           </div>
 
           {copyStatus && (
@@ -1380,6 +1334,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          // Safety guard: ensure the master admin profile is always preserved so the owner is never locked out
           const hasAdmin = Object.values(parsed).some(u => u.role === 'admin' || String(u.pin) === '1678');
           if (!hasAdmin) {
             parsed["1678"] = defaultUsers["1678"];
@@ -1388,6 +1343,7 @@ export default function App() {
           return parsed;
         }
       }
+      // First-time launch on this device: seed default accounts into localStorage
       localStorage.setItem('ollday_users_v2', JSON.stringify(defaultUsers));
       return defaultUsers;
     } catch (e) {
@@ -1405,88 +1361,6 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-
-  // Cloud sync authentication & connection state
-  const [fbUser, setFbUser] = useState(null);
-  const [cloudStatus, setCloudStatus] = useState(auth ? 'connecting' : 'local');
-
-  // STEP 1: One-time Cloud Auth Listener
-  useEffect(() => {
-    if (!auth) return;
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.warn("Cloud auth notice:", err);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setFbUser(user);
-      if (user) setCloudStatus('synced');
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // STEP 2: Real-Time Cross-Device Data Sync Listener
-  useEffect(() => {
-    if (!fbUser || !db) return;
-
-    const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
-    const unsubscribe = onSnapshot(profilesCol, (snapshot) => {
-      if (snapshot.empty) {
-        // Seed initial profiles to the cloud if newly initialized
-        const currentLocal = JSON.parse(localStorage.getItem('ollday_users_v2') || '{}');
-        const seedProfiles = Object.keys(currentLocal).length > 0 ? currentLocal : {
-          "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-          "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-          "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-          "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
-        };
-        Object.entries(seedProfiles).forEach(([pin, profile]) => {
-          setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', String(pin).trim()), profile).catch(() => {});
-        });
-        return;
-      }
-
-      const cloudProfiles = {};
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const pinKey = String(docSnap.id).trim();
-        cloudProfiles[pinKey] = { ...data, pin: pinKey };
-      });
-
-      if (Object.keys(cloudProfiles).length > 0) {
-        setUsers(cloudProfiles);
-        try {
-          localStorage.setItem('ollday_users_v2', JSON.stringify(cloudProfiles));
-        } catch (e) {}
-        setCloudStatus('synced');
-      }
-    }, (error) => {
-      console.warn("Cloud sync listener notice:", error);
-      setCloudStatus('error');
-    });
-
-    return () => unsubscribe();
-  }, [fbUser]);
-
-  // Helper functions to sync mutations directly to cloud storage
-  const syncProfileToCloud = (pin, profileData) => {
-    if (!db || !fbUser) return;
-    const clean = String(pin).trim();
-    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', clean), profileData, { merge: true }).catch(() => {});
-  };
-
-  const removeProfileFromCloud = (pin) => {
-    if (!db || !fbUser) return;
-    const clean = String(pin).trim();
-    deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', clean)).catch(() => {});
-  };
 
   // Cross-tab real-time sync listener (updates immediately if another tab changes users)
   useEffect(() => {
@@ -1550,26 +1424,25 @@ export default function App() {
 
   const handleAddUser = (name, pin) => {
     const cleanPin = String(pin).trim();
-    const newUser = { 
-      pin: cleanPin, 
-      name: name.trim(), 
-      role: "user", 
-      day: 1, 
-      stats: {}, 
-      targetGoal: 3.5, 
-      timerEnabled: true, 
-      fingertricksEnabled: true 
-    };
-
     setUsers(prevUsers => {
-      const nextUsers = { ...prevUsers, [cleanPin]: newUser };
+      const nextUsers = { 
+        ...prevUsers, 
+        [cleanPin]: { 
+          pin: cleanPin, 
+          name: name.trim(), 
+          role: "user", 
+          day: 1, 
+          stats: {}, 
+          targetGoal: 3.5, 
+          timerEnabled: true, 
+          fingertricksEnabled: true 
+        } 
+      };
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
       return nextUsers;
     });
-
-    syncProfileToCloud(cleanPin, newUser);
   };
 
   const handleDeleteUser = (pinToDelete) => {
@@ -1578,6 +1451,7 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers };
       delete nextUsers[clean];
+      // Clean up any stray entries matching this PIN
       Object.keys(nextUsers).forEach(key => {
         if (String(nextUsers[key]?.pin).trim() === clean) {
           delete nextUsers[key];
@@ -1588,9 +1462,6 @@ export default function App() {
       } catch (e) {}
       return nextUsers;
     });
-
-    removeProfileFromCloud(clean);
-
     if (activePin === clean) {
       setActivePin(null);
       setSessionState(null);
@@ -1600,8 +1471,6 @@ export default function App() {
   const handleUpdateUserPin = (oldPin, newPin) => {
     const cleanOld = String(oldPin).trim();
     const cleanNew = String(newPin).trim();
-    let updatedProfile = null;
-
     setUsers(prevUsers => {
       const targetKey = Object.keys(prevUsers).find(k => 
         String(k).trim() === cleanOld || String(prevUsers[k]?.pin).trim() === cleanOld
@@ -1612,22 +1481,17 @@ export default function App() {
       }
 
       const targetUser = prevUsers[targetKey];
-      updatedProfile = { ...targetUser, pin: cleanNew };
+      const updatedUser = { ...targetUser, pin: cleanNew };
       const nextUsers = { ...prevUsers };
       delete nextUsers[targetKey];
       delete nextUsers[cleanOld];
-      nextUsers[cleanNew] = updatedProfile;
+      nextUsers[cleanNew] = updatedUser;
 
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
       return nextUsers;
     });
-
-    removeProfileFromCloud(cleanOld);
-    if (updatedProfile) {
-      syncProfileToCloud(cleanNew, updatedProfile);
-    }
 
     if (activePin === cleanOld) {
       setActivePin(cleanNew);
@@ -1640,10 +1504,6 @@ export default function App() {
     try {
       localStorage.setItem('ollday_users_v2', JSON.stringify(importedUsers));
     } catch (e) {}
-    // Sync all imported profiles to cloud
-    Object.entries(importedUsers).forEach(([pin, profile]) => {
-      syncProfileToCloud(pin, profile);
-    });
   };
 
   if (!activePin || !users[activePin]) {
@@ -1662,7 +1522,6 @@ export default function App() {
             onDeleteUser={handleDeleteUser}
             onUpdateUserPin={handleUpdateUserPin}
             onImportData={handleImportData}
-            cloudStatus={cloudStatus}
           />
         )}
       </>
@@ -1672,72 +1531,60 @@ export default function App() {
   const isFingertricksOn = currentUser ? currentUser.fingertricksEnabled !== false : true;
 
   const updateCurrentUser = (updates) => {
-    const targetKey = Object.keys(users).find(k => 
-      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-    ) || activePin;
-    const current = users[targetKey] || currentUser || {};
-    const nextUser = { ...current, ...updates };
-
     setUsers(prevUsers => {
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = prevUsers[targetKey] || currentUser || {};
+      const nextUser = { ...current, ...updates };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
-
-    syncProfileToCloud(targetKey, nextUser);
   };
 
   const updateDay = (day) => { 
     if (day >= 1 && day <= 32) {
-      const targetKey = Object.keys(users).find(k => 
-        String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-      ) || activePin;
-      const current = users[targetKey] || currentUser || {};
-      const nextUser = { ...current, day };
-
       setUsers(prevUsers => {
+        const targetKey = Object.keys(prevUsers).find(k => 
+          String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+        ) || activePin;
+        const current = prevUsers[targetKey] || currentUser || {};
+        const nextUser = { ...current, day };
         const nextUsers = { ...prevUsers, [targetKey]: nextUser };
         try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
         return nextUsers;
       });
-
-      syncProfileToCloud(targetKey, nextUser);
     }
   };
 
   const handleRecordTime = (caseId, timeInSeconds) => {
-    const targetKey = Object.keys(users).find(k => 
-      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-    ) || activePin;
-    const current = users[targetKey] || currentUser || {};
-    const userStats = current.stats || {};
-    const existingStats = userStats[caseId] || [];
-    const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
-    const nextUser = { ...current, stats: nextStats };
-
     setUsers(prevUsers => {
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = prevUsers[targetKey] || currentUser || {};
+      const userStats = current.stats || {};
+      const existingStats = userStats[caseId] || [];
+      const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
+      const nextUser = { ...current, stats: nextStats };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
-
-    syncProfileToCloud(targetKey, nextUser);
   };
 
   const handleResetProgress = () => { 
-    const targetKey = Object.keys(users).find(k => 
-      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-    ) || activePin;
-    const current = users[targetKey] || currentUser || {};
-    const nextUser = { ...current, day: 1, stats: {} };
-
     setUsers(prevUsers => {
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = prevUsers[targetKey] || currentUser || {};
+      const nextUser = { ...current, day: 1, stats: {} };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
-
-    syncProfileToCloud(targetKey, nextUser);
     setShowResetModal(false); 
   };
 
@@ -1782,13 +1629,7 @@ export default function App() {
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-1">
                 OLLDay <span className="text-orange-500">Everyday</span>
               </h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-slate-400 font-medium">Daily OLL Training</span>
-                <span className="text-slate-600">•</span>
-                <span className="inline-flex items-center gap-1 text-[10px] text-green-400 font-bold">
-                  <CloudCheck size={11} /> Cloud
-                </span>
-              </div>
+              <p className="text-[11px] text-slate-400 font-medium">Daily OLL Training</p>
             </div>
           </div>
           <div className="text-right flex flex-col items-end">
@@ -1903,7 +1744,6 @@ export default function App() {
               onDeleteUser={handleDeleteUser}
               onUpdateUserPin={handleUpdateUserPin}
               onImportData={handleImportData}
-              cloudStatus={cloudStatus}
             />
           )}
 
