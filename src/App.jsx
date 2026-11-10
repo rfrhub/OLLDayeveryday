@@ -669,7 +669,7 @@ const Button = ({ children, variant = 'primary', onClick, className = '', disabl
   );
 };
 
-// --- PIN PAD COMPONENT ---
+// --- PIN PAD COMPONENT (NOW WITH FULL PHYSICAL KEYBOARD SUPPORT FOR WEB BROWSERS) ---
 const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, clearOnComplete = true }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(errorMsg || '');
@@ -679,19 +679,34 @@ const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, cle
   const handlePress = (num) => {
     setError('');
     if (pin.length < 4) {
-      const newPin = pin + num;
-      setPin(newPin);
-      if (newPin.length === 4) {
-        onComplete(newPin);
+      const nextPin = pin + num;
+      setPin(nextPin);
+      if (nextPin.length === 4) {
+        onComplete(nextPin);
         if (clearOnComplete) setTimeout(() => setPin(''), 300);
       }
     }
   };
 
-  const handleDelete = () => setPin(pin.slice(0, -1));
+  const handleDelete = () => setPin(prev => prev.slice(0, -1));
+
+  // Enable physical keyboard entry on web browsers (desktop/laptop)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        handlePress(e.key);
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        handleDelete();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pin]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto animate-in fade-in">
+    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto animate-in fade-in select-none">
       {!hideClose && (
         <button onClick={onClose} className="absolute top-6 left-6 p-2 bg-white/5 rounded-full text-slate-400">
           <X size={20} />
@@ -702,40 +717,43 @@ const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, cle
         <Lock size={32} />
       </div>
       
-      <h2 className="text-2xl font-black text-white mb-2">{title}</h2>
-      <p className="text-sm text-slate-400 mb-8 text-center">{subtitle}</p>
+      <h2 className="text-2xl font-black text-white mb-1 text-center">{title}</h2>
+      <p className="text-xs text-slate-400 mb-6 text-center max-w-[260px] leading-relaxed">{subtitle}</p>
 
-      <div className="flex gap-4 mb-8">
+      <div className="flex gap-4 mb-6">
         {[0, 1, 2, 3].map(i => (
           <div key={i} className={`w-4 h-4 rounded-full transition-all duration-200 border-2 ${
             pin.length > i 
-              ? (error ? 'bg-red-500 border-red-500' : 'bg-orange-500 border-orange-500')
+              ? (error ? 'bg-red-500 border-red-500' : 'bg-orange-500 border-orange-500 scale-110')
               : 'bg-transparent border-white/20'
           }`} />
         ))}
       </div>
-      {error && <p className="text-red-400 text-xs font-bold mb-4 -mt-4 uppercase tracking-widest">{error}</p>}
+      {error && <p className="text-red-400 text-xs font-bold mb-4 -mt-2 uppercase tracking-widest text-center">{error}</p>}
 
-      <div className="grid grid-cols-3 gap-4 w-full">
+      <div className="grid grid-cols-3 gap-3 w-full">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
           <button 
             key={num} 
+            type="button"
             onClick={() => handlePress(num.toString())}
-            className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5"
+            className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
           >
             {num}
           </button>
         ))}
         <div />
         <button 
+          type="button"
           onClick={() => handlePress('0')}
-          className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5"
+          className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
         >
           0
         </button>
         <button 
+          type="button"
           onClick={handleDelete}
-          className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-xl font-semibold text-slate-400 flex items-center justify-center border border-white/5"
+          className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-xl font-semibold text-slate-400 flex items-center justify-center border border-white/5 cursor-pointer"
         >
           <BackspaceIcon className="w-6 h-6" />
         </button>
@@ -744,26 +762,43 @@ const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, cle
   );
 };
 
-// --- AUTHENTICATION SCREEN ---
-const AuthScreen = ({ users, onLogin }) => {
+// --- AUTHENTICATION SCREEN (CLEAN KEYPAD ONLY) ---
+const AuthScreen = ({ users, onLogin, onOpenAdmin }) => {
   const [error, setError] = useState('');
 
   const handleLogin = (enteredPin) => {
-    if (users[enteredPin]) {
-      onLogin(enteredPin);
+    const cleanPin = String(enteredPin).trim();
+    // Match either by dictionary key or by user.pin attribute
+    const matched = users[cleanPin] || Object.values(users).find(u => String(u.pin).trim() === cleanPin);
+    if (matched) {
+      onLogin(matched.pin);
     } else {
       setError('Invalid PIN');
-      setTimeout(() => setError(''), 1000);
+      setTimeout(() => setError(''), 1200);
     }
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden overscroll-none touch-none p-6">
+    <div className="fixed inset-0 w-full h-full bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden p-6 select-none touch-none overscroll-none">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="z-10 w-full">
+      
+      {/* Discreet Admin Access button in top-right corner */}
+      {onOpenAdmin && (
+        <button
+          type="button"
+          onClick={onOpenAdmin}
+          className="absolute top-5 right-5 p-2.5 rounded-full text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
+          title="Admin Panel"
+        >
+          <ShieldAlert size={18} />
+        </button>
+      )}
+
+      {/* Pure, Uncluttered Keypad */}
+      <div className="z-10 w-full max-w-xs flex flex-col items-center">
         <PinPad 
           title="Welcome Back" 
-          subtitle="Enter your 4-digit PIN to access your training profile."
+          subtitle="Enter your 4-digit PIN"
           onComplete={handleLogin}
           errorMsg={error}
           hideClose
@@ -773,7 +808,7 @@ const AuthScreen = ({ users, onLogin }) => {
   );
 };
 
-// --- ADMIN MODAL ---
+// --- ADMIN MODAL (ROBUST STRING PIN INPUT WITH LEADING ZERO PRESERVATION) ---
 const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }) => {
   const [isAuthed, setIsAuthed] = useState(false);
   const [error, setError] = useState('');
@@ -788,10 +823,11 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
   const [editError, setEditError] = useState('');
 
   const adminUser = Object.values(users).find(u => u.role === 'admin');
-  const masterPin = adminUser ? adminUser.pin : '1678';
+  const masterPin = adminUser ? String(adminUser.pin).trim() : '1678';
 
   const handleAuth = (pin) => {
-    if (pin === masterPin || pin === '1678') {
+    const clean = String(pin).trim();
+    if (clean === masterPin || clean === '1678') {
       setIsAuthed(true);
     } else {
       setError('Admin PIN Required');
@@ -800,15 +836,18 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
   };
 
   const handleCreateUser = () => {
-    if (!newName.trim() || newPin.length !== 4) {
-      setAddError('Enter a valid name and 4-digit PIN');
+    const cleanName = newName.trim();
+    const cleanPin = String(newPin).replace(/\D/g, '').trim();
+
+    if (!cleanName || cleanPin.length !== 4) {
+      setAddError('Enter a valid name and exactly 4 numeric digits');
       return;
     }
-    if (users[newPin]) {
-      setAddError('PIN already exists!');
+    if (users[cleanPin] || Object.values(users).some(u => String(u.pin).trim() === cleanPin)) {
+      setAddError('PIN already exists! Choose a unique 4-digit PIN');
       return;
     }
-    onAddUser(newName.trim(), newPin);
+    onAddUser(cleanName, cleanPin);
     setShowAddForm(false);
     setNewName('');
     setNewPin('');
@@ -816,19 +855,20 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
   };
 
   const handleSaveEditedPin = () => {
-    if (!editedPin || editedPin.length !== 4) {
-      setEditError('PIN must be exactly 4 digits');
+    const clean = String(editedPin).replace(/\D/g, '').trim();
+    if (clean.length !== 4) {
+      setEditError('PIN must be exactly 4 numeric digits');
       return;
     }
-    if (userToEdit && editedPin === userToEdit.pin) {
+    if (userToEdit && clean === String(userToEdit.pin).trim()) {
       setEditError('New PIN must be different');
       return;
     }
-    if (users[editedPin]) {
+    if (users[clean] || Object.values(users).some(u => String(u.pin).trim() === clean)) {
       setEditError('This PIN is already in use by another user');
       return;
     }
-    onUpdateUserPin(userToEdit.pin, editedPin);
+    onUpdateUserPin(userToEdit.pin, clean);
     setUserToEdit(null);
     setEditedPin('');
     setEditError('');
@@ -848,12 +888,12 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
         </div>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-8 w-full max-w-sm mx-auto pt-8">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-6">
             <div>
               <h2 className="text-2xl font-black text-white">Admin Panel</h2>
-              <p className="text-xs text-slate-400">Manage profiles & access</p>
+              <p className="text-xs text-slate-400">Manage profiles, PINs & access</p>
             </div>
-            <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400">
+            <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
               <X size={20} />
             </button>
           </div>
@@ -875,7 +915,7 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                     </div>
                     <button 
                       onClick={() => { setUserToEdit(null); setEditError(''); }}
-                      className="p-1 text-slate-400 hover:text-white"
+                      className="p-1 text-slate-400 hover:text-white cursor-pointer"
                     >
                       <X size={16} />
                     </button>
@@ -886,13 +926,15 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                       New 4-Digit PIN
                     </label>
                     <input 
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
                       value={editedPin}
                       onChange={e => {
-                        if (e.target.value.length <= 4) {
-                          setEditedPin(e.target.value);
-                          setEditError('');
-                        }
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setEditedPin(digits);
+                        setEditError('');
                       }}
                       placeholder="E.g. 2468"
                       className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors"
@@ -952,7 +994,7 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
               )}
 
               <div className="space-y-3 mb-6">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Active Profiles</h3>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Active Profiles ({Object.keys(users).length})</h3>
                 {Object.values(users).map(u => (
                   <div key={u.pin} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -964,7 +1006,7 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                           {u.name}
                           {u.role === 'admin' && <ShieldAlert size={14} className="text-amber-500" />}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono tracking-widest">PIN: {u.pin}</div>
+                        <div className="text-[11px] text-orange-400/90 font-mono tracking-widest font-bold">PIN: {u.pin}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -973,24 +1015,26 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                         <div className="text-[10px] text-slate-500 font-mono">{Object.keys(u.stats || {}).length} solved</div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
                           setUserToEdit(u);
                           setUserToDelete(null);
                           setEditedPin('');
                           setEditError('');
                         }}
-                        className="p-2 rounded-xl bg-white/5 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 border border-white/10 hover:border-orange-500/30 active:scale-95 transition-all"
+                        className="p-2 rounded-xl bg-white/5 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 border border-white/10 hover:border-orange-500/30 active:scale-95 transition-all cursor-pointer"
                         title={`Change PIN for ${u.name}`}
                       >
                         <Key size={15} />
                       </button>
                       {u.pin !== '1678' && u.role !== 'admin' && (
                         <button
+                          type="button"
                           onClick={() => {
                             setUserToDelete(u);
                             setUserToEdit(null);
                           }}
-                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 active:scale-95 transition-all"
+                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 active:scale-95 transition-all cursor-pointer"
                           title={`Delete ${u.name}`}
                         >
                           <Trash2 size={15} />
@@ -1016,17 +1060,24 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                     type="text" 
                     value={newName} 
                     onChange={e => setNewName(e.target.value)} 
-                    placeholder="E.g. Alex" 
+                    placeholder="E.g. Ephraim or Victor" 
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors" 
                   />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">4-Digit PIN</label>
                   <input 
-                    type="number" 
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
                     value={newPin} 
-                    onChange={e => { if(e.target.value.length <= 4) setNewPin(e.target.value); }} 
-                    placeholder="E.g. 5555" 
+                    onChange={e => { 
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setNewPin(digits); 
+                      setAddError('');
+                    }} 
+                    placeholder="E.g. 1234" 
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors" 
                   />
                 </div>
@@ -1048,25 +1099,25 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
 export default function App() {
   const [users, setUsers] = useState(() => {
     try {
-      const saved = localStorage.getItem('ollday_users_v2');
+      const saved = localStorage.getItem('ollday_users_v2') || localStorage.getItem('ollday_users');
       const parsed = saved ? JSON.parse(saved) : null;
-      if (parsed && typeof parsed === 'object') {
-        if (!parsed["1678"]) {
-          parsed["1678"] = { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true };
-        }
-        if (!parsed["8995"]) {
-          parsed["8995"] = { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true };
-        }
-        return parsed;
-      }
-      return {
+      const base = {
         "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
+        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+        "2468": { pin: "2468", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+        "1357": { pin: "1357", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
       };
+
+      if (parsed && typeof parsed === 'object') {
+        return { ...base, ...parsed };
+      }
+      return base;
     } catch (e) {
       return {
         "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
+        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+        "2468": { pin: "2468", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+        "1357": { pin: "1357", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
       };
     }
   });
@@ -1081,26 +1132,29 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
 
-  // Prevent rubber-banding / browser window dragging on mobile devices
+  // Enforce dark canvas styling globally across document root
   useEffect(() => {
+    document.documentElement.style.backgroundColor = '#060913';
+    document.documentElement.style.overflow = 'hidden';
     document.documentElement.style.overscrollBehavior = 'none';
-    document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.position = 'fixed';
+    document.documentElement.style.width = '100%';
+    document.documentElement.style.height = '100%';
+
+    document.body.style.backgroundColor = '#060913';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
     document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
     document.body.style.height = '100%';
-    return () => {
-      document.documentElement.style.overscrollBehavior = '';
-      document.body.style.overscrollBehavior = '';
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
-    };
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.userSelect = 'none';
   }, []);
 
   const handleLogin = (pin) => { 
-    setActivePin(pin); 
+    setActivePin(String(pin).trim()); 
   };
 
   const handleLogout = () => {
@@ -1110,48 +1164,75 @@ export default function App() {
   };
 
   const handleAddUser = (name, pin) => {
+    const cleanPin = String(pin).trim();
     setUsers(prevUsers => {
       const nextUsers = { 
         ...prevUsers, 
-        [pin]: { pin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true } 
+        [cleanPin]: { pin: cleanPin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true } 
       };
-      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      try { 
+        localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
+      } catch (e) {}
       return nextUsers;
     });
   };
 
   const handleDeleteUser = (pinToDelete) => {
-    if (pinToDelete === '1678') return; // Cannot delete master admin
+    const clean = String(pinToDelete).trim();
+    if (clean === '1678') return; // Master admin protected
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers };
-      delete nextUsers[pinToDelete];
-      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      delete nextUsers[clean];
+      try { 
+        localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
+      } catch (e) {}
       return nextUsers;
     });
-    if (activePin === pinToDelete) {
+    if (activePin === clean) {
       setActivePin(null);
       setSessionState(null);
     }
   };
 
   const handleUpdateUserPin = (oldPin, newPin) => {
+    const cleanOld = String(oldPin).trim();
+    const cleanNew = String(newPin).trim();
     setUsers(prevUsers => {
-      if (!prevUsers[oldPin] || (prevUsers[newPin] && oldPin !== newPin)) return prevUsers;
-      const targetUser = prevUsers[oldPin];
-      const updatedUser = { ...targetUser, pin: newPin };
+      if (!prevUsers[cleanOld] || (prevUsers[cleanNew] && cleanOld !== cleanNew)) return prevUsers;
+      const targetUser = prevUsers[cleanOld];
+      const updatedUser = { ...targetUser, pin: cleanNew };
       const nextUsers = { ...prevUsers };
-      delete nextUsers[oldPin];
-      nextUsers[newPin] = updatedUser;
-      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
+      delete nextUsers[cleanOld];
+      nextUsers[cleanNew] = updatedUser;
+      try { 
+        localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
+      } catch (e) {}
       return nextUsers;
     });
-    if (activePin === oldPin) {
-      setActivePin(newPin);
+    if (activePin === cleanOld) {
+      setActivePin(cleanNew);
     }
   };
 
   if (!activePin || !users[activePin]) {
-    return <AuthScreen users={users} onLogin={handleLogin} />;
+    return (
+      <>
+        <AuthScreen 
+          users={users} 
+          onLogin={handleLogin} 
+          onOpenAdmin={() => setShowAdminModal(true)} 
+        />
+        {showAdminModal && (
+          <AdminModal 
+            users={users} 
+            onClose={() => setShowAdminModal(false)} 
+            onAddUser={handleAddUser} 
+            onDeleteUser={handleDeleteUser}
+            onUpdateUserPin={handleUpdateUserPin}
+          />
+        )}
+      </>
+    );
   }
 
   const currentUser = users[activePin] || {
@@ -1218,12 +1299,36 @@ export default function App() {
   const todaysAlgs = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk));
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden overscroll-none flex justify-center touch-none">
+    <div className="fixed inset-0 w-full h-full bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden overscroll-none touch-none flex justify-center select-none">
+      {/* Permanent Global CSS Shield: Ensures neither login nor main views ever bounce or show browser canvas */}
+      <style>{`
+        html, body, #root {
+          background-color: #060913 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden !important;
+          overscroll-behavior: none !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          color-scheme: dark !important;
+          -webkit-user-select: none !important;
+          user-select: none !important;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none !important; }
+        .no-scrollbar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+      `}</style>
+
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[45vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
       <div className="fixed bottom-0 right-0 w-3/4 h-[40vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
 
-      <div className="w-full max-w-md h-full flex flex-col relative z-10 shadow-2xl bg-[#090e1c]/70 backdrop-blur-3xl border-x border-white/5 overflow-hidden">
-        <header className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/40 backdrop-blur-md select-none flex-shrink-0">
+      {/* Main Container - Structured as a Pure Flex Column so Header & Nav are permanently visible */}
+      <div className="w-full max-w-md h-full flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden overscroll-none">
+        
+        {/* Fixed Header (Touch & Overscroll Locked) */}
+        <header className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/40 backdrop-blur-md select-none flex-shrink-0 touch-none overscroll-none">
           <div className="flex items-center gap-3">
             <SuneCubeLogo className="w-10 h-10" />
             <div>
@@ -1242,7 +1347,8 @@ export default function App() {
           </div>
         </header>
 
-        <main className={`flex-1 relative no-scrollbar ${activeTab === 'settings' ? 'overflow-hidden touch-none' : 'overflow-y-auto overscroll-contain touch-pan-y'}`}>
+        {/* Scrollable Viewport (Overscroll locked to prevent dragging the app shell) */}
+        <main className={`flex-1 min-h-0 relative no-scrollbar ${activeTab === 'settings' ? 'overflow-hidden touch-none overscroll-none' : 'overflow-y-auto overscroll-none touch-pan-y'}`}>
           {!sessionState && activeTab === 'grind' && (
             <GrindView 
               currentDay={currentDay} 
@@ -1353,8 +1459,9 @@ export default function App() {
           )}
         </main>
 
+        {/* Bottom Navigation Tabs - Direct Flex-Shrink-0 Child (Always visible & locked against dragging) */}
         {!sessionState && !drillCase && (
-          <nav className="absolute bottom-0 left-0 w-full bg-[#090e1c]/90 backdrop-blur-3xl border-t border-white/10 pb-7 pt-2.5 px-4 z-40 rounded-t-[2.5rem] select-none flex-shrink-0">
+          <nav className="flex-shrink-0 z-40 w-full bg-[#090e1c] border-t border-white/10 pb-5 pt-2 px-4 select-none shadow-2xl touch-none overscroll-none">
             <div className="flex justify-around items-center max-w-sm mx-auto">
               <TabIcon icon={Target} label="The Grind" active={activeTab === 'grind'} onClick={() => setActiveTab('grind')} />
               <TabIcon icon={Layers} label="Algorithms" active={activeTab === 'algorithms'} onClick={() => setActiveTab('algorithms')} />
@@ -1371,7 +1478,7 @@ export default function App() {
 const TabIcon = ({ icon: Icon, label, active, onClick }) => (
   <button 
     onClick={onClick} 
-    className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all ${
+    className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all touch-none select-none ${
       active ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'
     }`}
   >
