@@ -693,6 +693,11 @@ const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, cle
   // Enable physical keyboard entry on web browsers (desktop/laptop)
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Never intercept keystrokes if user is typing inside an input or textarea (e.g. in AdminModal)
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+        return;
+      }
       if (e.key >= '0' && e.key <= '9') {
         e.preventDefault();
         handlePress(e.key);
@@ -864,7 +869,11 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
       setEditError('New PIN must be different');
       return;
     }
-    if (users[clean] || Object.values(users).some(u => String(u.pin).trim() === clean)) {
+    // Check if another user already has this PIN
+    const isTaken = Object.values(users).some(u => 
+      u && u.pin && String(u.pin).trim() === clean && String(u.pin).trim() !== String(userToEdit?.pin).trim()
+    );
+    if (isTaken) {
       setEditError('This PIN is already in use by another user');
       return;
     }
@@ -931,12 +940,19 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                       pattern="[0-9]*"
                       maxLength={4}
                       value={editedPin}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveEditedPin();
+                        }
+                      }}
                       onChange={e => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
                         setEditedPin(digits);
                         setEditError('');
                       }}
-                      placeholder="E.g. 2468"
+                      placeholder="E.g. 0713"
                       className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors"
                     />
                     {editError && <p className="text-xs text-red-400 font-bold mt-1.5">{editError}</p>}
@@ -1098,27 +1114,72 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
 // --- APP ROOT COMPONENT ---
 export default function App() {
   const [users, setUsers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ollday_users_v2') || localStorage.getItem('ollday_users');
-      const parsed = saved ? JSON.parse(saved) : null;
-      const base = {
-        "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "2468": { pin: "2468", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "1357": { pin: "1357", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
-      };
+    const defaultUsers = {
+      "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
+    };
 
-      if (parsed && typeof parsed === 'object') {
-        return { ...base, ...parsed };
+    try {
+      const saved = localStorage.getItem('ollday_users_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          let updated = false;
+
+          // Migrate Ephraim if present under an old PIN
+          Object.keys(parsed).forEach(k => {
+            const u = parsed[k];
+            if (u && u.name && u.name.trim().toLowerCase() === "ephraim" && String(u.pin).trim() !== "0713") {
+              const oldKey = k;
+              parsed["0713"] = { ...u, pin: "0713" };
+              if (oldKey !== "0713") delete parsed[oldKey];
+              updated = true;
+            }
+          });
+
+          // Seed Ephraim with 0713 if not yet present
+          if (!Object.values(parsed).some(u => u.name && u.name.trim().toLowerCase() === "ephraim")) {
+            parsed["0713"] = defaultUsers["0713"];
+            updated = true;
+          }
+
+          // Migrate Victor if present under an old PIN
+          Object.keys(parsed).forEach(k => {
+            const u = parsed[k];
+            if (u && u.name && u.name.trim().toLowerCase() === "victor" && String(u.pin).trim() !== "0494") {
+              const oldKey = k;
+              parsed["0494"] = { ...u, pin: "0494" };
+              if (oldKey !== "0494") delete parsed[oldKey];
+              updated = true;
+            }
+          });
+
+          // Seed Victor with 0494 if not yet present
+          if (!Object.values(parsed).some(u => u.name && u.name.trim().toLowerCase() === "victor")) {
+            parsed["0494"] = defaultUsers["0494"];
+            updated = true;
+          }
+
+          // Safety guard: ensure the master admin profile is always preserved
+          const hasAdmin = Object.values(parsed).some(u => u.role === 'admin' || String(u.pin) === '1678');
+          if (!hasAdmin) {
+            parsed["1678"] = defaultUsers["1678"];
+            updated = true;
+          }
+
+          if (updated) {
+            localStorage.setItem('ollday_users_v2', JSON.stringify(parsed));
+          }
+          return parsed;
+        }
       }
-      return base;
+      // First-time load: seed default accounts into localStorage
+      localStorage.setItem('ollday_users_v2', JSON.stringify(defaultUsers));
+      return defaultUsers;
     } catch (e) {
-      return {
-        "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "2468": { pin: "2468", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-        "1357": { pin: "1357", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
-      };
+      return defaultUsers;
     }
   });
 
@@ -1183,6 +1244,12 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers };
       delete nextUsers[clean];
+      // Clean up any stray entries matching this PIN
+      Object.keys(nextUsers).forEach(key => {
+        if (String(nextUsers[key]?.pin).trim() === clean) {
+          delete nextUsers[key];
+        }
+      });
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
@@ -1198,17 +1265,27 @@ export default function App() {
     const cleanOld = String(oldPin).trim();
     const cleanNew = String(newPin).trim();
     setUsers(prevUsers => {
-      if (!prevUsers[cleanOld] || (prevUsers[cleanNew] && cleanOld !== cleanNew)) return prevUsers;
-      const targetUser = prevUsers[cleanOld];
+      // Find key matching cleanOld or user.pin === cleanOld
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === cleanOld || String(prevUsers[k]?.pin).trim() === cleanOld
+      );
+
+      if (!targetKey) {
+        return prevUsers;
+      }
+
+      const targetUser = prevUsers[targetKey];
       const updatedUser = { ...targetUser, pin: cleanNew };
       const nextUsers = { ...prevUsers };
-      delete nextUsers[cleanOld];
+      delete nextUsers[targetKey];
       nextUsers[cleanNew] = updatedUser;
+
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
       return nextUsers;
     });
+
     if (activePin === cleanOld) {
       setActivePin(cleanNew);
     }
@@ -1235,7 +1312,7 @@ export default function App() {
     );
   }
 
-  const currentUser = users[activePin] || {
+  const currentUser = users[activePin] || Object.values(users).find(u => String(u.pin).trim() === activePin) || {
     pin: activePin,
     name: "User",
     role: "user",
@@ -1250,9 +1327,12 @@ export default function App() {
 
   const updateCurrentUser = (updates) => {
     setUsers(prevUsers => {
-      const current = prevUsers[activePin] || currentUser;
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = prevUsers[targetKey] || currentUser;
       const nextUser = { ...current, ...updates };
-      const nextUsers = { ...prevUsers, [activePin]: nextUser };
+      const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
@@ -1261,9 +1341,12 @@ export default function App() {
   const updateDay = (day) => { 
     if (day >= 1 && day <= 32) {
       setUsers(prevUsers => {
-        const current = prevUsers[activePin] || currentUser;
+        const targetKey = Object.keys(prevUsers).find(k => 
+          String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+        ) || activePin;
+        const current = prevUsers[targetKey] || currentUser;
         const nextUser = { ...current, day };
-        const nextUsers = { ...prevUsers, [activePin]: nextUser };
+        const nextUsers = { ...prevUsers, [targetKey]: nextUser };
         try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
         return nextUsers;
       });
@@ -1272,12 +1355,15 @@ export default function App() {
 
   const handleRecordTime = (caseId, timeInSeconds) => {
     setUsers(prevUsers => {
-      const current = prevUsers[activePin] || currentUser;
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = prevUsers[targetKey] || currentUser;
       const userStats = current.stats || {};
       const existingStats = userStats[caseId] || [];
       const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
       const nextUser = { ...current, stats: nextStats };
-      const nextUsers = { ...prevUsers, [activePin]: nextUser };
+      const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
@@ -1285,9 +1371,12 @@ export default function App() {
 
   const handleResetProgress = () => { 
     setUsers(prevUsers => {
-      const current = prevUsers[activePin] || currentUser;
+      const targetKey = Object.keys(prevUsers).find(k => 
+        String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
+      ) || activePin;
+      const current = prevUsers[targetKey] || currentUser;
       const nextUser = { ...current, day: 1, stats: {} };
-      const nextUsers = { ...prevUsers, [activePin]: nextUser };
+      const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
       return nextUsers;
     });
