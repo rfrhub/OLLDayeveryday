@@ -1851,7 +1851,15 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
 const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertricksEnabled, onRequestReset, onOpenAdmin, onLockApp }) => {
   const [activeNotation, setActiveNotation] = useState(0);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+
+  // Gesture locks & tracking refs to prevent multi-event card skipping
+  const isNavigatingRef = useRef(false);
+  const wheelActiveRef = useRef(false);
+  const wheelTimerRef = useRef(null);
   const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const mouseStartY = useRef(0);
+  const isMouseDown = useRef(false);
 
   const userGoal = (currentUser && currentUser.targetGoal) || 3.5;
   const isTimerOn = currentUser && currentUser.timerEnabled !== false;
@@ -1859,16 +1867,95 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
 
   const cardTitles = ["Preferences", "Notation Key", "Account & Security"];
 
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    };
+  }, []);
+
+  // Strictly advance exactly one card per swipe/flick with guaranteed cooldown
+  const navigateCard = (direction) => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+
+    if (direction === 'next') {
+      setActiveCardIndex(prev => Math.min(2, prev + 1));
+    } else if (direction === 'prev') {
+      setActiveCardIndex(prev => Math.max(0, prev - 1));
+    }
+
+    // Cooldown duration matching card animation timing
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 420);
+  };
+
+  // Touch Swipe Handling (Mobile & Touchscreens)
   const handleTouchStart = (e) => {
+    if (isNavigatingRef.current) return;
     touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = (e) => {
-    const diff = touchStartY.current - e.changedTouches[0].clientY;
-    if (diff > 45 && activeCardIndex < 2) {
-      setActiveCardIndex(prev => prev + 1); // Swipe Up -> Next card
-    } else if (diff < -45 && activeCardIndex > 0) {
-      setActiveCardIndex(prev => prev - 1); // Swipe Down -> Prev card
+    if (isNavigatingRef.current) return;
+    const diffY = touchStartY.current - e.changedTouches[0].clientY;
+    const diffX = touchStartX.current - e.changedTouches[0].clientX;
+
+    // Must be predominantly vertical swipe to avoid intercepting horizontal category buttons
+    if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX) * 1.2) {
+      if (diffY > 0) {
+        navigateCard('next'); // Swipe Up -> Next card
+      } else {
+        navigateCard('prev'); // Swipe Down -> Prev card
+      }
+    }
+  };
+
+  // Wheel / Trackpad Handling (Desktop) - Debounced to consume inertia bursts
+  const handleWheel = (e) => {
+    // Keep resetting idle timer as long as trackpad/wheel momentum events arrive
+    if (wheelTimerRef.current) {
+      clearTimeout(wheelTimerRef.current);
+    }
+    wheelTimerRef.current = setTimeout(() => {
+      wheelActiveRef.current = false;
+    }, 200);
+
+    // If gesture is already active or navigation is cooling down, ignore momentum ticks
+    if (wheelActiveRef.current || isNavigatingRef.current) return;
+
+    if (Math.abs(e.deltaY) > 25) {
+      wheelActiveRef.current = true;
+      if (e.deltaY > 0) {
+        navigateCard('next');
+      } else {
+        navigateCard('prev');
+      }
+    }
+  };
+
+  // Mouse Drag Handling (Desktop Click-and-Drag)
+  const handleMouseDown = (e) => {
+    if (isNavigatingRef.current) return;
+    if (e.target.closest('button, input, select, textarea')) return;
+    isMouseDown.current = true;
+    mouseStartY.current = e.clientY;
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isMouseDown.current) return;
+    isMouseDown.current = false;
+    if (isNavigatingRef.current) return;
+
+    const diffY = mouseStartY.current - e.clientY;
+    if (Math.abs(diffY) > 40) {
+      if (diffY > 0) {
+        navigateCard('next');
+      } else {
+        navigateCard('prev');
+      }
     }
   };
 
@@ -1885,7 +1972,7 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
     } else if (diff < 0) {
       // Swiped up: smoothly dissolves and floats upward into nothingness
       return {
-        transform: `translateY(${diff * 130}px) scale(${1 - Math.abs(diff) * 0.15})`,
+        transform: `translateY(${diff * 80}px) scale(${1 - Math.abs(diff) * 0.12})`,
         opacity: 0,
         zIndex: 10,
         pointerEvents: 'none',
@@ -1894,8 +1981,8 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
     } else {
       // Stacked cards waiting beneath
       return {
-        transform: `translateY(${diff * 22}px) scale(${1 - diff * 0.06})`,
-        opacity: diff === 1 ? 0.45 : diff === 2 ? 0.15 : 0,
+        transform: `translateY(${diff * 14}px) scale(${1 - diff * 0.05})`,
+        opacity: diff === 1 ? 0.35 : diff === 2 ? 0.12 : 0,
         zIndex: 30 - diff * 5,
         pointerEvents: 'none',
         transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1905,12 +1992,16 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
 
   return (
     <div 
-      className="p-6 pt-5 pb-32 h-full flex flex-col justify-between select-none touch-none overscroll-none"
+      className="px-6 pt-4 pb-3 h-full flex flex-col justify-between select-none touch-none overscroll-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
     >
-      <div>
-        <div className="flex items-center justify-between mb-2">
+      {/* Header Anchor - Guaranteed Never to Overlap */}
+      <div className="flex-shrink-0 z-40 mb-2">
+        <div className="flex items-center justify-between mb-1">
           <div>
             <p className="text-orange-500 font-black uppercase tracking-widest text-[10px] mb-0.5">Control Center</p>
             <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
@@ -1921,7 +2012,7 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
               <button
                 key={title}
                 onClick={() => setActiveCardIndex(idx)}
-                className={`transition-all duration-300 rounded-full ${
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
                   activeCardIndex === idx 
                     ? 'w-5 h-2 bg-orange-500 shadow-sm shadow-orange-500/50' 
                     : 'w-2 h-2 bg-white/20 hover:bg-white/40'
@@ -1934,23 +2025,23 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
         <p className="text-[11px] text-slate-400 font-medium">Swipe cards up or down to navigate</p>
       </div>
 
-      {/* Floating Stacked Cards Viewport */}
-      <div className="relative w-full h-[470px] my-auto flex items-center justify-center">
+      {/* Floating Stacked Cards Viewport - Centered & Responsive */}
+      <div className="relative w-full flex-1 min-h-0 my-auto flex items-center justify-center">
 
         {/* CARD 0: TRAINING PREFERENCES */}
         <div 
           style={getCardStyle(0)}
-          className="absolute inset-x-0 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl flex flex-col justify-between"
+          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between overflow-hidden"
         >
           <div>
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
               <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
                 <Timer size={16} /> Training Preferences
               </h3>
               <span className="text-[10px] font-mono font-bold text-slate-400">Card 1/3</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Stopwatch Toggle */}
               <div className="flex items-center justify-between py-1">
                 <div>
@@ -1959,28 +2050,28 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
                 </div>
                 <button 
                   onClick={() => setTimerEnabled(!isTimerOn)} 
-                  className={`w-12 h-7 rounded-full p-1 transition-colors ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isTimerOn ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
               {/* Fingertricks Toggle */}
-              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-3">
+              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-2.5">
                 <div>
                   <span className="text-sm font-bold text-white block">Fingertrick Guides</span>
                   <span className="text-xs text-slate-400">Show trigger pills & finger mechanics</span>
                 </div>
                 <button 
                   onClick={() => setFingertricksEnabled(!isFingertricksOn)} 
-                  className={`w-12 h-7 rounded-full p-1 transition-colors ${isFingertricksOn ? 'bg-orange-500' : 'bg-slate-800'}`}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${isFingertricksOn ? 'bg-orange-500' : 'bg-slate-800'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isFingertricksOn ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
               {/* Target Goal */}
-              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-3">
+              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-2.5">
                 <div>
                   <span className="text-sm font-bold text-white block">Execution Goal</span>
                   <span className="text-xs text-slate-400">Target benchmark time</span>
@@ -1988,14 +2079,14 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setTargetGoal(Math.max(1, +(userGoal - 0.25).toFixed(2)))} 
-                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90"
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
                   >
                     -
                   </button>
                   <span className="font-mono text-sm font-black text-orange-400 w-12 text-center">{userGoal.toFixed(2)}s</span>
                   <button 
                     onClick={() => setTargetGoal(+(userGoal + 0.25).toFixed(2))} 
-                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90"
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
                   >
                     +
                   </button>
@@ -2004,10 +2095,10 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
             </div>
           </div>
 
-          <div className="pt-3 text-center border-t border-white/5">
+          <div className="pt-2 text-center border-t border-white/5">
             <button 
               onClick={() => setActiveCardIndex(1)}
-              className="text-xs text-orange-400 font-bold hover:underline inline-flex items-center gap-1"
+              className="text-xs text-orange-400 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <span>Swipe up for Notation Key</span>
               <span>↑</span>
@@ -2018,22 +2109,22 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
         {/* CARD 1: ALGORITHM NOTATION KEY */}
         <div 
           style={getCardStyle(1)}
-          className="absolute inset-x-0 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl flex flex-col justify-between"
+          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between overflow-hidden"
         >
-          <div>
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-white/10 flex-shrink-0">
               <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
                 <Compass size={16} /> Algorithm Notation
               </h3>
               <span className="text-[10px] font-mono font-bold text-slate-400">Card 2/3</span>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-3">
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-2 flex-shrink-0">
               {NOTATION_GROUPS.map((grp, idx) => (
                 <button 
                   key={grp.title} 
                   onClick={() => setActiveNotation(idx)} 
-                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap transition-all border ${
+                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap transition-all border cursor-pointer ${
                     activeNotation === idx 
                       ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' 
                       : 'bg-white/5 text-slate-400 border-white/10'
@@ -2044,13 +2135,20 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
               ))}
             </div>
 
-            <div className="bg-slate-950/80 rounded-2xl p-3 border border-white/5">
-              <div className="text-xs font-bold text-white mb-0.5">{NOTATION_GROUPS[activeNotation].title}</div>
-              <div className="text-[10px] text-slate-400 mb-2">{NOTATION_GROUPS[activeNotation].description}</div>
-              <div className="grid grid-cols-1 gap-1.5 max-h-44 overflow-y-auto no-scrollbar">
+            <div className="bg-slate-950/80 rounded-2xl p-2.5 border border-white/5 flex-1 min-h-0 flex flex-col">
+              <div className="text-xs font-bold text-white mb-0.5 flex-shrink-0">{NOTATION_GROUPS[activeNotation].title}</div>
+              <div className="text-[10px] text-slate-400 mb-1.5 flex-shrink-0">{NOTATION_GROUPS[activeNotation].description}</div>
+              {/* Inner Move List with isolated scroll to prevent bubbling card switches */}
+              <div 
+                onWheel={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="grid grid-cols-1 gap-1.5 overflow-y-auto no-scrollbar flex-1 touch-pan-y"
+              >
                 {NOTATION_GROUPS[activeNotation].moves.map(m => (
                   <div key={m.move} className="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded-xl border border-white/5">
-                    <span className="font-mono text-xs font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 w-14 text-center">{m.move}</span>
+                    <span className="font-mono text-xs font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 w-14 text-center flex-shrink-0">{m.move}</span>
                     <span className="text-xs text-slate-300 truncate">{m.desc}</span>
                   </div>
                 ))}
@@ -2058,39 +2156,39 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
             </div>
           </div>
 
-          <div className="pt-2 flex justify-between items-center text-xs text-slate-400 border-t border-white/5">
-            <button onClick={() => setActiveCardIndex(0)} className="hover:text-white flex items-center gap-1">↓ Preferences</button>
-            <button onClick={() => setActiveCardIndex(2)} className="text-orange-400 font-bold hover:underline flex items-center gap-1">Security ↑</button>
+          <div className="pt-2 flex justify-between items-center text-xs text-slate-400 border-t border-white/5 flex-shrink-0">
+            <button onClick={() => setActiveCardIndex(0)} className="hover:text-white flex items-center gap-1 cursor-pointer">↓ Preferences</button>
+            <button onClick={() => setActiveCardIndex(2)} className="text-orange-400 font-bold hover:underline flex items-center gap-1 cursor-pointer">Security ↑</button>
           </div>
         </div>
 
         {/* CARD 2: SECURITY & PROFILE */}
         <div 
           style={getCardStyle(2)}
-          className="absolute inset-x-0 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 shadow-2xl flex flex-col justify-between"
+          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between overflow-hidden"
         >
           <div>
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
               <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
                 <Lock size={16} /> Profile & Security
               </h3>
               <span className="text-[10px] font-mono font-bold text-slate-400">Card 3/3</span>
             </div>
 
-            <div className="bg-black/40 border border-white/5 rounded-2xl p-4 mb-4 flex items-center justify-between">
+            <div className="bg-black/40 border border-white/10 rounded-2xl p-3.5 mb-3.5 flex items-center justify-between">
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Logged In As</span>
                 <span className="text-base font-black text-white">{currentUser.name}</span>
               </div>
               <button 
                 onClick={onLockApp}
-                className="px-3.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 rounded-full text-orange-400 text-xs font-bold active:scale-95 transition-all"
+                className="px-3.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 rounded-full text-orange-400 text-xs font-bold active:scale-95 transition-all cursor-pointer"
               >
                 Lock App
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <Button variant="secondary" onClick={onOpenAdmin} className="py-3 text-xs font-black shadow-none border-dashed border-white/20">
                 <Users size={16} /> Admin Panel
               </Button>
@@ -2100,10 +2198,10 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
             </div>
           </div>
 
-          <div className="pt-3 text-center border-t border-white/5">
+          <div className="pt-2 text-center border-t border-white/5">
             <button 
               onClick={() => setActiveCardIndex(1)}
-              className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1"
+              className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1 cursor-pointer"
             >
               <span>↓ Swipe down for Notation</span>
             </button>
@@ -2113,11 +2211,11 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
       </div>
 
       {/* Floating Bottom Navigator Pills */}
-      <div className="flex justify-center items-center gap-3 pt-2">
+      <div className="flex-shrink-0 z-40 flex justify-center items-center gap-3 pt-2">
         <button 
           disabled={activeCardIndex === 0}
           onClick={() => setActiveCardIndex(prev => prev - 1)}
-          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5"
+          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5 cursor-pointer"
         >
           <ChevronLeft size={16} />
         </button>
@@ -2127,7 +2225,7 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
         <button 
           disabled={activeCardIndex === 2}
           onClick={() => setActiveCardIndex(prev => prev + 1)}
-          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5"
+          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5 cursor-pointer"
         >
           <ChevronRight size={16} />
         </button>
