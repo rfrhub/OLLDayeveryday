@@ -199,6 +199,21 @@ const Zap = (props) => (
   </IconWrapper>
 );
 
+const Copy = (props) => (
+  <IconWrapper {...props}>
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+  </IconWrapper>
+);
+
+const ArrowDownToLine = (props) => (
+  <IconWrapper {...props}>
+    <path d="M12 17V3" />
+    <path d="m6 11 6 6 6-6" />
+    <path d="M19 21H5" />
+  </IconWrapper>
+);
+
 const BackspaceIcon = ({ className = "w-6 h-6" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
@@ -818,7 +833,7 @@ const AuthScreen = ({ users, onLogin, onOpenAdmin }) => {
 };
 
 // --- ADMIN MODAL (ROBUST STRING PIN INPUT WITH LEADING ZERO PRESERVATION) ---
-const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }) => {
+const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin, onImportData }) => {
   const [isAuthed, setIsAuthed] = useState(false);
   const [error, setError] = useState('');
   
@@ -830,6 +845,13 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
   const [userToEdit, setUserToEdit] = useState(null);
   const [editedPin, setEditedPin] = useState('');
   const [editError, setEditError] = useState('');
+
+  // Device sync & data transfer state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [importCode, setImportCode] = useState('');
+  const [importError, setImportError] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
 
   const adminUser = Object.values(users).find(u => u.role === 'admin');
   const masterPin = adminUser ? String(adminUser.pin).trim() : '1678';
@@ -887,6 +909,77 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
     setEditError('');
   };
 
+  const handleCopySyncData = async () => {
+    const payload = JSON.stringify(users);
+    let copied = false;
+
+    // 1. Try modern async clipboard API with proper promise catch for Permissions Policy rejection
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(payload);
+        copied = true;
+      } catch (err) {
+        // Permissions policy blocked writeText, gracefully fall through
+        copied = false;
+      }
+    }
+
+    // 2. Fallback: document.execCommand('copy') via temporary textarea
+    if (!copied) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = payload;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.opacity = '0';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, 999999);
+        copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (err) {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      setCopyStatus('Copied! Paste this into your browser');
+      setTimeout(() => setCopyStatus(''), 2500);
+    } else {
+      // 3. Fallback when browser/sandbox completely blocks clipboard:
+      // Open the visual export sheet with selectable code
+      setShowExportModal(true);
+      setCopyStatus('Clipboard blocked by browser policy. Code displayed below!');
+      setTimeout(() => setCopyStatus(''), 3500);
+    }
+  };
+
+  const handleApplyImport = () => {
+    const clean = importCode.trim();
+    if (!clean) {
+      setImportError('Please paste your sync data code');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(clean);
+      if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
+        setImportError('Invalid sync data format');
+        return;
+      }
+      onImportData(parsed);
+      setShowImportModal(false);
+      setImportCode('');
+      setImportError('');
+      setCopyStatus('All users & progress imported successfully!');
+      setTimeout(() => setCopyStatus(''), 3000);
+    } catch (e) {
+      setImportError('Invalid sync code. Make sure to copy the entire code.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[200] bg-[#060913]/95 backdrop-blur-xl flex flex-col p-6 overflow-y-auto">
       {!isAuthed ? (
@@ -910,6 +1003,84 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
               <X size={20} />
             </button>
           </div>
+
+          {copyStatus && (
+            <div className="bg-green-500/15 border border-green-500/30 text-green-300 text-xs font-bold rounded-2xl p-3 mb-4 text-center animate-in fade-in">
+              {copyStatus}
+            </div>
+          )}
+
+          {/* Export Sync Data Modal Sheet (Safe fallback when browser blocks clipboard) */}
+          {showExportModal && (
+            <div className="bg-slate-900/90 border border-orange-500/30 rounded-2xl p-5 mb-5 shadow-2xl animate-in fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <Copy size={16} className="text-orange-400" /> Your Sync Code
+                </h4>
+                <button onClick={() => setShowExportModal(false)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                  <X size={16} />
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                Your browser or sandbox blocked automated clipboard copying. Select and copy the code below manually:
+              </p>
+              <textarea 
+                readOnly
+                value={JSON.stringify(users)}
+                onClick={e => e.target.select()}
+                rows={4}
+                className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-orange-500 transition-colors mb-2 select-all"
+              />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowExportModal(false)} className="py-2.5 text-xs flex-1 shadow-none">
+                  Close
+                </Button>
+                <Button 
+                  variant="primary" 
+                  onClick={(e) => {
+                    const el = e.currentTarget.parentElement?.previousElementSibling;
+                    if (el) { el.focus(); el.select(); }
+                  }} 
+                  className="py-2.5 text-xs flex-1 shadow-none"
+                >
+                  Select All
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Import Sync Data Modal Sheet */}
+          {showImportModal && (
+            <div className="bg-slate-900/90 border border-orange-500/30 rounded-2xl p-5 mb-5 shadow-2xl animate-in fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <ArrowDownToLine size={16} className="text-orange-400" /> Import / Sync Data
+                </h4>
+                <button onClick={() => { setShowImportModal(false); setImportError(''); }} className="p-1 text-slate-400 hover:text-white">
+                  <X size={16} />
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                Paste the sync code from your iPhone Home Screen app to instantly sync all users, PINs, and solve history into this browser.
+              </p>
+              <textarea 
+                value={importCode}
+                onChange={e => { setImportCode(e.target.value); setImportError(''); }}
+                placeholder='Paste {"1678": ...} sync code here'
+                rows={4}
+                className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-orange-500 transition-colors mb-2"
+              />
+              {importError && <p className="text-xs text-red-400 font-bold mb-3">{importError}</p>}
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowImportModal(false)} className="py-2.5 text-xs flex-1 shadow-none">
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={handleApplyImport} className="py-2.5 text-xs flex-1 shadow-none">
+                  Apply Sync
+                </Button>
+              </div>
+            </div>
+          )}
 
           {!showAddForm ? (
             <>
@@ -1013,7 +1184,7 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                 </div>
               )}
 
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Active Profiles ({Object.keys(users).length})</h3>
                 {Object.values(users).map(u => (
                   <div key={u.pin} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
@@ -1064,9 +1235,42 @@ const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin }
                   </div>
                 ))}
               </div>
-              <Button onClick={() => setShowAddForm(true)} variant="secondary" className="border-dashed border-white/20 text-orange-400">
-                <UserPlus size={18} /> Add New User
-              </Button>
+
+              <div className="space-y-3 mb-6">
+                <Button onClick={() => setShowAddForm(true)} variant="secondary" className="border-dashed border-white/20 text-orange-400">
+                  <UserPlus size={18} /> Add New User
+                </Button>
+
+                {/* Device Transfer & Cross-Sync Card */}
+                <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4 space-y-3">
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                      <span>📲</span> <span>Device Transfer & Sync</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      iOS Home Screen apps are sandboxed from browsers. Use these quick buttons to transfer profiles between your phone and browser:
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopySyncData}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Copy size={14} className="text-orange-400" />
+                      <span>Copy Sync Code</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowImportModal(true)}
+                      className="py-2.5 px-3 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <ArrowDownToLine size={14} className="text-orange-400" />
+                      <span>Import Sync Code</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </>
           ) : (
             <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
@@ -1130,56 +1334,16 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          let updated = false;
-
-          // Migrate Ephraim if present under an old PIN
-          Object.keys(parsed).forEach(k => {
-            const u = parsed[k];
-            if (u && u.name && u.name.trim().toLowerCase() === "ephraim" && String(u.pin).trim() !== "0713") {
-              const oldKey = k;
-              parsed["0713"] = { ...u, pin: "0713" };
-              if (oldKey !== "0713") delete parsed[oldKey];
-              updated = true;
-            }
-          });
-
-          // Seed Ephraim with 0713 if not yet present
-          if (!Object.values(parsed).some(u => u.name && u.name.trim().toLowerCase() === "ephraim")) {
-            parsed["0713"] = defaultUsers["0713"];
-            updated = true;
-          }
-
-          // Migrate Victor if present under an old PIN
-          Object.keys(parsed).forEach(k => {
-            const u = parsed[k];
-            if (u && u.name && u.name.trim().toLowerCase() === "victor" && String(u.pin).trim() !== "0494") {
-              const oldKey = k;
-              parsed["0494"] = { ...u, pin: "0494" };
-              if (oldKey !== "0494") delete parsed[oldKey];
-              updated = true;
-            }
-          });
-
-          // Seed Victor with 0494 if not yet present
-          if (!Object.values(parsed).some(u => u.name && u.name.trim().toLowerCase() === "victor")) {
-            parsed["0494"] = defaultUsers["0494"];
-            updated = true;
-          }
-
-          // Safety guard: ensure the master admin profile is always preserved
+          // Safety guard: ensure the master admin profile is always preserved so the owner is never locked out
           const hasAdmin = Object.values(parsed).some(u => u.role === 'admin' || String(u.pin) === '1678');
           if (!hasAdmin) {
             parsed["1678"] = defaultUsers["1678"];
-            updated = true;
-          }
-
-          if (updated) {
-            localStorage.setItem('ollday_users_v2', JSON.stringify(parsed));
+            try { localStorage.setItem('ollday_users_v2', JSON.stringify(parsed)); } catch (e) {}
           }
           return parsed;
         }
       }
-      // First-time load: seed default accounts into localStorage
+      // First-time launch on this device: seed default accounts into localStorage
       localStorage.setItem('ollday_users_v2', JSON.stringify(defaultUsers));
       return defaultUsers;
     } catch (e) {
@@ -1197,6 +1361,22 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+
+  // Cross-tab real-time sync listener (updates immediately if another tab changes users)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'ollday_users_v2' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && typeof parsed === 'object') {
+            setUsers(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Resolved active user profile (declared before hooks/effects to eliminate Temporal Dead Zone)
   const currentUser = useMemo(() => {
@@ -1247,7 +1427,16 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { 
         ...prevUsers, 
-        [cleanPin]: { pin: cleanPin, name, role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true } 
+        [cleanPin]: { 
+          pin: cleanPin, 
+          name: name.trim(), 
+          role: "user", 
+          day: 1, 
+          stats: {}, 
+          targetGoal: 3.5, 
+          timerEnabled: true, 
+          fingertricksEnabled: true 
+        } 
       };
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
@@ -1283,7 +1472,6 @@ export default function App() {
     const cleanOld = String(oldPin).trim();
     const cleanNew = String(newPin).trim();
     setUsers(prevUsers => {
-      // Find key matching cleanOld or user.pin === cleanOld
       const targetKey = Object.keys(prevUsers).find(k => 
         String(k).trim() === cleanOld || String(prevUsers[k]?.pin).trim() === cleanOld
       );
@@ -1296,6 +1484,7 @@ export default function App() {
       const updatedUser = { ...targetUser, pin: cleanNew };
       const nextUsers = { ...prevUsers };
       delete nextUsers[targetKey];
+      delete nextUsers[cleanOld];
       nextUsers[cleanNew] = updatedUser;
 
       try { 
@@ -1307,6 +1496,14 @@ export default function App() {
     if (activePin === cleanOld) {
       setActivePin(cleanNew);
     }
+  };
+
+  const handleImportData = (importedUsers) => {
+    if (!importedUsers || typeof importedUsers !== 'object') return;
+    setUsers(importedUsers);
+    try {
+      localStorage.setItem('ollday_users_v2', JSON.stringify(importedUsers));
+    } catch (e) {}
   };
 
   if (!activePin || !users[activePin]) {
@@ -1324,6 +1521,7 @@ export default function App() {
             onAddUser={handleAddUser} 
             onDeleteUser={handleDeleteUser}
             onUpdateUserPin={handleUpdateUserPin}
+            onImportData={handleImportData}
           />
         )}
       </>
@@ -1545,6 +1743,7 @@ export default function App() {
               onAddUser={handleAddUser} 
               onDeleteUser={handleDeleteUser}
               onUpdateUserPin={handleUpdateUserPin}
+              onImportData={handleImportData}
             />
           )}
 
