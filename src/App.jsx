@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import * as _React from 'react';
+
+// Guarantee element compatibility with host ReactDOM (prevents CDN $$typeof mismatch)
+const React = (typeof window !== 'undefined' && window.React) ? window.React : _React;
+const { useState, useEffect, useMemo, useRef } = React;
 
 // --- INLINE SVG ICON SYSTEM (RESOLVES CDN REACT VERSION & $$typeof CONFLICTS) ---
 const IconWrapper = ({ size = 20, className = "", strokeWidth = 2, children }) => (
@@ -1192,6 +1196,20 @@ export default function App() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+
+  // Resolved active user profile (declared before hooks/effects to eliminate Temporal Dead Zone)
+  const currentUser = useMemo(() => {
+    if (!activePin) return null;
+    return users[activePin] || Object.values(users).find(u => String(u.pin).trim() === activePin) || null;
+  }, [activePin, users]);
+
+  // Trigger onboarding question if user has not answered it yet
+  useEffect(() => {
+    if (activePin && currentUser && currentUser.hasSeenOnboarding === undefined) {
+      setShowOnboardingModal(true);
+    }
+  }, [activePin, currentUser?.hasSeenOnboarding]);
 
   // Enforce dark canvas styling globally across document root
   useEffect(() => {
@@ -1312,25 +1330,14 @@ export default function App() {
     );
   }
 
-  const currentUser = users[activePin] || Object.values(users).find(u => String(u.pin).trim() === activePin) || {
-    pin: activePin,
-    name: "User",
-    role: "user",
-    day: 1,
-    stats: {},
-    targetGoal: 3.5,
-    timerEnabled: true,
-    fingertricksEnabled: true
-  };
-
-  const isFingertricksOn = currentUser.fingertricksEnabled !== false;
+  const isFingertricksOn = currentUser ? currentUser.fingertricksEnabled !== false : true;
 
   const updateCurrentUser = (updates) => {
     setUsers(prevUsers => {
       const targetKey = Object.keys(prevUsers).find(k => 
         String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
       ) || activePin;
-      const current = prevUsers[targetKey] || currentUser;
+      const current = prevUsers[targetKey] || currentUser || {};
       const nextUser = { ...current, ...updates };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
@@ -1344,7 +1351,7 @@ export default function App() {
         const targetKey = Object.keys(prevUsers).find(k => 
           String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
         ) || activePin;
-        const current = prevUsers[targetKey] || currentUser;
+        const current = prevUsers[targetKey] || currentUser || {};
         const nextUser = { ...current, day };
         const nextUsers = { ...prevUsers, [targetKey]: nextUser };
         try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
@@ -1358,7 +1365,7 @@ export default function App() {
       const targetKey = Object.keys(prevUsers).find(k => 
         String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
       ) || activePin;
-      const current = prevUsers[targetKey] || currentUser;
+      const current = prevUsers[targetKey] || currentUser || {};
       const userStats = current.stats || {};
       const existingStats = userStats[caseId] || [];
       const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
@@ -1374,7 +1381,7 @@ export default function App() {
       const targetKey = Object.keys(prevUsers).find(k => 
         String(k).trim() === activePin || String(prevUsers[k]?.pin).trim() === activePin
       ) || activePin;
-      const current = prevUsers[targetKey] || currentUser;
+      const current = prevUsers[targetKey] || currentUser || {};
       const nextUser = { ...current, day: 1, stats: {} };
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
@@ -1383,7 +1390,7 @@ export default function App() {
     setShowResetModal(false); 
   };
 
-  const currentDay = currentUser.day || 1;
+  const currentDay = (currentUser && currentUser.day) || 1;
   const schedule = getScheduleForDay(currentDay);
   const todaysAlgs = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk));
 
@@ -1471,6 +1478,7 @@ export default function App() {
               onRequestReset={() => setShowResetModal(true)} 
               onOpenAdmin={() => setShowAdminModal(true)} 
               onLockApp={handleLogout}
+              onOpenOnboarding={() => setShowOnboardingModal(true)}
             />
           )}
 
@@ -1512,6 +1520,21 @@ export default function App() {
             <FingertrickDossierModal 
               caseData={fingertrickModalCase} 
               onClose={() => setFingertrickModalCase(null)} 
+            />
+          )}
+
+          {/* New to CFOP / OLL Floating Onboarding Modal */}
+          {showOnboardingModal && (
+            <OnboardingModal 
+              userName={currentUser.name}
+              onClose={() => {
+                updateCurrentUser({ hasSeenOnboarding: true });
+                setShowOnboardingModal(false);
+              }}
+              onComplete={() => {
+                updateCurrentUser({ hasSeenOnboarding: true });
+                setShowOnboardingModal(false);
+              }}
             />
           )}
 
@@ -1848,7 +1871,7 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
 };
 
 // --- TAB 4: SETTINGS (CREATIVE STACKED 3D SWIPEABLE FLOATING CARDS) ---
-const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertricksEnabled, onRequestReset, onOpenAdmin, onLockApp }) => {
+const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertricksEnabled, onRequestReset, onOpenAdmin, onLockApp, onOpenOnboarding }) => {
   const [activeNotation, setActiveNotation] = useState(0);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
 
@@ -2189,6 +2212,15 @@ const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertr
             </div>
 
             <div className="space-y-2.5">
+              {onOpenOnboarding && (
+                <Button 
+                  variant="secondary" 
+                  onClick={onOpenOnboarding} 
+                  className="py-3 text-xs font-black shadow-none border border-orange-500/25 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400"
+                >
+                  <BookOpenCheck size={16} /> New to CFOP? Beginner Guide
+                </Button>
+              )}
               <Button variant="secondary" onClick={onOpenAdmin} className="py-3 text-xs font-black shadow-none border-dashed border-white/20">
                 <Users size={16} /> Admin Panel
               </Button>
@@ -2657,6 +2689,302 @@ const FingertrickDossierModal = ({ caseData, onClose }) => {
           <span>Got It, Back to Practice</span>
           <CheckCircle2 size={18} />
         </Button>
+      </div>
+    </div>
+  );
+};
+
+// --- NEW USER ONBOARDING MODAL: "ARE YOU NEW TO CFOP?" & OLL PRIMER ---
+const OnboardingModal = ({ userName = "there", onClose, onComplete }) => {
+  const [step, setStep] = useState('question'); // 'question' | 1 | 2 | 3 | 4
+
+  const handleNo = () => {
+    onClose();
+  };
+
+  const handleYes = () => {
+    setStep(1);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[230] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5 select-none animate-in fade-in overflow-y-auto">
+      <div className="relative w-full max-w-sm bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-6 shadow-2xl flex flex-col justify-between max-h-[92vh] overflow-y-auto no-scrollbar">
+        
+        {/* Top Header with Close */}
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/5 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 font-mono">
+              {step === 'question' ? 'Welcome' : `Guide • Step ${step} of 4`}
+            </span>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+            title="Close Guide"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* STEP 0: THE INITIAL QUESTION */}
+        {step === 'question' && (
+          <div className="flex-1 flex flex-col items-center text-center animate-in fade-in zoom-in-95">
+            <div className="w-16 h-16 rounded-3xl bg-orange-500/15 border border-orange-500/25 text-orange-400 flex items-center justify-center mb-4 shadow-xl shadow-orange-500/10">
+              <SuneCubeLogo className="w-10 h-10" />
+            </div>
+
+            <h3 className="text-2xl font-black text-white mb-1">
+              Hey, {userName}! 👋
+            </h3>
+            <p className="text-xs text-slate-400 mb-6">
+              Welcome to <span className="text-white font-bold">OLLDay Everyday</span>. Quick question before we get you started:
+            </p>
+
+            <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-5 mb-6 shadow-inner text-center">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-orange-400 font-bold block mb-1">
+                Experience Check
+              </span>
+              <h4 className="text-xl font-black text-white leading-tight">
+                Are you new to CFOP?
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                CFOP (Cross, F2L, OLL, PLL) is the gold-standard speedcubing method used to solve the 3x3 cube in seconds.
+              </p>
+            </div>
+
+            <div className="w-full space-y-3">
+              {/* Option: Yes (New to CFOP) */}
+              <button
+                onClick={handleYes}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 text-left font-black transition-all active:scale-98 shadow-lg shadow-orange-500/20 border border-orange-400/30 flex items-center justify-between group cursor-pointer"
+              >
+                <div>
+                  <div className="text-sm font-black flex items-center gap-1.5">
+                    <span>Yes, I'm new to CFOP!</span>
+                    <span className="text-xs font-normal">✨</span>
+                  </div>
+                  <div className="text-[11px] text-slate-900/80 font-medium font-sans mt-0.5">
+                    Teach me what OLL is & how to start
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-slate-950 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
+              {/* Option: No (Experienced) */}
+              <button
+                onClick={handleNo}
+                className="w-full p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left text-white transition-all active:scale-98 flex items-center justify-between group cursor-pointer"
+              >
+                <div>
+                  <div className="text-sm font-bold text-slate-200">
+                    No, I know CFOP
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-normal mt-0.5">
+                    Skip straight to the daily OLL training grind
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-500 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: WHAT IS CFOP? */}
+        {step === 1 && (
+          <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-right-4">
+            <div className="text-center mb-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">The Big Picture</span>
+              <h3 className="text-xl font-black text-white mt-0.5">What is the CFOP Method?</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                CFOP is the speedcubing method used by 99% of world record holders. It solves the cube in 4 streamlined phases:
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-white/10 text-white font-mono font-black text-sm flex items-center justify-center flex-shrink-0">C</span>
+                <div>
+                  <div className="text-xs font-bold text-white">Cross (First 4 Edges)</div>
+                  <div className="text-[10px] text-slate-400">Solve the bottom white cross on the bottom face.</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-white/10 text-white font-mono font-black text-sm flex items-center justify-center flex-shrink-0">F</span>
+                <div>
+                  <div className="text-xs font-bold text-white">F2L (First Two Layers)</div>
+                  <div className="text-[10px] text-slate-400">Pair corners and edges together to solve two layers at once.</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-orange-500/15 border border-orange-500/40 rounded-xl flex items-center gap-3 shadow-md shadow-orange-500/10">
+                <span className="w-8 h-8 rounded-lg bg-orange-500 text-slate-950 font-mono font-black text-sm flex items-center justify-center flex-shrink-0">O</span>
+                <div>
+                  <div className="text-xs font-black text-orange-400 flex items-center gap-1.5">
+                    <span>OLL (Orientation of the Last Layer)</span>
+                    <span className="text-[9px] uppercase px-1.5 py-0.2 bg-orange-500/20 rounded font-mono">This App!</span>
+                  </div>
+                  <div className="text-[10px] text-orange-200/90 font-medium">Turn the entire top face yellow in ONE single algorithm.</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-white/10 text-white font-mono font-black text-sm flex items-center justify-center flex-shrink-0">P</span>
+                <div>
+                  <div className="text-xs font-bold text-white">PLL (Permutation of the Last Layer)</div>
+                  <div className="text-[10px] text-slate-400">Rearrange the yellow pieces into their solved spots. Solved!</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-2 flex gap-2">
+              <Button variant="secondary" onClick={() => setStep('question')} className="py-3 text-xs flex-1">Back</Button>
+              <Button variant="primary" onClick={() => setStep(2)} className="py-3 text-xs flex-1">Next: What is OLL? →</Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: WHAT IS OLL & WHY LEARN IT? */}
+        {step === 2 && (
+          <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-right-4">
+            <div className="text-center mb-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">The Secret Weapon</span>
+              <h3 className="text-xl font-black text-white mt-0.5">What is OLL?</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <strong>Orientation of the Last Layer</strong> means making the entire top face yellow without worrying about side colors yet.
+              </p>
+            </div>
+
+            <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 mb-4 text-center">
+              <div className="text-[11px] font-bold text-slate-300 mb-1">Beginner Method vs. Full OLL</div>
+              <div className="grid grid-cols-2 gap-2 text-left pt-2 text-xs">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2.5">
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest block mb-1">Beginners (Slow)</span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Takes 2 to 4 separate algorithms. You make a yellow cross, then repeat Sune multiple times (6–12 seconds).
+                  </p>
+                </div>
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2.5">
+                  <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest block mb-1">Full OLL (Fast!)</span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Recognize the top pattern, execute <strong>ONE fluid algorithm</strong>. Whole top is yellow in <strong>1 to 2 seconds</strong>!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-xs text-slate-300 mb-4 bg-slate-950/60 p-3 rounded-2xl border border-white/5">
+              <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">The Massive Benefits:</div>
+              <div className="flex items-center gap-2 text-[11px]">⚡ <span><strong>Cuts 3–7 seconds</strong> off every single solve.</span></div>
+              <div className="flex items-center gap-2 text-[11px]">🔄 <span><strong>Eliminates awkward pauses</strong> and repeat turns.</span></div>
+              <div className="flex items-center gap-2 text-[11px]">🏆 <span><strong>Essential benchmark</strong> to break 20s and 15s solves.</span></div>
+            </div>
+
+            <div className="mt-auto pt-2 flex gap-2">
+              <Button variant="secondary" onClick={() => setStep(1)} className="py-3 text-xs flex-1">Back</Button>
+              <Button variant="primary" onClick={() => setStep(3)} className="py-3 text-xs flex-1">Next: How to Learn It →</Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: WHY MOST QUIT & HOW THIS APP HELPS */}
+        {step === 3 && (
+          <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-right-4">
+            <div className="text-center mb-3">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">The System</span>
+              <h3 className="text-xl font-black text-white mt-0.5">How OLLDay Makes It Easy</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                There are <strong>57 unique OLL cases</strong>. Most people download a giant PDF sheet, get overwhelmed, and give up. We built this app to fix that!
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">1. Micro-Chunking (6 Cases at a Time)</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  We divide all 57 cases into 9 bite-sized chunks over a 32-day calendar. You only focus on one small family at a time.
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">2. The 40 + 20 Muscle Memory Rule</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Drill each algorithm 40 times to establish finger reflexes, then 20 more times to lock it into permanent instinct.
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">3. Zero-Regrip Fingertricks</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Tap the <strong>⚡ Fingertrick Guide</strong> on any case to see index pushes, double-flicks, and home grip positioning.
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">4. Built-in Stopwatch & Isolated Drills</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Time your solves down to the millisecond, track your personal bests, and drill troublesome cases individually.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-2 flex gap-2">
+              <Button variant="secondary" onClick={() => setStep(2)} className="py-3 text-xs flex-1">Back</Button>
+              <Button variant="primary" onClick={() => setStep(4)} className="py-3 text-xs flex-1">Next: Ready for Day 1 →</Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: READY FOR DAY 1 */}
+        {step === 4 && (
+          <div className="flex-1 flex flex-col items-center text-center animate-in fade-in slide-in-from-right-4">
+            <div className="w-16 h-16 rounded-3xl bg-green-500/15 border border-green-500/25 text-green-400 flex items-center justify-center mb-3 shadow-xl shadow-green-500/10">
+              <Trophy size={32} />
+            </div>
+
+            <h3 className="text-2xl font-black text-white mb-1">
+              You're Ready to Roll! 🚀
+            </h3>
+            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+              Don't worry about memorizing everything today. All you need to do is show up, grab your cube, and complete today's daily session!
+            </p>
+
+            <div className="w-full bg-[#050811] border border-orange-500/30 rounded-2xl p-4 mb-4 text-left shadow-inner">
+              <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                <span>🎯</span> <span>Day 1 Game Plan:</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-slate-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <span>Start with <strong>Chunk 1: Oriented-Edges</strong></span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <span>Meet <strong>Sune</strong> & <strong>Anti-Sune</strong> (fastest OLLs in cubing!)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <span>Practice slowly first, then let your fingers flow</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="w-full mt-auto pt-2 space-y-2">
+              <Button variant="primary" onClick={onComplete} className="py-4 text-sm font-black shadow-orange-500/30">
+                <span>Start Day 1 Training</span>
+                <ChevronRight size={18} />
+              </Button>
+              <button 
+                onClick={() => setStep(3)} 
+                className="text-xs text-slate-400 hover:text-white font-medium cursor-pointer"
+              >
+                ← Back to overview
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
