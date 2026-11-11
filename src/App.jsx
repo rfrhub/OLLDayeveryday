@@ -3,9 +3,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 // --- REACT 18 COMPATIBILITY SHIELD ---
-// Resolves: "Objects are not valid as a React child (found: object with keys {$$typeof, type, key, props, _owner, _store})"
-// Bridges the gap between React 19 JSX runtimes (Symbol.for('react.transitional.element'))
-// and React-DOM 18.2.0 (Symbol.for('react.element')).
 const REACT_ELEMENT_SYMBOL = typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.element') : 0xeac7;
 const REACT_FRAGMENT_SYMBOL = typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.fragment') : 0xeacb;
 
@@ -78,7 +75,7 @@ const _jsxCompat = (type, props, ...children) => {
 
 const _jsxFragCompat = (_RealReact && _RealReact.Fragment) || REACT_FRAGMENT_SYMBOL;
 
-// --- INLINE SVG ICON WRAPPER & ICONS (ZERO EXTERNAL NPM CONFLICTS) ---
+// --- INLINE SVG ICON WRAPPER & ICONS ---
 const IconWrapper = ({ children, size = 20, className = "", strokeWidth = 2, ...props }) => {
   const childArray = (_RealReact && _RealReact.Children && typeof _RealReact.Children.toArray === 'function')
     ? _RealReact.Children.toArray(children)
@@ -189,6 +186,18 @@ const ChevronRight = (props) => (
 const ChevronLeft = (props) => (
   <IconWrapper {...props}>
     <path d="m15 18-6-6 6-6" />
+  </IconWrapper>
+);
+
+const ChevronUp = (props) => (
+  <IconWrapper {...props}>
+    <path d="m18 15-6-6-6 6" />
+  </IconWrapper>
+);
+
+const ChevronDown = (props) => (
+  <IconWrapper {...props}>
+    <path d="m6 9 6 6 6-6" />
   </IconWrapper>
 );
 
@@ -337,6 +346,36 @@ const Check = (props) => (
   </IconWrapper>
 );
 
+const Sliders = (props) => (
+  <IconWrapper {...props}>
+    <line x1="4" x2="4" y1="21" y2="14" />
+    <line x1="4" x2="4" y1="10" y2="3" />
+    <line x1="12" x2="12" y1="21" y2="12" />
+    <line x1="12" x2="12" y1="8" y2="3" />
+    <line x1="20" x2="20" y1="21" y2="16" />
+    <line x1="20" x2="20" y1="12" y2="3" />
+    <line x1="1" x2="7" y1="14" y2="14" />
+    <line x1="9" x2="15" y1="8" y2="8" />
+    <line x1="17" x2="23" y1="16" y2="16" />
+  </IconWrapper>
+);
+
+const Plus = (props) => (
+  <IconWrapper {...props}>
+    <line x1="12" x2="12" y1="5" y2="19" />
+    <line x1="5" x2="19" y1="12" y2="12" />
+  </IconWrapper>
+);
+
+const ArrowRightLeft = (props) => (
+  <IconWrapper {...props}>
+    <path d="m16 3 4 4-4 4" />
+    <path d="M20 7H4" />
+    <path d="m8 21-4-4 4-4" />
+    <path d="M4 17h16" />
+  </IconWrapper>
+);
+
 const BackspaceIcon = ({ className = "w-6 h-6" }) => sanitizeNode(
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path key="bs-p" d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
@@ -370,6 +409,500 @@ const Button = ({ children, variant = 'primary', onClick, className = '', disabl
     </button>
   );
 };
+
+// --- DATA MODEL: ALL 57 OLL CASES ---
+const OLL_DATA = [
+  // Chunk 1: Oriented-Edges (7 cases) — Public Domain Standards
+  { id: 1, chunk: 1, ollNo: 27, name: "Sune", group: "Oriented-Edges", alg: "R U R' U R U2' R'" },
+  { id: 2, chunk: 1, ollNo: 26, name: "Anti-Sune", group: "Oriented-Edges", alg: "R U2 R' U' R U' R'" },
+  { id: 3, chunk: 1, ollNo: 21, name: "Cross", group: "Oriented-Edges", alg: "(R U2 R') (U' R U R') (U' R U' R')" },
+  { id: 4, chunk: 1, ollNo: 24, name: "Chameleon", group: "Oriented-Edges", alg: "(r U R' U') (r' F R F')" },
+  { id: 5, chunk: 1, ollNo: 25, name: "Bowtie", group: "Oriented-Edges", alg: "F' (r U R' U') r' F R" },
+  { id: 6, chunk: 1, ollNo: 22, name: "Bruno", group: "Oriented-Edges", alg: "R U2' R2' U' R2 U' R2' U2' R" },
+  { id: 7, chunk: 1, ollNo: 23, name: "Headlights", group: "Oriented-Edges", alg: "R2 D (R' U2 R) D' (R' U2 R')" },
+  
+  // Chunk 2: T-Shapes (2), Squares (2), Solved Corners (2) = 6 cases
+  { id: 8, chunk: 2, ollNo: 45, name: "T", group: "T-Shapes", alg: "F (R U R' U') F'" },
+  { id: 9, chunk: 2, ollNo: 33, name: "OLL 33 (T-Shape)", group: "T-Shapes", alg: "(R U R' U') (R' F R F')" },
+  { id: 10, chunk: 2, ollNo: 6, name: "OLL 6 (Square)", group: "Squares", alg: "r U2 R' U' R U' r'" },
+  { id: 11, chunk: 2, ollNo: 5, name: "OLL 5 (Square)", group: "Squares", alg: "r' U2' R U R' U r" },
+  { id: 12, chunk: 2, ollNo: 28, name: "Arrow", group: "Solved Corners", alg: "(r U R' U') M (U R U' R')" },
+  { id: 13, chunk: 2, ollNo: 57, name: "H", group: "Solved Corners", alg: "(R U R' U') M' (U R U' r')" },
+
+  // Chunk 3: Lightning Bolts (6 cases)
+  { id: 14, chunk: 3, ollNo: 7, name: "OLL 7 (Lightning)", group: "Lightning Bolts", alg: "r U R' U R U2' r'" },
+  { id: 15, chunk: 3, ollNo: 11, name: "OLL 11 (Lightning)", group: "Lightning Bolts", alg: "r' (R2 U R' U R U2 R') U M'" },
+  { id: 16, chunk: 3, ollNo: 39, name: "OLL 39 (Big Lightning)", group: "Lightning Bolts", alg: "R' F (R U R' U') F' U R" },
+  { id: 17, chunk: 3, ollNo: 8, name: "OLL 8 (Lightning)", group: "Lightning Bolts", alg: "r' U' R U' R' U2 r" },
+  { id: 18, chunk: 3, ollNo: 12, name: "OLL 12 (Lightning)", group: "Lightning Bolts", alg: "M' (R' U' R U' R' U2 R) U' M" },
+  { id: 19, chunk: 3, ollNo: 40, name: "OLL 40 (Big Lightning)", group: "Lightning Bolts", alg: "L F' (L' U' L U) F U' L'" },
+
+  // Chunk 4: P-Shapes (4), C-Shapes (2) = 6 cases
+  { id: 20, chunk: 4, ollNo: 44, name: "OLL 44 (P-Shape)", group: "P-Shapes", alg: "f (R U R' U') f'" },
+  { id: 21, chunk: 4, ollNo: 43, name: "OLL 43 (P-Shape)", group: "P-Shapes", alg: "f' (L' U' L U) f" },
+  { id: 22, chunk: 4, ollNo: 31, name: "OLL 31 (P-Shape)", group: "P-Shapes", alg: "R' U' F (U R U' R') F' R" },
+  { id: 23, chunk: 4, ollNo: 32, name: "OLL 32 (P-Shape)", group: "P-Shapes", alg: "R U B' (U' R' U) R B R'" },
+  { id: 24, chunk: 4, ollNo: 46, name: "OLL 46 (C-Shape)", group: "C-Shapes", alg: "R' U' (R' F R F') U R" },
+  { id: 25, chunk: 4, ollNo: 34, name: "OLL 34 (C-Shape)", group: "C-Shapes", alg: "(R U R' U') B' (R' F R F') B" },
+
+  // Chunk 5: Fishes (4), W-Shapes (2) = 6 cases
+  { id: 26, chunk: 5, ollNo: 37, name: "OLL 37 (Fish)", group: "Fishes", alg: "F (R U' R' U') (R U R' F')" },
+  { id: 27, chunk: 5, ollNo: 35, name: "OLL 35 (Fish)", group: "Fishes", alg: "(R U2') (R2' F R F') (R U2' R')" },
+  { id: 28, chunk: 5, ollNo: 9, name: "OLL 9 (Fish)", group: "Fishes", alg: "(R U R' U') R' F (R2 U R' U') F'" },
+  { id: 29, chunk: 5, ollNo: 10, name: "OLL 10 (Fish)", group: "Fishes", alg: "(R U R' U) (R' F R F') (R U2' R')" },
+  { id: 30, chunk: 5, ollNo: 36, name: "OLL 36 (W-Shape)", group: "W-Shapes", alg: "(R U R' U) (R U' R' U') (R' F R F')" },
+  { id: 31, chunk: 5, ollNo: 38, name: "OLL 38 (W-Shape)", group: "W-Shapes", alg: "(R' U' R U') (R' U R U) l U' R' U x" },
+
+  // Chunk 6: L-Shapes (6 cases)
+  { id: 32, chunk: 6, ollNo: 48, name: "OLL 48 (L-Shape)", group: "L-Shapes", alg: "F (R U R' U') (R U R' U') F'" },
+  { id: 33, chunk: 6, ollNo: 47, name: "OLL 47 (L-Shape)", group: "L-Shapes", alg: "R' U' (R' F R F') (R' F R F') U R" },
+  { id: 34, chunk: 6, ollNo: 53, name: "OLL 53 (L-Shape)", group: "L-Shapes", alg: "(r' U' R U') (R' U R U') R' U2 r" },
+  { id: 35, chunk: 6, ollNo: 54, name: "OLL 54 (L-Shape)", group: "L-Shapes", alg: "(r U R' U) (R U' R' U) R U2' r'" },
+  { id: 36, chunk: 6, ollNo: 50, name: "OLL 50 (L-Shape)", group: "L-Shapes", alg: "r' U r2 U' r2' U' r2 U r'" },
+  { id: 37, chunk: 6, ollNo: 49, name: "OLL 49 (L-Shape)", group: "L-Shapes", alg: "r U' r2' U r2 U r2' U' r" },
+
+  // Chunk 7: Lines (4), Knight Moves (2) = 6 cases
+  { id: 38, chunk: 7, ollNo: 51, name: "OLL 51 (Line)", group: "Lines", alg: "f (R U R' U') (R U R' U') f'" },
+  { id: 39, chunk: 7, ollNo: 52, name: "OLL 52 (Line)", group: "Lines", alg: "(R U R' U R U') y (R U' R') F'" },
+  { id: 40, chunk: 7, ollNo: 56, name: "OLL 56 (Line)", group: "Lines", alg: "r U r' (U R U' R') (U R U' R') r U' r'" },
+  { id: 41, chunk: 7, ollNo: 55, name: "OLL 55 (Line)", group: "Lines", alg: "R U2 R2 (U' R U' R') U2 F R F'" },
+  { id: 42, chunk: 7, ollNo: 15, name: "OLL 15 (Knight Move)", group: "Knight Moves", alg: "(r' U' r) (R' U' R U) (r' U r)" },
+  { id: 43, chunk: 7, ollNo: 13, name: "OLL 13 (Knight Move)", group: "Knight Moves", alg: "F U R U' R2' F' R U (R U' R')" },
+
+  // Chunk 8: Knight Moves (2), Awkward Shapes (4) = 6 cases
+  { id: 44, chunk: 8, ollNo: 16, name: "OLL 16 (Knight Move)", group: "Knight Moves", alg: "(r U r') (R U R' U') (r U' r')" },
+  { id: 45, chunk: 8, ollNo: 14, name: "OLL 14 (Knight Move)", group: "Knight Moves", alg: "(R' F R) (U R' F' R) (F U' F')" },
+  { id: 46, chunk: 8, ollNo: 41, name: "OLL 41 (Awkward)", group: "Awkward Shapes", alg: "(R U R' U R U2' R') F (R U R' U') F'" },
+  { id: 47, chunk: 8, ollNo: 42, name: "OLL 42 (Awkward)", group: "Awkward Shapes", alg: "(R' U' R U' R' U2 R) F (R U R' U') F'" },
+  { id: 48, chunk: 8, ollNo: 29, name: "OLL 29 (Awkward)", group: "Awkward Shapes", alg: "r2 D' (r U r') D r2 (U' r' U' r)" },
+  { id: 49, chunk: 8, ollNo: 30, name: "OLL 30 (Awkward)", group: "Awkward Shapes", alg: "F U (R U2 R' U') (R U2 R' U') F'" },
+
+  // Chunk 9: Dot-cases (8 cases)
+  { id: 50, chunk: 9, ollNo: 1, name: "OLL 1 (Dot)", group: "Dot-cases", alg: "(R U2') (R2' F R F') U2' (R' F R F')" },
+  { id: 51, chunk: 9, ollNo: 17, name: "OLL 17 (Dot)", group: "Dot-cases", alg: "(R U R' U) (R' F R F') U2' (R' F R F')" },
+  { id: 52, chunk: 9, ollNo: 19, name: "OLL 19 (Dot)", group: "Dot-cases", alg: "M U (R U R' U') M' (R' F R F')" },
+  { id: 53, chunk: 9, ollNo: 3, name: "OLL 3 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U' F (R U R' U') F'" },
+  { id: 54, chunk: 9, ollNo: 2, name: "OLL 2 (Dot)", group: "Dot-cases", alg: "F (R U R' U') F' f (R U R' U') f'" },
+  { id: 55, chunk: 9, ollNo: 20, name: "OLL 20 (Dot)", group: "Dot-cases", alg: "M U (R U R' U') M2' (U R U' r')" },
+  { id: 56, chunk: 9, ollNo: 18, name: "OLL 18 (Dot)", group: "Dot-cases", alg: "(r U R' U R U2 r') (r' U' R U' R' U2 r)" },
+  { id: 57, chunk: 9, ollNo: 4, name: "OLL 4 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'" }
+];
+
+// --- DEFAULT 9-CHUNK CURRICULUM PRESET ---
+const DEFAULT_CHUNKS = [
+  { id: 'chunk-1', name: 'Chunk 1: Oriented-Edges', caseIds: [1, 2, 3, 4, 5, 6, 7] },
+  { id: 'chunk-2', name: 'Chunk 2: T-Shapes & Squares', caseIds: [8, 9, 10, 11, 12, 13] },
+  { id: 'chunk-3', name: 'Chunk 3: Lightning Bolts', caseIds: [14, 15, 16, 17, 18, 19] },
+  { id: 'chunk-4', name: 'Chunk 4: P & C-Shapes', caseIds: [20, 21, 22, 23, 24, 25] },
+  { id: 'chunk-5', name: 'Chunk 5: Fishes & W-Shapes', caseIds: [26, 27, 28, 29, 30, 31] },
+  { id: 'chunk-6', name: 'Chunk 6: L-Shapes', caseIds: [32, 33, 34, 35, 36, 37] },
+  { id: 'chunk-7', name: 'Chunk 7: Lines & Knight Moves', caseIds: [38, 39, 40, 41, 42, 43] },
+  { id: 'chunk-8', name: 'Chunk 8: Knight & Awkward', caseIds: [44, 45, 46, 47, 48, 49] },
+  { id: 'chunk-9', name: 'Chunk 9: Dot Cases', caseIds: [50, 51, 52, 53, 54, 55, 56, 57] }
+];
+
+// Generate even chunks by target size (e.g. 3, 4, 5, 6, etc.)
+const generateChunksBySize = (size = 6) => {
+  const safeSize = Math.max(2, Math.min(15, size));
+  const chunks = [];
+  let currentIds = [];
+  let chunkNum = 1;
+
+  OLL_DATA.forEach((c, idx) => {
+    currentIds.push(c.id);
+    if (currentIds.length === safeSize || idx === OLL_DATA.length - 1) {
+      chunks.push({
+        id: `chunk-${chunkNum}`,
+        name: `Chunk ${chunkNum} (${currentIds.length} Cases)`,
+        caseIds: [...currentIds]
+      });
+      currentIds = [];
+      chunkNum++;
+    }
+  });
+  return chunks;
+};
+
+// Generate chunks by standard shape groups
+const generateChunksByGroup = () => {
+  const map = new Map();
+  OLL_DATA.forEach(c => {
+    if (!map.has(c.group)) map.set(c.group, []);
+    map.get(c.group).push(c.id);
+  });
+
+  return Array.from(map.entries()).map(([grpName, ids], idx) => ({
+    id: `group-chunk-${idx + 1}`,
+    name: `${grpName} (${ids.length})`,
+    caseIds: ids
+  }));
+};
+
+// Dynamic Learning Calendar Generator
+const generateDynamicSchedule = (chunks = DEFAULT_CHUNKS) => {
+  const safeChunks = chunks && chunks.length > 0 ? chunks : DEFAULT_CHUNKS;
+  const N = safeChunks.length;
+  const days = [];
+
+  for (let i = 0; i < N; i++) {
+    const chunkName = safeChunks[i]?.name || `Chunk ${i + 1}`;
+    // Day 1 of chunk: Learn
+    days.push({
+      day: days.length + 1,
+      type: 'Learn',
+      chunkIndex: i,
+      title: `Learn: ${chunkName}`,
+      isFinale: false
+    });
+    // Day 2 of chunk: Drill
+    days.push({
+      day: days.length + 1,
+      type: 'Practice',
+      chunkIndex: i,
+      title: `Drill: ${chunkName}`,
+      isFinale: false
+    });
+    // Day 3 of chunk: Refine
+    days.push({
+      day: days.length + 1,
+      type: 'Practice',
+      chunkIndex: i,
+      title: `Refine: ${chunkName}`,
+      isFinale: false
+    });
+    // Review checkpoint every 2 chunks
+    if ((i + 1) % 2 === 0 && i < N - 1) {
+      days.push({
+        day: days.length + 1,
+        type: 'Review',
+        chunkIndices: Array.from({ length: i + 1 }, (_, k) => k),
+        title: `Cumulative Review: Chunks 1–${i + 1}`,
+        isFinale: false
+      });
+    }
+  }
+
+  // Grand Finale Review of entire custom program
+  days.push({
+    day: days.length + 1,
+    type: 'Review',
+    chunkIndices: Array.from({ length: N }, (_, k) => k),
+    title: `Grand Finale: Full OLL Master Review`,
+    isFinale: true
+  });
+
+  return days;
+};
+
+const getScheduleForDay = (day = 1, chunks = DEFAULT_CHUNKS) => {
+  const scheduleDays = generateDynamicSchedule(chunks);
+  const totalDays = scheduleDays.length;
+  let target = Math.max(1, Math.min(totalDays, day));
+  return {
+    ...scheduleDays[target - 1],
+    totalDays
+  };
+};
+
+// --- NOTATION KEY REPOSITORY ---
+const NOTATION_GROUPS = [
+  {
+    title: "Single Face Moves",
+    description: "Turning an outer face 90° or 180°",
+    moves: [
+      { move: "U", desc: "Top layer clockwise" },
+      { move: "U'", desc: "Top layer counter-clockwise" },
+      { move: "U2", desc: "Top layer 180 degrees" },
+      { move: "D", desc: "Bottom layer clockwise" },
+      { move: "D'", desc: "Bottom layer counter-clockwise" },
+      { move: "D2", desc: "Bottom layer 180 degrees" },
+      { move: "R", desc: "Right layer clockwise" },
+      { move: "R'", desc: "Right layer counter-clockwise" },
+      { move: "R2", desc: "Right layer 180 degrees" },
+      { move: "L", desc: "Left layer clockwise" },
+      { move: "L'", desc: "Left layer counter-clockwise" },
+      { move: "L2", desc: "Left layer 180 degrees" },
+      { move: "F", desc: "Front layer clockwise" },
+      { move: "F'", desc: "Front layer counter-clockwise" },
+      { move: "F2", desc: "Front layer 180 degrees" },
+      { move: "B", desc: "Back layer clockwise" },
+      { move: "B'", desc: "Back layer counter-clockwise" },
+      { move: "B2", desc: "Back layer 180 degrees" }
+    ]
+  },
+  {
+    title: "Slice Moves (Middle Layers)",
+    description: "Turning inner layers between outer faces",
+    moves: [
+      { move: "M", desc: "Middle layer between L/R (turns down, follows L)" },
+      { move: "M'", desc: "Middle layer turns up (follows R)" },
+      { move: "M2", desc: "Middle layer 180 degrees" },
+      { move: "E", desc: "Equator layer between U/D (turns right, follows D)" },
+      { move: "E'", desc: "Equator layer turns left (follows U)" },
+      { move: "E2", desc: "Equator layer 180 degrees" },
+      { move: "S", desc: "Standing layer between F/B (turns clockwise, follows F)" },
+      { move: "S'", desc: "Standing layer counter-clockwise (follows B)" },
+      { move: "S2", desc: "Standing layer 180 degrees" }
+    ]
+  },
+  {
+    title: "Whole Cube Rotations",
+    description: "Reorienting the entire cube in 3D space",
+    moves: [
+      { move: "x", desc: "Rotate full cube up (look at bottom face, follows R)" },
+      { move: "x'", desc: "Rotate full cube down (look at top face, follows R')" },
+      { move: "x2", desc: "Rotate full cube 180° vertically" },
+      { move: "y", desc: "Rotate full cube clockwise horizontally (follows U)" },
+      { move: "y'", desc: "Rotate full cube counter-clockwise horizontally (follows U')" },
+      { move: "y2", desc: "Rotate full cube 180° horizontally" },
+      { move: "z", desc: "Tilt full cube clockwise (follows F)" },
+      { move: "z'", desc: "Tilt full cube counter-clockwise (follows F')" },
+      { move: "z2", desc: "Tilt full cube 180°" }
+    ]
+  },
+  {
+    title: "Wide Moves (Two Layers)",
+    description: "Turning an outer face along with its adjacent slice",
+    moves: [
+      { move: "Rw / r", desc: "Right side + Middle layer clockwise" },
+      { move: "Rw' / r'", desc: "Right side + Middle layer counter-clockwise" },
+      { move: "Uw / u", desc: "Top side + Middle layer clockwise" },
+      { move: "Uw' / u'", desc: "Top side + Middle layer counter-clockwise" },
+      { move: "Fw / f", desc: "Front side + Middle layer clockwise" },
+      { move: "Fw' / f'", desc: "Front side + Middle layer counter-clockwise" },
+      { move: "Lw / l", desc: "Left side + Middle layer clockwise" },
+      { move: "Lw' / l'", desc: "Left side + Middle layer counter-clockwise" },
+      { move: "Dw / d", desc: "Bottom side + Middle layer clockwise" },
+      { move: "Dw' / d'", desc: "Bottom side + Middle layer counter-clockwise" },
+      { move: "Bw / b", desc: "Back side + Middle layer clockwise" },
+      { move: "Bw' / b'", desc: "Back side + Middle layer counter-clockwise" }
+    ]
+  }
+];
+
+// --- FINGERTRICK DATABASE ---
+const FINGERTRICK_DATABASE = {
+  1: {
+    grip: "Standard Home Grip (Right thumb on front center, middle & ring fingers on back)",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "R U R'", label: "Sune Opener", tip: "Right wrist turns R up, right index flicks U forward, right wrist pulls R' down. Keep your right thumb anchored on the front face." },
+      { moves: "U", label: "Setup Flick", tip: "Right index flicks U again smoothly without shifting your hand position." },
+      { moves: "R U2' R'", label: "Double-Flick Finisher", tip: "Right wrist turns R up, then execute U2' as an index-then-middle double flick with your right hand. Finish with R' wrist pull." }
+    ],
+    proTip: "Do not regrip between the U turns! Let your index finger spring back quickly so the entire 7-move algorithm flows as one continuous reflex."
+  },
+  2: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "R U2", label: "Double Flick Opener", tip: "Right wrist turns R up, right index followed by right middle finger double-flicks U2." },
+      { moves: "R' U'", label: "Push Transition", tip: "Right wrist pulls R' down, right index pushes U' from behind." },
+      { moves: "R U' R'", label: "Sune Finisher", tip: "Right wrist turns R up, right index pushes U' again, right wrist pulls R' down." }
+    ],
+    proTip: "Use your right index finger to push U' from the back corner so your hand never has to change grip."
+  },
+  3: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "(R U2 R')", label: "Double Flick Pair", tip: "Wrist R, index-then-middle double flick U2, wrist R'." },
+      { moves: "(U' R U R')", label: "Reverse Sexy Insert", tip: "Index push U', wrist R, index flick U, wrist R'." },
+      { moves: "(U' R U' R')", label: "Closing Insert", tip: "Index push U', wrist R, index push U', wrist R'." }
+    ],
+    proTip: "Treat this as three 4-move F2L pairs chained together. Maintain an even, rhythmic turning speed."
+  },
+  4: {
+    grip: "Wide Home Grip (Right thumb spans two layers)",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Turn wide r with right thumb and middle, index flicks U, outer R' down, index push U'." },
+      { moves: "(r' F R F')", label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." }
+    ],
+    proTip: "Because r turns two layers, stabilize the left block with your left hand while your right hand glides through the wide triggers."
+  },
+  5: {
+    grip: "Home Grip with Left Hand Support",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger pinches F' counter-clockwise from the top-right corner." },
+      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Right thumb & middle lift wide r, index flicks U, outer R' down, index push U'." },
+      { moves: "r' F R", label: "Recovery Trigger", tip: "Wide r' down, thumb push F up, right wrist R up to finish." }
+    ],
+    proTip: "The opening F' is done with a quick pinch so your right hand is already in position for the wide r lift."
+  },
+  8: {
+    grip: "Home Grip (No pre-turn regrip)",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F", label: "Thumb Push F", tip: "Push the front face clockwise from the bottom-right corner with your right thumb (or left index flicking down)." },
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "The classic 4-move trigger: R wrist up, U index flick, R' wrist down, U' index push." },
+      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger reaches to the top-right corner of F and pinches upward/counter-clockwise to close." }
+    ],
+    proTip: "The index finger pinch for F' is what makes this a sub-0.7s PB breaker. Never take your right hand off the cube to turn F' with your thumb."
+  },
+  9: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." },
+      { moves: "(R' F R F')", label: "Sledgehammer", tip: "R' wrist down, right index pushes F down, right wrist pulls R up, right thumb pushes F' up." }
+    ],
+    proTip: "Flow the ending of Sexy Move directly into the Sledgehammer — the R' move is already prepared by your wrist angle."
+  },
+  20: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "f", label: "Wide Thumb Push f", tip: "Right thumb pushes both front layers clockwise." },
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger executed from standard home grip." },
+      { moves: "f'", label: "Wide Pinch f'", tip: "Right index finger pinches both front layers counter-clockwise from the top." }
+    ],
+    proTip: "Make sure your index finger catches both the F and S slices together on the f' pinch so the middle slice doesn't drag."
+  }
+};
+
+const describeFallbackTrigger = (chunk) => {
+  const c = chunk.trim();
+  if (c.includes("R U R' U'")) return { moves: c, label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." };
+  if (c.includes("R' F R F'")) return { moves: c, label: "Sledgehammer", tip: "R' wrist down, index push F, R wrist up, thumb push F'." };
+  if (c.includes("r U R' U'")) return { moves: c, label: "Fat Sexy Move", tip: "Wide r lift with thumb and middle, index flick U, R' down, index push U'." };
+  if (c.includes("r' F R F'")) return { moves: c, label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." };
+  if (c.includes("U2")) return { moves: c, label: "Double Flick U2", tip: "Right index flick followed immediately by right middle finger flick." };
+  if (c === "F") return { moves: c, label: "Thumb Push F", tip: "Right thumb pushes front layer clockwise from bottom right." };
+  if (c === "F'") return { moves: c, label: "Index Pinch F'", tip: "Right index finger pinches front layer counter-clockwise from top right." };
+  if (c === "f") return { moves: c, label: "Wide Push f", tip: "Right thumb pushes two front layers clockwise." };
+  if (c === "f'") return { moves: c, label: "Wide Pinch f'", tip: "Right index finger pinches two front layers counter-clockwise." };
+  if (c.includes("M")) return { moves: c, label: "Slice Trigger", tip: "Left or right ring finger operates the inner M slice from bottom-back." };
+  return { moves: c, label: "Trigger Segment", tip: `Execute ${c} smoothly with index flicks and light wrist turns.` };
+};
+
+const getFingertrickData = (caseItem) => {
+  if (!caseItem) return null;
+  if (FINGERTRICK_DATABASE[caseItem.id]) {
+    return FINGERTRICK_DATABASE[caseItem.id];
+  }
+
+  const alg = caseItem.alg || "";
+  const parenMatches = alg.match(/\([^\)]+\)/g);
+  let triggers = [];
+
+  if (parenMatches && parenMatches.length > 0) {
+    let remaining = alg;
+    parenMatches.forEach(paren => {
+      const idx = remaining.indexOf(paren);
+      if (idx > 0) {
+        const lead = remaining.slice(0, idx).trim();
+        if (lead) triggers.push(describeFallbackTrigger(lead));
+      }
+      triggers.push(describeFallbackTrigger(paren));
+      remaining = remaining.slice(idx + paren.length).trim();
+    });
+    if (remaining) triggers.push(describeFallbackTrigger(remaining));
+  } else {
+    const parts = alg.split(' ').filter(Boolean);
+    const chunkSize = Math.max(2, Math.ceil(parts.length / 3));
+    for (let i = 0; i < parts.length; i += chunkSize) {
+      const chunk = parts.slice(i, i + chunkSize).join(' ');
+      triggers.push(describeFallbackTrigger(chunk));
+    }
+  }
+
+  let grip = "Standard Home Grip (Thumbs on front center, middle & ring on back)";
+  if (alg.includes("r") || alg.includes("l")) grip = "Wide Home Grip (Thumb spans two layers for wide turns)";
+  else if (alg.startsWith("L") || alg.startsWith("f'")) grip = "Lefty Home Grip (Dominant left-hand lead)";
+  else if (alg.includes("M")) grip = "Middle Slice Grip (Ring finger rested on bottom-back M slice)";
+
+  return {
+    grip,
+    regrips: alg.includes("y") || alg.includes("x") ? "1 Regrip (Cube Rotation)" : "0 Regrips (High TPS Flow)",
+    triggers: triggers.filter(Boolean),
+    proTip: "Keep finger movements light and close to the cube. Minimize wrist travel by flicking U moves with your index finger."
+  };
+};
+
+// --- APP HELPERS ---
+const getImageUrl = (alg) => {
+  const sanitized = alg.replace(/[()]/g, '').trim();
+  return `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sanitized)}`;
+};
+
+const reverseAlg = (alg) => {
+  const moves = alg.replace(/[()]/g, '').split(' ').filter(Boolean);
+  const invertMove = (m) => {
+    if (m.includes("'")) return m.replace("'", "");
+    if (m.includes("2")) return m;
+    return m + "'";
+  };
+  return moves.reverse().map(invertMove).join(' ');
+};
+
+// --- CUSTOM SUNE CUBE LOGO ---
+const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
+  const [imgError, setImgError] = useState(false);
+  return sanitizeNode(
+    <div className={`${className} flex-shrink-0 flex items-center justify-center relative`}>
+      {!imgError ? (
+        <img
+          src="/OLLDayEveryday.svg"
+          alt="Sune Logo"
+          className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <svg
+          viewBox="0 0 1000 1000"
+          className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z"
+            fill="#090a14"
+            stroke="#090a14"
+            strokeWidth="32"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round" fill="#000000">
+            <polygon points="524,180 594,228 534,268 464,220" />
+            <polygon points="604,236 674,288 614,328 544,276" />
+            <polygon points="684,296 754,348 694,388 624,336" />
+            <polygon points="700,358 775,354 788,418 714,424" />
+            <polygon points="716,432 790,428 752,492 680,498" />
+            <polygon points="676,506 748,502 708,552 638,558" />
+          </g>
+          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
+            <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
+            <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
+            <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
+          </g>
+          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
+            <polygon points="544,432 616,375 610,466 538,523" fill="#d96528" />
+            <polygon points="537,537 609,480 603,571 531,628" fill="#090a12" />
+            <polygon points="530,642 602,585 596,676 524,733" fill="#090a12" />
+          </g>
+          <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
+            <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
+            <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
+            <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
+            <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
+            <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
+            <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
+            <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
+            <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
+            <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
+          </g>
+        </svg>
+      )}
+    </div>
+  );
+};
+
+// --- REAL-TIME CLOUD DATABASE (FIRESTORE REST API) ---
+const FIREBASE_PROJECT_ID = "olldayeveryday";
+const FIREBASE_API_KEY = "AIzaSyBFWgmB1DgBDrfTWCMLSNS6ovS2XeMjAcU";
+const FIRESTORE_ENDPOINT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/app_data/family_sync?key=${FIREBASE_API_KEY}`;
 
 // --- PIN PAD COMPONENT ---
 const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, clearOnComplete = true }) => {
@@ -832,7 +1365,7 @@ const AdminModal = ({ users, cloudStatus = 'synced', onClose, onAddUser, onDelet
                     value={newPin} 
                     onChange={e => {
                       const val = e.target.value.replace(/[^0-9]/g, '');
-                      if (val.length <= 4) setNewPin(val);
+                      if (val.length <= 4) setNewPinInput ? setNewPin(val) : setNewPin(val);
                     }} 
                     placeholder="E.g. 0713" 
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors" 
@@ -897,409 +1430,6 @@ const AdminModal = ({ users, cloudStatus = 'synced', onClose, onAddUser, onDelet
   );
 };
 
-// --- DATA MODEL: ALL 57 OLL CASES (9 CHUNKS FOR 32-DAY PROGRAM) ---
-const OLL_DATA = [
-  // Chunk 1: Oriented-Edges (7 cases)
-  { id: 1, chunk: 1, name: "Sune", group: "Oriented-Edges", alg: "R U R' U R U2' R'" },
-  { id: 2, chunk: 1, name: "Anti-Sune", group: "Oriented-Edges", alg: "R U2 R' U' R U' R'" },
-  { id: 3, chunk: 1, name: "Cross", group: "Oriented-Edges", alg: "(R U2 R') (U' R U R') (U' R U' R')" },
-  { id: 4, chunk: 1, name: "Chameleon", group: "Oriented-Edges", alg: "(r U R' U') (r' F R F')" },
-  { id: 5, chunk: 1, name: "Bowtie", group: "Oriented-Edges", alg: "F' (r U R' U') r' F R" },
-  { id: 6, chunk: 1, name: "Bruno", group: "Oriented-Edges", alg: "R U2' R2' U' R2 U' R2' U2' R" },
-  { id: 7, chunk: 1, name: "Headlights", group: "Oriented-Edges", alg: "R2 D (R' U2 R) D' (R' U2 R')" },
-  
-  // Chunk 2: T-Shapes (2), Squares (2), Solved Corners (2) = 6 cases
-  { id: 8, chunk: 2, name: "T", group: "T-Shapes", alg: "F (R U R' U') F'" },
-  { id: 9, chunk: 2, name: "Key", group: "T-Shapes", alg: "(R U R' U') (R' F R F')" },
-  { id: 10, chunk: 2, name: "Righty-Square", group: "Squares", alg: "r U2 R' U' R U' r'" },
-  { id: 11, chunk: 2, name: "Lefty-Square", group: "Squares", alg: "r' U2' R U R' U r" },
-  { id: 12, chunk: 2, name: "Arrow", group: "Solved Corners", alg: "(r U R' U') M (U R U' R')" },
-  { id: 13, chunk: 2, name: "H", group: "Solved Corners", alg: "(R U R' U') M' (U R U' r')" },
-
-  // Chunk 3: Lightning Bolts (6 cases)
-  { id: 14, chunk: 3, name: "Lightning", group: "Lightning Bolts", alg: "r U R' U R U2' r'" },
-  { id: 15, chunk: 3, name: "Downstairs", group: "Lightning Bolts", alg: "r' (R2 U R' U R U2 R') U M'" },
-  { id: 16, chunk: 3, name: "Big Lightning", group: "Lightning Bolts", alg: "R' F (R U R' U') F' U R" },
-  { id: 17, chunk: 3, name: "Reverse Lightning", group: "Lightning Bolts", alg: "r' U' R U' R' U2 r" },
-  { id: 18, chunk: 3, name: "Upstairs", group: "Lightning Bolts", alg: "M' (R' U' R U' R' U2 R) U' M" },
-  { id: 19, chunk: 3, name: "Lefty Big Lightning", group: "Lightning Bolts", alg: "L F' (L' U' L U) F U' L'" },
-
-  // Chunk 4: P-Shapes (4), C-Shapes (2) = 6 cases
-  { id: 20, chunk: 4, name: "P", group: "P-Shapes", alg: "f (R U R' U') f'" },
-  { id: 21, chunk: 4, name: "Inverse P", group: "P-Shapes", alg: "f' (L' U' L U) f" },
-  { id: 22, chunk: 4, name: "Couch", group: "P-Shapes", alg: "R' U' F (U R U' R') F' R" },
-  { id: 23, chunk: 4, name: "Anti-Couch", group: "P-Shapes", alg: "R U B' (U' R' U) R B R'" },
-  { id: 24, chunk: 4, name: "Seein' Headlights", group: "C-Shapes", alg: "R' U' (R' F R F') U R" },
-  { id: 25, chunk: 4, name: "City", group: "C-Shapes", alg: "(R U R' U') B' (R' F R F') B" },
-
-  // Chunk 5: Fishes (4), W-Shapes (2) = 6 cases
-  { id: 26, chunk: 5, name: "Mounted Fish", group: "Fishes", alg: "F (R U' R' U') (R U R' F')" },
-  { id: 27, chunk: 5, name: "Fish Salad", group: "Fishes", alg: "(R U2') (R2' F R F') (R U2' R')" },
-  { id: 28, chunk: 5, name: "Kite", group: "Fishes", alg: "(R U R' U') R' F (R2 U R' U') F'" },
-  { id: 29, chunk: 5, name: "Anti-Kite", group: "Fishes", alg: "(R U R' U) (R' F R F') (R U2' R')" },
-  { id: 30, chunk: 5, name: "Mario", group: "W-Shapes", alg: "(R U R' U) (R U' R' U') (R' F R F')" },
-  { id: 31, chunk: 5, name: "Wario", group: "W-Shapes", alg: "(R' U' R U') (R' U R U) l U' R' U x" },
-
-  // Chunk 6: L-Shapes (6 cases)
-  { id: 32, chunk: 6, name: "Breakneck", group: "L-Shapes", alg: "F (R U R' U') (R U R' U') F'" },
-  { id: 33, chunk: 6, name: "Anti-Breakneck", group: "L-Shapes", alg: "R' U' (R' F R F') (R' F R F') U R" },
-  { id: 34, chunk: 6, name: "Frying Pan", group: "L-Shapes", alg: "(r' U' R U') (R' U R U') R' U2 r" },
-  { id: 35, chunk: 6, name: "Anti-Frying Pan", group: "L-Shapes", alg: "(r U R' U) (R U' R' U) R U2' r'" },
-  { id: 36, chunk: 6, name: "Front Squeezy", group: "L-Shapes", alg: "r' U r2 U' r2' U' r2 U r'" },
-  { id: 37, chunk: 6, name: "Back Squeezy", group: "L-Shapes", alg: "r U' r2' U r2 U r2' U' r" },
-
-  // Chunk 7: Lines (4), Knight Moves (2) = 6 cases
-  { id: 38, chunk: 7, name: "Ant", group: "Lines", alg: "f (R U R' U') (R U R' U') f'" },
-  { id: 39, chunk: 7, name: "Rice Cooker", group: "Lines", alg: "(R U R' U R U') y (R U' R') F'" },
-  { id: 40, chunk: 7, name: "Streetlights", group: "Lines", alg: "r U r' (U R U' R') (U R U' R') r U' r'" },
-  { id: 41, chunk: 7, name: "Highway", group: "Lines", alg: "R U2 R2 (U' R U' R') U2 F R F'" },
-  { id: 42, chunk: 7, name: "Squeegee", group: "Knight Moves", alg: "(r' U' r) (R' U' R U) (r' U r)" },
-  { id: 43, chunk: 7, name: "Gun", group: "Knight Moves", alg: "F U R U' R2' F' R U (R U' R')" },
-
-  // Chunk 8: Knight Moves (2), Awkward Shapes (4) = 6 cases
-  { id: 44, chunk: 8, name: "Anti-Squeegee", group: "Knight Moves", alg: "(r U r') (R U R' U') (r U' r')" },
-  { id: 45, chunk: 8, name: "Anti-Gun", group: "Knight Moves", alg: "(R' F R) (U R' F' R) (F U' F')" },
-  { id: 46, chunk: 8, name: "Poodle", group: "Awkward Shapes", alg: "(R U R' U R U2' R') F (R U R' U') F'" },
-  { id: 47, chunk: 8, name: "Anti-Poodle", group: "Awkward Shapes", alg: "(R' U' R U' R' U2 R) F (R U R' U') F'" },
-  { id: 48, chunk: 8, name: "WTF", group: "Awkward Shapes", alg: "r2 D' (r U r') D r2 (U' r' U' r)" },
-  { id: 49, chunk: 8, name: "Anti-WTF", group: "Awkward Shapes", alg: "F U (R U2 R' U') (R U2 R' U') F'" },
-
-  // Chunk 9: Dot-cases (8 cases)
-  { id: 50, chunk: 9, name: "Blank", group: "Dot-cases", alg: "(R U2') (R2' F R F') U2' (R' F R F')" },
-  { id: 51, chunk: 9, name: "Slash", group: "Dot-cases", alg: "(R U R' U) (R' F R F') U2' (R' F R F')" },
-  { id: 52, chunk: 9, name: "Bunny", group: "Dot-cases", alg: "M U (R U R' U') M' (R' F R F')" },
-  { id: 53, chunk: 9, name: "Anti-Nazi", group: "Dot-cases", alg: "f (R U R' U') f' U' F (R U R' U') F'" },
-  { id: 54, chunk: 9, name: "Zamboni", group: "Dot-cases", alg: "F (R U R' U') F' f (R U R' U') f'" },
-  { id: 55, chunk: 9, name: "Super Lip", group: "Dot-cases", alg: "M U (R U R' U') M2' (U R U' r')" },
-  { id: 56, chunk: 9, name: "Crown", group: "Dot-cases", alg: "(r U R' U R U2 r') (r' U' R U' R' U2 r)" },
-  { id: 57, chunk: 9, name: "Nazi", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'" }
-];
-
-// --- NOTATION KEY REPOSITORY ---
-const NOTATION_GROUPS = [
-  {
-    title: "Single Face Moves",
-    description: "Turning an outer face 90° or 180°",
-    moves: [
-      { move: "U", desc: "Top layer clockwise" },
-      { move: "U'", desc: "Top layer counter-clockwise" },
-      { move: "U2", desc: "Top layer 180 degrees" },
-      { move: "D", desc: "Bottom layer clockwise" },
-      { move: "D'", desc: "Bottom layer counter-clockwise" },
-      { move: "D2", desc: "Bottom layer 180 degrees" },
-      { move: "R", desc: "Right layer clockwise" },
-      { move: "R'", desc: "Right layer counter-clockwise" },
-      { move: "R2", desc: "Right layer 180 degrees" },
-      { move: "L", desc: "Left layer clockwise" },
-      { move: "L'", desc: "Left layer counter-clockwise" },
-      { move: "L2", desc: "Left layer 180 degrees" },
-      { move: "F", desc: "Front layer clockwise" },
-      { move: "F'", desc: "Front layer counter-clockwise" },
-      { move: "F2", desc: "Front layer 180 degrees" },
-      { move: "B", desc: "Back layer clockwise" },
-      { move: "B'", desc: "Back layer counter-clockwise" },
-      { move: "B2", desc: "Back layer 180 degrees" }
-    ]
-  },
-  {
-    title: "Slice Moves (Middle Layers)",
-    description: "Turning inner layers between outer faces",
-    moves: [
-      { move: "M", desc: "Middle layer between L/R (turns down, follows L)" },
-      { move: "M'", desc: "Middle layer turns up (follows R)" },
-      { move: "M2", desc: "Middle layer 180 degrees" },
-      { move: "E", desc: "Equator layer between U/D (turns right, follows D)" },
-      { move: "E'", desc: "Equator layer turns left (follows U)" },
-      { move: "E2", desc: "Equator layer 180 degrees" },
-      { move: "S", desc: "Standing layer between F/B (turns clockwise, follows F)" },
-      { move: "S'", desc: "Standing layer counter-clockwise (follows B)" },
-      { move: "S2", desc: "Standing layer 180 degrees" }
-    ]
-  },
-  {
-    title: "Whole Cube Rotations",
-    description: "Reorienting the entire cube in 3D space",
-    moves: [
-      { move: "x", desc: "Rotate full cube up (look at bottom face, follows R)" },
-      { move: "x'", desc: "Rotate full cube down (look at top face, follows R')" },
-      { move: "x2", desc: "Rotate full cube 180° vertically" },
-      { move: "y", desc: "Rotate full cube clockwise horizontally (follows U)" },
-      { move: "y'", desc: "Rotate full cube counter-clockwise horizontally (follows U')" },
-      { move: "y2", desc: "Rotate full cube 180° horizontally" },
-      { move: "z", desc: "Tilt full cube clockwise (follows F)" },
-      { move: "z'", desc: "Tilt full cube counter-clockwise (follows F')" },
-      { move: "z2", desc: "Tilt full cube 180°" }
-    ]
-  },
-  {
-    title: "Wide Moves (Two Layers)",
-    description: "Turning an outer face along with its adjacent slice",
-    moves: [
-      { move: "Rw / r", desc: "Right side + Middle layer clockwise" },
-      { move: "Rw' / r'", desc: "Right side + Middle layer counter-clockwise" },
-      { move: "Uw / u", desc: "Top side + Middle layer clockwise" },
-      { move: "Uw' / u'", desc: "Top side + Middle layer counter-clockwise" },
-      { move: "Fw / f", desc: "Front side + Middle layer clockwise" },
-      { move: "Fw' / f'", desc: "Front side + Middle layer counter-clockwise" },
-      { move: "Lw / l", desc: "Left side + Middle layer clockwise" },
-      { move: "Lw' / l'", desc: "Left side + Middle layer counter-clockwise" },
-      { move: "Dw / d", desc: "Bottom side + Middle layer clockwise" },
-      { move: "Dw' / d'", desc: "Bottom side + Middle layer counter-clockwise" },
-      { move: "Bw / b", desc: "Back side + Middle layer clockwise" },
-      { move: "Bw' / b'", desc: "Back side + Middle layer counter-clockwise" }
-    ]
-  }
-];
-
-// --- CURATED FINGERTRICK DATABASE ---
-const FINGERTRICK_DATABASE = {
-  1: {
-    grip: "Standard Home Grip (Right thumb on front center, middle & ring fingers on back)",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "R U R'", label: "Sune Opener", tip: "Right wrist turns R up, right index flicks U forward, right wrist pulls R' down. Keep your right thumb anchored on the front face." },
-      { moves: "U", label: "Setup Flick", tip: "Right index flicks U again smoothly without shifting your hand position." },
-      { moves: "R U2' R'", label: "Double-Flick Finisher", tip: "Right wrist turns R up, then execute U2' as an index-then-middle double flick with your right hand. Finish with R' wrist pull." }
-    ],
-    proTip: "Do not regrip between the U turns! Let your index finger spring back quickly so the entire 7-move algorithm flows as one continuous reflex."
-  },
-  2: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "R U2", label: "Double Flick Opener", tip: "Right wrist turns R up, right index followed by right middle finger double-flicks U2." },
-      { moves: "R' U'", label: "Push Transition", tip: "Right wrist pulls R' down, right index pushes U' from behind." },
-      { moves: "R U' R'", label: "Sune Finisher", tip: "Right wrist turns R up, right index pushes U' again, right wrist pulls R' down." }
-    ],
-    proTip: "Use your right index finger to push U' from the back corner so your hand never has to change grip."
-  },
-  3: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "(R U2 R')", label: "Double Flick Pair", tip: "Wrist R, index-then-middle double flick U2, wrist R'." },
-      { moves: "(U' R U R')", label: "Reverse Sexy Insert", tip: "Index push U', wrist R, index flick U, wrist R'." },
-      { moves: "(U' R U' R')", label: "Closing Insert", tip: "Index push U', wrist R, index push U', wrist R'." }
-    ],
-    proTip: "Treat this as three 4-move F2L pairs chained together. Maintain an even, rhythmic turning speed."
-  },
-  4: {
-    grip: "Wide Home Grip (Right thumb spans two layers)",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Turn wide r with right thumb and middle, index flicks U, outer R' down, index push U'." },
-      { moves: "(r' F R F')", label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." }
-    ],
-    proTip: "Because r turns two layers, stabilize the left block with your left hand while your right hand glides through the wide triggers."
-  },
-  5: {
-    grip: "Home Grip with Left Hand Support",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger pinches F' counter-clockwise from the top-right corner." },
-      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Right thumb & middle lift wide r, index flicks U, outer R' down, index push U'." },
-      { moves: "r' F R", label: "Recovery Trigger", tip: "Wide r' down, thumb push F up, right wrist R up to finish." }
-    ],
-    proTip: "The opening F' is done with a quick pinch so your right hand is already in position for the wide r lift."
-  },
-  8: {
-    grip: "Home Grip (No pre-turn regrip)",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "F", label: "Thumb Push F", tip: "Push the front face clockwise from the bottom-right corner with your right thumb (or left index flicking down)." },
-      { moves: "(R U R' U')", label: "Sexy Move", tip: "The classic 4-move trigger: R wrist up, U index flick, R' wrist down, U' index push." },
-      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger reaches to the top-right corner of F and pinches upward/counter-clockwise to close." }
-    ],
-    proTip: "The index finger pinch for F' is what makes this a sub-0.7s PB breaker. Never take your right hand off the cube to turn F' with your thumb."
-  },
-  9: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "(R U R' U')", label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." },
-      { moves: "(R' F R F')", label: "Sledgehammer", tip: "R' wrist down, right index pushes F down, right wrist pulls R up, right thumb pushes F' up." }
-    ],
-    proTip: "Flow the ending of Sexy Move directly into the Sledgehammer — the R' move is already prepared by your wrist angle."
-  },
-  20: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "f", label: "Wide Thumb Push f", tip: "Right thumb pushes both front layers clockwise." },
-      { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger executed from standard home grip." },
-      { moves: "f'", label: "Wide Pinch f'", tip: "Right index finger pinches both front layers counter-clockwise from the top." }
-    ],
-    proTip: "Make sure your index finger catches both the F and S slices together on the f' pinch so the middle slice doesn't drag."
-  }
-};
-
-const describeFallbackTrigger = (chunk) => {
-  const c = chunk.trim();
-  if (c.includes("R U R' U'")) return { moves: c, label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." };
-  if (c.includes("R' F R F'")) return { moves: c, label: "Sledgehammer", tip: "R' wrist down, index push F, R wrist up, thumb push F'." };
-  if (c.includes("r U R' U'")) return { moves: c, label: "Fat Sexy Move", tip: "Wide r lift with thumb and middle, index flick U, R' down, index push U'." };
-  if (c.includes("r' F R F'")) return { moves: c, label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." };
-  if (c.includes("U2")) return { moves: c, label: "Double Flick U2", tip: "Right index flick followed immediately by right middle finger flick." };
-  if (c === "F") return { moves: c, label: "Thumb Push F", tip: "Right thumb pushes front layer clockwise from bottom right." };
-  if (c === "F'") return { moves: c, label: "Index Pinch F'", tip: "Right index finger pinches front layer counter-clockwise from top right." };
-  if (c === "f") return { moves: c, label: "Wide Push f", tip: "Right thumb pushes two front layers clockwise." };
-  if (c === "f'") return { moves: c, label: "Wide Pinch f'", tip: "Right index finger pinches two front layers counter-clockwise." };
-  if (c.includes("M")) return { moves: c, label: "Slice Trigger", tip: "Left or right ring finger operates the inner M slice from bottom-back." };
-  return { moves: c, label: "Trigger Segment", tip: `Execute ${c} smoothly with index flicks and light wrist turns.` };
-};
-
-const getFingertrickData = (caseItem) => {
-  if (!caseItem) return null;
-  if (FINGERTRICK_DATABASE[caseItem.id]) {
-    return FINGERTRICK_DATABASE[caseItem.id];
-  }
-
-  const alg = caseItem.alg || "";
-  const parenMatches = alg.match(/\([^\)]+\)/g);
-  let triggers = [];
-
-  if (parenMatches && parenMatches.length > 0) {
-    let remaining = alg;
-    parenMatches.forEach(paren => {
-      const idx = remaining.indexOf(paren);
-      if (idx > 0) {
-        const lead = remaining.slice(0, idx).trim();
-        if (lead) triggers.push(describeFallbackTrigger(lead));
-      }
-      triggers.push(describeFallbackTrigger(paren));
-      remaining = remaining.slice(idx + paren.length).trim();
-    });
-    if (remaining) triggers.push(describeFallbackTrigger(remaining));
-  } else {
-    const parts = alg.split(' ').filter(Boolean);
-    const chunkSize = Math.max(2, Math.ceil(parts.length / 3));
-    for (let i = 0; i < parts.length; i += chunkSize) {
-      const chunk = parts.slice(i, i + chunkSize).join(' ');
-      triggers.push(describeFallbackTrigger(chunk));
-    }
-  }
-
-  let grip = "Standard Home Grip (Thumbs on front center, middle & ring on back)";
-  if (alg.includes("r") || alg.includes("l")) grip = "Wide Home Grip (Thumb spans two layers for wide turns)";
-  else if (alg.startsWith("L") || alg.startsWith("f'")) grip = "Lefty Home Grip (Dominant left-hand lead)";
-  else if (alg.includes("M")) grip = "Middle Slice Grip (Ring finger rested on bottom-back M slice)";
-
-  return {
-    grip,
-    regrips: alg.includes("y") || alg.includes("x") ? "1 Regrip (Cube Rotation)" : "0 Regrips (High TPS Flow)",
-    triggers: triggers.filter(Boolean),
-    proTip: "Keep finger movements light and close to the cube. Minimize wrist travel by flicking U moves with your index finger."
-  };
-};
-
-// --- APP HELPERS ---
-const getImageUrl = (alg) => {
-  const sanitized = alg.replace(/[()]/g, '').trim();
-  return `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sanitized)}`;
-};
-
-const reverseAlg = (alg) => {
-  const moves = alg.replace(/[()]/g, '').split(' ').filter(Boolean);
-  const invertMove = (m) => {
-    if (m.includes("'")) return m.replace("'", "");
-    if (m.includes("2")) return m;
-    return m + "'";
-  };
-  return moves.reverse().map(invertMove).join(' ');
-};
-
-const getScheduleForDay = (day = 1) => {
-  let target = day;
-  if (target < 1) target = 1;
-  if (target > 32) target = 32;
-
-  if (target === 29) return { type: 'Learn', chunks: [9], title: 'Final Set: Dot Cases' };
-  if (target === 30) return { type: 'Practice', chunks: [9], title: 'Drill: Dot Cases' };
-  if (target === 31) return { type: 'Practice', chunks: [9], title: 'Refine: Dot Cases' };
-  if (target === 32) return { type: 'Review', chunks: [1, 2, 3, 4, 5, 6, 7, 8, 9], title: 'Grand Finale: Full 57 OLL Review' };
-
-  const week = Math.ceil(target / 7);
-  const cycleDay = ((target - 1) % 7) + 1;
-  const baseChunkIndex = (week - 1) * 2;
-
-  if (cycleDay === 1) return { type: 'Learn', chunks: [baseChunkIndex + 1], title: `Learn Chunk ${baseChunkIndex + 1}` };
-  if (cycleDay === 2 || cycleDay === 3) return { type: 'Practice', chunks: [baseChunkIndex + 1], title: `Drill Chunk ${baseChunkIndex + 1}` };
-  if (cycleDay === 4) return { type: 'Learn', chunks: [baseChunkIndex + 2], title: `Learn Chunk ${baseChunkIndex + 2}` };
-  if (cycleDay === 5 || cycleDay === 6) return { type: 'Practice', chunks: [baseChunkIndex + 2], title: `Drill Chunk ${baseChunkIndex + 2}` };
-  if (cycleDay === 7) {
-    const reviewChunks = Array.from({ length: baseChunkIndex + 2 }, (_, i) => i + 1);
-    return { type: 'Review', chunks: reviewChunks, title: `Review: Chunks 1–${baseChunkIndex + 2}` };
-  }
-  return { type: 'Learn', chunks: [1], title: 'Learn Chunk 1' };
-};
-
-// --- CUSTOM SUNE CUBE LOGO ---
-const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
-  const [imgError, setImgError] = useState(false);
-  return sanitizeNode(
-    <div className={`${className} flex-shrink-0 flex items-center justify-center relative`}>
-      {!imgError ? (
-        <img
-          src="/OLLDayEveryday.svg"
-          alt="Sune Logo"
-          className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
-          onError={() => setImgError(true)}
-        />
-      ) : (
-        <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z"
-            fill="#090a14"
-            stroke="#090a14"
-            strokeWidth="32"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round" fill="#000000">
-            <polygon points="524,180 594,228 534,268 464,220" />
-            <polygon points="604,236 674,288 614,328 544,276" />
-            <polygon points="684,296 754,348 694,388 624,336" />
-            <polygon points="700,358 775,354 788,418 714,424" />
-            <polygon points="716,432 790,428 752,492 680,498" />
-            <polygon points="676,506 748,502 708,552 638,558" />
-          </g>
-          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-            <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
-            <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
-            <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
-          </g>
-          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-            <polygon points="544,432 616,375 610,466 538,523" fill="#d96528" />
-            <polygon points="537,537 609,480 603,571 531,628" fill="#090a12" />
-            <polygon points="530,642 602,585 596,676 524,733" fill="#090a12" />
-          </g>
-          <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
-            <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
-            <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
-            <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
-          </g>
-        </svg>
-      )}
-    </div>
-  );
-};
-
-// --- REAL-TIME CLOUD DATABASE (FIRESTORE REST API) ---
-const FIREBASE_PROJECT_ID = "olldayeveryday";
-const FIREBASE_API_KEY = "AIzaSyBFWgmB1DgBDrfTWCMLSNS6ovS2XeMjAcU";
-const FIRESTORE_ENDPOINT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/app_data/family_sync?key=${FIREBASE_API_KEY}`;
-
 // --- APP ROOT COMPONENT ---
 export default function App() {
   const [users, setUsers] = useState(() => {
@@ -1314,10 +1444,22 @@ export default function App() {
     } catch (e) {}
 
     const base = {
-      "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 2.5, timerEnabled: true, fingertricksEnabled: true },
-      "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 4.0, timerEnabled: true, fingertricksEnabled: true },
-      "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-      "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "1678": { 
+        pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 2.5, 
+        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
+      },
+      "8995": { 
+        pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 4.0, 
+        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
+      },
+      "0713": { 
+        pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, 
+        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
+      },
+      "0494": { 
+        pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, 
+        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
+      },
     };
 
     try {
@@ -1334,6 +1476,7 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [showCurriculumModal, setShowCurriculumModal] = useState(false);
   const [cloudStatus, setCloudStatus] = useState('connecting');
 
   const saveToCloud = async (dataToSync) => {
@@ -1435,7 +1578,9 @@ export default function App() {
       stats: {}, 
       targetGoal: 3.5, 
       timerEnabled: true, 
-      fingertricksEnabled: true 
+      fingertricksEnabled: true,
+      chunkSize: 6,
+      customChunks: DEFAULT_CHUNKS
     };
 
     setUsers(prevUsers => {
@@ -1513,19 +1658,18 @@ export default function App() {
     saveToCloud(importedUsers);
   };
 
-  // Derive currentUser safely before any returns so hook order remains constant
+  // Derive currentUser safely
   const currentUser = (activePin && users[activePin])
     ? users[activePin]
     : (activePin ? (Object.values(users).find(u => String(u.pin).trim() === activePin) || null) : null);
 
-  // ALL hooks must be declared before any early return statements
   useEffect(() => {
     if (currentUser && currentUser.hasSeenOnboarding === undefined) {
       setShowOnboardingModal(true);
     }
   }, [activePin, currentUser]);
 
-  // Unauthenticated Lock Screen early return (placed strictly AFTER all hooks)
+  // Unauthenticated Lock Screen early return (strictly AFTER hooks)
   if (!activePin || !currentUser) {
     return sanitizeNode(
       <>
@@ -1564,61 +1708,43 @@ export default function App() {
     });
   };
 
-  const updateDay = (day) => { 
-    if (day >= 1 && day <= 32) {
-      const targetKey = Object.keys(users).find(k => 
-        String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-      ) || activePin;
-      const current = users[targetKey] || currentUser || {};
-      const nextUser = { ...current, day };
+  const userChunks = currentUser.customChunks && currentUser.customChunks.length > 0
+    ? currentUser.customChunks
+    : DEFAULT_CHUNKS;
 
-      setUsers(prevUsers => {
-        const nextUsers = { ...prevUsers, [targetKey]: nextUser };
-        try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-        saveToCloud(nextUsers);
-        return nextUsers;
-      });
+  const currentDay = currentUser.day || 1;
+  const schedule = getScheduleForDay(currentDay, userChunks);
+  const totalDays = schedule.totalDays;
+
+  const updateDay = (day) => { 
+    if (day >= 1 && day <= totalDays) {
+      updateCurrentUser({ day });
     }
   };
 
   const handleRecordTime = (caseId, timeInSeconds) => {
-    const targetKey = Object.keys(users).find(k => 
-      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-    ) || activePin;
-    const current = users[targetKey] || currentUser || {};
-    const userStats = current.stats || {};
+    const userStats = currentUser.stats || {};
     const existingStats = userStats[caseId] || [];
     const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
-    const nextUser = { ...current, stats: nextStats };
-
-    setUsers(prevUsers => {
-      const nextUsers = { ...prevUsers, [targetKey]: nextUser };
-      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-      saveToCloud(nextUsers);
-      return nextUsers;
-    });
+    updateCurrentUser({ stats: nextStats });
   };
 
   const handleResetProgress = () => { 
-    const targetKey = Object.keys(users).find(k => 
-      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-    ) || activePin;
-    const current = users[targetKey] || currentUser || {};
-    const nextUser = { ...current, day: 1, stats: {} };
-
-    setUsers(prevUsers => {
-      const nextUsers = { ...prevUsers, [targetKey]: nextUser };
-      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-      saveToCloud(nextUsers);
-      return nextUsers;
-    });
-
+    updateCurrentUser({ day: 1, stats: {} });
     setShowResetModal(false); 
   };
 
-  const currentDay = currentUser.day || 1;
-  const schedule = getScheduleForDay(currentDay);
-  const todaysAlgs = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk));
+  // Determine today's algs dynamically from the active schedule
+  let todaysAlgs = [];
+  if (schedule.chunkIndex !== undefined && userChunks[schedule.chunkIndex]) {
+    const activeChunk = userChunks[schedule.chunkIndex];
+    todaysAlgs = OLL_DATA.filter(c => activeChunk.caseIds.includes(c.id));
+  } else if (schedule.chunkIndices) {
+    const activeIds = schedule.chunkIndices.flatMap(idx => userChunks[idx]?.caseIds || []);
+    todaysAlgs = OLL_DATA.filter(c => activeIds.includes(c.id));
+  }
+  if (todaysAlgs.length === 0) todaysAlgs = [OLL_DATA[0]];
+
   const isFingertricksOn = currentUser.fingertricksEnabled !== false;
 
   return sanitizeNode(
@@ -1675,7 +1801,9 @@ export default function App() {
               <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
               {currentUser.name}
             </div>
-            <span className="text-sm font-black text-orange-400 font-mono">{Math.round((currentDay / 32) * 100)}%</span>
+            <span className="text-sm font-black text-orange-400 font-mono">
+              {Math.min(100, Math.round((currentDay / totalDays) * 100))}%
+            </span>
           </div>
         </header>
 
@@ -1684,16 +1812,23 @@ export default function App() {
           {!sessionState && activeTab === 'grind' && (
             <GrindView 
               currentDay={currentDay} 
+              totalDays={totalDays}
               updateDay={updateDay} 
               schedule={schedule} 
+              todaysAlgsCount={todaysAlgs.length}
               onStart={() => setSessionState(schedule.type.toLowerCase())} 
+              onOpenCurriculum={() => setShowCurriculumModal(true)}
             />
           )}
 
           {!sessionState && activeTab === 'algorithms' && (
             <AlgorithmsView 
+              customChunks={userChunks}
+              solveTimes={currentUser.stats || {}}
+              targetGoal={currentUser.targetGoal || 3.5}
               onSelectCase={(c) => setDrillCase(c)} 
               onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
+              onOpenCurriculum={() => setShowCurriculumModal(true)}
             />
           )}
 
@@ -1708,13 +1843,20 @@ export default function App() {
           {!sessionState && activeTab === 'settings' && (
             <SettingsView 
               currentUser={currentUser} 
+              totalDays={totalDays}
+              userChunks={userChunks}
               setTimerEnabled={(val) => updateCurrentUser({ timerEnabled: val })} 
               setFingertricksEnabled={(val) => updateCurrentUser({ fingertricksEnabled: val })}
               setTargetGoal={(val) => updateCurrentUser({ targetGoal: val })} 
+              setChunkSize={(newSize) => {
+                const generated = generateChunksBySize(newSize);
+                updateCurrentUser({ chunkSize: newSize, customChunks: generated, day: 1 });
+              }}
               onRequestReset={() => setShowResetModal(true)} 
               onOpenAdmin={() => setShowAdminModal(true)} 
               onLockApp={() => setActivePin(null)}
               onOpenOnboarding={() => setShowOnboardingModal(true)}
+              onOpenCurriculum={() => setShowCurriculumModal(true)}
             />
           )}
 
@@ -1763,6 +1905,18 @@ export default function App() {
               onClose={() => {
                 updateCurrentUser({ hasSeenOnboarding: true });
                 setShowOnboardingModal(false);
+              }}
+            />
+          )}
+
+          {showCurriculumModal && (
+            <CurriculumBuilderModal
+              customChunks={userChunks}
+              chunkSize={currentUser.chunkSize || 6}
+              onClose={() => setShowCurriculumModal(false)}
+              onSave={(newChunks, newSize) => {
+                updateCurrentUser({ customChunks: newChunks, chunkSize: newSize, day: 1 });
+                setShowCurriculumModal(false);
               }}
             />
           )}
@@ -1834,17 +1988,26 @@ const TabIcon = ({ icon: Icon, label, active, onClick }) => sanitizeNode(
 );
 
 // --- TAB 1: THE GRIND ---
-const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
+const GrindView = ({ currentDay, totalDays, updateDay, schedule, todaysAlgsCount, onStart, onOpenCurriculum }) => {
   const isReview = schedule.type === 'Review';
   const isLearn = schedule.type === 'Learn';
-  const isFinale = currentDay === 32;
-  const algCount = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk)).length;
+  const isFinale = schedule.isFinale || currentDay === totalDays;
 
   return sanitizeNode(
     <div className="p-6 pt-6 pb-8 flex flex-col min-h-full">
-      <div className="mb-4">
-        <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Training Hub</p>
-        <h2 className="text-3xl font-black tracking-tight text-white">Daily Grind</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Training Hub</p>
+          <h2 className="text-3xl font-black tracking-tight text-white">Daily Grind</h2>
+        </div>
+        <button 
+          onClick={onOpenCurriculum}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-orange-400 text-xs font-bold active:scale-95 transition-all cursor-pointer"
+          title="Adjust Pace & Curriculum"
+        >
+          <Sliders size={13} />
+          <span>Curriculum</span>
+        </button>
       </div>
 
       <GlassCard className="flex-1 flex flex-col justify-between items-center text-center relative overflow-hidden mb-5 p-7">
@@ -1868,7 +2031,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
 
           <button 
             onClick={() => updateDay(currentDay + 1)} 
-            disabled={currentDay === 32} 
+            disabled={currentDay === totalDays} 
             className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5 cursor-pointer"
           >
             <ChevronRight size={22} />
@@ -1885,13 +2048,13 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
             : 'bg-orange-500/15 text-orange-400 border-orange-500/30'
         }`}>
           {isFinale ? <Trophy size={16}/> : isLearn ? <BookOpenCheck size={16}/> : isReview ? <Eye size={16}/> : <Dumbbell size={16}/>}
-          {schedule.type} Mode • {algCount} Cases
+          {schedule.type} Mode • {todaysAlgsCount} Cases
         </div>
 
         <div className="z-10 px-2 mb-6">
           <h4 className="text-lg font-bold text-white mb-2">{schedule.title}</h4>
           <p className="text-slate-300 text-sm leading-relaxed">
-            {isFinale && "The Grand Finale! Test your lightning execution across all 57 full OLL algorithms learned over the past month."}
+            {isFinale && "The Grand Finale! Test your lightning execution across all 57 full OLL algorithms learned in your customized program."}
             {isLearn && !isFinale && "Time to acquire fresh muscle memory. Drill each trigger until the pattern snaps naturally."}
             {schedule.type === 'Practice' && !isFinale && "Scramble from memory, identify visual headlights/bars, and fluidly execute."}
             {isReview && !isFinale && "Cumulative checkpoint! Solidify all previous chunks into permanent reflex."}
@@ -1906,18 +2069,19 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
 
       <div className="flex items-center justify-between bg-slate-900/60 border border-white/10 p-5 rounded-[2rem] shadow-xl flex-shrink-0">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Program Journey</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Personalized Journey</div>
           <div className="text-xl font-black text-white mt-1">
-            {currentDay === 32 ? 'Final Milestone Reached! 🎉' : `${32 - currentDay} Days Remaining`}
+            {currentDay === totalDays ? 'Milestone Reached! 🎉' : `${totalDays - currentDay} Days Remaining`}
           </div>
+          <div className="text-[10px] text-orange-400 font-mono mt-0.5">{totalDays} Total Days Plan</div>
         </div>
         <div className="w-14 h-14 relative flex-shrink-0">
           <svg className="w-full h-full transform -rotate-90 drop-shadow-md" viewBox="0 0 36 36">
             <path className="text-slate-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-            <path className="text-orange-500 transition-all duration-700" strokeDasharray={`${(currentDay/32)*100}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            <path className="text-orange-500 transition-all duration-700" strokeDasharray={`${(currentDay/totalDays)*100}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-black text-orange-400">
-            {Math.round((currentDay/32)*100)}%
+            {Math.min(100, Math.round((currentDay/totalDays)*100))}%
           </div>
         </div>
       </div>
@@ -1925,10 +2089,13 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
   );
 };
 
-// --- TAB 2: ALGORITHMS ---
-const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
+// --- TAB 2: ALGORITHMS (WITH SEGMENTED LIBRARY PILL SWITCHER) ---
+const AlgorithmsView = ({ customChunks = DEFAULT_CHUNKS, solveTimes = {}, targetGoal = 3.5, onSelectCase, onOpenFingertrick, onOpenCurriculum }) => {
+  const [libraryMode, setLibraryMode] = useState('standard'); // 'standard' | 'custom'
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const groups = useMemo(() => {
+
+  // Classic Standard WCA shape categories
+  const standardGroups = useMemo(() => {
     const map = new Map();
     OLL_DATA.forEach(alg => {
       if (!map.has(alg.group)) map.set(alg.group, []);
@@ -1937,18 +2104,32 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
     return Array.from(map.entries());
   }, []);
 
+  // When drilling into a category / chunk
   if (selectedGroup) {
-    const algs = groups.find(g => g[0] === selectedGroup)?.[1] || [];
+    let algs = [];
+    let groupTitle = "";
+
+    if (libraryMode === 'standard') {
+      algs = standardGroups.find(g => g[0] === selectedGroup)?.[1] || [];
+      groupTitle = selectedGroup;
+    } else {
+      const chunkFound = customChunks.find(c => c.id === selectedGroup);
+      if (chunkFound) {
+        algs = OLL_DATA.filter(c => chunkFound.caseIds.includes(c.id));
+        groupTitle = chunkFound.name;
+      }
+    }
+
     return sanitizeNode(
       <div className="p-6 pt-6 pb-12 animate-in fade-in slide-in-from-right-4 min-h-full">
         <button 
           onClick={() => setSelectedGroup(null)} 
           className="mb-5 flex items-center gap-2 text-orange-400 font-bold active:scale-95 transition-transform px-4 py-2 bg-orange-500/10 rounded-full border border-orange-500/20 text-xs uppercase tracking-wider cursor-pointer"
         >
-          <ChevronLeft size={16} /> Back to Groups
+          <ChevronLeft size={16} /> Back to {libraryMode === 'standard' ? 'Categories' : 'My Chunks'}
         </button>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-black text-white">{selectedGroup}</h3>
+          <h3 className="text-2xl font-black text-white">{groupTitle}</h3>
           <span className="text-xs text-orange-400 font-bold bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">{algs.length} Cases</span>
         </div>
         <div className="flex flex-col gap-4">
@@ -1965,10 +2146,12 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <h4 className="text-lg font-black text-white truncate">{alg.name}</h4>
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded-md">#{alg.id}</span>
+                    <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded-md">
+                      #{alg.id}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[11px] text-slate-400 font-medium">Tap to drill</span>
+                    <span className="text-[11px] text-slate-400 font-medium">WCA OLL #{alg.ollNo || alg.id}</span>
                     {onOpenFingertrick && (
                       <button 
                         onClick={(e) => {
@@ -1997,26 +2180,108 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
 
   return sanitizeNode(
     <div className="p-6 pt-6 pb-12 animate-in fade-in min-h-full">
-      <div className="mb-6">
-        <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Knowledge Base</p>
+      <div className="mb-4">
+        <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Algorithm Hub</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Algorithms</h2>
-        <p className="text-xs text-slate-400 mt-1">Tap any category to explore, or tap a case for instant isolated practice.</p>
+        <p className="text-xs text-slate-400 mt-1">Explore by classic shape categories or view your custom curriculum chunks.</p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        {groups.map(([name, algs]) => (
-          <GlassCard 
-            key={name} 
-            onClick={() => setSelectedGroup(name)} 
-            className="flex flex-col items-center justify-center p-5 text-center group hover:border-orange-500/40"
-          >
-            <div className="bg-slate-200 rounded-2xl p-2 w-16 h-16 mb-3 shadow-inner flex items-center justify-center group-hover:scale-105 transition-transform">
-              <img src={getImageUrl(algs[0].alg)} alt={name} className="w-full h-full object-contain" />
-            </div>
-            <span className="font-bold text-slate-100 text-sm leading-tight mb-1">{name}</span>
-            <span className="text-[10px] text-orange-400 font-black uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">{algs.length} Cases</span>
-          </GlassCard>
-        ))}
+
+      {/* Segmented Library Pill Switcher */}
+      <div className="bg-slate-950/80 p-1 rounded-2xl border border-white/10 flex items-center mb-6 shadow-inner">
+        <button
+          onClick={() => setLibraryMode('standard')}
+          className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+            libraryMode === 'standard'
+              ? 'bg-orange-500 text-slate-950 shadow-md font-black'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Standard Library
+        </button>
+        <button
+          onClick={() => setLibraryMode('custom')}
+          className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            libraryMode === 'custom'
+              ? 'bg-orange-500 text-slate-950 shadow-md font-black'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Sparkles size={13} />
+          <span>My Custom Chunks</span>
+        </button>
       </div>
+
+      {libraryMode === 'standard' ? (
+        <div className="grid grid-cols-2 gap-4">
+          {standardGroups.map(([name, algs]) => (
+            <GlassCard 
+              key={name} 
+              onClick={() => setSelectedGroup(name)} 
+              className="flex flex-col items-center justify-center p-5 text-center group hover:border-orange-500/40"
+            >
+              <div className="bg-slate-200 rounded-2xl p-2 w-16 h-16 mb-3 shadow-inner flex items-center justify-center group-hover:scale-105 transition-transform">
+                <img src={getImageUrl(algs[0].alg)} alt={name} className="w-full h-full object-contain" />
+              </div>
+              <span className="font-bold text-slate-100 text-sm leading-tight mb-1">{name}</span>
+              <span className="text-[10px] text-orange-400 font-black uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">{algs.length} Cases</span>
+            </GlassCard>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold text-slate-400">{customChunks.length} Active Chunks feeding your program</span>
+            <button 
+              onClick={onOpenCurriculum}
+              className="inline-flex items-center gap-1 text-xs text-orange-400 font-bold hover:underline cursor-pointer"
+            >
+              <Sliders size={13} />
+              <span>Edit Curriculum</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {customChunks.map((chunk, idx) => {
+              const chunkAlgs = OLL_DATA.filter(c => chunk.caseIds.includes(c.id));
+              const firstAlg = chunkAlgs[0] || OLL_DATA[0];
+              const masteredCount = chunkAlgs.filter(a => {
+                const times = solveTimes[a.id] || [];
+                return times.length > 0 && Math.min(...times) <= targetGoal;
+              }).length;
+
+              return (
+                <GlassCard
+                  key={chunk.id || idx}
+                  onClick={() => setSelectedGroup(chunk.id)}
+                  className="p-4 !rounded-2xl flex items-center justify-between hover:border-orange-500/40"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="bg-slate-200 rounded-xl p-1.5 w-14 h-14 flex-shrink-0 flex items-center justify-center shadow-inner">
+                      <img src={getImageUrl(firstAlg.alg)} alt={chunk.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-white">{chunk.name}</h4>
+                        <span className="text-[10px] font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
+                          Chunk {idx + 1}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {chunk.caseIds.length} algorithms • {masteredCount}/{chunk.caseIds.length} sub-goal
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="text-slate-500" />
+                </GlassCard>
+              );
+            })}
+          </div>
+
+          <Button variant="secondary" onClick={onOpenCurriculum} className="border-dashed border-white/20 text-orange-400 py-3 text-xs mt-2">
+            <Sliders size={15} /> Customize Chunks & Pace
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
@@ -2102,22 +2367,27 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
   );
 };
 
-// --- TAB 4: SETTINGS ---
+// --- TAB 4: SETTINGS (WITH PACE & CHUNK SIZING CARD) ---
 const SettingsView = ({ 
   currentUser, 
+  totalDays,
+  userChunks,
   setTimerEnabled, 
   setFingertricksEnabled, 
   setTargetGoal, 
+  setChunkSize,
   onRequestReset, 
   onOpenAdmin, 
   onLockApp,
-  onOpenOnboarding
+  onOpenOnboarding,
+  onOpenCurriculum
 }) => {
   const [activeCard, setActiveCard] = useState(0);
   const [activeNotation, setActiveNotation] = useState(0);
   const userGoal = (currentUser && currentUser.targetGoal) || 3.5;
   const isTimerOn = currentUser && currentUser.timerEnabled !== false;
   const isFingertricksOn = currentUser && currentUser.fingertricksEnabled !== false;
+  const currentChunkSize = currentUser.chunkSize || 6;
 
   const isNavigatingRef = useRef(false);
   const wheelActiveRef = useRef(false);
@@ -2239,23 +2509,59 @@ const SettingsView = ({
       </div>
 
       <div className="relative w-full flex-1 min-h-0 my-auto flex items-center justify-center">
-        {/* CARD 0: PREFERENCES */}
+        {/* CARD 0: PACE & PREFERENCES */}
         <div 
           style={getCardStyle(0)}
-          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
+          className="absolute inset-x-0 w-full h-[375px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
         >
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
                 Card 1 of 3
               </span>
-              <Timer size={16} className="text-orange-400" />
+              <Sliders size={16} className="text-orange-400" />
             </div>
-            <h3 className="text-lg font-black text-white mb-1">Training Preferences</h3>
-            <p className="text-xs text-slate-400 mb-3">Configure stopwatch, fingertricks, and targets</p>
+            <h3 className="text-lg font-black text-white mb-0.5">Pace & Training Schedule</h3>
+            <p className="text-[11px] text-slate-400 mb-2.5">Custom chunk sizes & projected journey</p>
             
-            <div className="space-y-2.5 border-t border-white/5 pt-2.5">
-              <div className="flex items-center justify-between py-1">
+            <div className="space-y-2 border-t border-white/5 pt-2">
+              {/* Pace Stepper */}
+              <div className="flex items-center justify-between py-1 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                <div>
+                  <span className="text-xs font-bold text-white block">Chunk Pace</span>
+                  <span className="text-[10px] text-orange-400 font-bold font-mono">
+                    Projected: {totalDays} Days ({userChunks.length} Chunks)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button 
+                    onClick={() => setChunkSize(Math.max(2, currentChunkSize - 1))} 
+                    className="w-7 h-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer text-xs"
+                    title="Fewer algs per chunk"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono text-xs font-black text-white w-9 text-center">{currentChunkSize}/chk</span>
+                  <button 
+                    onClick={() => setChunkSize(Math.min(15, currentChunkSize + 1))} 
+                    className="w-7 h-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer text-xs"
+                    title="More algs per chunk"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Curriculum Builder Trigger */}
+              <Button 
+                variant="secondary" 
+                onClick={onOpenCurriculum} 
+                className="py-2 text-xs font-bold border-orange-500/30 text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 shadow-none"
+              >
+                <Sliders size={14} /> Organize Cases & Custom Order
+              </Button>
+
+              <div className="flex items-center justify-between py-1 border-t border-white/5">
                 <div>
                   <span className="text-xs font-bold text-white block">Speedcube Stopwatch</span>
                   <span className="text-[10px] text-slate-400">Track execution times</span>
@@ -2270,7 +2576,7 @@ const SettingsView = ({
 
               <div className="flex items-center justify-between py-1 border-t border-white/5">
                 <div>
-                  <span className="text-xs font-bold text-white block">Fingertrick Guides</span>
+                  <span className="text-xs font-bold text-white block">Fingertricks</span>
                   <span className="text-[10px] text-slate-400">Pills & speed execution tips</span>
                 </div>
                 <button 
@@ -2279,28 +2585,6 @@ const SettingsView = ({
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isFingertricksOn ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-t border-white/5">
-                <div>
-                  <span className="text-xs font-bold text-white block">Target Execution Goal</span>
-                  <span className="text-[10px] text-slate-400">Benchmark time (seconds)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button 
-                    onClick={() => setTargetGoal(Math.max(1, +(userGoal - 0.25).toFixed(2)))} 
-                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="font-mono text-xs font-black text-orange-400 w-10 text-center">{userGoal.toFixed(2)}s</span>
-                  <button 
-                    onClick={() => setTargetGoal(+(userGoal + 0.25).toFixed(2))} 
-                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
-                  >
-                    +
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -2312,7 +2596,7 @@ const SettingsView = ({
         {/* CARD 1: NOTATION KEY */}
         <div 
           style={getCardStyle(1)}
-          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
+          className="absolute inset-x-0 w-full h-[375px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
         >
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -2365,7 +2649,7 @@ const SettingsView = ({
         {/* CARD 2: SECURITY & ONBOARDING */}
         <div 
           style={getCardStyle(2)}
-          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
+          className="absolute inset-x-0 w-full h-[375px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
         >
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -2424,6 +2708,286 @@ const SettingsView = ({
   );
 };
 
+// --- CURRICULUM & PACE BUILDER MODAL ---
+const CurriculumBuilderModal = ({ customChunks = DEFAULT_CHUNKS, chunkSize = 6, onClose, onSave }) => {
+  const [chunks, setChunks] = useState(() => JSON.parse(JSON.stringify(customChunks)));
+  const [selectedChunkIdx, setSelectedChunkIdx] = useState(0);
+  const [caseSearch, setCaseSearch] = useState('');
+  const [movingCaseId, setMovingCaseId] = useState(null);
+
+  // Calculate live dynamic projected days
+  const projectedSchedule = useMemo(() => generateDynamicSchedule(chunks), [chunks]);
+  const totalDays = projectedSchedule.length;
+
+  // Move chunk up/down in sequence
+  const moveChunk = (idx, dir) => {
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= chunks.length) return;
+    const next = [...chunks];
+    const temp = next[idx];
+    next[idx] = next[targetIdx];
+    next[targetIdx] = temp;
+    setChunks(next);
+    setSelectedChunkIdx(targetIdx);
+  };
+
+  // Move a case to a specific chunk
+  const moveCaseToChunk = (caseId, targetChunkIdx) => {
+    if (targetChunkIdx < 0 || targetChunkIdx >= chunks.length) return;
+    const next = chunks.map((c, i) => {
+      let ids = c.caseIds.filter(id => id !== caseId);
+      if (i === targetChunkIdx) {
+        ids.push(caseId);
+      }
+      return { ...c, caseIds: ids };
+    });
+    setChunks(next);
+    setMovingCaseId(null);
+  };
+
+  // Add new blank chunk
+  const handleAddChunk = () => {
+    const newIdx = chunks.length + 1;
+    setChunks([...chunks, {
+      id: `custom-chunk-${Date.now()}`,
+      name: `Custom Chunk ${newIdx}`,
+      caseIds: []
+    }]);
+    setSelectedChunkIdx(chunks.length);
+  };
+
+  // Remove chunk (re-assigns orphaned cases back to first chunk)
+  const handleRemoveChunk = (idx) => {
+    if (chunks.length <= 1) return;
+    const toRemove = chunks[idx];
+    const next = chunks.filter((_, i) => i !== idx);
+    if (toRemove.caseIds.length > 0) {
+      next[0].caseIds = [...next[0].caseIds, ...toRemove.caseIds];
+    }
+    setChunks(next);
+    setSelectedChunkIdx(Math.max(0, idx - 1));
+  };
+
+  // Preset generators
+  const applyPreset = (presetType) => {
+    if (presetType === 'default') {
+      setChunks(JSON.parse(JSON.stringify(DEFAULT_CHUNKS)));
+    } else if (presetType === 'shape') {
+      setChunks(generateChunksByGroup());
+    } else if (presetType === 'size-3') {
+      setChunks(generateChunksBySize(3));
+    } else if (presetType === 'size-5') {
+      setChunks(generateChunksBySize(5));
+    }
+    setSelectedChunkIdx(0);
+  };
+
+  const activeChunk = chunks[selectedChunkIdx] || chunks[0];
+  const activeCases = activeChunk ? OLL_DATA.filter(c => activeChunk.caseIds.includes(c.id)) : [];
+
+  return sanitizeNode(
+    <div className="fixed inset-0 z-[230] bg-[#060913]/95 backdrop-blur-2xl flex flex-col p-5 overflow-y-auto">
+      <div className="flex justify-between items-center mb-4 max-w-sm mx-auto w-full">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Curriculum Architect</span>
+          <h2 className="text-xl font-black text-white">Custom Program Builder</h2>
+        </div>
+        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col max-w-sm mx-auto w-full space-y-4">
+        {/* Dynamic Journey Calculation Card */}
+        <div className="bg-gradient-to-r from-orange-600/20 to-amber-600/10 border border-orange-500/30 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block">Projected Journey</span>
+            <div className="text-2xl font-black text-white mt-0.5 font-mono">{totalDays} Total Days</div>
+            <div className="text-xs text-slate-300 mt-0.5 font-medium">
+              {chunks.length} Chunks • ~{Math.round(57 / chunks.length)} cases/chunk
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Format</span>
+            <span className="text-xs font-bold text-amber-300">Learn $\rightarrow$ Drill $\rightarrow$ Review</span>
+          </div>
+        </div>
+
+        {/* Quick Presets Bar */}
+        <div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Quick Presets</span>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button 
+              onClick={() => applyPreset('default')} 
+              className="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-slate-200 transition-all cursor-pointer active:scale-95"
+            >
+              Default (32d)
+            </button>
+            <button 
+              onClick={() => applyPreset('size-3')} 
+              className="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-slate-200 transition-all cursor-pointer active:scale-95"
+            >
+              Casual (3/chk)
+            </button>
+            <button 
+              onClick={() => applyPreset('shape')} 
+              className="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-slate-200 transition-all cursor-pointer active:scale-95"
+            >
+              By Shape
+            </button>
+          </div>
+        </div>
+
+        {/* Chunk Selector Carousel */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reorder & Select Chunks</span>
+            <button 
+              onClick={handleAddChunk}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-400 hover:text-orange-300 cursor-pointer"
+            >
+              <Plus size={13} /> Add Chunk
+            </button>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {chunks.map((chk, i) => (
+              <button
+                key={chk.id || i}
+                onClick={() => setSelectedChunkIdx(i)}
+                className={`py-2 px-3 rounded-xl border text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                  selectedChunkIdx === i 
+                    ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md font-black' 
+                    : 'bg-slate-900/80 text-slate-300 border-white/10 hover:border-white/20'
+                }`}
+              >
+                <span>{chk.name.split(':')[0]}</span>
+                <span className={`text-[10px] rounded-full px-1.5 py-0.2 ${selectedChunkIdx === i ? 'bg-black/20 text-slate-950' : 'bg-white/10 text-orange-300'}`}>
+                  {chk.caseIds.length}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Active Chunk Controls */}
+        {activeChunk && (
+          <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <div>
+                <input 
+                  type="text" 
+                  value={activeChunk.name} 
+                  onChange={(e) => {
+                    const next = [...chunks];
+                    next[selectedChunkIdx].name = e.target.value;
+                    setChunks(next);
+                  }}
+                  className="bg-transparent font-black text-white text-base focus:outline-none focus:border-b border-orange-500" 
+                />
+                <span className="text-[10px] text-slate-400 block mt-0.5">{activeChunk.caseIds.length} Algorithms in this phase</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => moveChunk(selectedChunkIdx, -1)} 
+                  disabled={selectedChunkIdx === 0}
+                  className="p-1.5 bg-white/5 rounded-lg text-slate-300 disabled:opacity-20 cursor-pointer hover:bg-white/10"
+                  title="Move Chunk Earlier"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button 
+                  onClick={() => moveChunk(selectedChunkIdx, 1)} 
+                  disabled={selectedChunkIdx === chunks.length - 1}
+                  className="p-1.5 bg-white/5 rounded-lg text-slate-300 disabled:opacity-20 cursor-pointer hover:bg-white/10"
+                  title="Move Chunk Later"
+                >
+                  <ChevronRight size={16} />
+                </button>
+                {chunks.length > 1 && (
+                  <button 
+                    onClick={() => handleRemoveChunk(selectedChunkIdx)}
+                    className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 cursor-pointer ml-1"
+                    title="Delete Chunk"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Cases in this Chunk */}
+            <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+              {activeCases.map(c => (
+                <div key={c.id} className="flex items-center justify-between p-2 bg-black/40 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-slate-200 p-0.5 flex-shrink-0 flex items-center justify-center">
+                      <img src={getImageUrl(c.alg)} alt={c.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white truncate max-w-[150px]">{c.name}</div>
+                      <div className="text-[9px] text-slate-400 font-mono">WCA #{c.ollNo || c.id} • #{c.id}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => setMovingCaseId(movingCaseId === c.id ? null : c.id)}
+                      className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-orange-300 text-[10px] font-bold border border-white/5 cursor-pointer flex items-center gap-1"
+                    >
+                      <ArrowRightLeft size={11} /> Move
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {activeCases.length === 0 && (
+                <div className="text-center py-4 text-xs text-slate-500 italic">
+                  No cases assigned to this chunk yet. Move cases here from other chunks!
+                </div>
+              )}
+            </div>
+
+            {/* Destination Chunk Selector when moving a case */}
+            {movingCaseId && (
+              <div className="p-3 bg-slate-950 border border-orange-500/30 rounded-xl space-y-2 animate-in fade-in">
+                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest block">
+                  Move #{movingCaseId} to chunk:
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {chunks.map((chk, idx) => (
+                    <button
+                      key={chk.id || idx}
+                      onClick={() => moveCaseToChunk(movingCaseId, idx)}
+                      className={`p-1.5 rounded-lg text-[10px] font-bold border text-left truncate cursor-pointer ${
+                        selectedChunkIdx === idx ? 'bg-orange-500/10 border-orange-500/30 text-orange-300' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                      }`}
+                    >
+                      {chk.name.split(':')[0]} ({chk.caseIds.length})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Save Action */}
+      <div className="mt-4 pt-3 max-w-sm mx-auto w-full flex gap-2">
+        <Button variant="secondary" onClick={onClose} className="py-3 text-xs flex-1">
+          Cancel
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={() => onSave(chunks, Math.round(57 / chunks.length))} 
+          className="py-3 text-xs flex-1"
+        >
+          <Check size={16} /> Save Curriculum
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 // --- SESSION SCREEN 1: LEARN ---
 const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
   const [index, setIndex] = useState(0);
@@ -2467,7 +3031,9 @@ const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
             {currentAlg.group}
           </span>
           <h2 className="text-3xl font-black mt-2 text-white tracking-tight">{currentAlg.name}</h2>
-          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mt-0.5">OLL Case #{currentAlg.id}</span>
+          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mt-0.5">
+            WCA OLL #{currentAlg.ollNo || currentAlg.id} • Program #{currentAlg.id}
+          </span>
         </div>
         <div className="bg-slate-900/80 border border-white/10 w-full max-w-sm rounded-[2.5rem] p-6 flex flex-col items-center shadow-2xl relative">
           <div className="w-44 h-44 bg-slate-200 rounded-3xl mb-4 flex items-center justify-center p-3 shadow-inner">
@@ -2690,7 +3256,9 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
       </div>
       <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full text-center">
         <h3 className="text-2xl font-black text-white mb-1">{caseData.name}</h3>
-        <span className="text-xs text-slate-400 uppercase tracking-widest mb-4">{caseData.group} • #{caseData.id}</span>
+        <span className="text-xs text-slate-400 uppercase tracking-widest mb-4">
+          {caseData.group} • WCA OLL #{caseData.ollNo || caseData.id}
+        </span>
         <div className="w-full bg-slate-900/90 border border-white/10 rounded-2xl p-4 mb-4 text-center shadow-inner">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Scramble to form case:</span>
           <div className="font-mono text-sm text-slate-200 font-bold">{scramble}</div>
@@ -2771,7 +3339,9 @@ const FingertrickDossierModal = ({ caseData, onClose }) => {
 
       <div className="flex-1 flex flex-col items-center max-w-sm mx-auto w-full space-y-4">
         <div className="text-center w-full">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">Case #{caseData.id} • {caseData.group}</span>
+          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">
+            WCA OLL #{caseData.ollNo || caseData.id} • {caseData.group}
+          </span>
           <h3 className="text-2xl font-black text-white mt-0.5">{caseData.name}</h3>
         </div>
 
@@ -2911,7 +3481,7 @@ const OnboardingModal = ({ onClose }) => {
     },
     {
       title: "How OLLDay Everyday Trains You",
-      badge: "The 32-Day Science",
+      badge: "The Dynamic Pacing Science",
       content: (
         <div className="space-y-2.5 text-xs text-slate-300 leading-relaxed">
           <p>
@@ -2920,7 +3490,7 @@ const OnboardingModal = ({ onClose }) => {
           <ul className="space-y-2 text-[11px] text-slate-300">
             <li className="flex items-start gap-2">
               <span className="text-orange-400 font-bold">1.</span>
-              <span><strong>Micro-Chunking:</strong> Only 6 to 7 cases at a time over 32 days.</span>
+              <span><strong>Personalized Pace:</strong> Choose how many algorithms to learn per chunk to fit your schedule.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-orange-400 font-bold">2.</span>
@@ -2928,7 +3498,7 @@ const OnboardingModal = ({ onClose }) => {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-orange-400 font-bold">3.</span>
-              <span><strong>0-Regrip Fingertricks:</strong> Learn modern speedcubing finger motions (push/pinch) from day one.</span>
+              <span><strong>0-Regrip Fingertricks:</strong> Learn modern speedcubing finger motions from day one.</span>
             </li>
           </ul>
         </div>
@@ -2942,9 +3512,9 @@ const OnboardingModal = ({ onClose }) => {
           <div className="w-16 h-16 rounded-full bg-orange-500/20 text-orange-400 mx-auto flex items-center justify-center border border-orange-500/30">
             <Sparkles size={28} />
           </div>
-          <h4 className="text-base font-black text-white">Day 1 Starts with Sune & Anti-Sune</h4>
+          <h4 className="text-base font-black text-white">Your Customized Curriculum is Ready</h4>
           <p className="text-xs text-slate-400">
-            You'll learn the 7 Oriented-Edge cases first. Take your physical cube, follow the setup scramble, and let muscle memory take over!
+            Take your physical cube, follow the setup scramble, and start building lightning muscle memory at your own pace!
           </p>
         </div>
       )
