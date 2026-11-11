@@ -1,18 +1,21 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import * as _React from 'react';
 
-// --- INLINE SVG ICON WRAPPER & ICONS (ZERO EXTERNAL NPM CONFLICTS) ---
-const IconWrapper = ({ children, size = 20, className = "", strokeWidth = 2, ...props }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={strokeWidth}
-    strokeLinecap="round"
-    strokeLinejoin="round"
+// Guarantee element compatibility with host ReactDOM (prevents CDN $$typeof mismatch)
+const React = (typeof window !== 'undefined' && window.React) ? window.React : _React;
+const { useState, useEffect, useMemo, useRef } = React;
+
+// --- INLINE SVG ICON SYSTEM (RESOLVES CDN REACT VERSION & $$typeof CONFLICTS) ---
+const IconWrapper = ({ size = 20, className = "", strokeWidth = 2, children }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth={strokeWidth} 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
     className={className}
-    {...props}
   >
     {children}
   </svg>
@@ -28,24 +31,24 @@ const Target = (props) => (
 
 const Layers = (props) => (
   <IconWrapper {...props}>
-    <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
-    <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
-    <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
   </IconWrapper>
 );
 
 const BarChart3 = (props) => (
   <IconWrapper {...props}>
-    <line x1="12" x2="12" y1="20" y2="10" />
-    <line x1="18" x2="18" y1="20" y2="4" />
-    <line x1="6" x2="6" y1="20" y2="16" />
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
   </IconWrapper>
 );
 
 const Settings = (props) => (
   <IconWrapper {...props}>
-    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
     <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </IconWrapper>
 );
 
@@ -61,19 +64,15 @@ const EyeOff = (props) => (
     <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
     <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
     <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-    <line x1="2" x2="22" y1="2" y2="22" />
+    <line x1="2" y1="2" x2="22" y2="22" />
   </IconWrapper>
 );
 
 const Dumbbell = (props) => (
   <IconWrapper {...props}>
     <path d="m6.5 6.5 11 11" />
-    <path d="m21 21-1-1" />
-    <path d="m3 3 1 1" />
-    <path d="m18 22 4-4" />
-    <path d="m2 6 4-4" />
-    <path d="m3 10 7-7" />
-    <path d="m14 21 7-7" />
+    <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-1.5 1.5a2 2 0 0 1-2.83 0l-7.34-7.34a2 2 0 0 1 0-2.83l1.5-1.5a2 2 0 0 0 0-2.83L6 6" />
+    <path d="m3 3 1 1a2 2 0 0 0 2.83 0l1.5-1.5a2 2 0 0 1 2.83 0l7.34 7.34a2 2 0 0 1 0 2.83l-1.5 1.5a2 2 0 0 0 0 2.83L18 18" />
   </IconWrapper>
 );
 
@@ -81,38 +80,26 @@ const BookOpenCheck = (props) => (
   <IconWrapper {...props}>
     <path d="M8 3H2v15h7c1.7 0 3 1.3 3 3V7c0-2.2-1.8-4-4-4Z" />
     <path d="m16 12 2 2 4-4" />
-    <path d="M22 6V3h-6c-2.2 0-4 1.8-4 4v14c0-1.7 1.3-3 3-3h7v-2" />
+    <path d="M22 6V3h-6c-2.2 0-4 1.8-4 4v14c0-1.7 1.3-3 3-3h7v-2.3" />
   </IconWrapper>
 );
 
 const ChevronRight = (props) => (
   <IconWrapper {...props}>
-    <path d="m9 18 6-6-6-6" />
+    <polyline points="9 18 15 12 9 6" />
   </IconWrapper>
 );
 
 const ChevronLeft = (props) => (
   <IconWrapper {...props}>
-    <path d="m15 18-6-6 6-6" />
-  </IconWrapper>
-);
-
-const ChevronUp = (props) => (
-  <IconWrapper {...props}>
-    <path d="m18 15-6-6-6 6" />
-  </IconWrapper>
-);
-
-const ChevronDown = (props) => (
-  <IconWrapper {...props}>
-    <path d="m6 9 6 6 6-6" />
+    <polyline points="15 18 9 12 15 6" />
   </IconWrapper>
 );
 
 const X = (props) => (
   <IconWrapper {...props}>
-    <path d="M18 6 6 18" />
-    <path d="m6 6 12 12" />
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </IconWrapper>
 );
 
@@ -125,7 +112,7 @@ const RotateCcw = (props) => (
 
 const CheckCircle2 = (props) => (
   <IconWrapper {...props}>
-    <circle cx="12" cy="12" r="10" />
+    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
     <path d="m9 12 2 2 4-4" />
   </IconWrapper>
 );
@@ -143,8 +130,8 @@ const Trophy = (props) => (
 
 const Timer = (props) => (
   <IconWrapper {...props}>
-    <line x1="10" x2="14" y1="2" y2="2" />
-    <line x1="12" x2="15" y1="14" y2="11" />
+    <line x1="10" y1="2" x2="14" y2="2" />
+    <line x1="12" y1="14" x2="15" y2="11" />
     <circle cx="12" cy="14" r="8" />
   </IconWrapper>
 );
@@ -158,7 +145,7 @@ const Compass = (props) => (
 
 const Lock = (props) => (
   <IconWrapper {...props}>
-    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </IconWrapper>
 );
@@ -167,8 +154,8 @@ const UserPlus = (props) => (
   <IconWrapper {...props}>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
     <circle cx="9" cy="7" r="4" />
-    <line x1="19" x2="19" y1="8" y2="14" />
-    <line x1="22" x2="16" y1="11" y2="11" />
+    <line x1="19" y1="8" x2="19" y2="14" />
+    <line x1="22" y1="11" x2="16" y2="11" />
   </IconWrapper>
 );
 
@@ -183,33 +170,32 @@ const Users = (props) => (
 
 const ShieldAlert = (props) => (
   <IconWrapper {...props}>
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-    <line x1="12" x2="12" y1="8" y2="12" />
-    <line x1="12" x2="12.01" y1="16" y2="16" />
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
   </IconWrapper>
 );
 
-const Zap = (props) => (
+const Trash2 = (props) => (
   <IconWrapper {...props}>
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
   </IconWrapper>
 );
 
 const Key = (props) => (
   <IconWrapper {...props}>
     <circle cx="7.5" cy="15.5" r="5.5" />
-    <path d="m21 3-9.5 9.5" />
+    <path d="m21 2-9.6 9.6" />
     <path d="m15.5 7.5 3 3L22 7l-3-3" />
   </IconWrapper>
 );
 
-const Trash2 = (props) => (
+const Zap = (props) => (
   <IconWrapper {...props}>
-    <path d="M3 6h18" />
-    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-    <line x1="10" x2="10" y1="11" y2="17" />
-    <line x1="14" x2="14" y1="11" y2="17" />
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </IconWrapper>
 );
 
@@ -228,32 +214,6 @@ const ArrowDownToLine = (props) => (
   </IconWrapper>
 );
 
-const Cloud = (props) => (
-  <IconWrapper {...props}>
-    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-  </IconWrapper>
-);
-
-const HelpCircle = (props) => (
-  <IconWrapper {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" x2="12.01" y1="17" y2="17" />
-  </IconWrapper>
-);
-
-const Sparkles = (props) => (
-  <IconWrapper {...props}>
-    <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
-  </IconWrapper>
-);
-
-const Check = (props) => (
-  <IconWrapper {...props}>
-    <polyline points="20 6 9 17 4 12" />
-  </IconWrapper>
-);
-
 const BackspaceIcon = ({ className = "w-6 h-6" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
@@ -261,563 +221,6 @@ const BackspaceIcon = ({ className = "w-6 h-6" }) => (
     <line x1="12" y1="9" x2="18" y2="15" />
   </svg>
 );
-
-// --- REUSABLE UI TOKENS ---
-const GlassCard = ({ children, className = '', onClick }) => (
-  <div 
-    onClick={onClick}
-    className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl transition-all ${
-      onClick ? 'cursor-pointer active:scale-[0.98] hover:bg-slate-800/70 hover:border-orange-500/30' : ''
-    } ${className}`}
-  >
-    {children}
-  </div>
-);
-
-const Button = ({ children, variant = 'primary', onClick, className = '', disabled = false }) => {
-  const base = "w-full rounded-2xl py-4 font-bold text-base transition-all active:scale-95 flex justify-center items-center gap-2 shadow-lg disabled:opacity-40 disabled:pointer-events-none cursor-pointer";
-  const variants = {
-    primary: "bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black shadow-orange-500/25 border border-orange-400/30",
-    secondary: "bg-white/5 hover:bg-white/10 text-slate-100 border border-white/10 shadow-black/40",
-    danger: "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30",
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`}>
-      {children}
-    </button>
-  );
-};
-
-// --- PIN PAD COMPONENT ---
-const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, clearOnComplete = true }) => {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState(errorMsg || '');
-
-  useEffect(() => { setError(errorMsg || ''); }, [errorMsg]);
-
-  const handlePress = (num) => {
-    setError('');
-    if (pin.length < 4) {
-      const newPin = pin + num;
-      setPin(newPin);
-      if (newPin.length === 4) {
-        onComplete(newPin);
-        if (clearOnComplete) setTimeout(() => setPin(''), 300);
-      }
-    }
-  };
-
-  const handleDelete = () => setPin(pin.slice(0, -1));
-
-  // Global physical keyboard listener with input focus exclusion
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
-        return;
-      }
-      if (/^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        handlePress(e.key);
-      } else if (e.key === 'Backspace') {
-        e.preventDefault();
-        handleDelete();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pin]);
-
-  return (
-    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto animate-in fade-in select-none">
-      {!hideClose && (
-        <button onClick={onClose} className="absolute top-6 left-6 p-2 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
-          <X size={20} />
-        </button>
-      )}
-      
-      <div className="w-16 h-16 rounded-3xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mb-6 shadow-xl shadow-orange-500/10">
-        <Lock size={32} />
-      </div>
-      
-      <h2 className="text-2xl font-black text-white mb-2">{title}</h2>
-      <p className="text-sm text-slate-400 mb-8 text-center">{subtitle}</p>
-
-      <div className="flex gap-4 mb-8">
-        {[0, 1, 2, 3].map(i => (
-          <div key={i} className={`w-4 h-4 rounded-full transition-all duration-200 border-2 ${
-            pin.length > i 
-              ? (error ? 'bg-red-500 border-red-500' : 'bg-orange-500 border-orange-500')
-              : 'bg-transparent border-white/20'
-          }`} />
-        ))}
-      </div>
-      {error && <p className="text-red-400 text-xs font-bold mb-4 -mt-4 uppercase tracking-widest">{error}</p>}
-
-      <div className="grid grid-cols-3 gap-4 w-full">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-          <button 
-            key={num} 
-            onClick={() => handlePress(num.toString())}
-            className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
-          >
-            {num}
-          </button>
-        ))}
-        <div />
-        <button 
-          onClick={() => handlePress('0')}
-          className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
-        >
-          0
-        </button>
-        <button 
-          onClick={handleDelete}
-          className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-xl font-semibold text-slate-400 flex items-center justify-center border border-white/5 cursor-pointer"
-        >
-          <BackspaceIcon className="w-6 h-6" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// --- AUTHENTICATION SCREEN (CLEAN KEYPAD) ---
-const AuthScreen = ({ users, onLogin, onOpenAdmin }) => {
-  const [error, setError] = useState('');
-
-  const handleLogin = (enteredPin) => {
-    const cleanPin = String(enteredPin).trim();
-    const userFound = users[cleanPin] || Object.values(users).find(u => String(u.pin).trim() === cleanPin);
-    if (userFound) {
-      onLogin(userFound.pin);
-    } else {
-      setError('Invalid PIN');
-      setTimeout(() => setError(''), 1000);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden p-6 z-50">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
-      
-      <button 
-        onClick={onOpenAdmin}
-        className="absolute top-6 right-6 p-3 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all cursor-pointer border border-white/5 active:scale-95 z-20"
-        title="Admin Settings"
-      >
-        <ShieldAlert size={20} />
-      </button>
-
-      <div className="z-10 w-full">
-        <PinPad 
-          title="Welcome Back" 
-          subtitle="Enter your 4-digit PIN to access your training profile."
-          onComplete={handleLogin}
-          errorMsg={error}
-          hideClose
-        />
-      </div>
-    </div>
-  );
-};
-
-// --- ADMIN MODAL (ROBUST STRING PIN INPUT WITH LEADING ZERO PRESERVATION) ---
-const AdminModal = ({ users, cloudStatus = 'synced', onClose, onAddUser, onDeleteUser, onUpdateUserPin, onImportData }) => {
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [error, setError] = useState('');
-  
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [addError, setAddError] = useState('');
-
-  const [confirmDeletePin, setConfirmDeletePin] = useState(null);
-  const [editingPinUser, setEditingPinUser] = useState(null);
-  const [newPinInput, setNewPinInput] = useState('');
-  const [pinEditError, setPinEditError] = useState('');
-
-  const [copyStatus, setCopyStatus] = useState('');
-  const [showSyncCodeModal, setShowSyncCodeModal] = useState(false);
-  const [syncCodeString, setSyncCodeString] = useState('');
-
-  const [showImportForm, setShowImportForm] = useState(false);
-  const [importString, setImportString] = useState('');
-  const [importError, setImportError] = useState('');
-
-  const handleAuth = (pin) => {
-    const adminUser = Object.values(users).find(u => u.role === 'admin') || users['1678'];
-    const validAdminPin = adminUser ? String(adminUser.pin).trim() : '1678';
-    if (String(pin).trim() === validAdminPin || String(pin).trim() === '1678') {
-      setIsAuthed(true);
-    } else {
-      setError('Admin PIN Required');
-      setTimeout(() => setError(''), 1000);
-    }
-  };
-
-  const handleCreateUser = () => {
-    const cleanPin = String(newPin).trim();
-    if (!newName.trim() || cleanPin.length !== 4) {
-      setAddError('Enter a valid name and exactly 4 digits');
-      return;
-    }
-    const pinExists = Object.values(users).some(u => String(u.pin).trim() === cleanPin);
-    if (pinExists) {
-      setAddError('PIN already taken!');
-      return;
-    }
-    onAddUser(newName.trim(), cleanPin);
-    setShowAddForm(false);
-    setNewName('');
-    setNewPin('');
-    setAddError('');
-  };
-
-  const handleSaveEditedPin = () => {
-    const cleanNew = String(newPinInput).trim();
-    if (cleanNew.length !== 4) {
-      setPinEditError('PIN must be 4 digits');
-      return;
-    }
-    const pinExists = Object.values(users).some(u => String(u.pin).trim() === cleanNew && String(u.pin).trim() !== String(editingPinUser.pin).trim());
-    if (pinExists) {
-      setPinEditError('PIN is already taken by another user');
-      return;
-    }
-    onUpdateUserPin(editingPinUser.pin, cleanNew);
-    setEditingPinUser(null);
-    setNewPinInput('');
-    setPinEditError('');
-  };
-
-  const handleCopySyncData = async () => {
-    const syncData = JSON.stringify(users);
-    setSyncCodeString(syncData);
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(syncData);
-        setCopyStatus('Sync Code Copied to Clipboard! ✓');
-        setTimeout(() => setCopyStatus(''), 3000);
-        return;
-      }
-    } catch (e) {
-      console.warn("Direct clipboard copy blocked, falling back to modal:", e);
-    }
-
-    try {
-      const textArea = document.createElement("textarea");
-      textArea.value = syncData;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      if (successful) {
-        setCopyStatus('Sync Code Copied to Clipboard! ✓');
-        setTimeout(() => setCopyStatus(''), 3000);
-        return;
-      }
-    } catch (err) {
-      console.warn("execCommand copy blocked:", err);
-    }
-
-    setShowSyncCodeModal(true);
-  };
-
-  const handleImportSyncData = () => {
-    if (!importString.trim()) {
-      setImportError('Please paste your Sync Code string');
-      return;
-    }
-    try {
-      const parsed = JSON.parse(importString.trim());
-      if (typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
-        setImportError('Invalid sync code format');
-        return;
-      }
-      onImportData(parsed);
-      setShowImportForm(false);
-      setImportString('');
-      setImportError('');
-      setCopyStatus('Data Imported Successfully! ✓');
-      setTimeout(() => setCopyStatus(''), 3000);
-    } catch (e) {
-      setImportError('Invalid JSON format. Check copied code.');
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] bg-[#060913]/95 backdrop-blur-xl flex flex-col p-6 overflow-y-auto">
-      {!isAuthed ? (
-        <div className="flex-1 flex flex-col justify-center">
-          <PinPad 
-            title="Admin Access" 
-            subtitle="Enter the master PIN to manage users." 
-            onComplete={handleAuth} 
-            errorMsg={error} 
-            onClose={onClose} 
-          />
-        </div>
-      ) : (
-        <div className="animate-in fade-in slide-in-from-bottom-8 w-full max-w-sm mx-auto pt-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="text-2xl font-black text-white">Admin Panel</h2>
-                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-                  cloudStatus === 'synced'
-                    ? 'bg-green-500/15 border-green-500/30 text-green-300'
-                    : cloudStatus === 'connecting'
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-                    : 'bg-slate-800 border-white/10 text-slate-400'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'synced' ? 'bg-green-400 animate-pulse' : cloudStatus === 'connecting' ? 'bg-amber-400 animate-ping' : 'bg-slate-400'}`} />
-                  {cloudStatus === 'synced' ? 'Live Cloud' : cloudStatus === 'connecting' ? 'Connecting' : 'Offline'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">olldayeveryday • Real-time family database</p>
-            </div>
-            <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
-              <X size={20} />
-            </button>
-          </div>
-
-          {copyStatus && (
-            <div className="bg-green-500/20 border border-green-500/40 rounded-xl p-3 mb-4 text-center text-xs font-bold text-green-300 animate-in fade-in">
-              {copyStatus}
-            </div>
-          )}
-
-          {editingPinUser && (
-            <div className="bg-slate-900 border border-amber-500/40 rounded-2xl p-4 mb-6 shadow-xl animate-in fade-in">
-              <h4 className="text-sm font-bold text-amber-400 mb-1 flex items-center gap-1.5">
-                <Key size={16} /> Edit PIN for {editingPinUser.name}
-              </h4>
-              <p className="text-xs text-slate-400 mb-3">
-                Current PIN: <span className="font-mono text-white font-bold">{editingPinUser.pin}</span>
-              </p>
-              <div className="mb-3">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">New 4-Digit PIN</label>
-                <input 
-                  type="text" 
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  value={newPinInput} 
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^0-9]/g, '');
-                    if (val.length <= 4) setNewPinInput(val);
-                  }} 
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleSaveEditedPin();
-                  }}
-                  placeholder="E.g. 0494" 
-                  className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-amber-500" 
-                  autoFocus
-                />
-              </div>
-              {pinEditError && <p className="text-xs text-red-400 font-bold mb-3">{pinEditError}</p>}
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => { setEditingPinUser(null); setPinEditError(''); }} className="py-2.5 text-xs flex-1">
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleSaveEditedPin} className="py-2.5 text-xs flex-1">
-                  Save PIN
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {confirmDeletePin && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-6 text-center animate-in fade-in">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 mx-auto mb-2 flex items-center justify-center">
-                <Trash2 size={20} />
-              </div>
-              <h4 className="text-sm font-bold text-white mb-1">
-                Delete profile for {users[confirmDeletePin]?.name}?
-              </h4>
-              <p className="text-xs text-slate-400 mb-4">
-                This will permanently erase their solve times and day progress.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setConfirmDeletePin(null)} className="py-2 text-xs flex-1">
-                  Cancel
-                </Button>
-                <Button variant="danger" onClick={() => { onDeleteUser(confirmDeletePin); setConfirmDeletePin(null); }} className="py-2 text-xs flex-1">
-                  Confirm Delete
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {!showAddForm && !showImportForm ? (
-            <>
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Active Profiles</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">{Object.keys(users).length} Users</span>
-                </div>
-
-                {Object.values(users).map(u => {
-                  const isMaster = String(u.pin).trim() === '1678';
-                  return (
-                    <div key={u.pin} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-black">
-                          {(u.name || "U").charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-bold text-white flex items-center gap-2 text-sm">
-                            {u.name}
-                            {u.role === 'admin' && <ShieldAlert size={14} className="text-amber-500" />}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono tracking-widest">
-                            PIN: <span className="text-orange-400 font-bold">{u.pin}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400 mr-1 font-mono">Day {u.day || 1}</span>
-                        <button 
-                          onClick={() => { setEditingPinUser(u); setNewPinInput(u.pin); setPinEditError(''); }}
-                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-amber-400 active:scale-95 transition-all cursor-pointer"
-                          title="Change PIN"
-                        >
-                          <Key size={15} />
-                        </button>
-                        {!isMaster && (
-                          <button 
-                            onClick={() => setConfirmDeletePin(u.pin)}
-                            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 active:scale-95 transition-all cursor-pointer"
-                            title="Delete User"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <Button onClick={() => setShowAddForm(true)} variant="secondary" className="border-dashed border-white/20 text-orange-400 py-3 text-xs">
-                  <UserPlus size={16} /> Add New User
-                </Button>
-              </div>
-
-              <div className="bg-slate-900/40 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Device Backup & Transfer</span>
-                  <Cloud size={14} className="text-orange-400" />
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Automatic real-time sync is active via Firestore REST. You can also manually copy or import your database anytime below:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="secondary" onClick={handleCopySyncData} className="py-2.5 text-xs">
-                    <Copy size={14} /> Copy Sync Code
-                  </Button>
-                  <Button variant="secondary" onClick={() => setShowImportForm(true)} className="py-2.5 text-xs">
-                    <ArrowDownToLine size={14} /> Import Code
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : showAddForm ? (
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
-              <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-                <UserPlus size={20} className="text-orange-500"/> New Profile
-              </h3>
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">First Name</label>
-                  <input 
-                    type="text" 
-                    value={newName} 
-                    onChange={e => setNewName(e.target.value)} 
-                    placeholder="E.g. Ephraim" 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm" 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">4-Digit PIN</label>
-                  <input 
-                    type="text" 
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
-                    value={newPin} 
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      if (val.length <= 4) setNewPin(val);
-                    }} 
-                    placeholder="E.g. 0713" 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors" 
-                  />
-                </div>
-                {addError && <p className="text-xs text-red-400 font-bold">{addError}</p>}
-              </div>
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => {setShowAddForm(false); setAddError('');}} className="py-3 flex-1 text-sm">Cancel</Button>
-                <Button variant="primary" onClick={handleCreateUser} className="py-3 flex-1 text-sm">Save User</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
-              <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
-                <ArrowDownToLine size={20} className="text-orange-500"/> Import Data
-              </h3>
-              <p className="text-xs text-slate-400 mb-4">Paste the sync code string copied from another device to restore all user profiles.</p>
-              <textarea 
-                value={importString}
-                onChange={e => setImportString(e.target.value)}
-                placeholder='Paste {"1678": {...}}'
-                className="w-full h-32 bg-black/50 border border-white/10 rounded-xl p-3 text-white font-mono text-xs focus:outline-none focus:border-orange-500 mb-3"
-              />
-              {importError && <p className="text-xs text-red-400 font-bold mb-3">{importError}</p>}
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => { setShowImportForm(false); setImportError(''); }} className="py-3 flex-1 text-sm">
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleImportSyncData} className="py-3 flex-1 text-sm">
-                  Apply Import
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {showSyncCodeModal && (
-            <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in">
-              <div className="bg-slate-900 border border-white/10 rounded-[2rem] p-6 max-w-sm w-full shadow-2xl">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-base font-bold text-white">Your Sync Code</h4>
-                  <button onClick={() => setShowSyncCodeModal(false)} className="p-1.5 bg-white/5 rounded-full text-slate-400 hover:text-white">
-                    <X size={16} />
-                  </button>
-                </div>
-                <p className="text-xs text-slate-400 mb-3">Select and copy this entire code string to paste onto your other device:</p>
-                <textarea 
-                  readOnly 
-                  value={syncCodeString}
-                  onClick={e => e.target.select()}
-                  className="w-full h-36 bg-black/60 border border-white/10 rounded-xl p-3 text-orange-300 font-mono text-xs mb-4 select-all"
-                />
-                <Button variant="primary" onClick={() => setShowSyncCodeModal(false)} className="py-3 text-sm">
-                  Done
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // --- DATA MODEL: ALL 57 OLL CASES (9 CHUNKS FOR 32-DAY PROGRAM) ---
 const OLL_DATA = [
@@ -897,7 +300,7 @@ const OLL_DATA = [
   { id: 57, chunk: 9, name: "Nazi", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'" }
 ];
 
-// --- NOTATION KEY REPOSITORY ---
+// --- NOTATION GROUPS FOR REFERENCE ---
 const NOTATION_GROUPS = [
   {
     title: "Single Face Moves",
@@ -924,7 +327,7 @@ const NOTATION_GROUPS = [
     ]
   },
   {
-    title: "Slice Moves (Middle Layers)",
+    title: "Slice Moves",
     description: "Turning inner layers between outer faces",
     moves: [
       { move: "M", desc: "Middle layer between L/R (turns down, follows L)" },
@@ -954,7 +357,7 @@ const NOTATION_GROUPS = [
     ]
   },
   {
-    title: "Wide Moves (Two Layers)",
+    title: "Wide Moves",
     description: "Turning an outer face along with its adjacent slice",
     moves: [
       { move: "Rw / r", desc: "Right side + Middle layer clockwise" },
@@ -973,10 +376,10 @@ const NOTATION_GROUPS = [
   }
 ];
 
-// --- CURATED FINGERTRICK DATABASE ---
+// --- FINGERTRICK DATABASE & SMART TRIGGER PARSER ---
 const FINGERTRICK_DATABASE = {
   1: {
-    grip: "Standard Home Grip (Right thumb on front center, middle & ring fingers on back)",
+    grip: "Standard Home Grip (Right thumb on front center, middle & ring on back)",
     regrips: "0 Regrips",
     triggers: [
       { moves: "R U R'", label: "Sune Opener", tip: "Right wrist turns R up, right index flicks U forward, right wrist pulls R' down. Keep your right thumb anchored on the front face." },
@@ -1047,11 +450,52 @@ const FINGERTRICK_DATABASE = {
     grip: "Standard Home Grip",
     regrips: "0 Regrips",
     triggers: [
-      { moves: "f", label: "Wide Thumb Push f", tip: "Right thumb pushes both front layers clockwise." },
+      { moves: "f", label: "Wide Thumb Push f", tip: "Right thumb pushes both front layers clockwise (or left index pushes down)." },
       { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger executed from standard home grip." },
       { moves: "f'", label: "Wide Pinch f'", tip: "Right index finger pinches both front layers counter-clockwise from the top." }
     ],
     proTip: "Make sure your index finger catches both the F and S slices together on the f' pinch so the middle slice doesn't drag."
+  },
+  21: {
+    grip: "Left Hand Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "f'", label: "Left Index Pinch f'", tip: "Left index finger pinches both front layers counter-clockwise." },
+      { moves: "(L' U' L U)", label: "Lefty Sexy Move", tip: "Left wrist up, left index push U', left wrist down, left index flick U." },
+      { moves: "f", label: "Left Thumb Push f", tip: "Left thumb pushes both front layers clockwise from bottom." }
+    ],
+    proTip: "Mirrors normal P on the left hand. Keep wrists relaxed and let the index fingers do all U-layer turning."
+  },
+  26: {
+    grip: "Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F", label: "Thumb Push F", tip: "Right thumb pushes F clockwise." },
+      { moves: "(R U' R' U')", label: "Inverse Sexy Variant", tip: "R wrist up, index push U', R' wrist down, index push U'." },
+      { moves: "(R U R' F')", label: "Sledge-Finisher", tip: "R wrist up, index flick U, R' wrist down, index pinch F'." }
+    ],
+    proTip: "Smooth index pushes on the U' moves keep your grip rock solid throughout."
+  },
+  32: {
+    grip: "Standard Home Grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "F", label: "Thumb Push F", tip: "Right thumb pushes F clockwise from the bottom edge." },
+      { moves: "(R U R' U') x2", label: "Double Sexy Move", tip: "Two consecutive Sexy Moves without pause. R U R' U' followed immediately by R U R' U'." },
+      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger pinches the front face counter-clockwise from the top-right." }
+    ],
+    proTip: "Practice rolling the two sexy moves together without hesitation; your index finger should be spring-loaded after the first U'."
+  },
+  52: {
+    grip: "Left hand firm on L block, Right hand home grip",
+    regrips: "0 Regrips",
+    triggers: [
+      { moves: "M U", label: "Slice Opener", tip: "Right or left ring finger pushes M slice from bottom back, right index flicks U." },
+      { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger on right side." },
+      { moves: "M'", label: "Slice Return", tip: "Ring finger pulls M' slice upward from the bottom back." },
+      { moves: "(R' F R F')", label: "Sledgehammer", tip: "R' wrist down, index push F, R up, thumb push F'." }
+    ],
+    proTip: "Practice the M push with your left ring finger while your right hand stays in home grip ready for the Sexy Move."
   }
 };
 
@@ -1158,29 +602,30 @@ const getScheduleForDay = (day = 1) => {
 // --- CUSTOM SUNE CUBE LOGO ---
 const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
   const [imgError, setImgError] = useState(false);
+
   return (
-    <div className={`${className} flex-shrink-0 flex items-center justify-center relative`}>
+    <div className={`${className} flex-shrink-0 relative flex items-center justify-center`}>
       {!imgError ? (
-        <img
-          src="/OLLDayEveryday.svg"
-          alt="Sune Logo"
-          className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
+        <img 
+          src="/OLLDayEveryday.svg" 
+          alt="OLLDay Everyday" 
+          className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(234,88,12,0.3)]"
           onError={() => setImgError(true)}
         />
       ) : (
-        <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
-          fill="none"
+        <svg 
+          viewBox="0 0 1000 1000" 
+          className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(234,88,12,0.35)]" 
+          fill="none" 
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path
-            d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z"
-            fill="#090a14"
-            stroke="#090a14"
-            strokeWidth="32"
-            strokeLinejoin="round"
-            strokeLinecap="round"
+          <path 
+            d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z" 
+            fill="#090a14" 
+            stroke="#090a14" 
+            strokeWidth="32" 
+            strokeLinejoin="round" 
+            strokeLinecap="round" 
           />
           <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round" fill="#000000">
             <polygon points="524,180 594,228 534,268 464,220" />
@@ -1217,123 +662,705 @@ const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
   );
 };
 
-// --- REAL-TIME CLOUD DATABASE (FIRESTORE REST API) ---
-// ZERO npm dependencies, ZERO external imports, ZERO Rollup build errors on Vercel
-const FIREBASE_PROJECT_ID = "olldayeveryday";
-const FIREBASE_API_KEY = "AIzaSyBFWgmB1DgBDrfTWCMLSNS6ovS2XeMjAcU";
-const FIRESTORE_ENDPOINT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/app_data/family_sync?key=${FIREBASE_API_KEY}`;
+// --- REUSABLE UI TOKENS ---
+const GlassCard = ({ children, className = '', onClick }) => (
+  <div 
+    onClick={onClick}
+    className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl transition-all ${
+      onClick ? 'cursor-pointer active:scale-[0.98] hover:bg-slate-800/70 hover:border-orange-500/30' : ''
+    } ${className}`}
+  >
+    {children}
+  </div>
+);
+
+const Button = ({ children, variant = 'primary', onClick, className = '', disabled = false }) => {
+  const base = "w-full rounded-2xl py-4 font-bold text-base transition-all active:scale-95 flex justify-center items-center gap-2 shadow-lg disabled:opacity-40 disabled:pointer-events-none";
+  const variants = {
+    primary: "bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black shadow-orange-500/25 border border-orange-400/30",
+    secondary: "bg-white/5 hover:bg-white/10 text-slate-100 border border-white/10 shadow-black/40",
+    danger: "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30",
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`}>
+      {children}
+    </button>
+  );
+};
+
+// --- PIN PAD COMPONENT (NOW WITH FULL PHYSICAL KEYBOARD SUPPORT FOR WEB BROWSERS) ---
+const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, clearOnComplete = true }) => {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(errorMsg || '');
+
+  useEffect(() => { setError(errorMsg || ''); }, [errorMsg]);
+
+  const handlePress = (num) => {
+    setError('');
+    if (pin.length < 4) {
+      const nextPin = pin + num;
+      setPin(nextPin);
+      if (nextPin.length === 4) {
+        onComplete(nextPin);
+        if (clearOnComplete) setTimeout(() => setPin(''), 300);
+      }
+    }
+  };
+
+  const handleDelete = () => setPin(prev => prev.slice(0, -1));
+
+  // Enable physical keyboard entry on web browsers (desktop/laptop)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Never intercept keystrokes if user is typing inside an input or textarea (e.g. in AdminModal)
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+        return;
+      }
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        handlePress(e.key);
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        handleDelete();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pin]);
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto animate-in fade-in select-none">
+      {!hideClose && (
+        <button onClick={onClose} className="absolute top-6 left-6 p-2 bg-white/5 rounded-full text-slate-400">
+          <X size={20} />
+        </button>
+      )}
+      
+      <div className="w-16 h-16 rounded-3xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mb-6 shadow-xl shadow-orange-500/10">
+        <Lock size={32} />
+      </div>
+      
+      <h2 className="text-2xl font-black text-white mb-1 text-center">{title}</h2>
+      <p className="text-xs text-slate-400 mb-6 text-center max-w-[260px] leading-relaxed">{subtitle}</p>
+
+      <div className="flex gap-4 mb-6">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className={`w-4 h-4 rounded-full transition-all duration-200 border-2 ${
+            pin.length > i 
+              ? (error ? 'bg-red-500 border-red-500' : 'bg-orange-500 border-orange-500 scale-110')
+              : 'bg-transparent border-white/20'
+          }`} />
+        ))}
+      </div>
+      {error && <p className="text-red-400 text-xs font-bold mb-4 -mt-2 uppercase tracking-widest text-center">{error}</p>}
+
+      <div className="grid grid-cols-3 gap-3 w-full">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+          <button 
+            key={num} 
+            type="button"
+            onClick={() => handlePress(num.toString())}
+            className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
+          >
+            {num}
+          </button>
+        ))}
+        <div />
+        <button 
+          type="button"
+          onClick={() => handlePress('0')}
+          className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
+        >
+          0
+        </button>
+        <button 
+          type="button"
+          onClick={handleDelete}
+          className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-xl font-semibold text-slate-400 flex items-center justify-center border border-white/5 cursor-pointer"
+        >
+          <BackspaceIcon className="w-6 h-6" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// --- AUTHENTICATION SCREEN (CLEAN KEYPAD ONLY) ---
+const AuthScreen = ({ users, onLogin, onOpenAdmin }) => {
+  const [error, setError] = useState('');
+
+  const handleLogin = (enteredPin) => {
+    const cleanPin = String(enteredPin).trim();
+    // Match either by dictionary key or by user.pin attribute
+    const matched = users[cleanPin] || Object.values(users).find(u => String(u.pin).trim() === cleanPin);
+    if (matched) {
+      onLogin(matched.pin);
+    } else {
+      setError('Invalid PIN');
+      setTimeout(() => setError(''), 1200);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 w-full h-full bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden p-6 select-none touch-none overscroll-none">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
+      
+      {/* Discreet Admin Access button in top-right corner */}
+      {onOpenAdmin && (
+        <button
+          type="button"
+          onClick={onOpenAdmin}
+          className="absolute top-5 right-5 p-2.5 rounded-full text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
+          title="Admin Panel"
+        >
+          <ShieldAlert size={18} />
+        </button>
+      )}
+
+      {/* Pure, Uncluttered Keypad */}
+      <div className="z-10 w-full max-w-xs flex flex-col items-center">
+        <PinPad 
+          title="Welcome Back" 
+          subtitle="Enter your 4-digit PIN"
+          onComplete={handleLogin}
+          errorMsg={error}
+          hideClose
+        />
+      </div>
+    </div>
+  );
+};
+
+// --- ADMIN MODAL (ROBUST STRING PIN INPUT WITH LEADING ZERO PRESERVATION) ---
+const AdminModal = ({ users, onClose, onAddUser, onDeleteUser, onUpdateUserPin, onImportData }) => {
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [error, setError] = useState('');
+  
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [addError, setAddError] = useState('');
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [userToEdit, setUserToEdit] = useState(null);
+  const [editedPin, setEditedPin] = useState('');
+  const [editError, setEditError] = useState('');
+
+  // Device sync & data transfer state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [importCode, setImportCode] = useState('');
+  const [importError, setImportError] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
+
+  const adminUser = Object.values(users).find(u => u.role === 'admin');
+  const masterPin = adminUser ? String(adminUser.pin).trim() : '1678';
+
+  const handleAuth = (pin) => {
+    const clean = String(pin).trim();
+    if (clean === masterPin || clean === '1678') {
+      setIsAuthed(true);
+    } else {
+      setError('Admin PIN Required');
+      setTimeout(() => setError(''), 1000);
+    }
+  };
+
+  const handleCreateUser = () => {
+    const cleanName = newName.trim();
+    const cleanPin = String(newPin).replace(/\D/g, '').trim();
+
+    if (!cleanName || cleanPin.length !== 4) {
+      setAddError('Enter a valid name and exactly 4 numeric digits');
+      return;
+    }
+    if (users[cleanPin] || Object.values(users).some(u => String(u.pin).trim() === cleanPin)) {
+      setAddError('PIN already exists! Choose a unique 4-digit PIN');
+      return;
+    }
+    onAddUser(cleanName, cleanPin);
+    setShowAddForm(false);
+    setNewName('');
+    setNewPin('');
+    setAddError('');
+  };
+
+  const handleSaveEditedPin = () => {
+    const clean = String(editedPin).replace(/\D/g, '').trim();
+    if (clean.length !== 4) {
+      setEditError('PIN must be exactly 4 numeric digits');
+      return;
+    }
+    if (userToEdit && clean === String(userToEdit.pin).trim()) {
+      setEditError('New PIN must be different');
+      return;
+    }
+    // Check if another user already has this PIN
+    const isTaken = Object.values(users).some(u => 
+      u && u.pin && String(u.pin).trim() === clean && String(u.pin).trim() !== String(userToEdit?.pin).trim()
+    );
+    if (isTaken) {
+      setEditError('This PIN is already in use by another user');
+      return;
+    }
+    onUpdateUserPin(userToEdit.pin, clean);
+    setUserToEdit(null);
+    setEditedPin('');
+    setEditError('');
+  };
+
+  const handleCopySyncData = async () => {
+    const payload = JSON.stringify(users);
+    let copied = false;
+
+    // 1. Try modern async clipboard API with proper promise catch for Permissions Policy rejection
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(payload);
+        copied = true;
+      } catch (err) {
+        // Permissions policy blocked writeText, gracefully fall through
+        copied = false;
+      }
+    }
+
+    // 2. Fallback: document.execCommand('copy') via temporary textarea
+    if (!copied) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = payload;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.opacity = '0';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, 999999);
+        copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (err) {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      setCopyStatus('Copied! Paste this into your browser');
+      setTimeout(() => setCopyStatus(''), 2500);
+    } else {
+      // 3. Fallback when browser/sandbox completely blocks clipboard:
+      // Open the visual export sheet with selectable code
+      setShowExportModal(true);
+      setCopyStatus('Clipboard blocked by browser policy. Code displayed below!');
+      setTimeout(() => setCopyStatus(''), 3500);
+    }
+  };
+
+  const handleApplyImport = () => {
+    const clean = importCode.trim();
+    if (!clean) {
+      setImportError('Please paste your sync data code');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(clean);
+      if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
+        setImportError('Invalid sync data format');
+        return;
+      }
+      onImportData(parsed);
+      setShowImportModal(false);
+      setImportCode('');
+      setImportError('');
+      setCopyStatus('All users & progress imported successfully!');
+      setTimeout(() => setCopyStatus(''), 3000);
+    } catch (e) {
+      setImportError('Invalid sync code. Make sure to copy the entire code.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-[#060913]/95 backdrop-blur-xl flex flex-col p-6 overflow-y-auto">
+      {!isAuthed ? (
+        <div className="flex-1 flex flex-col justify-center">
+          <PinPad 
+            title="Admin Access" 
+            subtitle="Enter the master PIN to manage users." 
+            onComplete={handleAuth} 
+            errorMsg={error} 
+            onClose={onClose} 
+          />
+        </div>
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-8 w-full max-w-sm mx-auto pt-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Admin Panel</h2>
+              <p className="text-xs text-slate-400">Manage profiles, PINs & access</p>
+            </div>
+            <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
+              <X size={20} />
+            </button>
+          </div>
+
+          {copyStatus && (
+            <div className="bg-green-500/15 border border-green-500/30 text-green-300 text-xs font-bold rounded-2xl p-3 mb-4 text-center animate-in fade-in">
+              {copyStatus}
+            </div>
+          )}
+
+          {/* Export Sync Data Modal Sheet (Safe fallback when browser blocks clipboard) */}
+          {showExportModal && (
+            <div className="bg-slate-900/90 border border-orange-500/30 rounded-2xl p-5 mb-5 shadow-2xl animate-in fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <Copy size={16} className="text-orange-400" /> Your Sync Code
+                </h4>
+                <button onClick={() => setShowExportModal(false)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                  <X size={16} />
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                Your browser or sandbox blocked automated clipboard copying. Select and copy the code below manually:
+              </p>
+              <textarea 
+                readOnly
+                value={JSON.stringify(users)}
+                onClick={e => e.target.select()}
+                rows={4}
+                className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-orange-500 transition-colors mb-2 select-all"
+              />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowExportModal(false)} className="py-2.5 text-xs flex-1 shadow-none">
+                  Close
+                </Button>
+                <Button 
+                  variant="primary" 
+                  onClick={(e) => {
+                    const el = e.currentTarget.parentElement?.previousElementSibling;
+                    if (el) { el.focus(); el.select(); }
+                  }} 
+                  className="py-2.5 text-xs flex-1 shadow-none"
+                >
+                  Select All
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Import Sync Data Modal Sheet */}
+          {showImportModal && (
+            <div className="bg-slate-900/90 border border-orange-500/30 rounded-2xl p-5 mb-5 shadow-2xl animate-in fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-black text-white flex items-center gap-2">
+                  <ArrowDownToLine size={16} className="text-orange-400" /> Import / Sync Data
+                </h4>
+                <button onClick={() => { setShowImportModal(false); setImportError(''); }} className="p-1 text-slate-400 hover:text-white">
+                  <X size={16} />
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                Paste the sync code from your iPhone Home Screen app to instantly sync all users, PINs, and solve history into this browser.
+              </p>
+              <textarea 
+                value={importCode}
+                onChange={e => { setImportCode(e.target.value); setImportError(''); }}
+                placeholder='Paste {"1678": ...} sync code here'
+                rows={4}
+                className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-orange-500 transition-colors mb-2"
+              />
+              {importError && <p className="text-xs text-red-400 font-bold mb-3">{importError}</p>}
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowImportModal(false)} className="py-2.5 text-xs flex-1 shadow-none">
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={handleApplyImport} className="py-2.5 text-xs flex-1 shadow-none">
+                  Apply Sync
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!showAddForm ? (
+            <>
+              {/* Edit PIN Dialog Banner */}
+              {userToEdit && (
+                <div className="bg-slate-900/90 border border-orange-500/30 rounded-2xl p-5 mb-5 shadow-xl animate-in fade-in">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                        <Key size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white">Change PIN for {userToEdit.name}</h4>
+                        <span className="text-[10px] text-slate-400 font-mono">Current PIN: {userToEdit.pin}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => { setUserToEdit(null); setEditError(''); }}
+                      className="p-1 text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">
+                      New 4-Digit PIN
+                    </label>
+                    <input 
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      value={editedPin}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveEditedPin();
+                        }
+                      }}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setEditedPin(digits);
+                        setEditError('');
+                      }}
+                      placeholder="E.g. 0713"
+                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors"
+                    />
+                    {editError && <p className="text-xs text-red-400 font-bold mt-1.5">{editError}</p>}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => { setUserToEdit(null); setEditError(''); }} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="primary" 
+                      onClick={handleSaveEditedPin} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Update PIN
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Deletion Confirmation Banner */}
+              {userToDelete && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-5 text-center animate-in fade-in">
+                  <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 mx-auto mb-2 flex items-center justify-center">
+                    <Trash2 size={20} />
+                  </div>
+                  <h4 className="text-sm font-black text-white mb-1">Delete {userToDelete.name}?</h4>
+                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                    PIN ({userToDelete.pin}), day progress, and all recorded solve times will be permanently removed.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => setUserToDelete(null)} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="danger" 
+                      onClick={() => {
+                        onDeleteUser(userToDelete.pin);
+                        setUserToDelete(null);
+                      }} 
+                      className="py-2.5 text-xs flex-1 shadow-none"
+                    >
+                      Confirm Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3 mb-5">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Active Profiles ({Object.keys(users).length})</h3>
+                {Object.values(users).map(u => (
+                  <div key={u.pin} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-black">
+                        {(u.name || "U").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white flex items-center gap-2">
+                          {u.name}
+                          {u.role === 'admin' && <ShieldAlert size={14} className="text-amber-500" />}
+                        </div>
+                        <div className="text-[11px] text-orange-400/90 font-mono tracking-widest font-bold">PIN: {u.pin}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right mr-1">
+                        <div className="text-xs font-bold text-slate-300">Day {u.day || 1}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{Object.keys(u.stats || {}).length} solved</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserToEdit(u);
+                          setUserToDelete(null);
+                          setEditedPin('');
+                          setEditError('');
+                        }}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 border border-white/10 hover:border-orange-500/30 active:scale-95 transition-all cursor-pointer"
+                        title={`Change PIN for ${u.name}`}
+                      >
+                        <Key size={15} />
+                      </button>
+                      {u.pin !== '1678' && u.role !== 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserToDelete(u);
+                            setUserToEdit(null);
+                          }}
+                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 active:scale-95 transition-all cursor-pointer"
+                          title={`Delete ${u.name}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <Button onClick={() => setShowAddForm(true)} variant="secondary" className="border-dashed border-white/20 text-orange-400">
+                  <UserPlus size={18} /> Add New User
+                </Button>
+
+                {/* Device Transfer & Cross-Sync Card */}
+                <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4 space-y-3">
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                      <span>📲</span> <span>Device Transfer & Sync</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      iOS Home Screen apps are sandboxed from browsers. Use these quick buttons to transfer profiles between your phone and browser:
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopySyncData}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Copy size={14} className="text-orange-400" />
+                      <span>Copy Sync Code</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowImportModal(true)}
+                      className="py-2.5 px-3 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <ArrowDownToLine size={14} className="text-orange-400" />
+                      <span>Import Sync Code</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
+              <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
+                <UserPlus size={20} className="text-orange-500"/> New Profile
+              </h3>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">First Name</label>
+                  <input 
+                    type="text" 
+                    value={newName} 
+                    onChange={e => setNewName(e.target.value)} 
+                    placeholder="E.g. Ephraim or Victor" 
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">4-Digit PIN</label>
+                  <input 
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    value={newPin} 
+                    onChange={e => { 
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setNewPin(digits); 
+                      setAddError('');
+                    }} 
+                    placeholder="E.g. 1234" 
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors" 
+                  />
+                </div>
+                {addError && <p className="text-xs text-red-400 font-bold">{addError}</p>}
+              </div>
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => {setShowAddForm(false); setAddError('');}} className="py-3 flex-1 text-sm">Cancel</Button>
+                <Button variant="primary" onClick={handleCreateUser} className="py-3 flex-1 text-sm">Save User</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- APP ROOT COMPONENT ---
 export default function App() {
   const [users, setUsers] = useState(() => {
+    const defaultUsers = {
+      "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
+      "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true }
+    };
+
     try {
       const saved = localStorage.getItem('ollday_users_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          const hasAdmin = Object.values(parsed).some(u => u.role === 'admin' || String(u.pin) === '1678');
+          if (!hasAdmin) {
+            parsed["1678"] = defaultUsers["1678"];
+            try { localStorage.setItem('ollday_users_v2', JSON.stringify(parsed)); } catch (e) {}
+          }
           return parsed;
         }
       }
-    } catch (e) {}
-
-    const base = {
-      "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 2.5, timerEnabled: true, fingertricksEnabled: true },
-      "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 4.0, timerEnabled: true, fingertricksEnabled: true },
-      "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-      "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, timerEnabled: true, fingertricksEnabled: true },
-    };
-
-    try {
-      localStorage.setItem('ollday_users_v2', JSON.stringify(base));
-    } catch (e) {}
-    return base;
+      localStorage.setItem('ollday_users_v2', JSON.stringify(defaultUsers));
+      return defaultUsers;
+    } catch (e) {
+      return defaultUsers;
+    }
   });
 
+  // Always require PIN authentication whenever the app is opened
   const [activePin, setActivePin] = useState(null);
+
   const [activeTab, setActiveTab] = useState('grind');
-  const [sessionState, setSessionState] = useState(null);
-  const [drillCase, setDrillCase] = useState(null);
+  const [sessionState, setSessionState] = useState(null); 
+  const [drillCase, setDrillCase] = useState(null); 
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [cloudStatus, setCloudStatus] = useState('connecting');
 
-  // Push updates to Firestore REST endpoint
-  const saveToCloud = async (dataToSync) => {
-    try {
-      const payload = {
-        fields: {
-          usersPayload: { stringValue: JSON.stringify(dataToSync) },
-          updatedAt: { integerValue: String(Date.now()) }
-        }
-      };
-      await fetch(FIRESTORE_ENDPOINT, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {
-      console.warn("Cloud push notice:", err);
-    }
-  };
-
-  // Sync with Firestore REST API on mount, on interval, and when app is foregrounded
-  useEffect(() => {
-    let isMounted = true;
-
-    const pullFromCloud = async () => {
-      try {
-        const res = await fetch(FIRESTORE_ENDPOINT);
-        if (!res.ok) {
-          if (res.status === 404) {
-            saveToCloud(users);
-            if (isMounted) setCloudStatus('synced');
-          } else {
-            if (isMounted) setCloudStatus('offline');
-          }
-          return;
-        }
-
-        const json = await res.json();
-        const rawPayload = json.fields?.usersPayload?.stringValue;
-        if (rawPayload) {
-          const cloudUsers = JSON.parse(rawPayload);
-          if (cloudUsers && typeof cloudUsers === 'object' && Object.keys(cloudUsers).length > 0) {
-            if (isMounted) {
-              setUsers(cloudUsers);
-              try {
-                localStorage.setItem('ollday_users_v2', JSON.stringify(cloudUsers));
-              } catch (e) {}
-              setCloudStatus('synced');
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("Cloud fetch notice:", err);
-        if (isMounted) setCloudStatus('offline');
-      }
-    };
-
-    pullFromCloud();
-
-    const pollTimer = setInterval(pullFromCloud, 10000);
-    const handleFocus = () => pullFromCloud();
-    window.addEventListener('focus', handleFocus);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') pullFromCloud();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      isMounted = false;
-      clearInterval(pollTimer);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
-
-  // Cross-tab real-time sync listener
+  // Cross-tab real-time sync listener (updates immediately if another tab changes users)
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'ollday_users_v2' && e.newValue) {
@@ -1349,9 +1376,48 @@ export default function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const handleLogin = (pin) => {
-    const cleanPin = String(pin).trim();
-    setActivePin(cleanPin);
+  // Resolved active user profile (declared before hooks/effects to eliminate Temporal Dead Zone)
+  const currentUser = useMemo(() => {
+    if (!activePin) return null;
+    return users[activePin] || Object.values(users).find(u => String(u.pin).trim() === activePin) || null;
+  }, [activePin, users]);
+
+  // Trigger onboarding question if user has not answered it yet
+  useEffect(() => {
+    if (activePin && currentUser && currentUser.hasSeenOnboarding === undefined) {
+      setShowOnboardingModal(true);
+    }
+  }, [activePin, currentUser?.hasSeenOnboarding]);
+
+  // Enforce dark canvas styling globally across document root
+  useEffect(() => {
+    document.documentElement.style.backgroundColor = '#060913';
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    document.documentElement.style.position = 'fixed';
+    document.documentElement.style.width = '100%';
+    document.documentElement.style.height = '100%';
+
+    document.body.style.backgroundColor = '#060913';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleLogin = (pin) => { 
+    setActivePin(String(pin).trim()); 
+  };
+
+  const handleLogout = () => {
+    setActivePin(null);
+    setSessionState(null);
+    setActiveTab('grind');
   };
 
   const handleAddUser = (name, pin) => {
@@ -1372,14 +1438,13 @@ export default function App() {
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
-      saveToCloud(nextUsers);
       return nextUsers;
     });
   };
 
   const handleDeleteUser = (pinToDelete) => {
     const clean = String(pinToDelete).trim();
-    if (clean === '1678') return;
+    if (clean === '1678') return; // Master admin protected
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers };
       delete nextUsers[clean];
@@ -1391,7 +1456,6 @@ export default function App() {
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
-      saveToCloud(nextUsers);
       return nextUsers;
     });
 
@@ -1404,6 +1468,7 @@ export default function App() {
   const handleUpdateUserPin = (oldPin, newPin) => {
     const cleanOld = String(oldPin).trim();
     const cleanNew = String(newPin).trim();
+    let updatedProfile = null;
 
     setUsers(prevUsers => {
       const targetKey = Object.keys(prevUsers).find(k => 
@@ -1415,7 +1480,7 @@ export default function App() {
       }
 
       const targetUser = prevUsers[targetKey];
-      const updatedProfile = { ...targetUser, pin: cleanNew };
+      updatedProfile = { ...targetUser, pin: cleanNew };
       const nextUsers = { ...prevUsers };
       delete nextUsers[targetKey];
       delete nextUsers[cleanOld];
@@ -1424,7 +1489,6 @@ export default function App() {
       try { 
         localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
       } catch (e) {}
-      saveToCloud(nextUsers);
       return nextUsers;
     });
 
@@ -1439,7 +1503,6 @@ export default function App() {
     try {
       localStorage.setItem('ollday_users_v2', JSON.stringify(importedUsers));
     } catch (e) {}
-    saveToCloud(importedUsers);
   };
 
   if (!activePin || !users[activePin]) {
@@ -1453,7 +1516,6 @@ export default function App() {
         {showAdminModal && (
           <AdminModal 
             users={users} 
-            cloudStatus={cloudStatus}
             onClose={() => setShowAdminModal(false)} 
             onAddUser={handleAddUser} 
             onDeleteUser={handleDeleteUser}
@@ -1465,23 +1527,7 @@ export default function App() {
     );
   }
 
-  const currentUser = users[activePin] || Object.values(users).find(u => String(u.pin).trim() === activePin) || {
-    pin: activePin,
-    name: "User",
-    role: "user",
-    day: 1,
-    stats: {},
-    targetGoal: 3.5,
-    timerEnabled: true,
-    fingertricksEnabled: true
-  };
-
-  // CFOP Onboarding prompt
-  useEffect(() => {
-    if (currentUser && currentUser.hasSeenOnboarding === undefined) {
-      setShowOnboardingModal(true);
-    }
-  }, [activePin]);
+  const isFingertricksOn = currentUser ? currentUser.fingertricksEnabled !== false : true;
 
   const updateCurrentUser = (updates) => {
     const targetKey = Object.keys(users).find(k => 
@@ -1493,7 +1539,6 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-      saveToCloud(nextUsers);
       return nextUsers;
     });
   };
@@ -1509,7 +1554,6 @@ export default function App() {
       setUsers(prevUsers => {
         const nextUsers = { ...prevUsers, [targetKey]: nextUser };
         try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-        saveToCloud(nextUsers);
         return nextUsers;
       });
     }
@@ -1528,7 +1572,6 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-      saveToCloud(nextUsers);
       return nextUsers;
     });
   };
@@ -1543,41 +1586,46 @@ export default function App() {
     setUsers(prevUsers => {
       const nextUsers = { ...prevUsers, [targetKey]: nextUser };
       try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-      saveToCloud(nextUsers);
       return nextUsers;
     });
 
     setShowResetModal(false); 
   };
 
-  const currentDay = currentUser.day || 1;
+  const currentDay = (currentUser && currentUser.day) || 1;
   const schedule = getScheduleForDay(currentDay);
   const todaysAlgs = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk));
-  const isFingertricksOn = currentUser.fingertricksEnabled !== false;
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden flex justify-center select-none touch-none overscroll-none">
+    <div className="fixed inset-0 w-full h-full bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden overscroll-none touch-none flex justify-center select-none">
+      {/* Permanent Global CSS Shield: Ensures neither login nor main views ever bounce or show browser canvas */}
       <style>{`
         html, body, #root {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          overscroll-behavior: none;
           background-color: #060913 !important;
-          color-scheme: dark;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden !important;
+          overscroll-behavior: none !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          color-scheme: dark !important;
+          -webkit-user-select: none !important;
+          user-select: none !important;
         }
+        .no-scrollbar::-webkit-scrollbar { display: none !important; }
+        .no-scrollbar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
       `}</style>
 
-      {/* iOS Ambient Lighting Gradients */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[45vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
       <div className="fixed bottom-0 right-0 w-3/4 h-[40vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
 
-      {/* Main iPhone Application Viewport Shell */}
-      <div className="w-full max-w-md h-full flex flex-col relative z-10 shadow-2xl bg-[#090e1c] backdrop-blur-3xl border-x border-white/5 overflow-hidden">
+      {/* Main Container - Structured as a Pure Flex Column so Header & Nav are permanently visible */}
+      <div className="w-full max-w-md h-full flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden overscroll-none">
         
-        {/* Fixed Header */}
+        {/* Fixed Header (Touch & Overscroll Locked) */}
         <header className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/40 backdrop-blur-md select-none flex-shrink-0 touch-none overscroll-none">
           <div className="flex items-center gap-3">
             <SuneCubeLogo className="w-10 h-10" />
@@ -1591,16 +1639,6 @@ export default function App() {
                 <span className="text-[10px] text-orange-400 font-bold">
                   Day {currentDay}
                 </span>
-                <span className="text-slate-600">•</span>
-                <div 
-                  className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider" 
-                  title={cloudStatus === 'synced' ? 'Real-Time Cloud Synced' : cloudStatus === 'connecting' ? 'Connecting to Cloud...' : 'Offline Mode (Local Storage)'}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'synced' ? 'bg-green-400 animate-pulse' : cloudStatus === 'connecting' ? 'bg-amber-400 animate-ping' : 'bg-slate-500'}`} />
-                  <span className={cloudStatus === 'synced' ? 'text-green-400/90' : cloudStatus === 'connecting' ? 'text-amber-400/90' : 'text-slate-500'}>
-                    {cloudStatus === 'synced' ? 'Cloud' : cloudStatus === 'connecting' ? 'Syncing' : 'Local'}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -1613,8 +1651,8 @@ export default function App() {
           </div>
         </header>
 
-        {/* Viewport Content */}
-        <main className={`flex-1 min-h-0 relative select-none overscroll-none ${activeTab === 'settings' ? 'overflow-hidden touch-none' : 'overflow-y-auto touch-pan-y no-scrollbar'}`}>
+        {/* Scrollable Viewport (Overscroll locked to prevent dragging the app shell) */}
+        <main className={`flex-1 min-h-0 relative no-scrollbar ${activeTab === 'settings' ? 'overflow-hidden touch-none overscroll-none' : 'overflow-y-auto overscroll-none touch-pan-y'}`}>
           {!sessionState && activeTab === 'grind' && (
             <GrindView 
               currentDay={currentDay} 
@@ -1643,11 +1681,11 @@ export default function App() {
             <SettingsView 
               currentUser={currentUser} 
               setTimerEnabled={(val) => updateCurrentUser({ timerEnabled: val })} 
-              setFingertricksEnabled={(val) => updateCurrentUser({ fingertricksEnabled: val })}
               setTargetGoal={(val) => updateCurrentUser({ targetGoal: val })} 
+              setFingertricksEnabled={(val) => updateCurrentUser({ fingertricksEnabled: val })}
               onRequestReset={() => setShowResetModal(true)} 
               onOpenAdmin={() => setShowAdminModal(true)} 
-              onLockApp={() => setActivePin(null)}
+              onLockApp={handleLogout}
               onOpenOnboarding={() => setShowOnboardingModal(true)}
             />
           )}
@@ -1685,6 +1723,7 @@ export default function App() {
             />
           )}
 
+          {/* Floating Fingertrick Dossier Modal */}
           {fingertrickModalCase && (
             <FingertrickDossierModal 
               caseData={fingertrickModalCase} 
@@ -1692,9 +1731,15 @@ export default function App() {
             />
           )}
 
+          {/* New to CFOP / OLL Floating Onboarding Modal */}
           {showOnboardingModal && (
             <OnboardingModal 
+              userName={currentUser.name}
               onClose={() => {
+                updateCurrentUser({ hasSeenOnboarding: true });
+                setShowOnboardingModal(false);
+              }}
+              onComplete={() => {
                 updateCurrentUser({ hasSeenOnboarding: true });
                 setShowOnboardingModal(false);
               }}
@@ -1704,7 +1749,6 @@ export default function App() {
           {showAdminModal && (
             <AdminModal 
               users={users} 
-              cloudStatus={cloudStatus}
               onClose={() => setShowAdminModal(false)} 
               onAddUser={handleAddUser} 
               onDeleteUser={handleDeleteUser}
@@ -1736,9 +1780,9 @@ export default function App() {
           )}
         </main>
 
-        {/* Dedicated Bottom Navigation Bar */}
+        {/* Bottom Navigation Tabs - Direct Flex-Shrink-0 Child (Always visible & locked against dragging) */}
         {!sessionState && !drillCase && (
-          <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-4 z-40 select-none touch-none overscroll-none shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
+          <nav className="flex-shrink-0 z-40 w-full bg-[#090e1c] border-t border-white/10 pb-5 pt-2 px-4 select-none shadow-2xl touch-none overscroll-none">
             <div className="flex justify-around items-center max-w-sm mx-auto">
               <TabIcon icon={Target} label="The Grind" active={activeTab === 'grind'} onClick={() => setActiveTab('grind')} />
               <TabIcon icon={Layers} label="Algorithms" active={activeTab === 'algorithms'} onClick={() => setActiveTab('algorithms')} />
@@ -1747,7 +1791,6 @@ export default function App() {
             </div>
           </nav>
         )}
-
       </div>
     </div>
   );
@@ -1756,7 +1799,7 @@ export default function App() {
 const TabIcon = ({ icon: Icon, label, active, onClick }) => (
   <button 
     onClick={onClick} 
-    className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all select-none touch-none ${
+    className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all touch-none select-none ${
       active ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'
     }`}
   >
@@ -1775,7 +1818,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
   const algCount = OLL_DATA.filter(alg => schedule.chunks.includes(alg.chunk)).length;
 
   return (
-    <div className="p-6 pt-6 pb-8 flex flex-col min-h-full">
+    <div className="p-6 pt-6 pb-32 flex flex-col min-h-full touch-pan-y overscroll-contain">
       <div className="mb-4">
         <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Training Hub</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Daily Grind</h2>
@@ -1790,7 +1833,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
           <button 
             onClick={() => updateDay(currentDay - 1)} 
             disabled={currentDay === 1} 
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5 cursor-pointer"
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5"
           >
             <ChevronLeft size={22} />
           </button>
@@ -1803,7 +1846,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
           <button 
             onClick={() => updateDay(currentDay + 1)} 
             disabled={currentDay === 32} 
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5 cursor-pointer"
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5"
           >
             <ChevronRight size={22} />
           </button>
@@ -1838,7 +1881,7 @@ const GrindView = ({ currentDay, updateDay, schedule, onStart }) => {
         </Button>
       </GlassCard>
 
-      <div className="flex items-center justify-between bg-slate-900/60 border border-white/10 p-5 rounded-[2rem] shadow-xl flex-shrink-0">
+      <div className="flex items-center justify-between bg-slate-900/60 border border-white/10 p-5 rounded-[2rem] shadow-xl">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Program Journey</div>
           <div className="text-xl font-black text-white mt-1">
@@ -1874,10 +1917,10 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
   if (selectedGroup) {
     const algs = groups.find(g => g[0] === selectedGroup)?.[1] || [];
     return (
-      <div className="p-6 pt-6 pb-12 animate-in fade-in slide-in-from-right-4 min-h-full">
+      <div className="p-6 pt-6 pb-36 animate-in fade-in slide-in-from-right-4 min-h-full touch-pan-y overscroll-contain">
         <button 
           onClick={() => setSelectedGroup(null)} 
-          className="mb-5 flex items-center gap-2 text-orange-400 font-bold active:scale-95 transition-transform px-4 py-2 bg-orange-500/10 rounded-full border border-orange-500/20 text-xs uppercase tracking-wider cursor-pointer"
+          className="mb-5 flex items-center gap-2 text-orange-400 font-bold active:scale-95 transition-transform px-4 py-2 bg-orange-500/10 rounded-full border border-orange-500/20 text-xs uppercase tracking-wider"
         >
           <ChevronLeft size={16} /> Back to Groups
         </button>
@@ -1909,7 +1952,7 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
                           e.stopPropagation();
                           onOpenFingertrick(alg);
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all"
                       >
                         <Zap size={10} className="text-amber-400" />
                         <span>Fingertricks</span>
@@ -1930,7 +1973,7 @@ const AlgorithmsView = ({ onSelectCase, onOpenFingertrick }) => {
   }
 
   return (
-    <div className="p-6 pt-6 pb-12 animate-in fade-in min-h-full">
+    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full touch-pan-y overscroll-contain">
       <div className="mb-6">
         <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Knowledge Base</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Algorithms</h2>
@@ -1983,7 +2026,7 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
   }, [solveTimes]);
 
   return (
-    <div className="p-6 pt-6 pb-12 animate-in fade-in min-h-full">
+    <div className="p-6 pt-6 pb-36 animate-in fade-in min-h-full touch-pan-y overscroll-contain">
       <div className="mb-5">
         <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Performance</p>
         <h2 className="text-3xl font-black tracking-tight text-white">Statistics</h2>
@@ -2036,201 +2079,246 @@ const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => 
   );
 };
 
-// --- TAB 4: SETTINGS (3D STACKED FLOATING CARDS) ---
-const SettingsView = ({ 
-  currentUser, 
-  setTimerEnabled, 
-  setFingertricksEnabled, 
-  setTargetGoal, 
-  onRequestReset, 
-  onOpenAdmin, 
-  onLockApp,
-  onOpenOnboarding
-}) => {
-  const [activeCard, setActiveCard] = useState(0); // 0: Preferences, 1: Notation, 2: Security & Guide
+// --- TAB 4: SETTINGS (CREATIVE STACKED 3D SWIPEABLE FLOATING CARDS) ---
+const SettingsView = ({ currentUser, setTimerEnabled, setTargetGoal, setFingertricksEnabled, onRequestReset, onOpenAdmin, onLockApp, onOpenOnboarding }) => {
   const [activeNotation, setActiveNotation] = useState(0);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+
+  // Gesture locks & tracking refs to prevent multi-event card skipping
+  const isNavigatingRef = useRef(false);
+  const wheelActiveRef = useRef(false);
+  const wheelTimerRef = useRef(null);
+  const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const mouseStartY = useRef(0);
+  const isMouseDown = useRef(false);
+
   const userGoal = (currentUser && currentUser.targetGoal) || 3.5;
   const isTimerOn = currentUser && currentUser.timerEnabled !== false;
   const isFingertricksOn = currentUser && currentUser.fingertricksEnabled !== false;
 
-  const isNavigatingRef = useRef(false);
-  const wheelActiveRef = useRef(false);
-  const wheelTimerRef = useRef(null);
+  const cardTitles = ["Preferences", "Notation Key", "Account & Security"];
 
-  const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
-  const mouseStartY = useRef(0);
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    };
+  }, []);
 
+  // Strictly advance exactly one card per swipe/flick with guaranteed cooldown
   const navigateCard = (direction) => {
     if (isNavigatingRef.current) return;
     isNavigatingRef.current = true;
 
-    setActiveCard(prev => {
-      if (direction === 'up') return Math.min(2, prev + 1);
-      if (direction === 'down') return Math.max(0, prev - 1);
-      return prev;
-    });
+    if (direction === 'next') {
+      setActiveCardIndex(prev => Math.min(2, prev + 1));
+    } else if (direction === 'prev') {
+      setActiveCardIndex(prev => Math.max(0, prev - 1));
+    }
 
+    // Cooldown duration matching card animation timing
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 450);
+    }, 420);
   };
 
+  // Touch Swipe Handling (Mobile & Touchscreens)
   const handleTouchStart = (e) => {
+    if (isNavigatingRef.current) return;
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = (e) => {
+    if (isNavigatingRef.current) return;
     const diffY = touchStartY.current - e.changedTouches[0].clientY;
     const diffX = touchStartX.current - e.changedTouches[0].clientX;
+
+    // Must be predominantly vertical swipe to avoid intercepting horizontal category buttons
     if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX) * 1.2) {
-      if (diffY > 0) navigateCard('up');
-      else navigateCard('down');
+      if (diffY > 0) {
+        navigateCard('next'); // Swipe Up -> Next card
+      } else {
+        navigateCard('prev'); // Swipe Down -> Prev card
+      }
     }
   };
 
-  const handleMouseDown = (e) => { mouseStartY.current = e.clientY; };
-  const handleMouseUp = (e) => {
-    const diffY = mouseStartY.current - e.clientY;
-    if (Math.abs(diffY) > 40) {
-      if (diffY > 0) navigateCard('up');
-      else navigateCard('down');
-    }
-  };
-
+  // Wheel / Trackpad Handling (Desktop) - Debounced to consume inertia bursts
   const handleWheel = (e) => {
-    e.preventDefault();
-    clearTimeout(wheelTimerRef.current);
+    // Keep resetting idle timer as long as trackpad/wheel momentum events arrive
+    if (wheelTimerRef.current) {
+      clearTimeout(wheelTimerRef.current);
+    }
     wheelTimerRef.current = setTimeout(() => {
       wheelActiveRef.current = false;
     }, 200);
 
-    if (wheelActiveRef.current) return;
+    // If gesture is already active or navigation is cooling down, ignore momentum ticks
+    if (wheelActiveRef.current || isNavigatingRef.current) return;
+
     if (Math.abs(e.deltaY) > 25) {
       wheelActiveRef.current = true;
-      if (e.deltaY > 0) navigateCard('up');
-      else navigateCard('down');
+      if (e.deltaY > 0) {
+        navigateCard('next');
+      } else {
+        navigateCard('prev');
+      }
+    }
+  };
+
+  // Mouse Drag Handling (Desktop Click-and-Drag)
+  const handleMouseDown = (e) => {
+    if (isNavigatingRef.current) return;
+    if (e.target.closest('button, input, select, textarea')) return;
+    isMouseDown.current = true;
+    mouseStartY.current = e.clientY;
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isMouseDown.current) return;
+    isMouseDown.current = false;
+    if (isNavigatingRef.current) return;
+
+    const diffY = mouseStartY.current - e.clientY;
+    if (Math.abs(diffY) > 40) {
+      if (diffY > 0) {
+        navigateCard('next');
+      } else {
+        navigateCard('prev');
+      }
     }
   };
 
   const getCardStyle = (index) => {
-    const diff = index - activeCard;
-    if (diff < 0) {
+    const diff = index - activeCardIndex;
+    if (diff === 0) {
       return {
-        transform: `translateY(-140px) scale(0.85)`,
-        opacity: 0,
-        pointerEvents: 'none',
-        zIndex: 0
-      };
-    } else if (diff === 0) {
-      return {
-        transform: `translateY(0px) scale(1)`,
+        transform: 'translateY(0px) scale(1)',
         opacity: 1,
+        zIndex: 30,
         pointerEvents: 'auto',
-        zIndex: 30
+        transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
       };
-    } else if (diff === 1) {
+    } else if (diff < 0) {
+      // Swiped up: smoothly dissolves and floats upward into nothingness
       return {
-        transform: `translateY(24px) scale(0.95)`,
-        opacity: 0.55,
+        transform: `translateY(${diff * 80}px) scale(${1 - Math.abs(diff) * 0.12})`,
+        opacity: 0,
+        zIndex: 10,
         pointerEvents: 'none',
-        zIndex: 20
+        transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
       };
     } else {
+      // Stacked cards waiting beneath
       return {
-        transform: `translateY(48px) scale(0.90)`,
-        opacity: 0.25,
+        transform: `translateY(${diff * 14}px) scale(${1 - diff * 0.05})`,
+        opacity: diff === 1 ? 0.35 : diff === 2 ? 0.12 : 0,
+        zIndex: 30 - diff * 5,
         pointerEvents: 'none',
-        zIndex: 10
+        transition: 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)'
       };
     }
   };
 
   return (
     <div 
-      className="p-6 pt-5 pb-6 flex flex-col h-full justify-between select-none touch-none overflow-hidden"
+      className="px-6 pt-4 pb-3 h-full flex flex-col justify-between select-none touch-none overscroll-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
     >
+      {/* Header Anchor - Guaranteed Never to Overlap */}
       <div className="flex-shrink-0 z-40 mb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-1">
           <div>
-            <p className="text-orange-500 font-black uppercase tracking-widest text-[11px] mb-0.5">Control Center</p>
+            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px] mb-0.5">Control Center</p>
             <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
           </div>
-          <button 
-            onClick={onLockApp}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-bold active:scale-95 transition-all cursor-pointer"
-          >
-            <Lock size={12} className="text-orange-400" />
-            <span>Lock App</span>
-          </button>
+          {/* Card Indicator Pills */}
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+            {cardTitles.map((title, idx) => (
+              <button
+                key={title}
+                onClick={() => setActiveCardIndex(idx)}
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
+                  activeCardIndex === idx 
+                    ? 'w-5 h-2 bg-orange-500 shadow-sm shadow-orange-500/50' 
+                    : 'w-2 h-2 bg-white/20 hover:bg-white/40'
+                }`}
+                title={title}
+              />
+            ))}
+          </div>
         </div>
+        <p className="text-[11px] text-slate-400 font-medium">Swipe cards up or down to navigate</p>
       </div>
 
+      {/* Floating Stacked Cards Viewport - Centered & Responsive */}
       <div className="relative w-full flex-1 min-h-0 my-auto flex items-center justify-center">
-        {/* CARD 0: PREFERENCES */}
+
+        {/* CARD 0: TRAINING PREFERENCES */}
         <div 
           style={getCardStyle(0)}
-          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
+          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between overflow-hidden"
         >
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                Card 1 of 3
-              </span>
-              <Timer size={16} className="text-orange-400" />
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+              <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                <Timer size={16} /> Training Preferences
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-400">Card 1/3</span>
             </div>
-            <h3 className="text-lg font-black text-white mb-1">Training Preferences</h3>
-            <p className="text-xs text-slate-400 mb-3">Configure stopwatch, fingertricks, and targets</p>
-            
-            <div className="space-y-2.5 border-t border-white/5 pt-2.5">
+
+            <div className="space-y-3">
+              {/* Stopwatch Toggle */}
               <div className="flex items-center justify-between py-1">
                 <div>
-                  <span className="text-xs font-bold text-white block">Speedcube Stopwatch</span>
-                  <span className="text-[10px] text-slate-400">Track execution times</span>
+                  <span className="text-sm font-bold text-white block">Speedcube Stopwatch</span>
+                  <span className="text-xs text-slate-400">Track execution times in Practice</span>
                 </div>
                 <button 
                   onClick={() => setTimerEnabled(!isTimerOn)} 
-                  className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isTimerOn ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between py-1 border-t border-white/5">
+              {/* Fingertricks Toggle */}
+              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-2.5">
                 <div>
-                  <span className="text-xs font-bold text-white block">Fingertrick Guides</span>
-                  <span className="text-[10px] text-slate-400">Pills & speed execution tips</span>
+                  <span className="text-sm font-bold text-white block">Fingertrick Guides</span>
+                  <span className="text-xs text-slate-400">Show trigger pills & finger mechanics</span>
                 </div>
                 <button 
                   onClick={() => setFingertricksEnabled(!isFingertricksOn)} 
-                  className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${isFingertricksOn ? 'bg-orange-500' : 'bg-slate-800'}`}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${isFingertricksOn ? 'bg-orange-500' : 'bg-slate-800'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isFingertricksOn ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between py-1 border-t border-white/5">
+              {/* Target Goal */}
+              <div className="flex items-center justify-between py-1 border-t border-white/5 pt-2.5">
                 <div>
-                  <span className="text-xs font-bold text-white block">Target Execution Goal</span>
-                  <span className="text-[10px] text-slate-400">Benchmark time (seconds)</span>
+                  <span className="text-sm font-bold text-white block">Execution Goal</span>
+                  <span className="text-xs text-slate-400">Target benchmark time</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setTargetGoal(Math.max(1, +(userGoal - 0.25).toFixed(2)))} 
-                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
                   >
                     -
                   </button>
-                  <span className="font-mono text-xs font-black text-orange-400 w-10 text-center">{userGoal.toFixed(2)}s</span>
+                  <span className="font-mono text-sm font-black text-orange-400 w-12 text-center">{userGoal.toFixed(2)}s</span>
                   <button 
                     onClick={() => setTargetGoal(+(userGoal + 0.25).toFixed(2))} 
-                    className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
+                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer"
                   >
                     +
                   </button>
@@ -2238,32 +2326,37 @@ const SettingsView = ({
               </div>
             </div>
           </div>
-          <div className="text-center text-[10px] text-slate-500 font-bold tracking-wider uppercase pt-1">
-            Swipe Up for Notation Key ↑
+
+          <div className="pt-2 text-center border-t border-white/5">
+            <button 
+              onClick={() => setActiveCardIndex(1)}
+              className="text-xs text-orange-400 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>Swipe up for Notation Key</span>
+              <span>↑</span>
+            </button>
           </div>
         </div>
 
-        {/* CARD 1: NOTATION KEY */}
+        {/* CARD 1: ALGORITHM NOTATION KEY */}
         <div 
           style={getCardStyle(1)}
-          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
+          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between overflow-hidden"
         >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                Card 2 of 3
-              </span>
-              <Compass size={16} className="text-orange-400" />
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-white/10 flex-shrink-0">
+              <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                <Compass size={16} /> Algorithm Notation
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-400">Card 2/3</span>
             </div>
-            <h3 className="text-lg font-black text-white mb-0.5">Algorithm Notation Key</h3>
-            <p className="text-[11px] text-slate-400 mb-2">WCA notation cheatsheet</p>
 
-            <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar mb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-2 flex-shrink-0">
               {NOTATION_GROUPS.map((grp, idx) => (
                 <button 
                   key={grp.title} 
                   onClick={() => setActiveNotation(idx)} 
-                  className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap transition-all border cursor-pointer ${
+                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap transition-all border cursor-pointer ${
                     activeNotation === idx 
                       ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' 
                       : 'bg-white/5 text-slate-400 border-white/10'
@@ -2274,91 +2367,115 @@ const SettingsView = ({
               ))}
             </div>
 
-            <div 
-              className="bg-slate-950/80 rounded-2xl p-3 border border-white/5 overflow-y-auto max-h-[145px] no-scrollbar touch-pan-y"
-              onWheel={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-            >
-              <div className="text-[11px] font-bold text-white mb-0.5">{NOTATION_GROUPS[activeNotation].title}</div>
-              <div className="grid grid-cols-1 gap-1.5 mt-1.5">
+            <div className="bg-slate-950/80 rounded-2xl p-2.5 border border-white/5 flex-1 min-h-0 flex flex-col">
+              <div className="text-xs font-bold text-white mb-0.5 flex-shrink-0">{NOTATION_GROUPS[activeNotation].title}</div>
+              <div className="text-[10px] text-slate-400 mb-1.5 flex-shrink-0">{NOTATION_GROUPS[activeNotation].description}</div>
+              {/* Inner Move List with isolated scroll to prevent bubbling card switches */}
+              <div 
+                onWheel={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="grid grid-cols-1 gap-1.5 overflow-y-auto no-scrollbar flex-1 touch-pan-y"
+              >
                 {NOTATION_GROUPS[activeNotation].moves.map(m => (
-                  <div key={m.move} className="flex items-center gap-2 p-1.5 bg-slate-900/60 rounded-lg border border-white/5">
-                    <span className="font-mono text-[10px] font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 w-12 text-center">{m.move}</span>
-                    <span className="text-[10px] text-slate-200 truncate">{m.desc}</span>
+                  <div key={m.move} className="flex items-center gap-2.5 p-1.5 bg-slate-900/60 rounded-xl border border-white/5">
+                    <span className="font-mono text-xs font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 w-14 text-center flex-shrink-0">{m.move}</span>
+                    <span className="text-xs text-slate-300 truncate">{m.desc}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-          <div className="text-center text-[10px] text-slate-500 font-bold tracking-wider uppercase pt-1">
-            Swipe Up for Security & Guide ↑
+
+          <div className="pt-2 flex justify-between items-center text-xs text-slate-400 border-t border-white/5 flex-shrink-0">
+            <button onClick={() => setActiveCardIndex(0)} className="hover:text-white flex items-center gap-1 cursor-pointer">↓ Preferences</button>
+            <button onClick={() => setActiveCardIndex(2)} className="text-orange-400 font-bold hover:underline flex items-center gap-1 cursor-pointer">Security ↑</button>
           </div>
         </div>
 
-        {/* CARD 2: SECURITY, CFOP GUIDE & DANGER */}
+        {/* CARD 2: SECURITY & PROFILE */}
         <div 
           style={getCardStyle(2)}
-          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
+          className="absolute inset-x-0 w-full h-[370px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between overflow-hidden"
         >
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                Card 3 of 3
-              </span>
-              <ShieldAlert size={16} className="text-orange-400" />
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+              <h3 className="text-sm font-black uppercase tracking-wider text-orange-400 flex items-center gap-2">
+                <Lock size={16} /> Profile & Security
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-slate-400">Card 3/3</span>
             </div>
-            <h3 className="text-lg font-black text-white mb-0.5">Profiles & Security</h3>
-            <p className="text-xs text-slate-400 mb-3">Manage accounts, reset progress, or guide</p>
 
-            <div className="space-y-2 border-t border-white/5 pt-2">
-              <Button 
-                variant="secondary" 
-                onClick={onOpenOnboarding} 
-                className="py-2.5 text-xs font-bold border-white/10 bg-white/5 text-amber-300 hover:text-amber-200"
+            <div className="bg-black/40 border border-white/10 rounded-2xl p-3.5 mb-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Logged In As</span>
+                <span className="text-base font-black text-white">{currentUser.name}</span>
+              </div>
+              <button 
+                onClick={onLockApp}
+                className="px-3.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 rounded-full text-orange-400 text-xs font-bold active:scale-95 transition-all cursor-pointer"
               >
-                <HelpCircle size={15} /> New to CFOP? Beginner Guide
+                Lock App
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {onOpenOnboarding && (
+                <Button 
+                  variant="secondary" 
+                  onClick={onOpenOnboarding} 
+                  className="py-3 text-xs font-black shadow-none border border-orange-500/25 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400"
+                >
+                  <BookOpenCheck size={16} /> New to CFOP? Beginner Guide
+                </Button>
+              )}
+              <Button variant="secondary" onClick={onOpenAdmin} className="py-3 text-xs font-black shadow-none border-dashed border-white/20">
+                <Users size={16} /> Admin Panel
               </Button>
-
-              <Button 
-                variant="secondary" 
-                onClick={onOpenAdmin} 
-                className="py-2.5 text-xs font-bold border-dashed border-white/20 text-orange-400"
-              >
-                <Users size={15} /> Admin User Management
-              </Button>
-
-              <Button 
-                variant="danger" 
-                onClick={onRequestReset} 
-                className="py-2.5 text-xs font-bold"
-              >
-                <RotateCcw size={15} /> Reset My Progress
+              <Button variant="danger" onClick={onRequestReset} className="py-3 text-xs font-black shadow-none">
+                <RotateCcw size={16} /> Reset My Progress
               </Button>
             </div>
           </div>
-          <div className="text-center text-[10px] text-slate-500 font-bold tracking-wider uppercase pt-1">
-            Swipe Down to Return ↓
+
+          <div className="pt-2 text-center border-t border-white/5">
+            <button 
+              onClick={() => setActiveCardIndex(1)}
+              className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>↓ Swipe down for Notation</span>
+            </button>
           </div>
         </div>
+
       </div>
 
-      <div className="flex items-center justify-center gap-2 pt-2 flex-shrink-0 z-40">
-        {[0, 1, 2].map((idx) => (
-          <button
-            key={idx}
-            onClick={() => setActiveCard(idx)}
-            className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-              activeCard === idx ? 'w-6 bg-orange-500' : 'w-2 bg-slate-700 hover:bg-slate-600'
-            }`}
-          />
-        ))}
+      {/* Floating Bottom Navigator Pills */}
+      <div className="flex-shrink-0 z-40 flex justify-center items-center gap-3 pt-2">
+        <button 
+          disabled={activeCardIndex === 0}
+          onClick={() => setActiveCardIndex(prev => prev - 1)}
+          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5 cursor-pointer"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-xs font-bold text-orange-400 font-mono tracking-wide">
+          {cardTitles[activeCardIndex]}
+        </span>
+        <button 
+          disabled={activeCardIndex === 2}
+          onClick={() => setActiveCardIndex(prev => prev + 1)}
+          className="p-2 rounded-full bg-white/5 text-slate-400 hover:text-white disabled:opacity-20 active:scale-95 transition-all border border-white/5 cursor-pointer"
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
     </div>
   );
 };
 
-// --- SESSION SCREEN 1: LEARN ---
+// --- LEARN SESSION ---
 const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
   const [index, setIndex] = useState(0);
   const touchStartX = useRef(0);
@@ -2380,7 +2497,7 @@ const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
       onTouchEnd={handleTouchEnd}
     >
       <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 cursor-pointer">
+        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90">
           <X size={20} />
         </button>
         <div className="flex items-center gap-1.5">
@@ -2412,10 +2529,11 @@ const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
             <div className="font-mono text-xl text-orange-400 font-bold tracking-wider leading-relaxed">{currentAlg.alg}</div>
           </div>
 
+          {/* Discreet Fingertrick Pill Button */}
           {onOpenFingertrick && (
             <button 
               onClick={() => onOpenFingertrick(currentAlg)}
-              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer"
+              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm"
             >
               <Zap size={13} className="text-amber-400" />
               <span>Fingertrick Guide</span>
@@ -2432,7 +2550,7 @@ const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
         <button 
           onClick={() => setIndex(p => Math.max(0, p - 1))} 
           disabled={index === 0} 
-          className="p-4 bg-white/5 rounded-2xl disabled:opacity-20 active:scale-95 border border-white/10 cursor-pointer"
+          className="p-4 bg-white/5 rounded-2xl disabled:opacity-20 active:scale-95 border border-white/10"
         >
           <ChevronLeft size={22} />
         </button>
@@ -2452,7 +2570,7 @@ const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
   );
 };
 
-// --- SESSION SCREEN 2: PRACTICE ---
+// --- PRACTICE SESSION ---
 const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, onClose, onComplete, onOpenFingertrick }) => {
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -2504,7 +2622,7 @@ const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, o
   return (
     <div className="fixed inset-0 z-[100] bg-[#070b16] flex flex-col p-6 pt-8 animate-in slide-in-from-bottom-full overflow-y-auto">
       <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 cursor-pointer">
+        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90">
           <X size={20} />
         </button>
         <div className="font-mono text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -2545,10 +2663,11 @@ const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, o
                 <span className="font-mono text-base text-orange-400 font-bold tracking-wider">{currentAlg.alg}</span>
               </div>
               
+              {/* Discreet Fingertrick Pill Button */}
               {onOpenFingertrick && (
                 <button 
                   onClick={() => onOpenFingertrick(currentAlg)}
-                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer"
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm"
                 >
                   <Zap size={12} className="text-amber-400" />
                   <span>Fingertrick Guide</span>
@@ -2614,7 +2733,7 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
   return (
     <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl flex flex-col p-6 pt-8 animate-in fade-in">
       <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 cursor-pointer">
+        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90">
           <X size={20} />
         </button>
         <span className="text-xs font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
@@ -2655,7 +2774,7 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
               {onOpenFingertrick && (
                 <button 
                   onClick={() => onOpenFingertrick(caseData)}
-                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer"
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm"
                 >
                   <Zap size={12} className="text-amber-400" />
                   <span>Fingertrick Guide</span>
@@ -2663,7 +2782,7 @@ const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordT
               )}
             </div>
           ) : (
-            <button onClick={() => setShowAlg(true)} className="text-xs text-orange-400 font-bold py-2 px-4 bg-orange-500/10 rounded-full border border-orange-500/20 cursor-pointer">
+            <button onClick={() => setShowAlg(true)} className="text-xs text-orange-400 font-bold py-2 px-4 bg-orange-500/10 rounded-full border border-orange-500/20">
               Show Algorithm
             </button>
           )}
@@ -2693,7 +2812,7 @@ const FingertrickDossierModal = ({ caseData, onClose }) => {
   return (
     <div className="fixed inset-0 z-[220] bg-black/85 backdrop-blur-2xl flex flex-col p-6 pt-7 animate-in fade-in overflow-y-auto">
       <div className="flex justify-between items-center mb-4 max-w-sm mx-auto w-full">
-        <button onClick={onClose} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 transition-all cursor-pointer">
+        <button onClick={onClose} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 transition-all">
           <X size={20} />
         </button>
         <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 rounded-full border border-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-wider">
@@ -2736,7 +2855,7 @@ const FingertrickDossierModal = ({ caseData, onClose }) => {
               <button
                 key={idx}
                 onClick={() => setActiveTriggerIdx(idx)}
-                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 border flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 border flex items-center gap-1.5 ${
                   activeTriggerIdx === idx
                     ? 'bg-orange-500/25 border-orange-400 text-orange-300 shadow-md shadow-orange-500/20 scale-105'
                     : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/20'
@@ -2784,168 +2903,298 @@ const FingertrickDossierModal = ({ caseData, onClose }) => {
   );
 };
 
-// --- NEW USER ONBOARDING MODAL ---
-const OnboardingModal = ({ onClose }) => {
-  const [step, setStep] = useState('inquiry'); // 'inquiry' | 'course'
-  const [coursePage, setCoursePage] = useState(0);
+// --- NEW USER ONBOARDING MODAL: "ARE YOU NEW TO CFOP?" & OLL PRIMER ---
+const OnboardingModal = ({ userName = "there", onClose, onComplete }) => {
+  const [step, setStep] = useState('question'); // 'question' | 1 | 2 | 3 | 4
 
-  const courseSteps = [
-    {
-      title: "The CFOP Framework",
-      badge: "The 4 Pillars of Speedcubing",
-      content: (
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-          <p>
-            <strong className="text-white">CFOP</strong> (Cross, F2L, OLL, PLL) is the world's most dominant speedcubing method, used in 99% of world records:
-          </p>
-          <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
-              <span className="text-orange-400 font-bold block mb-0.5">1. Cross (C)</span>
-              Solve 4 white edges on the bottom.
-            </div>
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
-              <span className="text-orange-400 font-bold block mb-0.5">2. F2L (F)</span>
-              Solve the first two layers simultaneously.
-            </div>
-            <div className="bg-orange-500/20 p-2.5 rounded-xl border border-orange-400/40">
-              <span className="text-orange-300 font-bold block mb-0.5">3. OLL (O) ★</span>
-              Orient all top yellow pieces in 1 alg!
-            </div>
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
-              <span className="text-orange-400 font-bold block mb-0.5">4. PLL (P)</span>
-              Permute (slide) the last layer into place.
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: "What is OLL & Why Learn It?",
-      badge: "Orientation of the Last Layer",
-      content: (
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-          <p>
-            In beginner methods, turning the top face yellow takes <strong className="text-white">2 to 4 separate algorithms</strong> (edge cross, then multiple Sunes), wasting 4–8 seconds.
-          </p>
-          <div className="bg-slate-950 p-3 rounded-xl border border-orange-500/20 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-slate-400">Beginner (2-Look)</span>
-              <span className="text-red-400 font-mono">~5.5s</span>
-            </div>
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-orange-400 font-bold">Full 1-Look OLL</span>
-              <span className="text-green-400 font-mono">0.8s - 1.5s</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            By mastering all 57 patterns, whichever yellow shape appears on top, you solve it in <strong className="text-white">one fluid reflex</strong>.
-          </p>
-        </div>
-      )
-    },
-    {
-      title: "How OLLDay Everyday Trains You",
-      badge: "The 32-Day Science",
-      content: (
-        <div className="space-y-2.5 text-xs text-slate-300 leading-relaxed">
-          <p>
-            Most cubers fail learning OLL because 57 algorithms at once is overwhelming. We fix this with:
-          </p>
-          <ul className="space-y-2 text-[11px] text-slate-300">
-            <li className="flex items-start gap-2">
-              <span className="text-orange-400 font-bold">1.</span>
-              <span><strong>Micro-Chunking:</strong> Only 6 to 7 cases at a time over 32 days.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-orange-400 font-bold">2.</span>
-              <span><strong>40 + 20 Muscle Memory Rule:</strong> Drill 40 times to learn, 20 times to solidify into permanent reflex.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-orange-400 font-bold">3.</span>
-              <span><strong>0-Regrip Fingertricks:</strong> Learn modern speedcubing finger motions (push/pinch) from day one.</span>
-            </li>
-          </ul>
-        </div>
-      )
-    },
-    {
-      title: "Ready to Begin Day 1!",
-      badge: "Your Training Launchpad",
-      content: (
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed text-center py-2">
-          <div className="w-16 h-16 rounded-full bg-orange-500/20 text-orange-400 mx-auto flex items-center justify-center border border-orange-500/30">
-            <Sparkles size={28} />
-          </div>
-          <h4 className="text-base font-black text-white">Day 1 Starts with Sune & Anti-Sune</h4>
-          <p className="text-xs text-slate-400">
-            You'll learn the 7 Oriented-Edge cases first. Take your physical cube, follow the setup scramble, and let muscle memory take over!
-          </p>
-        </div>
-      )
-    }
-  ];
+  const handleNo = () => {
+    onClose();
+  };
+
+  const handleYes = () => {
+    setStep(1);
+  };
 
   return (
-    <div className="fixed inset-0 z-[210] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in">
-      {step === 'inquiry' ? (
-        <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 max-w-sm w-full text-center shadow-2xl relative">
-          <div className="w-16 h-16 rounded-3xl bg-orange-500/15 border border-orange-500/25 text-orange-400 mx-auto mb-4 flex items-center justify-center">
-            <Compass size={32} />
+    <div className="fixed inset-0 z-[230] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5 select-none animate-in fade-in overflow-y-auto">
+      <div className="relative w-full max-w-sm bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-6 shadow-2xl flex flex-col justify-between max-h-[92vh] overflow-y-auto no-scrollbar">
+        
+        {/* Top Header with Close */}
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/5 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 font-mono">
+              {step === 'question' ? 'Welcome' : `Guide • Step ${step} of 4`}
+            </span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block mb-1">Welcome Cuber</span>
-          <h3 className="text-2xl font-black text-white mb-2">Are you new to CFOP?</h3>
-          <p className="text-xs text-slate-300 mb-6 leading-relaxed">
-            If you're just getting started or transitioning from beginner methods, we can give you a quick crash course on OLL and how this app accelerates your times!
-          </p>
-
-          <div className="flex flex-col gap-2.5">
-            <Button variant="primary" onClick={() => setStep('course')} className="py-3.5 text-sm">
-              <span>Yes, teach me!</span>
-              <Sparkles size={16} />
-            </Button>
-            <Button variant="secondary" onClick={onClose} className="py-3.5 text-xs text-slate-400">
-              No, I know CFOP (Jump in)
-            </Button>
-          </div>
+          <button 
+            onClick={onClose} 
+            className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+            title="Close Guide"
+          >
+            <X size={18} />
+          </button>
         </div>
-      ) : (
-        <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 max-w-sm w-full shadow-2xl flex flex-col justify-between min-h-[440px]">
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                {courseSteps[coursePage].badge}
+
+        {/* STEP 0: THE INITIAL QUESTION */}
+        {step === 'question' && (
+          <div className="flex-1 flex flex-col items-center text-center animate-in fade-in zoom-in-95">
+            <div className="w-16 h-16 rounded-3xl bg-orange-500/15 border border-orange-500/25 text-orange-400 flex items-center justify-center mb-4 shadow-xl shadow-orange-500/10">
+              <SuneCubeLogo className="w-10 h-10" />
+            </div>
+
+            <h3 className="text-2xl font-black text-white mb-1">
+              Hey, {userName}! 👋
+            </h3>
+            <p className="text-xs text-slate-400 mb-6">
+              Welcome to <span className="text-white font-bold">OLLDay Everyday</span>. Quick question before we get you started:
+            </p>
+
+            <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-5 mb-6 shadow-inner text-center">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-orange-400 font-bold block mb-1">
+                Experience Check
               </span>
-              <span className="text-xs font-mono text-slate-400">{coursePage + 1}/{courseSteps.length}</span>
+              <h4 className="text-xl font-black text-white leading-tight">
+                Are you new to CFOP?
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                CFOP (Cross, F2L, OLL, PLL) is the gold-standard speedcubing method used to solve the 3x3 cube in seconds.
+              </p>
             </div>
 
-            <h3 className="text-xl font-black text-white mb-3">{courseSteps[coursePage].title}</h3>
+            <div className="w-full space-y-3">
+              {/* Option: Yes (New to CFOP) */}
+              <button
+                onClick={handleYes}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 text-left font-black transition-all active:scale-98 shadow-lg shadow-orange-500/20 border border-orange-400/30 flex items-center justify-between group cursor-pointer"
+              >
+                <div>
+                  <div className="text-sm font-black flex items-center gap-1.5">
+                    <span>Yes, I'm new to CFOP!</span>
+                    <span className="text-xs font-normal">✨</span>
+                  </div>
+                  <div className="text-[11px] text-slate-900/80 font-medium font-sans mt-0.5">
+                    Teach me what OLL is & how to start
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-slate-950 group-hover:translate-x-0.5 transition-transform" />
+              </button>
 
-            <div className="min-h-[200px]">
-              {courseSteps[coursePage].content}
+              {/* Option: No (Experienced) */}
+              <button
+                onClick={handleNo}
+                className="w-full p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left text-white transition-all active:scale-98 flex items-center justify-between group cursor-pointer"
+              >
+                <div>
+                  <div className="text-sm font-bold text-slate-200">
+                    No, I know CFOP
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-normal mt-0.5">
+                    Skip straight to the daily OLL training grind
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-500 group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="mt-4 pt-3 border-t border-white/5 flex gap-2">
-            {coursePage > 0 ? (
-              <Button variant="secondary" onClick={() => setCoursePage(p => p - 1)} className="py-3 text-xs flex-1">
-                Back
-              </Button>
-            ) : null}
+        {/* STEP 1: WHAT IS CFOP? */}
+        {step === 1 && (
+          <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-right-4">
+            <div className="text-center mb-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">The Big Picture</span>
+              <h3 className="text-xl font-black text-white mt-0.5">What is the CFOP Method?</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                CFOP is the speedcubing method used by 99% of world record holders. It solves the cube in 4 streamlined phases:
+              </p>
+            </div>
 
-            {coursePage < courseSteps.length - 1 ? (
-              <Button variant="primary" onClick={() => setCoursePage(p => p + 1)} className="py-3 text-xs flex-1">
-                <span>Continue</span>
-                <ChevronRight size={16} />
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={onClose} className="py-3 text-xs flex-1">
-                <span>Start Training!</span>
-                <Check size={16} />
-              </Button>
-            )}
+            <div className="space-y-2 mb-4">
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-white/10 text-white font-mono font-black text-sm flex items-center justify-center flex-shrink-0">C</span>
+                <div>
+                  <div className="text-xs font-bold text-white">Cross (First 4 Edges)</div>
+                  <div className="text-[10px] text-slate-400">Solve the bottom white cross on the bottom face.</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-white/10 text-white font-mono font-black text-sm flex items-center justify-center flex-shrink-0">F</span>
+                <div>
+                  <div className="text-xs font-bold text-white">F2L (First Two Layers)</div>
+                  <div className="text-[10px] text-slate-400">Pair corners and edges together to solve two layers at once.</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-orange-500/15 border border-orange-500/40 rounded-xl flex items-center gap-3 shadow-md shadow-orange-500/10">
+                <span className="w-8 h-8 rounded-lg bg-orange-500 text-slate-950 font-mono font-black text-sm flex items-center justify-center flex-shrink-0">O</span>
+                <div>
+                  <div className="text-xs font-black text-orange-400 flex items-center gap-1.5">
+                    <span>OLL (Orientation of the Last Layer)</span>
+                    <span className="text-[9px] uppercase px-1.5 py-0.2 bg-orange-500/20 rounded font-mono">This App!</span>
+                  </div>
+                  <div className="text-[10px] text-orange-200/90 font-medium">Turn the entire top face yellow in ONE single algorithm.</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-white/10 text-white font-mono font-black text-sm flex items-center justify-center flex-shrink-0">P</span>
+                <div>
+                  <div className="text-xs font-bold text-white">PLL (Permutation of the Last Layer)</div>
+                  <div className="text-[10px] text-slate-400">Rearrange the yellow pieces into their solved spots. Solved!</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-2 flex gap-2">
+              <Button variant="secondary" onClick={() => setStep('question')} className="py-3 text-xs flex-1">Back</Button>
+              <Button variant="primary" onClick={() => setStep(2)} className="py-3 text-xs flex-1">Next: What is OLL? →</Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* STEP 2: WHAT IS OLL & WHY LEARN IT? */}
+        {step === 2 && (
+          <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-right-4">
+            <div className="text-center mb-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">The Secret Weapon</span>
+              <h3 className="text-xl font-black text-white mt-0.5">What is OLL?</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <strong>Orientation of the Last Layer</strong> means making the entire top face yellow without worrying about side colors yet.
+              </p>
+            </div>
+
+            <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 mb-4 text-center">
+              <div className="text-[11px] font-bold text-slate-300 mb-1">Beginner Method vs. Full OLL</div>
+              <div className="grid grid-cols-2 gap-2 text-left pt-2 text-xs">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2.5">
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest block mb-1">Beginners (Slow)</span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Takes 2 to 4 separate algorithms. You make a yellow cross, then repeat Sune multiple times (6–12 seconds).
+                  </p>
+                </div>
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2.5">
+                  <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest block mb-1">Full OLL (Fast!)</span>
+                  <p className="text-[11px] text-slate-300 leading-tight">
+                    Recognize the top pattern, execute <strong>ONE fluid algorithm</strong>. Whole top is yellow in <strong>1 to 2 seconds</strong>!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-xs text-slate-300 mb-4 bg-slate-950/60 p-3 rounded-2xl border border-white/5">
+              <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">The Massive Benefits:</div>
+              <div className="flex items-center gap-2 text-[11px]">⚡ <span><strong>Cuts 3–7 seconds</strong> off every single solve.</span></div>
+              <div className="flex items-center gap-2 text-[11px]">🔄 <span><strong>Eliminates awkward pauses</strong> and repeat turns.</span></div>
+              <div className="flex items-center gap-2 text-[11px]">🏆 <span><strong>Essential benchmark</strong> to break 20s and 15s solves.</span></div>
+            </div>
+
+            <div className="mt-auto pt-2 flex gap-2">
+              <Button variant="secondary" onClick={() => setStep(1)} className="py-3 text-xs flex-1">Back</Button>
+              <Button variant="primary" onClick={() => setStep(3)} className="py-3 text-xs flex-1">Next: How to Learn It →</Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: WHY MOST QUIT & HOW THIS APP HELPS */}
+        {step === 3 && (
+          <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-right-4">
+            <div className="text-center mb-3">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">The System</span>
+              <h3 className="text-xl font-black text-white mt-0.5">How OLLDay Makes It Easy</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                There are <strong>57 unique OLL cases</strong>. Most people download a giant PDF sheet, get overwhelmed, and give up. We built this app to fix that!
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">1. Micro-Chunking (6 Cases at a Time)</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  We divide all 57 cases into 9 bite-sized chunks over a 32-day calendar. You only focus on one small family at a time.
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">2. The 40 + 20 Muscle Memory Rule</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Drill each algorithm 40 times to establish finger reflexes, then 20 more times to lock it into permanent instinct.
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">3. Zero-Regrip Fingertricks</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Tap the <strong>⚡ Fingertrick Guide</strong> on any case to see index pushes, double-flicks, and home grip positioning.
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 border border-white/5 rounded-xl p-2.5">
+                <div className="text-xs font-black text-orange-400">4. Built-in Stopwatch & Isolated Drills</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-tight">
+                  Time your solves down to the millisecond, track your personal bests, and drill troublesome cases individually.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-2 flex gap-2">
+              <Button variant="secondary" onClick={() => setStep(2)} className="py-3 text-xs flex-1">Back</Button>
+              <Button variant="primary" onClick={() => setStep(4)} className="py-3 text-xs flex-1">Next: Ready for Day 1 →</Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: READY FOR DAY 1 */}
+        {step === 4 && (
+          <div className="flex-1 flex flex-col items-center text-center animate-in fade-in slide-in-from-right-4">
+            <div className="w-16 h-16 rounded-3xl bg-green-500/15 border border-green-500/25 text-green-400 flex items-center justify-center mb-3 shadow-xl shadow-green-500/10">
+              <Trophy size={32} />
+            </div>
+
+            <h3 className="text-2xl font-black text-white mb-1">
+              You're Ready to Roll! 🚀
+            </h3>
+            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+              Don't worry about memorizing everything today. All you need to do is show up, grab your cube, and complete today's daily session!
+            </p>
+
+            <div className="w-full bg-[#050811] border border-orange-500/30 rounded-2xl p-4 mb-4 text-left shadow-inner">
+              <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                <span>🎯</span> <span>Day 1 Game Plan:</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-slate-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <span>Start with <strong>Chunk 1: Oriented-Edges</strong></span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <span>Meet <strong>Sune</strong> & <strong>Anti-Sune</strong> (fastest OLLs in cubing!)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-green-400 flex-shrink-0" />
+                  <span>Practice slowly first, then let your fingers flow</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="w-full mt-auto pt-2 space-y-2">
+              <Button variant="primary" onClick={onComplete} className="py-4 text-sm font-black shadow-orange-500/30">
+                <span>Start Day 1 Training</span>
+                <ChevronRight size={18} />
+              </Button>
+              <button 
+                onClick={() => setStep(3)} 
+                className="text-xs text-slate-400 hover:text-white font-medium cursor-pointer"
+              >
+                ← Back to overview
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };
