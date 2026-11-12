@@ -1,4 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+
+// Initialize Cloud Sync Services safely
+let firebaseApp = null;
+let auth = null;
+let db = null;
+try {
+  const firebaseConfig =
+    typeof __firebase_config !== 'undefined' && __firebase_config
+      ? typeof __firebase_config === 'string'
+        ? JSON.parse(__firebase_config)
+        : __firebase_config
+      : null;
+  if (firebaseConfig && typeof firebaseConfig === 'object' && firebaseConfig.apiKey) {
+    firebaseApp = initializeApp(firebaseConfig);
+    auth = getAuth(firebaseApp);
+    db = getFirestore(firebaseApp);
+  }
+} catch {
+  firebaseApp = null;
+  auth = null;
+  db = null;
+}
+const appId = typeof __app_id !== 'undefined' && __app_id ? String(__app_id) : 'default-app-id';
 
 // =========================================================================
 // 1. COMPLETE DATASETS (CROSS, F2L 41 CASES, OLL 57 CASES)
@@ -983,7 +1009,9 @@ function generateF2LSetupScramble(alg, mode = 'beginner', variationSeed = 0) {
 function buildSchedule(chunks, dataList) {
   const schedule = [];
   let dayCounter = 1;
-  chunks.forEach((chunk, idx) => {
+  (Array.isArray(chunks) ? chunks : []).forEach((chunk, idx) => {
+    if (!chunk || !Array.isArray(chunk.ids)) return;
+    const safeTitle = typeof chunk.title === 'string' ? chunk.title : `Chunk ${idx + 1}`;
     const cases = chunk.ids
       .map((id) => dataList.find((item) => item.id === id))
       .filter(Boolean);
@@ -992,24 +1020,25 @@ function buildSchedule(chunks, dataList) {
     schedule.push({
       day: dayCounter++,
       mode: 'Learn',
-      chunkTitle: chunk.title,
+      chunkTitle: safeTitle,
       cases
     });
     schedule.push({
       day: dayCounter++,
       mode: 'Drill',
-      chunkTitle: chunk.title,
+      chunkTitle: safeTitle,
       cases
     });
 
-    if (idx > 0 && idx % 2 === 1) {
+    if (idx > 0 && idx % 2 === 1 && Array.isArray(chunks[idx - 1]?.ids)) {
+      const prevTitle = typeof chunks[idx - 1].title === 'string' ? chunks[idx - 1].title : `Chunk ${idx}`;
       const prevCases = chunks[idx - 1].ids
         .map((id) => dataList.find((item) => item.id === id))
         .filter(Boolean);
       schedule.push({
         day: dayCounter++,
         mode: 'Refine',
-        chunkTitle: `${chunks[idx - 1].title} + ${chunk.title}`,
+        chunkTitle: `${prevTitle} + ${safeTitle}`,
         cases: [...prevCases, ...cases]
       });
     }
@@ -1080,23 +1109,58 @@ const DEFAULT_USERS = {
   }
 };
 
-export default function App() {
-  // Persistent User & App Settings
-  const [users, setUsers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ollday_users_v3');
-      return saved ? { ...DEFAULT_USERS, ...JSON.parse(saved) } : DEFAULT_USERS;
-    } catch {
-      return DEFAULT_USERS;
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMessage: '' };
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      hasError: true,
+      errorMessage: error?.message ? String(error.message) : 'Unexpected rendering error'
+    };
+  }
+
+  componentDidCatch() {
+    // Handled by fallback UI
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex items-center justify-center p-6">
+          <div className="max-w-xs w-full bg-slate-900 border border-white/10 rounded-[2rem] p-6 text-center space-y-4 shadow-2xl">
+            <span className="inline-block px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-[10px] font-black uppercase tracking-widest text-red-300">
+              Recovery Mode
+            </span>
+            <h2 className="text-lg font-black text-white">Display Interrupted</h2>
+            <p className="text-xs text-slate-400 leading-relaxed break-words">
+              {this.state.errorMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => this.setState({ hasError: false, errorMessage: '' })}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+            >
+              Reload View
+            </button>
+          </div>
+        </div>
+      );
     }
-  });
-  const [activeUserKey, setActiveUserKey] = useState(() => {
-    try {
-      return localStorage.getItem('ollday_active_user') || 'Me';
-    } catch {
-      return 'Me';
-    }
-  });
+    return this.props.children;
+  }
+}
+
+function OLLDaySuite() {
+  // Cloud Auth & Sync State
+  const [cloudAuthUser, setCloudAuthUser] = useState(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting'); // 'connecting' | 'synced' | 'offline'
+
+  // Persistent User & App Settings (In-Memory + Cloud Firestore Sync)
+  const [users, setUsers] = useState(() => ({ ...DEFAULT_USERS }));
+  const [activeUserKey, setActiveUserKey] = useState('Me');
   const [activePhase, setActivePhase] = useState('f2l'); // 'cross' | 'f2l' | 'oll' | 'pll'
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
@@ -1172,28 +1236,13 @@ export default function App() {
 
   // PIN Code & Admin Panel State
   const [pendingUserSwitch, setPendingUserSwitch] = useState(null);
-  const [startupPinLocked, setStartupPinLocked] = useState(() => {
-    try {
-      const savedUsersRaw = localStorage.getItem('ollday_users_v3');
-      const savedActive = localStorage.getItem('ollday_active_user') || 'Me';
-      if (!savedUsersRaw) return false;
-      const parsed = JSON.parse(savedUsersRaw);
-      return Boolean(parsed?.[savedActive]?.pin);
-    } catch {
-      return false;
-    }
-  });
+  const [startupPinLocked, setStartupPinLocked] = useState(true);
+  const [isAdminSession, setIsAdminSession] = useState(false);
+  const [creatingPinForUser, setCreatingPinForUser] = useState(null);
   const [pinEntryInput, setPinEntryInput] = useState('');
   const [pinErrorMsg, setPinErrorMsg] = useState('');
   const [myPinDraft, setMyPinDraft] = useState('');
-  const [adminMasterPin, setAdminMasterPin] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ollday_admin_pin');
-      return saved && saved !== '0000' ? saved : '1678';
-    } catch {
-      return '1678';
-    }
-  });
+  const [adminMasterPin, setAdminMasterPin] = useState('1678');
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [adminGateInput, setAdminGateInput] = useState('');
   const [adminGateError, setAdminGateError] = useState('');
@@ -1215,18 +1264,162 @@ export default function App() {
   const [swElapsedMs, setSwElapsedMs] = useState(0);
   const swStartRef = useRef(0);
 
-  // Sync user state to localStorage
+  // 1. Authenticate Cloud Session First (RULE 3)
   useEffect(() => {
-    try {
-      localStorage.setItem('ollday_users_v3', JSON.stringify(users));
-      localStorage.setItem('ollday_active_user', activeUserKey);
-      localStorage.setItem('ollday_admin_pin', adminMasterPin);
-    } catch {
-      // Ignore storage quota errors
+    if (!auth) {
+      setCloudSyncStatus('offline');
+      return;
     }
-  }, [users, activeUserKey, adminMasterPin]);
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch {
+        setCloudSyncStatus('offline');
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setCloudAuthUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const currentUser = users[activeUserKey] || DEFAULT_USERS.Me;
+  // Sanitize user records so corrupted/non-primitive fields never crash React rendering
+  const sanitizeUserRecord = (raw) => {
+    const base = {
+      day: 1,
+      f2lDay: 1,
+      pllDay: 1,
+      stats: {},
+      f2lStats: {},
+      pllStats: {},
+      customChunks: null,
+      f2lCustomChunks: null,
+      pllCustomChunks: null,
+      crossClears: 0,
+      pin: '',
+      isAdmin: false
+    };
+    if (!raw || typeof raw !== 'object' || raw.$$typeof) return base;
+    const cleanStatMap = (m) => {
+      if (!m || typeof m !== 'object' || m.$$typeof) return {};
+      const out = {};
+      Object.entries(m).forEach(([k, v]) => {
+        if (v && typeof v === 'object' && !v.$$typeof) {
+          out[k] = {
+            attempts: typeof v.attempts === 'number' ? v.attempts : 0,
+            best: typeof v.best === 'number' ? v.best : null,
+            last: typeof v.last === 'number' ? v.last : null
+          };
+        }
+      });
+      return out;
+    };
+    return {
+      day: typeof raw.day === 'number' ? raw.day : 1,
+      f2lDay: typeof raw.f2lDay === 'number' ? raw.f2lDay : 1,
+      pllDay: typeof raw.pllDay === 'number' ? raw.pllDay : 1,
+      stats: cleanStatMap(raw.stats),
+      f2lStats: cleanStatMap(raw.f2lStats),
+      pllStats: cleanStatMap(raw.pllStats),
+      customChunks: Array.isArray(raw.customChunks)
+        ? raw.customChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
+        : null,
+      f2lCustomChunks: Array.isArray(raw.f2lCustomChunks)
+        ? raw.f2lCustomChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
+        : null,
+      pllCustomChunks: Array.isArray(raw.pllCustomChunks)
+        ? raw.pllCustomChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
+        : null,
+      crossClears: typeof raw.crossClears === 'number' ? raw.crossClears : 0,
+      pin: typeof raw.pin === 'string' || typeof raw.pin === 'number' ? String(raw.pin) : '',
+      isAdmin: Boolean(raw.isAdmin)
+    };
+  };
+
+  // 2. Real-Time Cloud Sync for Solver Profiles, PINs, Admin Settings & Progress
+  useEffect(() => {
+    if (!db || !cloudAuthUser) return;
+    let unsubProfiles = () => {};
+    let unsubConfig = () => {};
+    try {
+      const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+      const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global');
+
+      unsubProfiles = onSnapshot(
+        profilesCol,
+        (snapshot) => {
+          setCloudSyncStatus('synced');
+          if (snapshot.empty) {
+            // Seed initial profiles to cloud on first ever boot
+            Object.entries(DEFAULT_USERS).forEach(([uKey, uVal]) => {
+              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
+                ...uVal,
+                name: uKey
+              }).catch(() => {});
+            });
+            return;
+          }
+          const remoteUsers = {};
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data && typeof data === 'object' && !data.$$typeof && !data._deleted) {
+              remoteUsers[String(docSnap.id)] = sanitizeUserRecord(data);
+            }
+          });
+          if (Object.keys(remoteUsers).length > 0) {
+            setUsers(remoteUsers);
+          }
+        },
+        () => {
+          setCloudSyncStatus('offline');
+        }
+      );
+
+      unsubConfig = onSnapshot(
+        configDoc,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const cfg = docSnap.data();
+            if (cfg?.adminMasterPin && typeof cfg.adminMasterPin === 'string' && cfg.adminMasterPin !== '0000') {
+              setAdminMasterPin(cfg.adminMasterPin);
+            }
+          } else {
+            setDoc(configDoc, { adminMasterPin: '1678' }, { merge: true }).catch(() => {});
+          }
+        },
+        () => {}
+      );
+    } catch {
+      setCloudSyncStatus('offline');
+    }
+
+    return () => {
+      try {
+        unsubProfiles();
+        unsubConfig();
+      } catch {
+        // Ignore cleanup errors
+      }
+    };
+  }, [cloudAuthUser]);
+
+  // Helper to push individual user updates to Cloud
+  const saveUserToCloud = (uKey, uData) => {
+    if (!db || !cloudAuthUser || typeof uKey !== 'string') return;
+    const cleanData = sanitizeUserRecord(uData);
+    setDoc(
+      doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
+      { ...cleanData, name: String(uKey), updatedAt: Date.now() },
+      { merge: true }
+    ).catch(() => {});
+  };
+
+  const currentUser = sanitizeUserRecord(users[activeUserKey] || DEFAULT_USERS.Me);
   const f2lChunks = currentUser.f2lCustomChunks || F2L_DEFAULT_CHUNKS;
   const ollChunks = currentUser.customChunks || OLL_DEFAULT_CHUNKS;
   const pllChunks = currentUser.pllCustomChunks || PLL_DEFAULT_CHUNKS;
@@ -1323,19 +1516,21 @@ export default function App() {
       const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
       const existing = u[statField]?.[caseId] || { attempts: 0, best: null, last: null };
       const best = existing.best === null ? timeSec : Math.min(existing.best, timeSec);
-      return {
-        ...prev,
-        [activeUserKey]: {
-          ...u,
-          [statField]: {
-            ...(u[statField] || {}),
-            [caseId]: {
-              attempts: existing.attempts + 1,
-              best,
-              last: timeSec
-            }
+      const updatedUser = {
+        ...u,
+        [statField]: {
+          ...(u[statField] || {}),
+          [caseId]: {
+            attempts: existing.attempts + 1,
+            best,
+            last: timeSec
           }
         }
+      };
+      saveUserToCloud(activeUserKey, updatedUser);
+      return {
+        ...prev,
+        [activeUserKey]: updatedUser
       };
     });
   };
@@ -1488,11 +1683,14 @@ export default function App() {
         u.pllCustomChunks = null;
       }
       if (scope === 'both') {
+        const fresh = { ...DEFAULT_USERS.Me, isAdmin: Boolean(u.isAdmin), pin: u.pin || '' };
+        saveUserToCloud(activeUserKey, fresh);
         return {
           ...prev,
-          [activeUserKey]: { ...DEFAULT_USERS.Me }
+          [activeUserKey]: fresh
         };
       }
+      saveUserToCloud(activeUserKey, u);
       return { ...prev, [activeUserKey]: u };
     });
     setActiveModal(null);
@@ -1513,16 +1711,18 @@ export default function App() {
     emitBeep(880, 'sine', 0.1);
     setUsers((prev) => {
       const u = prev[activeUserKey] || DEFAULT_USERS.Me;
+      const updatedUser = {
+        ...u,
+        ...(builderPhase === 'f2l'
+          ? { f2lCustomChunks: builderChunks, f2lDay: 1 }
+          : builderPhase === 'pll'
+          ? { pllCustomChunks: builderChunks, pllDay: 1 }
+          : { customChunks: builderChunks, day: 1 })
+      };
+      saveUserToCloud(activeUserKey, updatedUser);
       return {
         ...prev,
-        [activeUserKey]: {
-          ...u,
-          ...(builderPhase === 'f2l'
-            ? { f2lCustomChunks: builderChunks, f2lDay: 1 }
-            : builderPhase === 'pll'
-            ? { pllCustomChunks: builderChunks, pllDay: 1 }
-            : { customChunks: builderChunks, day: 1 })
-        }
+        [activeUserKey]: updatedUser
       };
     });
     setActiveModal(null);
@@ -1852,10 +2052,12 @@ export default function App() {
                 onClick={() => {
                   if (myPinDraft.length !== 4) return;
                   emitBeep(760);
+                  const updated = { ...currentUser, pin: myPinDraft };
                   setUsers((prev) => ({
                     ...prev,
-                    [activeUserKey]: { ...currentUser, pin: myPinDraft }
+                    [activeUserKey]: updated
                   }));
+                  saveUserToCloud(activeUserKey, updated);
                   setMyPinDraft('');
                 }}
                 className="px-3 py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
@@ -1867,10 +2069,12 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     emitBeep(420);
+                    const updated = { ...currentUser, pin: '' };
                     setUsers((prev) => ({
                       ...prev,
-                      [activeUserKey]: { ...currentUser, pin: '' }
+                      [activeUserKey]: updated
                     }));
+                    saveUserToCloud(activeUserKey, updated);
                     setMyPinDraft('');
                   }}
                   className="px-2.5 py-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 font-black text-[11px] cursor-pointer"
@@ -1944,7 +2148,16 @@ export default function App() {
             </button>
           </div>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-black text-white">Admin Panel</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-black text-white">Admin Panel</h3>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                cloudSyncStatus === 'synced'
+                  ? 'bg-green-500/15 text-green-300 border border-green-500/30'
+                  : 'bg-slate-800 text-slate-400'
+              }`}>
+                {cloudSyncStatus === 'synced' ? 'Cloud Synced' : 'Local Mode'}
+              </span>
+            </div>
             {adminUnlocked && (
               <button
                 type="button"
@@ -2036,8 +2249,15 @@ export default function App() {
                       if (val.length === 4) {
                         emitBeep(760);
                         setAdminMasterPin(val);
+                        if (db && cloudAuthUser) {
+                          setDoc(
+                            doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global'),
+                            { adminMasterPin: val, updatedAt: Date.now() },
+                            { merge: true }
+                          ).catch(() => {});
+                        }
                         if (el) el.value = '';
-                        setAdminStatusMsg('Master PIN updated');
+                        setAdminStatusMsg('Master PIN synced to cloud');
                       }
                     }}
                     className="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-[10px] uppercase cursor-pointer"
@@ -2066,7 +2286,7 @@ export default function App() {
                     maxLength={4}
                     value={adminNewUserPin}
                     onChange={(e) => setAdminNewUserPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="PIN (opt)"
+                    placeholder="PIN (req)"
                     className="col-span-2 bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono text-white placeholder-slate-500"
                   />
                 </div>
@@ -2075,22 +2295,28 @@ export default function App() {
                   onClick={() => {
                     const cleanName = adminNewUserName.trim();
                     if (!cleanName || users[cleanName]) return;
+                    if (adminNewUserPin.length !== 4) {
+                      setAdminStatusMsg('Enter a 4-digit PIN so user can sign in');
+                      return;
+                    }
                     emitBeep(780);
+                    const newProfile = {
+                      ...DEFAULT_USERS.Me,
+                      isAdmin: false,
+                      pin: adminNewUserPin
+                    };
                     setUsers((prev) => ({
                       ...prev,
-                      [cleanName]: {
-                        ...DEFAULT_USERS.Me,
-                        isAdmin: false,
-                        pin: adminNewUserPin.length === 4 ? adminNewUserPin : ''
-                      }
+                      [cleanName]: newProfile
                     }));
+                    saveUserToCloud(cleanName, newProfile);
                     setAdminNewUserName('');
                     setAdminNewUserPin('');
-                    setAdminStatusMsg(`Added profile "${cleanName}"`);
+                    setAdminStatusMsg(`Saved "${cleanName}" to cloud`);
                   }}
                   className="w-full py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
                 >
-                  + Create Profile
+                  + Create &amp; Sync Profile
                 </button>
               </div>
 
@@ -2100,33 +2326,41 @@ export default function App() {
                   Solver Accounts &amp; PIN Codes ({Object.keys(users).length})
                 </span>
                 {Object.keys(users).map((uKey) => {
-                  const uData = users[uKey] || DEFAULT_USERS.Me;
+                  const safeKey = String(uKey);
+                  const uData = sanitizeUserRecord(users[uKey]);
                   return (
-                    <div key={uKey} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+                    <div key={safeKey} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-xs font-black text-white">{uKey}</span>
+                          <span className="text-xs font-black text-white">{safeKey}</span>
                           <span className="text-[10px] text-slate-400 block">
-                            F2L D{uData.f2lDay || 1} • OLL D{uData.day || 1} • PLL D{uData.pllDay || 1}
+                            F2L D{Number(uData.f2lDay) || 1} • OLL D{Number(uData.day) || 1} • PLL D{Number(uData.pllDay) || 1}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-black ${
                             uData.pin ? 'bg-orange-500/20 text-orange-300 border border-orange-500/35' : 'bg-slate-800 text-slate-400'
                           }`}>
-                            {uData.pin ? `PIN: ${uData.pin}` : 'No PIN'}
+                            {uData.pin ? `PIN: ${String(uData.pin)}` : 'No PIN'}
                           </span>
-                          {uKey !== 'Me' && uKey !== activeUserKey && (
+                          {safeKey !== 'Me' && safeKey !== activeUserKey && (
                             <button
                               type="button"
                               onClick={() => {
                                 emitBeep(380);
                                 setUsers((prev) => {
                                   const copy = { ...prev };
-                                  delete copy[uKey];
+                                  delete copy[safeKey];
                                   return copy;
                                 });
-                                setAdminStatusMsg(`Removed "${uKey}"`);
+                                if (db && cloudAuthUser) {
+                                  setDoc(
+                                    doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', safeKey),
+                                    { _deleted: true, updatedAt: Date.now() },
+                                    { merge: true }
+                                  ).catch(() => {});
+                                }
+                                setAdminStatusMsg(`Removed "${safeKey}"`);
                               }}
                               className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-300 text-[10px] font-black cursor-pointer"
                             >
@@ -2142,23 +2376,25 @@ export default function App() {
                           type="text"
                           inputMode="numeric"
                           maxLength={4}
-                          id={`admin-pin-${uKey}`}
+                          id={`admin-pin-${safeKey}`}
                           placeholder="Set 4-digit PIN"
                           className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1 text-[11px] font-mono text-white placeholder-slate-500"
                         />
                         <button
                           type="button"
                           onClick={() => {
-                            const inputEl = document.getElementById(`admin-pin-${uKey}`);
+                            const inputEl = document.getElementById(`admin-pin-${safeKey}`);
                             const digits = (inputEl?.value || '').replace(/\D/g, '').slice(0, 4);
                             if (digits.length === 4) {
                               emitBeep(720);
+                              const updated = { ...uData, pin: digits };
                               setUsers((prev) => ({
                                 ...prev,
-                                [uKey]: { ...uData, pin: digits }
+                                [safeKey]: updated
                               }));
+                              saveUserToCloud(safeKey, updated);
                               if (inputEl) inputEl.value = '';
-                              setAdminStatusMsg(`PIN set for ${uKey}`);
+                              setAdminStatusMsg(`PIN synced for ${safeKey}`);
                             }
                           }}
                           className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-black text-amber-300 cursor-pointer"
@@ -2170,11 +2406,13 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               emitBeep(440);
+                              const updated = { ...uData, pin: '' };
                               setUsers((prev) => ({
                                 ...prev,
-                                [uKey]: { ...uData, pin: '' }
+                                [safeKey]: updated
                               }));
-                              setAdminStatusMsg(`Cleared PIN for ${uKey}`);
+                              saveUserToCloud(safeKey, updated);
+                              setAdminStatusMsg(`Cleared PIN for ${safeKey}`);
                             }}
                             className="px-2 py-1 rounded-lg bg-red-500/15 text-[10px] font-black text-red-300 cursor-pointer"
                           >
@@ -2262,12 +2500,24 @@ export default function App() {
               <button
                 onClick={() => {
                   emitBeep(520);
-                  setActiveModal('profile');
+                  if (isAdminSession || currentUser.isAdmin) {
+                    setActiveModal('profile');
+                  } else {
+                    setPinEntryInput('');
+                    setPinErrorMsg('');
+                    setPendingUserSwitch(null);
+                    setIsAdminSession(false);
+                    setStartupPinLocked(true);
+                  }
                 }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
+                title={isAdminSession || currentUser.isAdmin ? 'Switch Solver (Admin)' : 'Lock & Return to PIN Screen'}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                <span className="max-w-[64px] truncate">{activeUserKey}</span>
+                <span className="max-w-[64px] truncate">{String(activeUserKey)}</span>
+                {!(isAdminSession || currentUser.isAdmin) && (
+                  <span className="text-[9px] uppercase tracking-wider text-orange-400 font-black ml-0.5">Lock</span>
+                )}
               </button>
 
               {/* C-F-O-P Phase Selector */}
@@ -2328,6 +2578,7 @@ export default function App() {
                         <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
                           emitBeep(520);
                           setActiveModal('compass');
@@ -2928,13 +3179,13 @@ export default function App() {
                         <button
                           onClick={() => {
                             emitBeep(480);
+                            const nextDay = safeF2lDay >= f2lSchedule.length ? 1 : safeF2lDay + 1;
+                            const updated = { ...currentUser, f2lDay: nextDay };
                             setUsers((prev) => ({
                               ...prev,
-                              [activeUserKey]: {
-                                ...currentUser,
-                                f2lDay: safeF2lDay >= f2lSchedule.length ? 1 : safeF2lDay + 1
-                              }
+                              [activeUserKey]: updated
                             }));
+                            saveUserToCloud(activeUserKey, updated);
                           }}
                           className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                           title="Skip to Next Day"
@@ -3316,13 +3567,13 @@ export default function App() {
                         <button
                           onClick={() => {
                             emitBeep(480);
+                            const nextDay = safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1;
+                            const updated = { ...currentUser, day: nextDay };
                             setUsers((prev) => ({
                               ...prev,
-                              [activeUserKey]: {
-                                ...currentUser,
-                                day: safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1
-                              }
+                              [activeUserKey]: updated
                             }));
+                            saveUserToCloud(activeUserKey, updated);
                           }}
                           className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                         >
@@ -3695,13 +3946,13 @@ export default function App() {
                         <button
                           onClick={() => {
                             emitBeep(480);
+                            const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
+                            const updated = { ...currentUser, pllDay: nextDay };
                             setUsers((prev) => ({
                               ...prev,
-                              [activeUserKey]: {
-                                ...currentUser,
-                                pllDay: safePllDay >= pllSchedule.length ? 1 : safePllDay + 1
-                              }
+                              [activeUserKey]: updated
                             }));
+                            saveUserToCloud(activeUserKey, updated);
                           }}
                           className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                         >
@@ -4366,13 +4617,13 @@ export default function App() {
                   if (f2lSession.index + 1 < f2lSession.queue.length) {
                     setF2lSession((s) => ({ ...s, index: s.index + 1 }));
                   } else {
+                    const nextDay = safeF2lDay >= f2lSchedule.length ? 1 : safeF2lDay + 1;
+                    const updated = { ...currentUser, f2lDay: nextDay };
                     setUsers((prev) => ({
                       ...prev,
-                      [activeUserKey]: {
-                        ...currentUser,
-                        f2lDay: safeF2lDay >= f2lSchedule.length ? 1 : safeF2lDay + 1
-                      }
+                      [activeUserKey]: updated
                     }));
+                    saveUserToCloud(activeUserKey, updated);
                     setF2lSession(null);
                   }
                 }}
@@ -4523,6 +4774,33 @@ export default function App() {
               <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
                 {ollSession.dayObj.mode} • Case {ollSession.index + 1}/{ollSession.queue.length}
               </span>
+              <button
+                onClick={() => {
+                  setSwRunning(false);
+                  setOllSession(null);
+                }}
+                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3.5 shadow-2xl my-auto">
+              <div className="w-32 h-32 rounded-3xl bg-slate-200 p-2.5 flex items-center justify-center">
+                <img
+                  src={getOLLImageUrl(activeOLLSessionCase.alg)}
+                  alt={activeOLLSessionCase.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              <div className="text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {activeOLLSessionCase.group}
+                </span>
+                <h3 className="text-2xl font-black text-white">{activeOLLSessionCase.name}</h3>
+              </div>
+
               <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 text-center space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -4533,8 +4811,8 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         emitBeep(540);
-                        setFtPhaseContext('pll');
-                        setFtCase(activePLLSessionCase);
+                        setFtPhaseContext('oll');
+                        setFtCase(activeOLLSessionCase);
                         setActiveModal('fingertrick');
                       }}
                       className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
@@ -4543,10 +4821,10 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
-                {getAlgorithmTriggerTags(activePLLSessionCase.alg).length > 0 && (
+                <p className="font-mono text-base font-black text-amber-300">{activeOLLSessionCase.alg}</p>
+                {getAlgorithmTriggerTags(activeOLLSessionCase.alg).length > 0 && (
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    {getAlgorithmTriggerTags(activePLLSessionCase.alg).map((t) => (
+                    {getAlgorithmTriggerTags(activeOLLSessionCase.alg).map((t) => (
                       <span
                         key={t.label}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
@@ -4557,20 +4835,8 @@ export default function App() {
                     ))}
                   </div>
                 )}
-                {fingertricksEnabled && activePLLSessionCase.segments && (
-                  <div className="pt-2 border-t border-white/10 space-y-1.5 text-left">
-                    {activePLLSessionCase.segments.map((seg, i) => {
-                      const style = classifySegmentStyle(seg.moves);
-                      return (
-                        <div key={i} className="flex items-start gap-2 text-[10.5px] leading-snug">
-                          <span className={`px-2 py-0.5 rounded-md border font-mono font-black flex-shrink-0 ${style.badgeClass}`}>
-                            {seg.moves}
-                          </span>
-                          <span className="text-slate-300 pt-0.5">— {seg.cue}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {fingertricksEnabled && (
+                  <p className="text-[11px] text-slate-400">{activeOLLSessionCase.fingertrick}</p>
                 )}
               </div>
 
@@ -4611,13 +4877,13 @@ export default function App() {
                   if (ollSession.index + 1 < ollSession.queue.length) {
                     setOllSession((s) => ({ ...s, index: s.index + 1 }));
                   } else {
+                    const nextDay = safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1;
+                    const updated = { ...currentUser, day: nextDay };
                     setUsers((prev) => ({
                       ...prev,
-                      [activeUserKey]: {
-                        ...currentUser,
-                        day: safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1
-                      }
+                      [activeUserKey]: updated
                     }));
+                    saveUserToCloud(activeUserKey, updated);
                     setOllSession(null);
                   }
                 }}
@@ -4625,6 +4891,36 @@ export default function App() {
               >
                 {ollSession.index + 1 < ollSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* 5. ISOLATED OLL DRILL MODAL */}
+        {ollDrillCase && (
+          <div className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {ollDrillCase.group}
+                </span>
+                <button
+                  onClick={() => {
+                    setSwRunning(false);
+                    setOllDrillCase(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+                <img
+                  src={getOLLImageUrl(ollDrillCase.alg)}
+                  alt={ollDrillCase.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <h3 className="text-xl font-black text-white text-center">{ollDrillCase.name}</h3>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -4635,8 +4931,8 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         emitBeep(540);
-                        setFtPhaseContext('pll');
-                        setFtCase(pllDrillCase);
+                        setFtPhaseContext('oll');
+                        setFtCase(ollDrillCase);
                         setActiveModal('fingertrick');
                       }}
                       className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
@@ -4645,10 +4941,10 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
-                {getAlgorithmTriggerTags(pllDrillCase.alg).length > 0 && (
+                <p className="font-mono text-base font-black text-amber-300">{ollDrillCase.alg}</p>
+                {getAlgorithmTriggerTags(ollDrillCase.alg).length > 0 && (
                   <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    {getAlgorithmTriggerTags(pllDrillCase.alg).map((t) => (
+                    {getAlgorithmTriggerTags(ollDrillCase.alg).map((t) => (
                       <span
                         key={t.label}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
@@ -4659,23 +4955,7 @@ export default function App() {
                     ))}
                   </div>
                 )}
-                {fingertricksEnabled && pllDrillCase.segments ? (
-                  <div className="pt-2 border-t border-white/10 space-y-1.5 text-left">
-                    {pllDrillCase.segments.map((seg, i) => {
-                      const style = classifySegmentStyle(seg.moves);
-                      return (
-                        <div key={i} className="flex items-start gap-2 text-[10.5px] leading-snug">
-                          <span className={`px-2 py-0.5 rounded-md border font-mono font-black flex-shrink-0 ${style.badgeClass}`}>
-                            {seg.moves}
-                          </span>
-                          <span className="text-slate-300 pt-0.5">— {seg.cue}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-400 mt-1">{pllDrillCase.fingertrick}</p>
-                )}
+                <p className="text-[11px] text-slate-400 mt-1">{ollDrillCase.fingertrick}</p>
               </div>
               {stopwatchEnabled && (
                 <button
@@ -4825,13 +5105,13 @@ export default function App() {
                   if (pllSession.index + 1 < pllSession.queue.length) {
                     setPllSession((s) => ({ ...s, index: s.index + 1 }));
                   } else {
+                    const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
+                    const updated = { ...currentUser, pllDay: nextDay };
                     setUsers((prev) => ({
                       ...prev,
-                      [activeUserKey]: {
-                        ...currentUser,
-                        pllDay: safePllDay >= pllSchedule.length ? 1 : safePllDay + 1
-                      }
+                      [activeUserKey]: updated
                     }));
+                    saveUserToCloud(activeUserKey, updated);
                     setPllSession(null);
                   }
                 }}
@@ -5043,7 +5323,7 @@ export default function App() {
 
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
                     <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
-                      3. Regrip &amp; Flow Tip
+                      3. Flow &amp; Regrip Tip
                     </span>
                     <p className="text-xs text-slate-300 leading-relaxed">{breakdown.flow}</p>
                   </div>
@@ -5054,50 +5334,45 @@ export default function App() {
                   onClick={() => setActiveModal(null)}
                   className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
                 >
-                  Close Guide
+                  Close
                 </button>
               </div>
             </div>
           );
         })()}
 
-        {/* 7. FAMILY PROFILE SWITCHER MODAL (WITH PIN CODE VERIFICATION) */}
-        {(activeModal === 'profile' || startupPinLocked) && (() => {
-          const targetLockUser = startupPinLocked && !pendingUserSwitch ? activeUserKey : pendingUserSwitch;
+        {/* 7. FAMILY PROFILE SWITCHER MODAL (ADMIN ONLY + DIRECT KEYPAD LANDING GATE) */}
+        {((activeModal === 'profile' && (isAdminSession || currentUser.isAdmin)) || startupPinLocked) && (() => {
+          const targetLockUser = pendingUserSwitch;
+          const showKeypad = startupPinLocked || Boolean(targetLockUser);
           return (
-          <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[255] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3 shadow-2xl">
-              {!targetLockUser ? (
+              {!showKeypad ? (
                 <>
                   <div className="text-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Active Solver</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                      Admin Profile Switcher
+                    </span>
                     <h3 className="text-xl font-black text-white">Switch Profile</h3>
                   </div>
                   <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
                     {Object.keys(users).map((uKey) => {
-                      const uData = users[uKey] || DEFAULT_USERS.Me;
-                      const isCurrent = uKey === activeUserKey && !startupPinLocked;
+                      const safeKey = String(uKey);
+                      const uData = sanitizeUserRecord(users[uKey]);
+                      const isCurrent = safeKey === activeUserKey;
                       const hasPin = Boolean(uData.pin);
                       return (
                         <button
-                          key={uKey}
+                          key={safeKey}
                           onClick={() => {
                             if (isCurrent) {
                               setActiveModal(null);
                               return;
                             }
-                            if (hasPin) {
-                              emitBeep(540);
-                              setPendingUserSwitch(uKey);
-                              setPinEntryInput('');
-                              setPinErrorMsg('');
-                            } else {
-                              emitBeep(620);
-                              setActiveUserKey(uKey);
-                              setStartupPinLocked(false);
-                              setPendingUserSwitch(null);
-                              setActiveModal(null);
-                            }
+                            emitBeep(540);
+                            setActiveUserKey(safeKey);
+                            setActiveModal(null);
                           }}
                           className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
                             isCurrent
@@ -5107,49 +5382,62 @@ export default function App() {
                         >
                           <div className="text-left">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-black">{uKey}</span>
+                              <span className="text-sm font-black">{safeKey}</span>
                               {hasPin && (
-                                <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] font-black text-amber-300">
+                                <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
                                   PIN
                                 </span>
                               )}
                             </div>
                             <span className="text-[10px] text-slate-400">
-                              F2L D{uData.f2lDay || 1} • OLL D{uData.day || 1} • PLL D{uData.pllDay || 1}
+                              F2L D{Number(uData.f2lDay) || 1} • OLL D{Number(uData.day) || 1} • PLL D{Number(uData.pllDay) || 1}
                             </span>
                           </div>
                           {isCurrent ? (
                             <span className="text-xs font-black text-orange-400">Active ✓</span>
-                          ) : hasPin ? (
-                            <span className="text-[11px] font-bold text-slate-400">Unlock →</span>
-                          ) : null}
+                          ) : (
+                            <span className="text-[11px] font-bold text-slate-400">
+                              Switch →
+                            </span>
+                          )}
                         </button>
                       );
                     })}
                   </div>
-                  {!startupPinLocked && (
-                    <button
-                      onClick={() => {
-                        setPendingUserSwitch(null);
-                        setActiveModal(null);
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
-                    >
-                      Close
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setPendingUserSwitch(null);
+                      setCreatingPinForUser(null);
+                      setActiveModal(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      emitBeep(420);
+                      setIsAdminSession(false);
+                      setAdminUnlocked(false);
+                      setPinEntryInput('');
+                      setActiveModal(null);
+                      setStartupPinLocked(true);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-xs font-black text-red-300 cursor-pointer"
+                  >
+                    Lock &amp; Sign Out
+                  </button>
                 </>
               ) : (
-                /* 4-Digit PIN Keypad / Verification Prompt */
+                /* Direct 4-Digit PIN Keypad Gate */
                 <div className="space-y-3.5 text-center">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                      Protected Profile
+                      {startupPinLocked ? 'OLLDay Everyday' : 'Protected Profile'}
                     </span>
-                    <h3 className="text-xl font-black text-white">Enter PIN for {targetLockUser}</h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Enter 4-digit profile PIN or Admin Master PIN
-                    </p>
+                    <h3 className="text-xl font-black text-white">
+                      {startupPinLocked ? 'Enter PIN' : `Enter PIN for ${targetLockUser}`}
+                    </h3>
                   </div>
 
                   {/* 4 PIN Dot Indicators */}
@@ -5166,8 +5454,14 @@ export default function App() {
                     ))}
                   </div>
 
+                  {startupPinLocked && (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {cloudSyncStatus === 'synced' ? '● Cloud Accounts Ready' : '○ Connecting Cloud...'}
+                    </p>
+                  )}
+
                   {pinErrorMsg && (
-                    <p className="text-[11px] font-bold text-red-400">{pinErrorMsg}</p>
+                    <p className="text-[11px] font-bold text-red-400">{String(pinErrorMsg)}</p>
                   )}
 
                   {/* Tactile Numeric Keypad */}
@@ -5192,18 +5486,46 @@ export default function App() {
                           const nextVal = pinEntryInput + key;
                           setPinEntryInput(nextVal);
                           if (nextVal.length === 4) {
-                            const targetPin = users[targetLockUser]?.pin || '';
-                            if (nextVal === targetPin || nextVal === adminMasterPin) {
-                              emitBeep(880, 'sine', 0.1);
-                              setActiveUserKey(targetLockUser);
-                              setStartupPinLocked(false);
-                              setPendingUserSwitch(null);
-                              setPinEntryInput('');
-                              setActiveModal(null);
+                            if (startupPinLocked) {
+                              if (nextVal === adminMasterPin) {
+                                emitBeep(880, 'sine', 0.1);
+                                setActiveUserKey('Me');
+                                setIsAdminSession(true);
+                                setStartupPinLocked(false);
+                                setPendingUserSwitch(null);
+                                setPinEntryInput('');
+                                setActiveModal(null);
+                                return;
+                              }
+                              const matchedUser = Object.keys(users).find(
+                                (uKey) => users[uKey]?.pin && users[uKey].pin === nextVal
+                              );
+                              if (matchedUser) {
+                                emitBeep(880, 'sine', 0.1);
+                                setActiveUserKey(matchedUser);
+                                setIsAdminSession(Boolean(users[matchedUser]?.isAdmin));
+                                setStartupPinLocked(false);
+                                setPendingUserSwitch(null);
+                                setPinEntryInput('');
+                                setActiveModal(null);
+                              } else {
+                                emitBeep(260, 'sawtooth', 0.14);
+                                setPinErrorMsg('Invalid PIN');
+                                setPinEntryInput('');
+                              }
                             } else {
-                              emitBeep(260, 'sawtooth', 0.14);
-                              setPinErrorMsg('Incorrect PIN — try again');
-                              setPinEntryInput('');
+                              const targetPin = users[targetLockUser]?.pin || '';
+                              if (nextVal === targetPin || nextVal === adminMasterPin) {
+                                emitBeep(880, 'sine', 0.1);
+                                setActiveUserKey(targetLockUser);
+                                setPendingUserSwitch(null);
+                                setPinEntryInput('');
+                                setActiveModal(null);
+                              } else {
+                                emitBeep(260, 'sawtooth', 0.14);
+                                setPinErrorMsg('Incorrect PIN — try again');
+                                setPinEntryInput('');
+                              }
                             }
                           } else {
                             emitBeep(600, 'sine', 0.04);
@@ -5216,21 +5538,20 @@ export default function App() {
                     ))}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (startupPinLocked) {
-                        setStartupPinLocked(false);
-                        setActiveModal('profile');
-                      }
-                      setPendingUserSwitch(null);
-                      setPinEntryInput('');
-                      setPinErrorMsg('');
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
-                  >
-                    ← Back to Profiles
-                  </button>
+                  {!startupPinLocked && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingUserSwitch(null);
+                        setCreatingPinForUser(null);
+                        setPinEntryInput('');
+                        setPinErrorMsg('');
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
+                    >
+                      ← Back to Profiles
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -5911,5 +6232,13 @@ export default function App() {
         )}
       </div>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AppErrorBoundary>
+      <OLLDaySuite />
+    </AppErrorBoundary>
   );
 }
