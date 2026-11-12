@@ -29,16 +29,16 @@ const CROSS_TIERS = [
   {
     tier: 4,
     moves: 5,
-    title: 'Two-Pair Synergy',
-    scrambles: ["R U' F2 D' R'", "L' U B2 D L", "F' U R2 D F", "B U' L2 D' B'"],
-    hint: 'Insert the first edge so its turn naturally brings the second edge into drop position.'
+    title: 'Opposite & Adjacent Pairs',
+    scrambles: ["R' F R U' F2", "L F' L' U F2", "F R' F' U R2", "B L' B' U L2"],
+    hint: 'Solve two adjacent cross edges relative to each other first, then align D in a single turn.'
   },
   {
     tier: 5,
     moves: 6,
-    title: 'Sub-8 Master Cross',
-    scrambles: ["R2 F' U' L2 D R", "L2 B U R2 D' L'", "F2 R U' B2 D F", "B2 L' U F2 D' B'"],
-    hint: 'Solve relative to the color orbit (Blue-Orange-Green-Red) first, then align D at the end.'
+    title: 'Full Sub-8 Inspection',
+    scrambles: ["R U' F' D R2 U", "L' U F D' L2 U'", "F' U R' D F2 U", "B U' L D' B2 U'"],
+    hint: 'Plan all 4 cross edges during 15-second inspection before touching the cube.'
   }
 ];
 
@@ -254,27 +254,584 @@ const OLL_DEFAULT_CHUNKS = [
   { id: 'oll-c11', title: 'Chunk 11: Dot Cases (Part 2)', ids: [17, 18, 19, 20] }
 ];
 
-const WCA_NOTATION_GUIDE = [
-  { move: 'R / R\'', desc: 'Right face clockwise / counter-clockwise' },
-  { move: 'U / U\'', desc: 'Top (Up) face clockwise / counter-clockwise' },
-  { move: 'F / F\'', desc: 'Front face clockwise / counter-clockwise' },
-  { move: 'L / L\'', desc: 'Left face clockwise / counter-clockwise' },
-  { move: 'D / D\'', desc: 'Bottom (Down) face clockwise / counter-clockwise' },
-  { move: 'r / f', desc: 'Wide double-layer turn (outer + middle slice)' },
-  { move: 'M / M\'', desc: 'Middle slice between L and R (follows L)' },
-  { move: 'X2', desc: '180° half-turn (e.g., U2, R2, F2)' }
+const PLL_DATA = [
+  {
+    id: 1,
+    name: 'PLL Ua',
+    group: 'Edges Only (EPLL)',
+    alg: "(R U R' U R') U' R2 U' (R' U R' U R)",
+    inverse: "R' U' R U' R U R2 U R U' R U' R'",
+    recognition: 'Solved bar in Back; 3 edges cycle counter-clockwise.',
+    fingertrick: 'Keep right thumb on front; push all U turns with right index finger.',
+    segments: [
+      { moves: "(R U R' U R')", cue: 'Right wrist up/down while right index pushes U' },
+      { moves: "U' R2 U'", cue: 'Left index flicks U\', roll R2 smoothly, left index U\'' },
+      { moves: "(R' U R' U R)", cue: 'Thumb-down R\' pulls with right index U pushes' }
+    ]
+  },
+  {
+    id: 2,
+    name: 'PLL Ub',
+    group: 'Edges Only (EPLL)',
+    alg: "(R' U) (R' U') (R' U') (R' U) R U R2",
+    inverse: "R2 U' R' U' R U R U R U' R",
+    recognition: 'Solved bar in Back; 3 edges cycle clockwise.',
+    fingertrick: 'Start thumb-up on R\'; alternate right index U and left index U\' without regripping.',
+    segments: [
+      { moves: "(R' U)", cue: 'Thumb-up R\' down, right index U push' },
+      { moves: "(R' U') (R' U')", cue: 'Two crisp R\' pulls paired with left index U\' flicks' },
+      { moves: "(R' U) R U R2", cue: 'Right index U, wrist R, index U, roll R2 finish' }
+    ]
+  },
+  {
+    id: 3,
+    name: 'PLL H',
+    group: 'Edges Only (EPLL)',
+    alg: "M2 (U') M2 (U2) M2 (U') M2",
+    inverse: "M2 U M2 U2 M2 U M2",
+    recognition: 'All corners solved; opposite edge pairs swap.',
+    fingertrick: 'Support outer layers with thumbs; flick M2 with left ring → middle finger.',
+    segments: [
+      { moves: "M2 (U')", cue: 'Left ring + middle finger M2 double-flick, left index U\'' },
+      { moves: "M2 (U2)", cue: 'Left M2 double-flick, left index + middle U2 double-flick' },
+      { moves: "M2 (U') M2", cue: 'Final M2, left index U\', M2 lock' }
+    ]
+  },
+  {
+    id: 4,
+    name: 'PLL Z',
+    group: 'Edges Only (EPLL)',
+    alg: "M' U' (M2 U') (M2 U') M' U2 M2",
+    inverse: "M2 U2 M U M2 U M2 U M",
+    recognition: 'All corners solved; adjacent edge pairs swap (FR-UF & BL-UB).',
+    fingertrick: 'Use left ring finger for single M\' pulls and ring + middle for M2.',
+    segments: [
+      { moves: "M' U'", cue: 'Left ring finger pulls DB up (M\'), left index flicks U\'' },
+      { moves: "(M2 U') (M2 U')", cue: 'Two M2 double-flicks separated by left index U\'' },
+      { moves: "M' U2 M2", cue: 'Left ring M\', left U2 double-flick, M2 finish' }
+    ]
+  },
+  {
+    id: 5,
+    name: 'PLL Aa',
+    group: 'Corners Only (CPLL)',
+    alg: "x (R' U R') D2 (R U' R') D2 R2 x'",
+    inverse: "x R2 D2 R U R' D2 R U' R x'",
+    recognition: '2x2 block in Back-Left; headlights on Back.',
+    fingertrick: 'Tilt x upward so D2 sits under your left ring + middle fingers on the back-bottom.',
+    segments: [
+      { moves: "x (R' U R')", cue: 'Tilt x up; thumb-up R\', right index U, R\'' },
+      { moves: "D2 (R U' R')", cue: 'Left ring + middle D2 double-flick; R, left index U\', R\'' },
+      { moves: "D2 R2 x'", cue: 'Left D2 double-flick, roll R2 up, tilt x\' back' }
+    ]
+  },
+  {
+    id: 6,
+    name: 'PLL Ab',
+    group: 'Corners Only (CPLL)',
+    alg: "x R2 D2 (R U R') D2 (R U' R) x'",
+    inverse: "x R' U R' D2 R U' R' D2 R2 x'",
+    recognition: '2x2 block in Front-Left; headlights on Right.',
+    fingertrick: 'Tilt x upward, start immediately with R2, and keep left thumb anchored during D2.',
+    segments: [
+      { moves: "x R2 D2", cue: 'Tilt x up, roll R2 down, left ring + middle D2' },
+      { moves: "(R U R') D2", cue: 'Right-hand R U R\', second left D2 double-flick' },
+      { moves: "(R U' R) x'", cue: 'Wrist R, left index U\', wrist R, tilt x\' back' }
+    ]
+  },
+  {
+    id: 7,
+    name: 'PLL E',
+    group: 'Corners Only (CPLL)',
+    alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x",
+    inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x",
+    recognition: 'No headlights anywhere; diagonal corner swaps.',
+    fingertrick: 'Tilt x\' downward; push D with left ring finger and pull D\' with right ring finger.',
+    segments: [
+      { moves: "x' (R U' R' D)", cue: 'Tilt x\' down; R, left index U\', R\', left ring D push' },
+      { moves: "(R U R' D')", cue: 'Sexy R U R\', right ring finger D\' pull' },
+      { moves: "(R U R' D) (R U' R' D') x", cue: 'Repeat alternating D / D\' ring-finger rhythm, tilt x' }
+    ]
+  },
+  {
+    id: 8,
+    name: 'PLL T',
+    group: 'Adjacent Swap',
+    alg: "(R U R' U') (R' F R2 U') R' U' (R U R' F')",
+    inverse: "F R U' R' U R U R2 F' R U R U' R'",
+    recognition: 'Headlights on Left; two 1x1x2 blocks on Front-Left and Back-Left.',
+    fingertrick: 'Flow straight from Sexy Move into thumb-down R\' and right-thumb F without regripping.',
+    segments: [
+      { moves: "(R U R' U')", cue: 'Standard Sexy Move — right wrist + right/left index' },
+      { moves: "(R' F R2 U')", cue: 'R\' down, right thumb pushes F, roll R2, left index U\'' },
+      { moves: "R' U' (R U R' F')", cue: 'R\', left index U\', R U R\', right index pulls F\'' }
+    ]
+  },
+  {
+    id: 9,
+    name: 'PLL F',
+    group: 'Adjacent Swap',
+    alg: "(R' U' F') (R U R' U') (R' F R2 U') (R' U' R U) (R' U R)",
+    inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R",
+    recognition: 'Full 1x1x3 solved bar on Left; no headlights on other sides.',
+    fingertrick: 'Start thumb-up for R\' U\' F\', then execute a T-Perm ending with R\' U R.',
+    segments: [
+      { moves: "(R' U' F')", cue: 'Thumb-up R\', left index U\', left index flicks F\'' },
+      { moves: "(R U R' U') (R' F R2 U')", cue: 'Sexy Move into thumb F and R2 roll (T-Perm core)' },
+      { moves: "(R' U' R U) (R' U R)", cue: 'Inverse Sexy + right index U pushes to finish' }
+    ]
+  },
+  {
+    id: 10,
+    name: 'PLL Ja',
+    group: 'Adjacent Swap',
+    alg: "(R' U L' U2) (R U' R' U2) R L",
+    inverse: "L' R' U2 R U R' U2 L U' R",
+    recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Right.',
+    fingertrick: 'Use left index + middle for both U2 double-flicks; finish R and L simultaneously.',
+    segments: [
+      { moves: "(R' U L' U2)", cue: 'Thumb-up R\', right index U, left wrist L\', left U2' },
+      { moves: "(R U' R' U2)", cue: 'Wrist R, left index U\', R\', left U2 double-flick' },
+      { moves: "R L", cue: 'Turn right side up (R) and left side down (L) together' }
+    ]
+  },
+  {
+    id: 11,
+    name: 'PLL Jb',
+    group: 'Adjacent Swap',
+    alg: "(R U R' F') (R U R' U') R' F R2 U' R'",
+    inverse: "R U R2 F' R U R U' R' F R U' R'",
+    recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Left.',
+    fingertrick: 'Completely regripless—flick F\' with right index after R U R\'.',
+    segments: [
+      { moves: "(R U R' F')", cue: 'R U R\' trigger, right index pulls F\' down' },
+      { moves: "(R U R' U')", cue: 'Standard Sexy Move with right thumb still on front' },
+      { moves: "R' F R2 U' R'", cue: 'R\', right thumb F push, roll R2, left index U\', R\'' }
+    ]
+  },
+  {
+    id: 12,
+    name: 'PLL Ra',
+    group: 'Adjacent Swap',
+    alg: "(R U' R' U') (R U R) D (R' U' R) D' (R' U2 R')",
+    inverse: "R U2 R D R' U R D' R' U' R' U R U R'",
+    recognition: 'Headlights on Left; 1x1x2 block in Front-Right.',
+    fingertrick: 'Push D with left ring finger and pull D\' with right ring finger while keeping thumbs front.',
+    segments: [
+      { moves: "(R U' R' U')", cue: 'R, left index U\', R\', left index U\'' },
+      { moves: "(R U R) D", cue: 'R U R upward flow, left ring finger pushes D' },
+      { moves: "(R' U' R) D' (R' U2 R')", cue: 'R\' U\' R, right ring D\', R\', U2 double-flick, R\'' }
+    ]
+  },
+  {
+    id: 13,
+    name: 'PLL Rb',
+    group: 'Adjacent Swap',
+    alg: "(R' U2 R U2') R' F (R U R' U') R' F' R2",
+    inverse: "R2 F R U R U' R' F' R U2 R' U2 R",
+    recognition: 'Headlights on Back; 1x1x2 block on Front-Right.',
+    fingertrick: 'Start thumb-up for R\'; use right thumb for F and right index for F\'.',
+    segments: [
+      { moves: "(R' U2 R U2')", cue: 'Thumb-up R\', right U2, wrist R, left U2\'' },
+      { moves: "R' F (R U R' U')", cue: 'R\', right thumb pushes F into Sexy Move' },
+      { moves: "R' F' R2", cue: 'R\' down, right index pulls F\', roll R2 finish' }
+    ]
+  },
+  {
+    id: 14,
+    name: 'PLL Y',
+    group: 'Diagonal Swap',
+    alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')",
+    inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'",
+    recognition: 'Two 1x1x2 blocks meeting at Front-Left; no headlights.',
+    fingertrick: 'Push opening F with right thumb; flow into Sexy Move + Sledgehammer at the end.',
+    segments: [
+      { moves: "F (R U' R' U')", cue: 'Right thumb F push; R, left index U\', R\', left index U\'' },
+      { moves: "(R U R' F')", cue: 'R U R\', right index pulls F\' down' },
+      { moves: "(R U R' U') (R' F R F')", cue: 'Sexy Move directly into Sledgehammer finish' }
+    ]
+  },
+  {
+    id: 15,
+    name: 'PLL V',
+    group: 'Diagonal Swap',
+    alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F",
+    inverse: "F' R' F' R U' R U R2 F R y' U R U' R",
+    recognition: '2x2 solved block in Front-Left; no headlights anywhere.',
+    fingertrick: 'Start thumb-up R\'; rotate y smoothly during U\' so R2 F flows without a pause.',
+    segments: [
+      { moves: "(R' U R' U') y", cue: 'Thumb-up R\', index U, R\', left U\' while rotating y' },
+      { moves: "(R' F' R2 U')", cue: 'R\', left index F\', roll R2, left index U\'' },
+      { moves: "(R' U R' F) R F", cue: 'R\' U R\', right thumb F, wrist R, thumb F' }
+    ]
+  },
+  {
+    id: 16,
+    name: 'PLL Na',
+    group: 'Diagonal Swap',
+    alg: "(R U R' U) (R U R' F') (R U R' U') R' F (R2 U' R') (U2 R U' R')",
+    inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'",
+    recognition: '1x1x2 blocks on Right of every face (clockwise pinwheel).',
+    fingertrick: 'Think of this as (R U R\' U) + full Jb-Perm + (U2 R U\' R\') — zero regrips needed.',
+    segments: [
+      { moves: "(R U R' U)", cue: '4-move setup trigger with right index U pushes' },
+      { moves: "(R U R' F') (R U R' U') R' F R2 U' R'", cue: 'Full Jb-Perm execution in the middle' },
+      { moves: "(U2 R U' R')", cue: 'Left U2 double-flick into Inverse Sexy finish' }
+    ]
+  },
+  {
+    id: 17,
+    name: 'PLL Nb',
+    group: 'Diagonal Swap',
+    alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)",
+    inverse: "R' U R' F R F' R U' R' F' U F R U R' U' R",
+    recognition: '1x1x2 blocks on Left of every face (counter-clockwise pinwheel).',
+    fingertrick: 'Start thumb-up; use left index for F\' and right thumb for F so right hand stays planted.',
+    segments: [
+      { moves: "(R' U R U')", cue: 'Thumb-up R\', right index U, wrist R, left index U\'' },
+      { moves: "(R' F' U' F)", cue: 'R\', left index F\', left index U\', right thumb F' },
+      { moves: "(R U R' F) R' F' (R U' R)", cue: 'R U R\', thumb F, R\', index F\', R U\' R' }
+    ]
+  },
+  {
+    id: 18,
+    name: 'PLL Ga',
+    group: 'G-Perms',
+    alg: "R2 U (R' U R' U') (R U' R2) D U' (R' U R D')",
+    inverse: "D R' U' R U D' R2 U R' U R U' R U' R2",
+    recognition: 'Headlights on Left; 1x1x2 block on Front-Right.',
+    fingertrick: 'Execute D and U\' simultaneously using left ring (D) + left index (U\').',
+    segments: [
+      { moves: "R2 U (R' U R' U')", cue: 'Roll R2, right index U, R\' U R\' U\' rhythm' },
+      { moves: "(R U' R2) D U'", cue: 'R U\' R2, then simultaneous left-ring D + left-index U\'' },
+      { moves: "(R' U R D')", cue: 'R\' U R, finish with right ring finger D\' pull' }
+    ]
+  },
+  {
+    id: 19,
+    name: 'PLL Gb',
+    group: 'G-Perms',
+    alg: "D (R' U' R U) D' (R2 U R' U) (R U' R U') R2'",
+    inverse: "R2 U R' U R' U' R U' R2 D U' R' U R D'",
+    recognition: 'Headlights on Left; 1x1x2 block on Back-Right.',
+    fingertrick: 'Push opening D with left ring finger and pull D\' with right ring finger before rolling R2.',
+    segments: [
+      { moves: "D (R' U' R U) D'", cue: 'Left ring D, Inverse Sexy (R\' U\' R U), right ring D\'' },
+      { moves: "(R2 U R' U)", cue: 'Roll R2, right index U, R\', right index U' },
+      { moves: "(R U' R U') R2'", cue: 'R, left index U\', R, left index U\', roll R2\' finish' }
+    ]
+  },
+  {
+    id: 20,
+    name: 'PLL Gc',
+    group: 'G-Perms',
+    alg: "R2' F2 (R U2 R U2') R' F (R U R' U') R' F R2",
+    inverse: "R2 F' R U R U' R' F' R U2 R' U2 R' F2 R2",
+    recognition: 'Headlights on Left; 1x1x2 block on Back-Left.',
+    fingertrick: 'Rotationless R2\' F2 variant — use right thumb F into Sexy Move on the back half.',
+    segments: [
+      { moves: "R2' F2 (R U2 R U2')", cue: 'Roll R2\', double-flick F2, R U2 R U2\'' },
+      { moves: "R' F (R U R' U')", cue: 'R\' down, right thumb F push into Sexy Move' },
+      { moves: "R' F R2", cue: 'R\', right thumb F push, roll R2 finish' }
+    ]
+  },
+  {
+    id: 21,
+    name: 'PLL Gd',
+    group: 'G-Perms',
+    alg: "(R U R' U') D (R2 U' R U') (R' U R' U) R2 D'",
+    inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'",
+    recognition: 'Headlights on Left; 1x1x2 block on Front-Left.',
+    fingertrick: 'Sexy Move into left-ring D push; finish with right-ring D\' pull after R2.',
+    segments: [
+      { moves: "(R U R' U') D", cue: 'Sexy Move followed immediately by left ring D push' },
+      { moves: "(R2 U' R U')", cue: 'Roll R2, left index U\', wrist R, left index U\'' },
+      { moves: "(R' U R' U) R2 D'", cue: 'R\' U R\' U, roll R2, right ring finger D\' finish' }
+    ]
+  },
+  {
+    id: 22,
+    name: 'PLL H (Left-Hand M)',
+    group: 'Edges Only (EPLL)',
+    alg: "M2 (U) M2 (U2) M2 (U) M2",
+    inverse: "M2 U' M2 U2 M2 U' M2",
+    recognition: 'H-Perm variant using right-index U pushes.',
+    fingertrick: 'Left ring + middle M2 flicks paired with right index U and right U2 double-flick.',
+    segments: [
+      { moves: "M2 (U) M2", cue: 'Left M2 double-flick, right index U push, M2' },
+      { moves: "(U2) M2", cue: 'Right index + middle U2 double-flick, left M2' },
+      { moves: "(U) M2", cue: 'Right index U push, final left M2 lock' }
+    ]
+  },
+  {
+    id: 23,
+    name: 'PLL Z (Left-Hand M)',
+    group: 'Edges Only (EPLL)',
+    alg: "y M' U (M2 U) (M2 U) M' U2 M2",
+    inverse: "M2 U2 M U' M2 U' M2 U' M y'",
+    recognition: 'Z-Perm variant for swaps on Front-Left & Back-Right.',
+    fingertrick: 'Rotate y, then alternate left-ring M\' / M2 pulls with right-index U pushes.',
+    segments: [
+      { moves: "y M' U", cue: 'Rotate y, left ring pulls M\', right index pushes U' },
+      { moves: "(M2 U) (M2 U)", cue: 'Two left M2 double-flicks paired with right index U' },
+      { moves: "M' U2 M2", cue: 'Left ring M\', right U2 double-flick, M2 finish' }
+    ]
+  },
+  {
+    id: 24,
+    name: 'PLL Ja (Wide Finish)',
+    group: 'Adjacent Swap',
+    alg: "(R' U L' U2) (R U' R' U2) R r",
+    inverse: "r' R' U2 R U R' U2 L U' R",
+    recognition: 'Ja-Perm ending with ergonomic R r instead of R L.',
+    fingertrick: 'Replace the awkward R L finish with right-hand R followed by wide r upward.',
+    segments: [
+      { moves: "(R' U L' U2)", cue: 'Thumb-up R\', right index U, left wrist L\', left U2' },
+      { moves: "(R U' R' U2)", cue: 'Wrist R, left index U\', R\', left U2 double-flick' },
+      { moves: "R r", cue: 'Outer R up, then wide double-layer r up with right hand' }
+    ]
+  },
+  {
+    id: 25,
+    name: 'PLL Jb (Left-Handed)',
+    group: 'Adjacent Swap',
+    alg: "y' (L' U' L F) (L' U' L U) L F' L2' U L",
+    inverse: "L' U' L2 F L' U' L' U L F' L' U L y",
+    recognition: 'Mirror Jb-Perm when 1x1x3 bar is on Right.',
+    fingertrick: 'Exact left-hand mirror of Jb—use left thumb for F\' and left index for F.',
+    segments: [
+      { moves: "y' (L' U' L F)", cue: 'Rotate y\'; left L\' U\' L trigger, left index flicks F' },
+      { moves: "(L' U' L U)", cue: 'Left-Hand Sexy Move with left thumb on front' },
+      { moves: "L F' L2' U L", cue: 'L, left thumb F\', roll L2\', right index U, L' }
+    ]
+  }
 ];
 
-// =========================================================================
-// 2. VISUALCUBE RENDERERS & F2L SETUP SCRAMBLE GENERATOR
-// =========================================================================
+const PLL_GROUPS = [
+  'Edges Only (EPLL)',
+  'Corners Only (CPLL)',
+  'Adjacent Swap',
+  'Diagonal Swap',
+  'G-Perms'
+];
 
-// 54-sticker U, R, F, D, L, B mapping: Yellow Top (U), Orange Right (R), Green Front (F), White Bottom (D), Red Left (L), Blue Back (B)
+const PLL_DEFAULT_CHUNKS = [
+  { id: 'pll-c1', title: 'Chunk 1: 2-Look Edges (EPLL)', ids: [1, 2, 3, 4] },
+  { id: 'pll-c2', title: 'Chunk 2: 2-Look Corners (CPLL)', ids: [5, 6, 7] },
+  { id: 'pll-c3', title: 'Chunk 3: Essential Adjacent (T, J, F)', ids: [8, 11, 10, 9] },
+  { id: 'pll-c4', title: 'Chunk 4: R-Perms (Ra, Rb)', ids: [12, 13] },
+  { id: 'pll-c5', title: 'Chunk 5: Diagonal Swaps (Y, V, N)', ids: [14, 15, 16, 17] },
+  { id: 'pll-c6', title: 'Chunk 6: G-Perms (Ga–Gd)', ids: [18, 19, 20, 21] },
+  { id: 'pll-c7', title: 'Chunk 7: Bonus Left & Wide Variants', ids: [22, 23, 24, 25] }
+];
+
+const WCA_NOTATION_GUIDE = [
+  // Outer Faces
+  { section: 'Outer Faces', move: "R / R'", desc: 'Right face clockwise / counter-clockwise' },
+  { section: 'Outer Faces', move: "U / U'", desc: 'Top (Up) face clockwise / counter-clockwise' },
+  { section: 'Outer Faces', move: "F / F'", desc: 'Front face clockwise / counter-clockwise' },
+  { section: 'Outer Faces', move: "L / L'", desc: 'Left face clockwise / counter-clockwise' },
+  { section: 'Outer Faces', move: "D / D'", desc: 'Bottom (Down) face clockwise / counter-clockwise' },
+  { section: 'Outer Faces', move: "B / B'", desc: 'Back face clockwise / counter-clockwise' },
+  // Wide Turns
+  { section: 'Wide Turns', move: "r / r'", desc: 'Wide Right double-layer turn (R + M\')' },
+  { section: 'Wide Turns', move: "u / u'", desc: 'Wide Top double-layer turn (U + E\')' },
+  { section: 'Wide Turns', move: "f / f'", desc: 'Wide Front double-layer turn (F + S)' },
+  { section: 'Wide Turns', move: "l / l'", desc: 'Wide Left double-layer turn (L + M)' },
+  // Slice Moves
+  { section: 'Slice Moves', move: "M / M'", desc: 'Middle slice between L & R (follows L direction)' },
+  { section: 'Slice Moves', move: "S / S'", desc: 'Standing slice between F & B (follows F direction)' },
+  { section: 'Slice Moves', move: "E / E'", desc: 'Equatorial slice between U & D (follows D direction)' },
+  // Rotations
+  { section: 'Rotations', move: "x / x'", desc: 'Rotate entire cube on R axis (upward / downward)' },
+  { section: 'Rotations', move: "y / y'", desc: 'Rotate entire cube on U axis (left / right)' },
+  { section: 'Rotations', move: "z / z'", desc: 'Rotate entire cube on F axis (clockwise / counter)' },
+  // Modifiers
+  { section: 'Modifiers', move: 'X2', desc: '180° half-turn on any face, slice, or axis (U2, R2, M2)' },
+  { section: 'Modifiers', move: '( ... )', desc: 'Fingertrick trigger grouping (e.g., Sexy Move, Sledgehammer)' }
+];
+
+const FINGERTRICK_CODEX = [
+  {
+    id: 'sexy',
+    name: 'Sexy Move',
+    notation: "(R U R' U')",
+    category: 'Core Triggers',
+    badgeClass: 'bg-orange-500/20 border-orange-500/45 text-orange-300',
+    dotClass: 'bg-orange-400',
+    finger: 'Right Wrist + Right/Left Index',
+    grip: 'Home Grip (right thumb on Front-Right)',
+    execution: 'Lift R with right wrist, push U with right index finger, pull R\' down, flick U\' with left index finger—zero regrips.'
+  },
+  {
+    id: 'left-sexy',
+    name: 'Left Sexy Move',
+    notation: "(L' U' L U)",
+    category: 'Core Triggers',
+    badgeClass: 'bg-amber-500/20 border-amber-500/45 text-amber-300',
+    dotClass: 'bg-amber-400',
+    finger: 'Left Wrist + Left/Right Index',
+    grip: 'Home Grip (left thumb on Front-Left)',
+    execution: 'Lift L\' with left wrist, flick U\' with left index finger, pull L down, push U with right index finger.'
+  },
+  {
+    id: 'inv-sexy',
+    name: 'Inverse Sexy',
+    notation: "(R U' R' U)",
+    category: 'Core Triggers',
+    badgeClass: 'bg-yellow-500/20 border-yellow-500/45 text-yellow-300',
+    dotClass: 'bg-yellow-400',
+    finger: 'Right Wrist + Left Index U\'',
+    grip: 'Home Grip (thumbs anchored on front)',
+    execution: 'Lift R upward, immediately flick U\' with left index finger, pull R\' down, push U with right index finger.'
+  },
+  {
+    id: 'sledge',
+    name: 'Sledgehammer',
+    notation: "(R' F R F')",
+    category: 'F-Layer Triggers',
+    badgeClass: 'bg-emerald-500/20 border-emerald-500/45 text-emerald-300',
+    dotClass: 'bg-emerald-400',
+    finger: 'Right Thumb F + Right Index F\'',
+    grip: 'Home Grip (right thumb poised at Front-Bottom-Right)',
+    execution: 'Pull R\' down, push F clockwise upward with right thumb, lift R, pull F\' counter-clockwise with right index.'
+  },
+  {
+    id: 'hedge',
+    name: 'Hedgeslammer',
+    notation: "(F R' F' R)",
+    category: 'F-Layer Triggers',
+    badgeClass: 'bg-teal-500/20 border-teal-500/45 text-teal-300',
+    dotClass: 'bg-teal-400',
+    finger: 'Right Thumb F + Right Index F\'',
+    grip: 'Home Grip',
+    execution: 'Exact inverse of Sledgehammer: push F with right thumb, pull R\', flick F\' with right index, lift R.'
+  },
+  {
+    id: 'double-flick',
+    name: 'U2 / D2 Double-Flick',
+    notation: 'U2 / D2',
+    category: 'Speed Flicks',
+    badgeClass: 'bg-sky-500/20 border-sky-500/45 text-sky-300',
+    dotClass: 'bg-sky-400',
+    finger: 'Index + Middle Finger Tap',
+    grip: 'Anchor opposite thumb firmly',
+    execution: 'Tap U2 with index followed immediately by middle finger (no wrist reset). Use left ring + middle finger for D2.'
+  },
+  {
+    id: 'm-slice',
+    name: 'M / M2 Slice Flick',
+    notation: "M' / M2",
+    category: 'Slice & Ring',
+    badgeClass: 'bg-purple-500/20 border-purple-500/45 text-purple-300',
+    dotClass: 'bg-purple-400',
+    finger: 'Left Ring → Middle Finger',
+    grip: 'Pinch front/back corners with both thumbs',
+    execution: 'Pull DB up toward UB using left ring finger for M\'; follow instantly with left middle finger for M2.'
+  },
+  {
+    id: 'ring-d',
+    name: 'Ring-Finger D / D\'',
+    notation: "D / D'",
+    category: 'Slice & Ring',
+    badgeClass: 'bg-rose-500/20 border-rose-500/45 text-rose-300',
+    dotClass: 'bg-rose-400',
+    finger: 'Left Ring (D) / Right Ring (D\')',
+    grip: 'Home Grip (keep thumbs on front)',
+    execution: 'Push D counter-clockwise from behind using left ring finger; pull D\' clockwise using right ring finger.'
+  }
+];
+
+function classifySegmentStyle(moves = '') {
+  const norm = moves.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (norm.includes("R U R' U'")) return FINGERTRICK_CODEX[0];
+  if (norm.includes("L' U' L U")) return FINGERTRICK_CODEX[1];
+  if (norm.includes("R U' R'")) return FINGERTRICK_CODEX[2];
+  if (norm.includes("R' F R F'")) return FINGERTRICK_CODEX[3];
+  if (norm.includes("F R' F' R")) return FINGERTRICK_CODEX[4];
+  if (/\bM2?\b|\bM'/.test(norm)) return FINGERTRICK_CODEX[6];
+  if (/\bD2?\b|\bD'/.test(norm)) return FINGERTRICK_CODEX[7];
+  if (/U2|F2|R2/.test(norm)) return FINGERTRICK_CODEX[5];
+  return FINGERTRICK_CODEX[0];
+}
+
+function buildFingertrickBreakdown(item) {
+  const alg = item?.alg || '';
+  const raw = item?.fingertrick || '';
+  const recognition = item?.recognition || '';
+  const segments = item?.segments || [];
+  const firstToken = alg.replace(/[()]/g, '').trim().split(/\s+/)[0] || '';
+
+  // 1. Determine Starting Grip from opening move
+  let grip = 'Home Grip — right thumb on Front-Right, left thumb on Front-Left.';
+  if (/^R'/.test(firstToken)) {
+    grip = 'Thumb-Up Grip — place right thumb on Top-Right (UR) so R\' pulls down effortlessly.';
+  } else if (/^R2/.test(firstToken)) {
+    grip = 'Thumb-Top or Home Grip — anchor left hand firmly to roll R2 cleanly.';
+  } else if (/^F\b/.test(firstToken) || /^f\b/.test(firstToken)) {
+    grip = 'Home Grip — use right thumb push on Front-Bottom (FD) to start F / f.';
+  } else if (/^F'/.test(firstToken) || /^f'/.test(firstToken)) {
+    grip = 'Home Grip — flick F\' / f\' with left index finger on Front-Top-Left.';
+  } else if (/^M/.test(firstToken) || /\bM2?\b/.test(alg)) {
+    grip = 'M-Slice Grip — support front/back corners with thumbs; use left ring + middle fingers on DB.';
+  } else if (/^D/.test(firstToken)) {
+    grip = 'Home Grip — keep left ring finger poised on Back-Bottom-Left for D push.';
+  } else if (/^x\b/.test(firstToken)) {
+    grip = 'Pre-tilt x upward with both wrists so D2 becomes a back-bottom double-flick.';
+  } else if (/^x'/.test(firstToken)) {
+    grip = 'Pre-tilt x\' downward so bottom D / D\' turns stay in ring-finger reach.';
+  } else if (/^y/.test(firstToken)) {
+    grip = 'Rotate entire cube on U axis first, then lock straight into Home Grip.';
+  }
+
+  // 2. Detect Named Speedcube Triggers & Key Finger Mechanics
+  const triggers = [];
+  const normalized = alg.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (normalized.includes("R U R' U'")) triggers.push({ codex: FINGERTRICK_CODEX[0], detail: "Sexy Move (R U R' U') — right wrist + index push/pull" });
+  if (normalized.includes("L' U' L U")) triggers.push({ codex: FINGERTRICK_CODEX[1], detail: "Left Sexy Move (L' U' L U) — left wrist + right index U push" });
+  if (normalized.includes("R U' R'")) triggers.push({ codex: FINGERTRICK_CODEX[2], detail: "Inverse Sexy (R U' R') — left index U' flick between R turns" });
+  if (normalized.includes("R' F R F'")) triggers.push({ codex: FINGERTRICK_CODEX[3], detail: "Sledgehammer (R' F R F') — right thumb F push, right index F' pull" });
+  if (normalized.includes("F R' F' R")) triggers.push({ codex: FINGERTRICK_CODEX[4], detail: "Hedgeslammer (F R' F' R) — right thumb F, right index F'" });
+  if (/U2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[5], detail: 'U2 Double-Flick — index + middle finger tap (no wrist reset)' });
+  if (/D2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[5], detail: 'D2 Double-Flick — left ring + middle finger back-bottom tap' });
+  if (/M2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[6], detail: 'M2 Double-Flick — left ring followed immediately by middle finger' });
+
+  // 3. Flow / Regrip Cue
+  const hasRegripWarning =
+    triggers.length === 0
+      ? 'Keep both thumbs anchored on the front face; avoid letting go with your left hand.'
+      : 'Execute regripless—let your left index handle U\' pushes while your right wrist flows.';
+
+  return {
+    grip,
+    cue: raw,
+    recognition,
+    segments,
+    triggers,
+    flow: hasRegripWarning
+  };
+}
+
+function getAlgorithmTriggerTags(alg = '') {
+  const normalized = alg.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  const tags = [];
+  if (normalized.includes("R U R' U'")) tags.push({ label: "Sexy Move (R U R' U')", badgeClass: FINGERTRICK_CODEX[0].badgeClass, dotClass: FINGERTRICK_CODEX[0].dotClass });
+  if (normalized.includes("L' U' L U")) tags.push({ label: "Left Sexy (L' U' L U)", badgeClass: FINGERTRICK_CODEX[1].badgeClass, dotClass: FINGERTRICK_CODEX[1].dotClass });
+  if (!normalized.includes("R U R' U'") && normalized.includes("R U' R'")) {
+    tags.push({ label: "Inverse Sexy (R U' R')", badgeClass: FINGERTRICK_CODEX[2].badgeClass, dotClass: FINGERTRICK_CODEX[2].dotClass });
+  }
+  if (normalized.includes("R' F R F'")) tags.push({ label: "Sledgehammer (R' F R F')", badgeClass: FINGERTRICK_CODEX[3].badgeClass, dotClass: FINGERTRICK_CODEX[3].dotClass });
+  if (normalized.includes("F R' F' R")) tags.push({ label: "Hedgeslammer (F R' F' R)", badgeClass: FINGERTRICK_CODEX[4].badgeClass, dotClass: FINGERTRICK_CODEX[4].dotClass });
+  if (/\bM2?\b|\bM'/.test(normalized)) tags.push({ label: 'M-Slice Flick', badgeClass: FINGERTRICK_CODEX[6].badgeClass, dotClass: FINGERTRICK_CODEX[6].dotClass });
+  if (/\bD2?\b|\bD'/.test(normalized)) tags.push({ label: 'Ring-Finger D', badgeClass: FINGERTRICK_CODEX[7].badgeClass, dotClass: FINGERTRICK_CODEX[7].dotClass });
+  return tags;
+}
+
 const F2L_VIEW_ANGLES = [
-  { id: 'fr', label: 'Front-Right (Target)', rot: 'y-35x-25' },
-  { id: 'fl', label: 'Front-Left (Green/Red)', rot: 'y35x-25' },
-  { id: 'br', label: 'Back-Right (Orange/Blue)', rot: 'y-135x-25' },
-  { id: 'bl', label: 'Back-Left (Blue/Red)', rot: 'y135x-25' }
+  { label: 'Front-Right (Target)', rot: 'y-35x-25' },
+  { label: 'Front-Left (Green/Red)', rot: 'y35x-25' },
+  { label: 'Back-Right (Orange/Blue)', rot: 'y-135x-25' },
+  { label: 'Back-Left (Blue/Red)', rot: 'y135x-25' }
 ];
 
 const getF2LImageUrl = (alg, rot = 'y-35x-25', setupScramble = null) => {
@@ -286,6 +843,21 @@ const getF2LImageUrl = (alg, rot = 'y-35x-25', setupScramble = null) => {
 
 const getOLLImageUrl = (alg) =>
   `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&view=plan&stage=oll&bg=t&cc=1e293b&case=${encodeURIComponent(alg)}`;
+
+const getPLLImageUrl = (alg, setupScramble = null) => {
+  const baseUrl = 'https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&view=plan&stage=pll&bg=t&cc=1e293b';
+  return setupScramble
+    ? `${baseUrl}&alg=${encodeURIComponent(setupScramble)}`
+    : `${baseUrl}&case=${encodeURIComponent(alg)}`;
+};
+
+function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
+  if (variationSeed === 0) return inverseAlg;
+  const aufOptions = ['', 'U', "U'", 'U2'];
+  const preAuf = aufOptions[variationSeed % aufOptions.length];
+  const postAuf = aufOptions[Math.floor(variationSeed / 2) % aufOptions.length];
+  return `${preAuf} ${inverseAlg} ${postAuf}`.replace(/\s+/g, ' ').trim();
+}
 
 function invertAlgorithm(alg) {
   const cleaned = alg.replace(/[()]/g, '').trim();
@@ -367,37 +939,49 @@ const DEFAULT_USERS = {
   Me: {
     day: 1,
     f2lDay: 1,
+    pllDay: 1,
     stats: {},
     f2lStats: {},
+    pllStats: {},
     customChunks: null,
     f2lCustomChunks: null,
+    pllCustomChunks: null,
     crossClears: 0
   },
   Dad: {
     day: 1,
     f2lDay: 1,
+    pllDay: 1,
     stats: {},
     f2lStats: {},
+    pllStats: {},
     customChunks: null,
     f2lCustomChunks: null,
+    pllCustomChunks: null,
     crossClears: 0
   },
   Ephraim: {
     day: 1,
     f2lDay: 1,
+    pllDay: 1,
     stats: {},
     f2lStats: {},
+    pllStats: {},
     customChunks: null,
     f2lCustomChunks: null,
+    pllCustomChunks: null,
     crossClears: 0
   },
   Victor: {
     day: 1,
     f2lDay: 1,
+    pllDay: 1,
     stats: {},
     f2lStats: {},
+    pllStats: {},
     customChunks: null,
     f2lCustomChunks: null,
+    pllCustomChunks: null,
     crossClears: 0
   }
 };
@@ -419,14 +1003,14 @@ export default function App() {
       return 'Me';
     }
   });
-
-  const [activePhase, setActivePhase] = useState('f2l'); // 'cross' | 'f2l' | 'oll'
+  const [activePhase, setActivePhase] = useState('f2l'); // 'cross' | 'f2l' | 'oll' | 'pll'
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
   // Sub-tabs per phase
   const [crossTab, setCrossTab] = useState('ladder'); // 'ladder' | 'blind' | 'mechanics' | 'settings'
   const [f2lTab, setF2lTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
   const [ollTab, setOllTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
+  const [pllTab, setPllTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
 
   // Global Preferences
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -435,9 +1019,11 @@ export default function App() {
   const [targetGoalSec, setTargetGoalSec] = useState(2.5);
   const [f2lSetupMode, setF2lSetupMode] = useState('beginner'); // 'beginner' | 'realistic'
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
-
+  const [pllSetupSeed, setPllSetupSeed] = useState(0);
   // Settings 3D Card Deck State
   const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
+  const [notationFilter, setNotationFilter] = useState('All');
+  const [dossierFilter, setDossierFilter] = useState('All');
   const deckTouchStartRef = useRef(null);
 
   // Cross Phase State
@@ -463,6 +1049,10 @@ export default function App() {
   const [ollSelectedCategory, setOllSelectedCategory] = useState(null);
   const [ollLineupOrder, setOllLineupOrder] = useState([]);
 
+  const [pllLibMode, setPllLibMode] = useState('groups'); // 'groups' | 'chunks'
+  const [pllSelectedCategory, setPllSelectedCategory] = useState(null);
+  const [pllLineupOrder, setPllLineupOrder] = useState([]);
+
   // Mobile Touch Drag-and-Drop Lineup Reorder State
   const [draggedLineupIdx, setDraggedLineupIdx] = useState(null);
   const holdTimerRef = useRef(null);
@@ -476,14 +1066,14 @@ export default function App() {
   const [builderPhase, setBuilderPhase] = useState('f2l');
   const [builderChunks, setBuilderChunks] = useState([]);
   const [newChunkName, setNewChunkName] = useState('');
-  const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
-
-  // Session & Drill Runners (F2L & OLL)
+  // Session & Drill Runners (F2L, OLL & PLL)
   const [f2lSession, setF2lSession] = useState(null); // { dayObj, index, queue }
   const [f2lDrillCase, setF2lDrillCase] = useState(null);
   const [f2lViewIdx, setF2lViewIdx] = useState(0);
   const [ollSession, setOllSession] = useState(null);
   const [ollDrillCase, setOllDrillCase] = useState(null);
+  const [pllSession, setPllSession] = useState(null);
+  const [pllDrillCase, setPllDrillCase] = useState(null);
 
   // Stopwatch State inside Session / Drill
   const [swRunning, setSwRunning] = useState(false);
@@ -503,15 +1093,19 @@ export default function App() {
   const currentUser = users[activeUserKey] || DEFAULT_USERS.Me;
   const f2lChunks = currentUser.f2lCustomChunks || F2L_DEFAULT_CHUNKS;
   const ollChunks = currentUser.customChunks || OLL_DEFAULT_CHUNKS;
+  const pllChunks = currentUser.pllCustomChunks || PLL_DEFAULT_CHUNKS;
 
   const f2lSchedule = buildSchedule(f2lChunks, F2L_DATA);
   const ollSchedule = buildSchedule(ollChunks, OLL_DATA);
+  const pllSchedule = buildSchedule(pllChunks, PLL_DATA);
 
   const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay || 1), f2lSchedule.length || 1);
   const safeOllDay = Math.min(Math.max(1, currentUser.day || 1), ollSchedule.length || 1);
+  const safePllDay = Math.min(Math.max(1, currentUser.pllDay || 1), pllSchedule.length || 1);
 
   const currentF2lDayObj = f2lSchedule[safeF2lDay - 1] || f2lSchedule[0];
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || ollSchedule[0];
+  const currentPllDayObj = pllSchedule[safePllDay - 1] || pllSchedule[0];
 
   // Keep daily lineup arrays synced with current day cases
   useEffect(() => {
@@ -525,6 +1119,12 @@ export default function App() {
       setOllLineupOrder(currentOllDayObj.cases);
     }
   }, [safeOllDay, activeUserKey, currentUser.customChunks]);
+
+  useEffect(() => {
+    if (currentPllDayObj?.cases) {
+      setPllLineupOrder(currentPllDayObj.cases);
+    }
+  }, [safePllDay, activeUserKey, currentUser.pllCustomChunks]);
 
   // Audio Synthesizer
   const audioCtxRef = useRef(null);
@@ -584,7 +1184,7 @@ export default function App() {
   const recordCaseTime = (phase, caseId, timeSec) => {
     setUsers((prev) => {
       const u = prev[activeUserKey] || DEFAULT_USERS.Me;
-      const statField = phase === 'f2l' ? 'f2lStats' : 'stats';
+      const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
       const existing = u[statField]?.[caseId] || { attempts: 0, best: null, last: null };
       const best = existing.best === null ? timeSec : Math.min(existing.best, timeSec);
       return {
@@ -671,6 +1271,13 @@ export default function App() {
               updated.splice(targetIdx, 0, moved);
               return updated;
             });
+          } else if (activePhase === 'pll') {
+            setPllLineupOrder((prev) => {
+              const updated = [...prev];
+              const [moved] = updated.splice(draggedLineupIdx, 1);
+              updated.splice(targetIdx, 0, moved);
+              return updated;
+            });
           }
           setDraggedLineupIdx(targetIdx);
           emitBeep(640, 'sine', 0.04, 0.08);
@@ -736,6 +1343,14 @@ export default function App() {
         u.stats = {};
         u.customChunks = null;
       }
+      if (scope === 'pll-day') u.pllDay = 1;
+      if (scope === 'pll-stats') u.pllStats = {};
+      if (scope === 'pll-chunks') u.pllCustomChunks = null;
+      if (scope === 'pll-all') {
+        u.pllDay = 1;
+        u.pllStats = {};
+        u.pllCustomChunks = null;
+      }
       if (scope === 'both') {
         return {
           ...prev,
@@ -750,7 +1365,7 @@ export default function App() {
   // Curriculum Builder Helpers
   const openCurriculumBuilder = (phase) => {
     setBuilderPhase(phase);
-    const sourceChunks = phase === 'f2l' ? f2lChunks : ollChunks;
+    const sourceChunks = phase === 'f2l' ? f2lChunks : phase === 'pll' ? pllChunks : ollChunks;
     setBuilderChunks(sourceChunks.map((c) => ({ ...c, ids: [...c.ids] })));
     setNewChunkName('');
     setNewChunkSelectedIds([]);
@@ -768,6 +1383,8 @@ export default function App() {
           ...u,
           ...(builderPhase === 'f2l'
             ? { f2lCustomChunks: builderChunks, f2lDay: 1 }
+            : builderPhase === 'pll'
+            ? { pllCustomChunks: builderChunks, pllDay: 1 }
             : { customChunks: builderChunks, day: 1 })
         }
       };
@@ -787,9 +1404,13 @@ export default function App() {
   const ollMasteredCount = Object.values(currentUser.stats || {}).filter(
     (s) => s.best !== null && s.best <= targetGoalSec
   ).length;
+  const pllMasteredCount = Object.values(currentUser.pllStats || {}).filter(
+    (s) => s.best !== null && s.best <= targetGoalSec
+  ).length;
 
   const activeF2LSessionCase = f2lSession?.queue?.[f2lSession.index] || null;
   const activeOLLSessionCase = ollSession?.queue?.[ollSession.index] || null;
+  const activePLLSessionCase = pllSession?.queue?.[pllSession.index] || null;
 
   // Settings Deck Touch Swipe Handlers
   const handleDeckTouchStart = (e) => {
@@ -807,11 +1428,18 @@ export default function App() {
     if (Math.abs(dx) > 36 || Math.abs(dy) > 36) {
       emitBeep(520, 'sine', 0.05);
       if (dx < -36 || dy < -36) {
-        setSettingsDeckIdx((p) => (p + 1) % 3);
+        setSettingsDeckIdx((p) => (p + 1) % 4);
       } else {
-        setSettingsDeckIdx((p) => (p + 2) % 3);
+        setSettingsDeckIdx((p) => (p + 3) % 4);
       }
     }
+  };
+
+  const getDeckCardClass = (cardIdx) => {
+    const rel = (cardIdx - settingsDeckIdx + 4) % 4;
+    if (rel === 0) return 'deck-card-1';
+    if (rel === 1) return 'deck-card-2';
+    return 'deck-card-3';
   };
 
   // Reusable Settings Deck Renderer
@@ -823,7 +1451,7 @@ export default function App() {
           <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          {[0, 1, 2].map((idx) => (
+          {[0, 1, 2, 3].map((idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -842,16 +1470,14 @@ export default function App() {
       <div
         onTouchStart={handleDeckTouchStart}
         onTouchEnd={handleDeckTouchEnd}
-        className="relative h-[430px] w-full mt-2"
+        className="relative h-[440px] w-full mt-2"
       >
         {/* Card 1: Hardware & Training Preferences */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${
-            settingsDeckIdx === 0 ? 'deck-card-1' : settingsDeckIdx === 1 ? 'deck-card-3' : 'deck-card-2'
-          }`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 3 • Preferences</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 4 • Preferences</span>
             <button
               onClick={() => {
                 emitBeep(520);
@@ -886,7 +1512,7 @@ export default function App() {
             <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-3">
               <div>
                 <p className="text-xs font-bold text-white">Fingertrick Execution Dossiers</p>
-                <p className="text-[10px] text-slate-400">Show ergonomic grip cues on every card</p>
+                <p className="text-[10px] text-slate-400">Show color-coded grip cues on every card</p>
               </div>
               <button
                 onClick={() => {
@@ -918,39 +1544,30 @@ export default function App() {
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">Target Mastery Goal</span>
+                <span className="text-xs font-bold text-white">Target PR Goal</span>
                 <span className="font-mono text-xs font-black text-orange-400">{targetGoalSec.toFixed(1)}s</span>
               </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[1.5, 2.0, 2.5, 3.5].map((goal) => (
-                  <button
-                    key={goal}
-                    onClick={() => {
-                      emitBeep(640);
-                      setTargetGoalSec(goal);
-                    }}
-                    className={`py-1.5 rounded-xl text-[11px] font-black cursor-pointer ${
-                      targetGoalSec === goal
-                        ? 'bg-orange-500 text-slate-950'
-                        : 'bg-slate-950 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {goal.toFixed(1)}s
-                  </button>
-                ))}
-              </div>
+              <input
+                type="range"
+                min="1.0"
+                max="5.0"
+                step="0.1"
+                value={targetGoalSec}
+                onChange={(e) => setTargetGoalSec(Number(e.target.value))}
+                className="w-full accent-orange-500 cursor-pointer"
+              />
             </div>
           </div>
         </div>
 
-        {/* Card 2: WCA Notation Reference */}
+        {/* Card 2: Notation Key */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${
-            settingsDeckIdx === 1 ? 'deck-card-1' : settingsDeckIdx === 2 ? 'deck-card-3' : 'deck-card-2'
-          }`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(1)}`}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 3 • Notation</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+              Card 2 of 4 • Reference
+            </span>
             <button
               onClick={() => {
                 emitBeep(520);
@@ -961,25 +1578,108 @@ export default function App() {
               Next Card →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white mb-2">WCA Move Notation</h3>
-          <div data-scrollable="true" className="max-h-[310px] overflow-y-auto no-scrollbar space-y-2 pr-1">
-            {WCA_NOTATION_GUIDE.map((item) => (
+          <h3 className="text-lg font-black text-white mb-2">Notation Key</h3>
+
+          {/* Section Filter Pills */}
+          <div data-scrollable="true" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-1 flex-shrink-0">
+            {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations', 'Modifiers'].map((sec) => (
+              <button
+                key={sec}
+                onClick={() => {
+                  emitBeep(540);
+                  setNotationFilter(sec);
+                }}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${
+                  notationFilter === sec
+                    ? 'bg-orange-500 text-slate-950 shadow-sm'
+                    : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                {sec}
+              </button>
+            ))}
+          </div>
+
+          <div data-scrollable="true" className="h-[295px] overflow-y-auto no-scrollbar space-y-1.5 pr-1">
+            {WCA_NOTATION_GUIDE.filter((item) => notationFilter === 'All' || item.section === notationFilter).map((item) => (
               <div key={item.move} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-                <span className="font-mono text-xs font-black text-amber-300">{item.move}</span>
-                <span className="text-[11px] text-slate-300 text-right max-w-[195px]">{item.desc}</span>
+                <div className="flex flex-col flex-shrink-0">
+                  <span className="font-mono text-xs font-black text-amber-300">{item.move}</span>
+                  {notationFilter === 'All' && (
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{item.section}</span>
+                  )}
+                </div>
+                <span className="text-[11px] text-slate-300 text-right max-w-[190px] leading-snug">{item.desc}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Card 3: Guides, Curriculum & Reset */}
+        {/* Card 3: All-Inclusive Color-Coded Fingertricks Dossier */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${
-            settingsDeckIdx === 2 ? 'deck-card-1' : settingsDeckIdx === 0 ? 'deck-card-3' : 'deck-card-2'
-          }`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(2)}`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+              Card 3 of 4 • Mechanics Codex
+            </span>
+            <button
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(3);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Next Card →
+            </button>
+          </div>
+          <h3 className="text-lg font-black text-white mb-2">Fingertricks Dossier</h3>
+
+          {/* Category Filter Pills */}
+          <div data-scrollable="true" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-1 flex-shrink-0">
+            {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  emitBeep(540);
+                  setDossierFilter(cat);
+                }}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${
+                  dossierFilter === cat
+                    ? 'bg-orange-500 text-slate-950 shadow-sm'
+                    : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div data-scrollable="true" className="h-[295px] overflow-y-auto no-scrollbar space-y-2 pr-1">
+            {FINGERTRICK_CODEX.filter((ft) => dossierFilter === 'All' || ft.category === dossierFilter).map((ft) => (
+              <div key={ft.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${ft.badgeClass}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${ft.dotClass}`} />
+                    {ft.name}
+                  </span>
+                  <span className="font-mono text-[11px] font-black text-white">{ft.notation}</span>
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  <strong className="text-slate-200">Finger:</strong> {ft.finger} • <strong className="text-slate-200">Grip:</strong> {ft.grip}
+                </div>
+                <p className="text-[11px] text-slate-300 leading-snug">{ft.execution}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Card 4: Guides, Curriculum & Reset */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 3 • Roadmap & Data</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 4 • Roadmap & Data</span>
             <button
               onClick={() => {
                 emitBeep(520);
@@ -1010,13 +1710,13 @@ export default function App() {
           <button
             onClick={() => {
               emitBeep(600);
-              openCurriculumBuilder(activePhase === 'oll' ? 'oll' : 'f2l');
+              openCurriculumBuilder(activePhase === 'oll' ? 'oll' : activePhase === 'pll' ? 'pll' : 'f2l');
             }}
             className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left flex items-center justify-between cursor-pointer"
           >
             <div>
               <p className="text-xs font-black text-white">Custom Chunk Curriculum Builder</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Build your own F2L or OLL learning groups</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Build your own F2L, OLL, or PLL learning groups</p>
             </div>
             <span className="text-slate-400 font-black text-sm">→</span>
           </button>
@@ -1030,7 +1730,7 @@ export default function App() {
           >
             <div>
               <p className="text-xs font-black text-red-300">Reset Progress ({activeUserKey})</p>
-              <p className="text-[10px] text-red-300/75 mt-0.5">Granular F2L, OLL, stats, or full profile reset</p>
+              <p className="text-[10px] text-red-300/75 mt-0.5">Granular F2L, OLL, PLL, stats, or full profile reset</p>
             </div>
             <span className="text-red-400 font-black text-sm">↺</span>
           </button>
@@ -1099,6 +1799,7 @@ export default function App() {
                   {activePhase === 'cross' && 'Phase 1 • Cross'}
                   {activePhase === 'f2l' && `Phase 2 • F2L (Day ${safeF2lDay}/${f2lSchedule.length})`}
                   {activePhase === 'oll' && `Phase 3 • OLL (Day ${safeOllDay}/${ollSchedule.length})`}
+                  {activePhase === 'pll' && `Phase 4 • PLL (Day ${safePllDay}/${pllSchedule.length})`}
                 </p>
               </div>
             </div>
@@ -1124,7 +1825,7 @@ export default function App() {
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 text-xs font-black tracking-wider active:scale-95 transition-all cursor-pointer"
                 >
-                  <span>{activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : 'O'}</span>
+                  <span>{activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}</span>
                   <span className="text-[9px]">▼</span>
                 </button>
 
@@ -1141,11 +1842,7 @@ export default function App() {
                         onClick={() => {
                           emitBeep(620);
                           setCfopMenuOpen(false);
-                          if (p.key === 'pll') {
-                            setActiveModal('preview');
-                          } else {
-                            setActivePhase(p.key);
-                          }
+                          setActivePhase(p.key);
                         }}
                         className={`w-full py-2 rounded-xl text-xs font-black text-center cursor-pointer transition-all ${
                           activePhase === p.key
@@ -1235,7 +1932,7 @@ export default function App() {
                             : 'text-slate-400 hover:text-white'
                         }`}
                       >
-                        Blindfold Run
+                        Blind Practice
                       </button>
                     </div>
 
@@ -1340,7 +2037,24 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
-                        <h4 className="text-base font-black text-white">Blindfold Execution Ready</h4>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                            Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              emitBeep(540);
+                              setActiveModal('blindPracticeHelp');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer"
+                            title="How Blind Practice Works"
+                          >
+                            <span className="w-3.5 h-3.5 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black">?</span>
+                            <span>How It Works</span>
+                          </button>
+                        </div>
+                        <h4 className="text-base font-black text-white">Blind Practice Ready</h4>
                         <p className="text-xs text-slate-400">
                           Plan all {activeTierObj.moves} cross moves during inspection, then execute with eyes closed.
                         </p>
@@ -1360,9 +2074,23 @@ export default function App() {
 
                 {crossTab === 'blind' && (
                   <div className="p-5 pb-10 space-y-4">
-                    <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
-                      <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
+                        <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(540);
+                          setActiveModal('blindHelp');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer"
+                        title="How Blind Inspection Works"
+                      >
+                        <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
+                        <span>How It Works</span>
+                      </button>
                     </div>
 
                     <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
@@ -1405,26 +2133,48 @@ export default function App() {
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         <div
-                          className={`h-24 rounded-2xl border-2 flex items-center justify-center font-black text-xs transition-colors ${
+                          className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all ${
                             blindState === 'armed'
-                              ? 'bg-green-500/20 border-green-400 text-green-300'
+                              ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-[1.02]'
                               : blindState === 'readying'
                               ? 'bg-orange-500/20 border-orange-400 text-orange-300'
                               : 'bg-white/5 border-white/10 text-slate-500'
                           }`}
                         >
-                          LEFT PAD
+                          <svg className="w-8 h-8 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
+                            <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
+                            <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
+                            <path d="M2 12a10 10 0 0 1 18-6" />
+                            <path d="M2 16h.01" />
+                            <path d="M21.8 16c.2-2 .131-5.354 0-6" />
+                            <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
+                            <path d="M8.65 22c.21-.66.45-1.32.57-2" />
+                            <path d="M9 6.8a6 6 0 0 1 9 5.2v2" />
+                          </svg>
+                          <span>LEFT THUMB</span>
                         </div>
                         <div
-                          className={`h-24 rounded-2xl border-2 flex items-center justify-center font-black text-xs transition-colors ${
+                          className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all ${
                             blindState === 'armed'
-                              ? 'bg-green-500/20 border-green-400 text-green-300'
+                              ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-[1.02]'
                               : blindState === 'readying'
                               ? 'bg-orange-500/20 border-orange-400 text-orange-300'
                               : 'bg-white/5 border-white/10 text-slate-500'
                           }`}
                         >
-                          RIGHT PAD
+                          <svg className="w-8 h-8 opacity-90 -scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
+                            <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
+                            <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
+                            <path d="M2 12a10 10 0 0 1 18-6" />
+                            <path d="M2 16h.01" />
+                            <path d="M21.8 16c.2-2 .131-5.354 0-6" />
+                            <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
+                            <path d="M8.65 22c.21-.66.45-1.32.57-2" />
+                            <path d="M9 6.8a6 6 0 0 1 9 5.2v2" />
+                          </svg>
+                          <span>RIGHT THUMB</span>
                         </div>
                       </div>
                     </div>
@@ -2320,6 +3070,387 @@ export default function App() {
                 {ollTab === 'settings' && renderSettingsDeck()}
               </>
             )}
+
+            {/* ===================================================== */}
+            {/* PHASE 4: PLL (PERMUTE LAST LAYER — 25 ALGORITHMS) */}
+            {/* ===================================================== */}
+            {activePhase === 'pll' && (
+              <>
+                {pllTab === 'grind' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                          Day {safePllDay} • {currentPllDayObj.mode} Mode
+                        </span>
+                        <span className="text-xs font-black text-slate-300 font-mono">
+                          {pllMasteredCount}/{PLL_DATA.length} Mastered
+                        </span>
+                      </div>
+
+                      <div>
+                        <h2 className="text-xl font-black text-white leading-tight">{currentPllDayObj.chunkTitle}</h2>
+                        <p className="text-xs text-slate-400 mt-1">
+                          2-Side Headlight &amp; Block Recognition • Execute under {targetGoalSec.toFixed(1)}s
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            emitBeep(720, 'sine', 0.08);
+                            setSwRunning(false);
+                            setSwElapsedMs(0);
+                            setPllSession({
+                              dayObj: currentPllDayObj,
+                              index: 0,
+                              queue: [...pllLineupOrder]
+                            });
+                          }}
+                          className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                        >
+                          Start Day {safePllDay} PLL Grind ({pllLineupOrder.length} Cases)
+                        </button>
+                        <button
+                          onClick={() => {
+                            emitBeep(480);
+                            setUsers((prev) => ({
+                              ...prev,
+                              [activeUserKey]: {
+                                ...currentUser,
+                                pllDay: safePllDay >= pllSchedule.length ? 1 : safePllDay + 1
+                              }
+                            }));
+                          }}
+                          className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Today&apos;s PLL Lineup (Hold &amp; Drag to Reorder)
+                        </span>
+                        <span className="text-[10px] font-bold text-orange-400">{pllLineupOrder.length} Cases</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {pllLineupOrder.map((item, idx) => {
+                          const stat = currentUser.pllStats?.[item.id];
+                          return (
+                            <div
+                              key={item.id}
+                              data-lineup-idx={idx}
+                              onContextMenu={(e) => e.preventDefault()}
+                              onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
+                              onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
+                              onTouchEnd={cancelLineupHold}
+                              onClick={() => {
+                                if (draggedLineupIdx !== null) return;
+                                emitBeep(600);
+                                setSwRunning(false);
+                                setSwElapsedMs(0);
+                                setPllDrillCase(item);
+                              }}
+                              className={`bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                                draggedLineupIdx === idx
+                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
+                                  : 'border-white/10 hover:bg-slate-800/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 flex items-center justify-center pointer-events-none">
+                                  <img
+                                    src={getPLLImageUrl(item.alg)}
+                                    alt={item.name}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                                  <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
+                                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.recognition}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {stat?.best && (
+                                  <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
+                                    {stat.best.toFixed(2)}s
+                                  </span>
+                                )}
+                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {pllTab === 'algorithms' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">21 Standard + 4 Bonus Algs</p>
+                        <h2 className="text-2xl font-black tracking-tight text-white">PLL Library</h2>
+                      </div>
+                      <button
+                        onClick={() => {
+                          emitBeep(560);
+                          openCurriculumBuilder('pll');
+                        }}
+                        className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
+                      >
+                        + Edit Chunks
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
+                      <button
+                        onClick={() => {
+                          emitBeep(480);
+                          setPllLibMode('groups');
+                          setPllSelectedCategory(null);
+                        }}
+                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                          pllLibMode === 'groups' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        5 Perm Groups
+                      </button>
+                      <button
+                        onClick={() => {
+                          emitBeep(480);
+                          setPllLibMode('chunks');
+                          setPllSelectedCategory(null);
+                        }}
+                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                          pllLibMode === 'chunks' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Curriculum Chunks
+                      </button>
+                    </div>
+
+                    {!pllSelectedCategory ? (
+                      pllLibMode === 'groups' ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {PLL_GROUPS.map((group) => {
+                            const groupCases = PLL_DATA.filter((c) => c.group === group);
+                            const sampleCase = groupCases[0];
+                            return (
+                              <button
+                                key={group}
+                                onClick={() => {
+                                  emitBeep(520);
+                                  setPllSelectedCategory({ type: 'group', name: group });
+                                }}
+                                className="bg-slate-900/60 border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                              >
+                                <div className="w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center">
+                                  <img
+                                    src={getPLLImageUrl(sampleCase.alg)}
+                                    alt={group}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div>
+                                  <h3 className="text-xs font-black text-white leading-snug">{group}</h3>
+                                  <span className="text-[10px] font-bold text-orange-400">{groupCases.length} Algs</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {pllChunks.map((chk) => {
+                            const sampleCase = PLL_DATA.find((c) => c.id === chk.ids[0]) || PLL_DATA[0];
+                            return (
+                              <button
+                                key={chk.id}
+                                onClick={() => {
+                                  emitBeep(520);
+                                  setPllSelectedCategory({ type: 'chunk', chunk: chk });
+                                }}
+                                className="w-full bg-slate-900/60 border border-white/10 rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer"
+                              >
+                                <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center">
+                                  <img
+                                    src={getPLLImageUrl(sampleCase.alg)}
+                                    alt={chk.title}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                  <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} PLL Cases</p>
+                                </div>
+                                <span className="text-orange-400 font-black text-sm">→</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : (
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => {
+                            emitBeep(460);
+                            setPllSelectedCategory(null);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 cursor-pointer"
+                        >
+                          ← Back to All {pllLibMode === 'groups' ? 'Groups' : 'Chunks'}
+                        </button>
+                        <h3 className="text-lg font-black text-white">
+                          {pllSelectedCategory.type === 'group'
+                            ? pllSelectedCategory.name
+                            : pllSelectedCategory.chunk.title}
+                        </h3>
+                        <div className="space-y-2.5">
+                          {(pllSelectedCategory.type === 'group'
+                            ? PLL_DATA.filter((c) => c.group === pllSelectedCategory.name)
+                            : pllSelectedCategory.chunk.ids
+                                .map((id) => PLL_DATA.find((c) => c.id === id))
+                                .filter(Boolean)
+                          ).map((item) => {
+                            const stat = currentUser.pllStats?.[item.id];
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => {
+                                  emitBeep(600);
+                                  setSwRunning(false);
+                                  setSwElapsedMs(0);
+                                  setPllDrillCase(item);
+                                }}
+                                className="bg-slate-900/70 border border-white/10 rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0">
+                                    <img
+                                      src={getPLLImageUrl(item.alg)}
+                                      alt={item.name}
+                                      className="w-full h-full object-contain"
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-sm font-black text-white truncate">{item.name}</span>
+                                      {stat?.best && (
+                                        <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
+                                          {stat.best.toFixed(2)}s
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
+                                    <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>
+                                  </div>
+                                </div>
+                                {fingertricksEnabled && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      emitBeep(540);
+                                      setFtPhaseContext('pll');
+                                      setFtCase(item);
+                                      setActiveModal('fingertrick');
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
+                                  >
+                                    Grip
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {pllTab === 'stats' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">PLL Statistics</h2>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
+                        <span className="font-mono text-xl font-black text-green-400">{pllMasteredCount}/{PLL_DATA.length}</span>
+                      </div>
+                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Day</span>
+                        <span className="font-mono text-xl font-black text-orange-400">{safePllDay}</span>
+                      </div>
+                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {PLL_DATA.map((item) => {
+                        const stat = currentUser.pllStats?.[item.id];
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              emitBeep(580);
+                              setSwRunning(false);
+                              setSwElapsedMs(0);
+                              setPllDrillCase(item);
+                            }}
+                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-11 h-11 rounded-xl bg-slate-200 p-1 flex-shrink-0">
+                                <img
+                                  src={getPLLImageUrl(item.alg)}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-xs font-black text-white block truncate">{item.name}</span>
+                                <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              {stat?.best ? (
+                                <>
+                                  <span
+                                    className={`font-mono text-xs font-black block ${
+                                      stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
+                                    }`}
+                                  >
+                                    PR: {stat.best.toFixed(2)}s
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
+                                </>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-500">Unlogged</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {pllTab === 'settings' && renderSettingsDeck()}
+              </>
+            )}
           </main>
 
           {/* SYMMETRICAL 4-COLUMN BOTTOM NAVIGATION BAR */}
@@ -2433,8 +3564,8 @@ export default function App() {
                     )
                   }
                 ].map((tab) => {
-                  const currentTab = activePhase === 'f2l' ? f2lTab : ollTab;
-                  const setTab = activePhase === 'f2l' ? setF2lTab : setOllTab;
+                  const currentTab = activePhase === 'f2l' ? f2lTab : activePhase === 'pll' ? pllTab : ollTab;
+                  const setTab = activePhase === 'f2l' ? setF2lTab : activePhase === 'pll' ? setPllTab : setOllTab;
                   return (
                     <button
                       key={tab.id}
@@ -2591,6 +3722,19 @@ export default function App() {
                   Solution (Target: Front-Right Slot)
                 </span>
                 <p className="font-mono text-base font-black text-white">{activeF2LSessionCase.alg}</p>
+                {getAlgorithmTriggerTags(activeF2LSessionCase.alg).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                    {getAlgorithmTriggerTags(activeF2LSessionCase.alg).map((t) => (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {f2lSession.dayObj.mode === 'Learn' && (
                   <div className="text-[11px] text-slate-300 pt-1 border-t border-white/10 space-y-0.5 text-left">
                     <p>• <strong className="text-orange-300">Step 1:</strong> {activeF2LSessionCase.step1}</p>
@@ -2749,12 +3893,30 @@ export default function App() {
                 <p className="font-mono text-xs font-black text-amber-300 select-all">
                   {generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
                 </p>
-                <p className="text-[9px] text-slate-500">Start from solved cube (White bottom • Green front)</p>
               </div>
 
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1">
+                <span className="text-[9px] font-black uppercase text-slate-400 block">
+                  Solution (Front-Right Slot)
+                </span>
                 <p className="font-mono text-base font-black text-white">{f2lDrillCase.alg}</p>
-                <p className="text-[11px] text-slate-300">{f2lDrillCase.step1} → {f2lDrillCase.step2}</p>
+                {getAlgorithmTriggerTags(f2lDrillCase.alg).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                    {getAlgorithmTriggerTags(f2lDrillCase.alg).map((t) => (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-slate-300 text-left pt-1">
+                  • <strong>Step 1:</strong> {f2lDrillCase.step1}
+                  <br />• <strong>Step 2:</strong> {f2lDrillCase.step2}
+                </p>
               </div>
 
               {stopwatchEnabled && (
@@ -2766,7 +3928,7 @@ export default function App() {
                       : 'bg-slate-950 border-white/10 text-slate-200'
                   }`}
                 >
-                  {swRunning ? `${(swElapsedMs / 1000).toFixed(2)}s — Stop` : 'Tap to Time Pair'}
+                  {swRunning ? `${(swElapsedMs / 1000).toFixed(2)}s — Stop` : 'Tap to Time Case'}
                 </button>
               )}
             </div>
@@ -2780,35 +3942,54 @@ export default function App() {
               <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
                 {ollSession.dayObj.mode} • Case {ollSession.index + 1}/{ollSession.queue.length}
               </span>
-              <button
-                onClick={() => {
-                  setSwRunning(false);
-                  setOllSession(null);
-                }}
-                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 flex flex-col items-center space-y-4 shadow-2xl my-auto">
-              <div className="w-32 h-32 rounded-3xl bg-slate-200 p-2.5 flex items-center justify-center">
-                <img
-                  src={getOLLImageUrl(activeOLLSessionCase.alg)}
-                  alt={activeOLLSessionCase.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {activeOLLSessionCase.group}
-                </span>
-                <h3 className="text-2xl font-black text-white">{activeOLLSessionCase.name}</h3>
-              </div>
-              <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3.5 text-center">
-                <p className="font-mono text-lg font-black text-amber-300">{activeOLLSessionCase.alg}</p>
-                {fingertricksEnabled && (
-                  <p className="text-[11px] text-slate-400 mt-1.5">{activeOLLSessionCase.fingertrick}</p>
+              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 text-center space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    Execution Algorithm
+                  </span>
+                  {fingertricksEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setFtPhaseContext('pll');
+                        setFtCase(activePLLSessionCase);
+                        setActiveModal('fingertrick');
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
+                    >
+                      Grip Guide →
+                    </button>
+                  )}
+                </div>
+                <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
+                {getAlgorithmTriggerTags(activePLLSessionCase.alg).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {getAlgorithmTriggerTags(activePLLSessionCase.alg).map((t) => (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {fingertricksEnabled && activePLLSessionCase.segments && (
+                  <div className="pt-2 border-t border-white/10 space-y-1.5 text-left">
+                    {activePLLSessionCase.segments.map((seg, i) => {
+                      const style = classifySegmentStyle(seg.moves);
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-[10.5px] leading-snug">
+                          <span className={`px-2 py-0.5 rounded-md border font-mono font-black flex-shrink-0 ${style.badgeClass}`}>
+                            {seg.moves}
+                          </span>
+                          <span className="text-slate-300 pt-0.5">— {seg.cue}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
@@ -2863,39 +4044,57 @@ export default function App() {
               >
                 {ollSession.index + 1 < ollSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* 5. ISOLATED OLL DRILL MODAL */}
-        {ollDrillCase && (
-          <div className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {ollDrillCase.group}
-                </span>
-                <button
-                  onClick={() => {
-                    setSwRunning(false);
-                    setOllDrillCase(null);
-                  }}
-                  className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-                <img
-                  src={getOLLImageUrl(ollDrillCase.alg)}
-                  alt={ollDrillCase.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <h3 className="text-xl font-black text-white text-center">{ollDrillCase.name}</h3>
-              <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center">
-                <p className="font-mono text-base font-black text-amber-300">{ollDrillCase.alg}</p>
-                <p className="text-[11px] text-slate-400 mt-1">{ollDrillCase.fingertrick}</p>
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    Execution Algorithm
+                  </span>
+                  {fingertricksEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setFtPhaseContext('pll');
+                        setFtCase(pllDrillCase);
+                        setActiveModal('fingertrick');
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
+                    >
+                      Grip Guide →
+                    </button>
+                  )}
+                </div>
+                <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
+                {getAlgorithmTriggerTags(pllDrillCase.alg).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {getAlgorithmTriggerTags(pllDrillCase.alg).map((t) => (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {fingertricksEnabled && pllDrillCase.segments ? (
+                  <div className="pt-2 border-t border-white/10 space-y-1.5 text-left">
+                    {pllDrillCase.segments.map((seg, i) => {
+                      const style = classifySegmentStyle(seg.moves);
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-[10.5px] leading-snug">
+                          <span className={`px-2 py-0.5 rounded-md border font-mono font-black flex-shrink-0 ${style.badgeClass}`}>
+                            {seg.moves}
+                          </span>
+                          <span className="text-slate-300 pt-0.5">— {seg.cue}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-1">{pllDrillCase.fingertrick}</p>
+                )}
               </div>
               {stopwatchEnabled && (
                 <button
@@ -2913,76 +4112,407 @@ export default function App() {
           </div>
         )}
 
-        {/* 6. FINGERTRICK DOSSIER MODAL */}
-        {activeModal === 'fingertrick' && ftCase && (
-          <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-4 shadow-2xl">
-              <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-4 flex items-center gap-4">
-                <div
-                  className={`w-24 h-24 flex-shrink-0 flex items-center justify-center ${
-                    ftPhaseContext === 'f2l' ? '' : 'bg-slate-200 rounded-2xl p-1.5'
+        {/* 5B. PLL DAILY SESSION RUNNER */}
+        {pllSession && activePLLSessionCase && (
+          <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                {pllSession.dayObj.mode} • Case {pllSession.index + 1}/{pllSession.queue.length}
+              </span>
+              <button
+                onClick={() => {
+                  setSwRunning(false);
+                  setPllSession(null);
+                }}
+                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3.5 shadow-2xl my-auto">
+              <div className="w-32 h-32 rounded-3xl bg-slate-200 p-2.5 flex items-center justify-center">
+                <img
+                  src={getPLLImageUrl(
+                    activePLLSessionCase.alg,
+                    pllSetupSeed > 0 ? generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed) : null
+                  )}
+                  alt={activePLLSessionCase.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {activePLLSessionCase.group}
+                </span>
+                <h3 className="text-2xl font-black text-white">{activePLLSessionCase.name}</h3>
+                <p className="text-[11px] text-slate-300 mt-1">{activePLLSessionCase.recognition}</p>
+              </div>
+
+              <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    {pllSetupSeed === 0 ? 'Standard Setup' : 'AUF Varied Setup'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {pllSetupSeed > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(460);
+                          setPllSetupSeed(0);
+                        }}
+                        className="text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setPllSetupSeed((s) => s + 1);
+                      }}
+                      className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
+                    >
+                      New Scramble ↻
+                    </button>
+                  </div>
+                </div>
+                <p className="font-mono text-xs font-black text-slate-300 select-all">
+                  {generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed)}
+                </p>
+              </div>
+
+              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 text-center">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                  Execution Algorithm
+                </span>
+                <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
+                {getAlgorithmTriggerTags(activePLLSessionCase.alg).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+                    {getAlgorithmTriggerTags(activePLLSessionCase.alg).map((t) => (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {fingertricksEnabled && (
+                  <p className="text-[11px] text-slate-400 mt-1.5">{activePLLSessionCase.fingertrick}</p>
+                )}
+              </div>
+
+              {stopwatchEnabled && (
+                <button
+                  onClick={() =>
+                    toggleStopwatch((sec) => recordCaseTime('pll', activePLLSessionCase.id, sec))
+                  }
+                  className={`w-full py-3.5 rounded-2xl border font-mono text-lg font-black cursor-pointer ${
+                    swRunning
+                      ? 'bg-green-500/20 border-green-400 text-green-300'
+                      : 'bg-slate-950 border-white/10 text-slate-200'
                   }`}
                 >
-                  <img
-                    src={ftPhaseContext === 'f2l' ? getF2LImageUrl(ftCase.alg) : getOLLImageUrl(ftCase.alg)}
-                    alt={ftCase.name}
-                    className={`w-full h-full object-contain ${ftPhaseContext === 'f2l' ? 'f2l-cube-satin' : ''}`}
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    Fingertrick Dossier
-                  </span>
-                  <h3 className="text-lg font-black text-white">{ftCase.name}</h3>
-                  <p className="font-mono text-xs font-bold text-amber-300 mt-1">{ftCase.alg}</p>
-                </div>
-              </div>
-              <p className="text-xs text-slate-200 leading-relaxed bg-white/5 border border-white/10 rounded-2xl p-3.5">
-                {ftCase.fingertrick}
-              </p>
+                  {swRunning ? `${(swElapsedMs / 1000).toFixed(2)}s — Stop` : 'Tap to Time PLL'}
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
               <button
-                onClick={() => setActiveModal(null)}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
+                onClick={() => {
+                  emitBeep(460);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  setPllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
+                }}
+                disabled={pllSession.index === 0}
+                className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
               >
-                Done
+                ← Previous
+              </button>
+              <button
+                onClick={() => {
+                  emitBeep(760);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  if (pllSession.index + 1 < pllSession.queue.length) {
+                    setPllSession((s) => ({ ...s, index: s.index + 1 }));
+                  } else {
+                    setUsers((prev) => ({
+                      ...prev,
+                      [activeUserKey]: {
+                        ...currentUser,
+                        pllDay: safePllDay >= pllSchedule.length ? 1 : safePllDay + 1
+                      }
+                    }));
+                    setPllSession(null);
+                  }
+                }}
+                className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+              >
+                {pllSession.index + 1 < pllSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
               </button>
             </div>
           </div>
         )}
 
+        {/* 5C. ISOLATED PLL DRILL MODAL */}
+        {pllDrillCase && (
+          <div className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {pllDrillCase.group}
+                </span>
+                <button
+                  onClick={() => {
+                    setSwRunning(false);
+                    setPllDrillCase(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+                <img
+                  src={getPLLImageUrl(
+                    pllDrillCase.alg,
+                    pllSetupSeed > 0 ? generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed) : null
+                  )}
+                  alt={pllDrillCase.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-black text-white">{pllDrillCase.name}</h3>
+                <p className="text-[11px] text-slate-300 mt-0.5">{pllDrillCase.recognition}</p>
+              </div>
+              <div className="bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    {pllSetupSeed === 0 ? 'Standard Setup' : 'AUF Varied Setup'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {pllSetupSeed > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(460);
+                          setPllSetupSeed(0);
+                        }}
+                        className="text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setPllSetupSeed((s) => s + 1);
+                      }}
+                      className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
+                    >
+                      New Scramble ↻
+                    </button>
+                  </div>
+                </div>
+                <p className="font-mono text-xs font-bold text-slate-300 select-all">
+                  {generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed)}
+                </p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+                <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
+                {getAlgorithmTriggerTags(pllDrillCase.alg).length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+                    {getAlgorithmTriggerTags(pllDrillCase.alg).map((t) => (
+                      <span
+                        key={t.label}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-slate-400 mt-1">{pllDrillCase.fingertrick}</p>
+              </div>
+              {stopwatchEnabled && (
+                <button
+                  onClick={() => toggleStopwatch((sec) => recordCaseTime('pll', pllDrillCase.id, sec))}
+                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
+                    swRunning
+                      ? 'bg-green-500/20 border-green-400 text-green-300'
+                      : 'bg-slate-950 border-white/10 text-slate-200'
+                  }`}
+                >
+                  {swRunning ? `${(swElapsedMs / 1000).toFixed(2)}s — Stop` : 'Tap to Time PLL'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 6. FINGERTRICK DOSSIER MODAL */}
+        {activeModal === 'fingertrick' && ftCase && (() => {
+          const ftBreakdown = buildFingertrickBreakdown(ftCase);
+          return (
+            <div className="fixed inset-0 z-[275] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full max-h-[88dvh] overflow-y-auto no-scrollbar space-y-3 shadow-2xl">
+                <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-4 flex items-center gap-4">
+                  <div
+                    className={`w-20 h-20 flex-shrink-0 flex items-center justify-center ${
+                      ftPhaseContext === 'f2l' ? '' : 'bg-slate-200 rounded-2xl p-1.5'
+                    }`}
+                  >
+                    <img
+                      src={
+                        ftPhaseContext === 'f2l'
+                          ? getF2LImageUrl(ftCase.alg)
+                          : ftPhaseContext === 'pll'
+                          ? getPLLImageUrl(ftCase.alg)
+                          : getOLLImageUrl(ftCase.alg)
+                      }
+                      alt={ftCase.name}
+                      className={`w-full h-full object-contain ${ftPhaseContext === 'f2l' ? 'f2l-cube-satin' : ''}`}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                      Fingertrick Guide
+                    </span>
+                    <h3 className="text-lg font-black text-white truncate">{ftCase.name}</h3>
+                    <p className="font-mono text-xs font-bold text-amber-300 mt-1">{ftCase.alg}</p>
+                  </div>
+                </div>
+
+                {/* 0. Recognition & Alignment (when present, e.g., PLL) */}
+                {ftBreakdown.recognition && (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-sky-300 block">
+                      Recognition &amp; Alignment
+                    </span>
+                    <p className="text-xs text-slate-200 leading-relaxed">{ftBreakdown.recognition}</p>
+                  </div>
+                )}
+
+                {/* 1. Starting Grip */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    1. Starting Grip
+                  </span>
+                  <p className="text-xs text-slate-200 leading-relaxed">{ftBreakdown.grip}</p>
+                </div>
+
+                {/* 2. Trigger-by-Trigger Breakdown & Execution */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                    2. Color-Coded Trigger Breakdown
+                  </span>
+                  {ftBreakdown.segments.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {ftBreakdown.segments.map((seg, idx) => {
+                        const style = classifySegmentStyle(seg.moves);
+                        return (
+                          <div key={idx} className="bg-slate-950/80 border border-white/10 rounded-xl p-2.5 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`px-2 py-0.5 rounded-md border font-mono text-xs font-black ${style.badgeClass}`}>
+                                {seg.moves}
+                              </span>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                {style.name}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-200 leading-snug">{seg.cue}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-200 leading-relaxed">{ftBreakdown.cue}</p>
+                  )}
+                  {ftBreakdown.triggers.length > 0 && (
+                    <div className="pt-1.5 border-t border-white/10 space-y-1.5">
+                      {ftBreakdown.triggers.map((trig) => (
+                        <div key={trig.detail} className="flex items-start gap-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9.5px] font-black flex-shrink-0 ${trig.codex.badgeClass}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${trig.codex.dotClass}`} />
+                            {trig.codex.name}
+                          </span>
+                          <p className="text-[11px] text-slate-200 leading-snug">{trig.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Flow & Regrip Tip */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
+                    3. Regrip &amp; Flow Tip
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">{ftBreakdown.flow}</p>
+                </div>
+
+                <button
+                  onClick={() => setActiveModal(null)}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* 7. FAMILY PROFILE SWITCHER MODAL */}
         {activeModal === 'profile' && (
           <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full space-y-4 shadow-2xl">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3 shadow-2xl">
               <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Family Profiles</span>
-                <h3 className="text-xl font-black text-white">Switch Cuber</h3>
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Active Solver</span>
+                <h3 className="text-xl font-black text-white">Switch Profile</h3>
               </div>
               <div className="space-y-2">
-                {Object.keys(users).map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => {
-                      emitBeep(640);
-                      setActiveUserKey(name);
-                      setActiveModal(null);
-                    }}
-                    className={`w-full p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                      activeUserKey === name
-                        ? 'bg-orange-500/20 border-orange-500 text-white'
-                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="font-black text-sm">{name}</span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      F2L D{users[name]?.f2lDay || 1} • OLL D{users[name]?.day || 1}
-                    </span>
-                  </button>
-                ))}
+                {Object.keys(users).map((uKey) => {
+                  const uData = users[uKey] || DEFAULT_USERS.Me;
+                  const isCurrent = uKey === activeUserKey;
+                  return (
+                    <button
+                      key={uKey}
+                      onClick={() => {
+                        emitBeep(620);
+                        setActiveUserKey(uKey);
+                        setActiveModal(null);
+                      }}
+                      className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-orange-500/15 border-orange-500/40 text-white'
+                          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="text-left">
+                        <span className="text-sm font-black block">{uKey}</span>
+                        <span className="text-[10px] text-slate-400">
+                          F2L D{uData.f2lDay || 1} • OLL D{uData.day || 1} • PLL D{uData.pllDay || 1}
+                        </span>
+                      </div>
+                      {isCurrent && <span className="text-xs font-black text-orange-400">Active ✓</span>}
+                    </button>
+                  );
+                })}
               </div>
               <button
                 onClick={() => setActiveModal(null)}
-                className="w-full py-2.5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
               >
                 Close
               </button>
@@ -3013,107 +4543,123 @@ export default function App() {
           </div>
         )}
 
-        {/* 9. 5-SLIDE CFOP BEGINNER'S GUIDE & 4-PHASE LAUNCHER */}
+        {/* 9. 5-SLIDE CFOP BEGINNER'S GUIDE MODAL */}
         {activeModal === 'onboarding' && (
-          <div className="fixed inset-0 z-[265] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-sm w-full space-y-4 shadow-2xl">
-              {(() => {
-                const slides = [
-                  {
-                    badge: 'Step 1 of 5 • Overview',
-                    title: 'What is CFOP?',
-                    body: 'CFOP is the world-record speedcubing method used by top cubers: Cross → F2L → OLL → PLL.'
-                  },
-                  {
-                    badge: 'Step 2 of 5 • C (Cross)',
-                    title: '1. The White Cross',
-                    body: 'Solve all 4 white edge pieces on the bottom layer in 8 moves or fewer while matching side centers.'
-                  },
-                  {
-                    badge: 'Step 3 of 5 • F (F2L)',
-                    title: '2. First Two Layers (F2L)',
-                    body: 'Pair each bottom corner with its middle-layer edge and insert all 4 slots simultaneously.'
-                  },
-                  {
-                    badge: 'Step 4 of 5 • O (OLL)',
-                    title: '3. Orient Last Layer (OLL)',
-                    body: 'Turn the entire top face solid Yellow in a single algorithm (57 cases).'
-                  },
-                  {
-                    badge: 'Step 5 of 5 • P (PLL) & Launch',
-                    title: '4. Permute Last Layer & Jump In!',
-                    body: 'Swap the final top pieces into place (21 PLL cases) to finish the cube. Pick any phase below to begin:'
-                  }
-                ];
-                const s = slides[onboardingSlide];
-                return (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{s.badge}</span>
-                      <button
-                        onClick={() => setActiveModal(null)}
-                        className="text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <h3 className="text-xl font-black text-white">{s.title}</h3>
-                    <p className="text-xs text-slate-300 leading-relaxed">{s.body}</p>
-
-                    {onboardingSlide === 4 && (
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        {[
-                          { key: 'cross', label: 'C • Cross' },
-                          { key: 'f2l', label: 'F • F2L' },
-                          { key: 'oll', label: 'O • OLL' },
-                          { key: 'pll', label: 'P • PLL' }
-                        ].map((ph) => (
-                          <button
-                            key={ph.key}
-                            onClick={() => {
-                              emitBeep(680);
-                              if (ph.key === 'pll') {
-                                setActiveModal('preview');
-                              } else {
-                                setActivePhase(ph.key);
-                                setActiveModal(null);
-                              }
-                            }}
-                            className="py-2.5 rounded-xl bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-xs font-black text-white cursor-pointer"
-                          >
-                            {ph.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-2">
-                      <button
-                        onClick={() => setOnboardingSlide((i) => Math.max(0, i - 1))}
-                        disabled={onboardingSlide === 0}
-                        className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                      >
-                        ← Back
-                      </button>
-                      {onboardingSlide < 4 ? (
-                        <button
-                          onClick={() => setOnboardingSlide((i) => i + 1)}
-                          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
-                        >
-                          Next →
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setActiveModal(null)}
-                          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
-                        >
-                          Done
-                        </button>
-                      )}
-                    </div>
-                  </>
-                );
-              })()}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  CFOP Roadmap • {onboardingSlide + 1}/5
+                </span>
+                <button
+                  onClick={() => setActiveModal(null)}
+                  className="text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              {onboardingSlide === 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-white">Welcome to CFOP</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    CFOP (Cross → F2L → OLL → PLL) is the speedcubing method used by world champions. Instead of solving layer-by-layer, you solve the first two layers together!
+                  </p>
+                </div>
+              )}
+              {onboardingSlide === 1 && (
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-white">1. Cross (Bottom)</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Solve the 4 white edges on the bottom face in 8 moves or fewer, matching each side sticker to its center.
+                  </p>
+                </div>
+              )}
+              {onboardingSlide === 2 && (
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-white">2. F2L (First Two Layers)</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Pair each bottom white corner with its middle-layer edge and insert all 4 pairs into the bottom slots.
+                  </p>
+                </div>
+              )}
+              {onboardingSlide === 3 && (
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-white">3. OLL (Orient Last Layer)</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Make the entire top face solid Yellow in a single algorithm (57 cases, starting with 2-Look OLL).
+                  </p>
+                </div>
+              )}
+              {onboardingSlide === 4 && (
+                <div className="space-y-3">
+                  <h3 className="text-xl font-black text-white">4. PLL &amp; Launch</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Permute the final yellow-layer corners and edges into place (21 standard PLLs + 4 variants). Jump straight into any phase below:
+                  </p>
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        setActivePhase('cross');
+                        setActiveModal(null);
+                      }}
+                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
+                    >
+                      Cross
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActivePhase('f2l');
+                        setActiveModal(null);
+                      }}
+                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
+                    >
+                      F2L
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActivePhase('oll');
+                        setActiveModal(null);
+                      }}
+                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
+                    >
+                      OLL
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActivePhase('pll');
+                        setActiveModal(null);
+                      }}
+                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
+                    >
+                      PLL
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => setOnboardingSlide((s) => Math.max(0, s - 1))}
+                  disabled={onboardingSlide === 0}
+                  className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+                >
+                  ← Back
+                </button>
+                {onboardingSlide < 4 ? (
+                  <button
+                    onClick={() => setOnboardingSlide((s) => s + 1)}
+                    className="px-5 py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
+                  >
+                    Next →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActiveModal(null)}
+                    className="px-5 py-2 rounded-xl bg-white/10 text-white font-black text-xs cursor-pointer"
+                  >
+                    Done
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -3124,7 +4670,7 @@ export default function App() {
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full max-h-[85dvh] flex flex-col space-y-3 shadow-2xl">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-black text-white">
-                  {builderPhase === 'f2l' ? 'F2L' : 'OLL'} Chunk Builder
+                  {builderPhase === 'f2l' ? 'F2L' : builderPhase === 'pll' ? 'PLL' : 'OLL'} Chunk Builder
                 </h3>
                 <button
                   onClick={() => setActiveModal(null)}
@@ -3162,7 +4708,7 @@ export default function App() {
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                   />
                   <div className="max-h-36 overflow-y-auto no-scrollbar space-y-1">
-                    {(builderPhase === 'f2l' ? F2L_DATA : OLL_DATA).map((item) => {
+                    {(builderPhase === 'f2l' ? F2L_DATA : builderPhase === 'pll' ? PLL_DATA : OLL_DATA).map((item) => {
                       const selected = newChunkSelectedIds.includes(item.id);
                       return (
                         <button
@@ -3178,7 +4724,13 @@ export default function App() {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <img
-                              src={builderPhase === 'f2l' ? getF2LImageUrl(item.alg) : getOLLImageUrl(item.alg)}
+                              src={
+                                builderPhase === 'f2l'
+                                  ? getF2LImageUrl(item.alg)
+                                  : builderPhase === 'pll'
+                                  ? getPLLImageUrl(item.alg)
+                                  : getOLLImageUrl(item.alg)
+                              }
                               alt={item.name}
                               className={
                                 builderPhase === 'f2l'
@@ -3297,20 +4849,37 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Global Wipe */}
-              <div className="space-y-1.5 pt-0.5">
-                <button
-                  onClick={() => executeGranularReset('both')}
-                  className="w-full py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 font-black text-xs cursor-pointer"
-                >
-                  Reset Everything (Full Profile Wipe)
-                </button>
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="w-full py-2 rounded-xl text-slate-400 hover:text-white font-bold text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
+              {/* Phase P (PLL) Reset Card */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                  Phase P • PLL (25 Algs)
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => executeGranularReset('pll-day')}
+                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                  >
+                    Reset PLL Day (Day 1)
+                  </button>
+                  <button
+                    onClick={() => executeGranularReset('pll-stats')}
+                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                  >
+                    Reset PLL PRs &amp; Stats
+                  </button>
+                  <button
+                    onClick={() => executeGranularReset('pll-chunks')}
+                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                  >
+                    Default PLL Chunks
+                  </button>
+                  <button
+                    onClick={() => executeGranularReset('pll-all')}
+                    className="py-2 px-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer"
+                  >
+                    Reset All PLL
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3391,6 +4960,152 @@ export default function App() {
               </p>
               <button
                 onClick={() => setActiveModal(null)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 14. BLIND INSPECTION HELP MODAL */}
+        {activeModal === 'blindHelp' && (
+          <div
+            onClick={() => setActiveModal(null)}
+            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  WCA Protocol Guide
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black text-white">How Blind Inspection Works</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Train sub-15 cross planning so you can track your first F2L pair during inspection.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-left">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    1. 15-Second WCA Countdown
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Scramble your cube (White bottom • Green front) and tap <strong>Start 15s Countdown</strong>. Audio chimes warn you at <strong>8s</strong> and <strong>12s</strong> elapsed (7.0s &amp; 3.0s left). Going over 15s logs an automatic <strong>DNF</strong>.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                    2. Arm Speedstack Touch Pads
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Once all 4 cross moves are planned in your head, press and hold the <strong>Touch Pads</strong> for <strong>0.35s</strong> until both pads turn <strong>Green (ARMED)</strong>.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
+                    3. Close Eyes &amp; Execute
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Release the pads to launch the fullscreen <strong>Eyes Closed Visor</strong>, execute your entire cross blindfolded, tap anywhere when done, and log <strong>Clean</strong>, <strong>+2</strong>, or <strong>DNF</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  emitBeep(620);
+                  setActiveModal(null);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 15. BLIND PRACTICE HELP MODAL */}
+        {activeModal === 'blindPracticeHelp' && (
+          <div
+            onClick={() => setActiveModal(null)}
+            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  Ladder Drill Guide
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black text-white">How Blind Practice Works</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Build muscle memory by visualizing short cross solutions before turning a single layer.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-left">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    1. Pick Your Ladder Level (L1–L5)
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Start at <strong>L1 (2 moves)</strong> and work up to <strong>L5 (6 moves)</strong>. Apply the scramble with <strong>White on Bottom</strong> and <strong>Green in Front</strong>.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                    2. Trace Every Edge Mentally
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Without turning the cube, trace where each white edge moves and confirm the exact {activeTierObj.moves}-move sequence in your head.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
+                    3. Launch the Timer Mat
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Tap <strong>Open Blindfold Timer Mat</strong> to practice executing that planned cross under a 15-second WCA inspection clock with eyes closed.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  emitBeep(620);
+                  setActiveModal(null);
+                }}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
               >
                 Got It
