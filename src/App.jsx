@@ -1494,9 +1494,8 @@ export default function App() {
                               setEfficiencyFeedback({
                                 optimal: true,
                                 title: `Optimal! (${userMoves}/${target} turns)`,
-                                detail: 'Clean efficiency! Tap New Scramble to keep going.'
+                                detail: 'Clean efficiency! Ready for the next scramble.'
                               });
-                              triggerToast(`Optimal Cross! (${userMoves}/${target} turns)`);
                             } else {
                               emitBeep(420, 'triangle', 0.12);
                               setEfficiencyFeedback({
@@ -1504,23 +1503,12 @@ export default function App() {
                                 title: `${diff} Extra Turn${diff === 1 ? '' : 's'} (${userMoves} vs ${target})`,
                                 detail: 'Tip: Rotate D / D\' to align open slots before dropping edges.'
                               });
-                              triggerToast(`${diff} extra turn(s) used`);
                             }
                           }}
                           className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 border border-orange-400/30 active:scale-95 transition-all cursor-pointer"
                         >
                           Check My Turn Count
                         </button>
-
-                        {efficiencyFeedback && (
-                          <div className={`rounded-xl px-3 py-2 border text-left transition-all ${efficiencyFeedback.optimal ? 'bg-green-500/15 border-green-500/35 text-green-300' : 'bg-amber-500/15 border-amber-500/35 text-amber-200'}`}>
-                            <div className="flex items-center justify-between text-[11px] font-black">
-                              <span>{efficiencyFeedback.title}</span>
-                              <span className="text-[9px] font-mono opacity-80">{optimalCrossCount} Optimal</span>
-                            </div>
-                            <p className="text-[10px] opacity-90 leading-snug mt-0.5">{efficiencyFeedback.detail}</p>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2.5 relative">
@@ -2940,6 +2928,64 @@ export default function App() {
               <h3 className="text-xl font-black text-white">Permute Last Layer</h3>
               <p className="text-xs text-slate-300 leading-relaxed">2-sided PLL recognition drills and AUF prediction trainers are queued next in our CFOP roadmap.</p>
               <button onClick={() => setActiveModal(null)} className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Back to Active Phase</button>
+            </div>
+          </div>
+        )}
+
+        {/* 12. SUBTLE FLOATING TURN-COUNT FEEDBACK MODAL */}
+        {efficiencyFeedback && (
+          <div
+            onClick={() => setEfficiencyFeedback(null)}
+            className="fixed inset-0 z-[265] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-5 transition-opacity"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900/95 border border-white/15 rounded-[2rem] p-5 max-w-xs w-full text-center space-y-3.5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                  efficiencyFeedback.optimal
+                    ? 'bg-green-500/15 border-green-500/35 text-green-300'
+                    : 'bg-amber-500/15 border-amber-500/35 text-amber-300'
+                }`}>
+                  {efficiencyFeedback.optimal ? 'Target Hit' : 'Optimization Tip'}
+                </span>
+                <span className="text-[10px] font-mono font-bold text-slate-400">
+                  {optimalCrossCount} Optimal
+                </span>
+              </div>
+
+              <h3 className={`text-lg font-black leading-snug ${efficiencyFeedback.optimal ? 'text-green-300' : 'text-amber-200'}`}>
+                {efficiencyFeedback.title}
+              </h3>
+
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {efficiencyFeedback.detail}
+              </p>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(480);
+                    setEfficiencyFeedback(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs cursor-pointer active:scale-95 transition-all"
+                >
+                  Retry Scramble
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(560);
+                    setCrossScrambleIdx((p) => p + 1);
+                    setEfficiencyFeedback(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer active:scale-95 transition-all"
+                >
+                  Next Scramble
+                </button>
+              </div>
             </div>
           </div>
         )}
