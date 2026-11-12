@@ -258,6 +258,9 @@ export default function App() {
   const lineupHoldTimerRef = useRef(null);
   const lineupItemRefs = useRef([]);
   const lineupDidDragRef = useRef(false);
+  const lineupTouchStartYRef = useRef(null);
+  const draggedLineupIdxRef = useRef(null);
+  draggedLineupIdxRef.current = draggedLineupIdx;
 
   // Settings Deck & Touch Swipe State
   const [settingsCard, setSettingsCard] = useState(1);
@@ -773,8 +776,9 @@ export default function App() {
     emitBeep(720, 'triangle', 0.05);
   };
 
-  const handleLineupPointerDown = (idx) => {
+  const handleLineupPointerDown = (idx, clientY = null) => {
     lineupDidDragRef.current = false;
+    lineupTouchStartYRef.current = clientY;
     setLineupPressIdx(idx);
     clearTimeout(lineupHoldTimerRef.current);
     lineupHoldTimerRef.current = setTimeout(() => {
@@ -784,16 +788,25 @@ export default function App() {
     }, 220);
   };
 
-  const handleLineupPointerMove = (e) => {
-    if (draggedLineupIdx === null) return;
-    if (e.cancelable) e.preventDefault();
-    const clientY = e.clientY;
+  const handleLineupPreHoldMove = (clientY) => {
+    if (draggedLineupIdxRef.current !== null || lineupTouchStartYRef.current === null) return;
+    if (Math.abs(clientY - lineupTouchStartYRef.current) > 8) {
+      clearTimeout(lineupHoldTimerRef.current);
+      setLineupPressIdx(null);
+      lineupTouchStartYRef.current = null;
+    }
+  };
+
+  const updateLineupDragPosition = (clientY) => {
+    const activeIdx = draggedLineupIdxRef.current;
+    if (activeIdx === null) return;
     for (let i = 0; i < lineupItemRefs.current.length; i++) {
       const el = lineupItemRefs.current[i];
       if (!el) continue;
       const rect = el.getBoundingClientRect();
-      if (clientY >= rect.top && clientY <= rect.bottom && i !== draggedLineupIdx) {
-        reorderDayLineup(draggedLineupIdx, i);
+      if (clientY >= rect.top && clientY <= rect.bottom && i !== activeIdx) {
+        reorderDayLineup(activeIdx, i);
+        draggedLineupIdxRef.current = i;
         setDraggedLineupIdx(i);
         setLineupPressIdx(i);
         break;
@@ -801,14 +814,48 @@ export default function App() {
     }
   };
 
+  const handleLineupPointerMove = (e) => {
+    if (draggedLineupIdxRef.current === null) {
+      handleLineupPreHoldMove(e.clientY);
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    updateLineupDragPosition(e.clientY);
+  };
+
   const handleLineupPointerUp = () => {
     clearTimeout(lineupHoldTimerRef.current);
-    if (draggedLineupIdx !== null) {
+    lineupTouchStartYRef.current = null;
+    if (draggedLineupIdxRef.current !== null) {
       triggerToast('Day lineup order updated!');
     }
+    draggedLineupIdxRef.current = null;
     setDraggedLineupIdx(null);
     setLineupPressIdx(null);
   };
+
+  // Non-passive mobile touch lock while actively dragging a Day Lineup item,
+  // automatically restoring native scroll & navigation when the touch ends.
+  useEffect(() => {
+    if (draggedLineupIdx === null) return;
+    const onWindowTouchMove = (e) => {
+      if (e.cancelable) e.preventDefault();
+      if (e.touches && e.touches[0]) {
+        updateLineupDragPosition(e.touches[0].clientY);
+      }
+    };
+    const onWindowTouchEnd = () => {
+      handleLineupPointerUp();
+    };
+    window.addEventListener('touchmove', onWindowTouchMove, { passive: false });
+    window.addEventListener('touchend', onWindowTouchEnd);
+    window.addEventListener('touchcancel', onWindowTouchEnd);
+    return () => {
+      window.removeEventListener('touchmove', onWindowTouchMove);
+      window.removeEventListener('touchend', onWindowTouchEnd);
+      window.removeEventListener('touchcancel', onWindowTouchEnd);
+    };
+  });
 
   // Granular Reset & Admin User Creation
   const executeGranularReset = (mode) => {
@@ -1851,12 +1898,21 @@ export default function App() {
                       onPointerMove={handleLineupPointerMove}
                       onPointerUp={handleLineupPointerUp}
                       onPointerCancel={handleLineupPointerUp}
-                      className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 ${draggedLineupIdx !== null ? 'touch-none select-none' : ''}`}
+                      onTouchMove={(e) => {
+                        if (draggedLineupIdx === null && e.touches && e.touches[0]) {
+                          handleLineupPreHoldMove(e.touches[0].clientY);
+                        }
+                      }}
+                      onTouchEnd={handleLineupPointerUp}
+                      onTouchCancel={handleLineupPointerUp}
+                      className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 ${draggedLineupIdx !== null ? 'touch-none select-none overflow-hidden' : ''}`}
                     >
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Day {currentDay} Lineup</span>
-                          <span className="text-[9px] font-semibold text-slate-500">Hold & drag to reorder</span>
+                          <span className="text-[9px] font-semibold text-slate-500">
+                            {draggedLineupIdx !== null ? 'Drag up or down to place...' : 'Hold & drag to reorder'}
+                          </span>
                         </div>
                         <span className="text-[10px] font-mono text-slate-400">{sessionCases.length} Cases</span>
                       </div>
@@ -1869,7 +1925,15 @@ export default function App() {
                             <div
                               key={item.id}
                               ref={(el) => { lineupItemRefs.current[idx] = el; }}
-                              onPointerDown={() => handleLineupPointerDown(idx)}
+                              onContextMenu={(e) => e.preventDefault()}
+                              onPointerDown={(e) => {
+                                if (e.pointerType === 'touch') return;
+                                handleLineupPointerDown(idx, e.clientY);
+                              }}
+                              onTouchStart={(e) => {
+                                const y = e.touches && e.touches[0] ? e.touches[0].clientY : null;
+                                handleLineupPointerDown(idx, y);
+                              }}
                               onClick={() => {
                                 if (lineupDidDragRef.current) {
                                   lineupDidDragRef.current = false;
