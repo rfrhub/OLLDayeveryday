@@ -1373,10 +1373,15 @@ function OLLDaySuite() {
         ? raw.pllCustomChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
         : null,
       crossClears: typeof raw.crossClears === 'number' ? raw.crossClears : 0,
-      pin: typeof raw.pin === 'string' || typeof raw.pin === 'number' ? String(raw.pin) : '',
+      pin: typeof raw.pin === 'string' || typeof raw.pin === 'number' ? String(raw.pin).replace(/\D/g, '').slice(0, 4) : '',
       isAdmin: Boolean(raw.isAdmin)
     };
   };
+
+  const usersRef = useRef(users);
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
 
   // 2. Real-Time Cloud Sync for Solver Profiles, PINs, Admin Settings & Progress
   useEffect(() => {
@@ -1401,16 +1406,21 @@ function OLLDaySuite() {
             });
             return;
           }
-          const remoteUsers = {};
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            if (data && typeof data === 'object' && !data.$$typeof && !data._deleted) {
-              remoteUsers[String(docSnap.id)] = sanitizeUserRecord(data);
-            }
+          setUsers((prev) => {
+            const merged = { ...prev };
+            snapshot.forEach((docSnap) => {
+              const id = String(docSnap.id);
+              const data = docSnap.data();
+              if (data && typeof data === 'object' && !data.$$typeof) {
+                if (data._deleted) {
+                  delete merged[id];
+                } else {
+                  merged[id] = sanitizeUserRecord(data);
+                }
+              }
+            });
+            return Object.keys(merged).length > 0 ? merged : prev;
           });
-          if (Object.keys(remoteUsers).length > 0) {
-            setUsers(remoteUsers);
-          }
         },
         () => {
           setCloudSyncStatus('offline');
@@ -1447,8 +1457,10 @@ function OLLDaySuite() {
 
   // Helper to push individual user updates to Cloud
   const saveUserToCloud = (uKey, uData) => {
-    if (!db || !fsOps || !cloudAuthUser || typeof uKey !== 'string') return;
+    if (typeof uKey !== 'string') return;
     const cleanData = sanitizeUserRecord(uData);
+    usersRef.current = { ...usersRef.current, [uKey]: cleanData };
+    if (!db || !fsOps || !cloudAuthUser) return;
     fsOps.setDoc(
       fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
       { ...cleanData, name: String(uKey), updatedAt: Date.now() },
@@ -2087,9 +2099,10 @@ function OLLDaySuite() {
               <button
                 type="button"
                 onClick={() => {
-                  if (myPinDraft.length !== 4) return;
+                  const cleanPin = myPinDraft.replace(/\D/g, '').slice(0, 4);
+                  if (cleanPin.length !== 4) return;
                   emitBeep(760);
-                  const updated = { ...currentUser, pin: myPinDraft };
+                  const updated = { ...currentUser, pin: cleanPin };
                   setUsers((prev) => ({
                     ...prev,
                     [activeUserKey]: updated
@@ -2331,17 +2344,25 @@ function OLLDaySuite() {
                   type="button"
                   onClick={() => {
                     const cleanName = adminNewUserName.trim();
-                    if (!cleanName || users[cleanName]) return;
-                    if (adminNewUserPin.length !== 4) {
+                    const cleanPin = adminNewUserPin.replace(/\D/g, '').slice(0, 4);
+                    if (!cleanName) {
+                      setAdminStatusMsg('Enter a solver name');
+                      return;
+                    }
+                    if (users[cleanName]) {
+                      setAdminStatusMsg(`"${cleanName}" already exists`);
+                      return;
+                    }
+                    if (cleanPin.length !== 4) {
                       setAdminStatusMsg('Enter a 4-digit PIN so user can sign in');
                       return;
                     }
                     emitBeep(780);
-                    const newProfile = {
+                    const newProfile = sanitizeUserRecord({
                       ...DEFAULT_USERS.Me,
                       isAdmin: false,
-                      pin: adminNewUserPin
-                    };
+                      pin: cleanPin
+                    });
                     setUsers((prev) => ({
                       ...prev,
                       [cleanName]: newProfile
@@ -2349,7 +2370,7 @@ function OLLDaySuite() {
                     saveUserToCloud(cleanName, newProfile);
                     setAdminNewUserName('');
                     setAdminNewUserPin('');
-                    setAdminStatusMsg(`Saved "${cleanName}" to cloud`);
+                    setAdminStatusMsg(`Created "${cleanName}" (PIN: ${cleanPin})`);
                   }}
                   className="w-full py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
                 >
@@ -2537,7 +2558,7 @@ function OLLDaySuite() {
               <button
                 onClick={() => {
                   emitBeep(520);
-                  if (isAdminSession || currentUser.isAdmin) {
+                  if (activeUserKey === 'Me') {
                     setActiveModal('profile');
                   } else {
                     setPinEntryInput('');
@@ -2548,11 +2569,11 @@ function OLLDaySuite() {
                   }
                 }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
-                title={isAdminSession || currentUser.isAdmin ? 'Switch Solver (Admin)' : 'Lock & Return to PIN Screen'}
+                title={activeUserKey === 'Me' ? 'Switch Solver (Me Only)' : 'Lock & Return to PIN Screen'}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                 <span className="max-w-[64px] truncate">{String(activeUserKey)}</span>
-                {!(isAdminSession || currentUser.isAdmin) && (
+                {activeUserKey !== 'Me' && (
                   <span className="text-[9px] uppercase tracking-wider text-orange-400 font-black ml-0.5">Lock</span>
                 )}
               </button>
@@ -5377,9 +5398,8 @@ function OLLDaySuite() {
             </div>
           );
         })()}
-
-        {/* 7. FAMILY PROFILE SWITCHER MODAL (ADMIN ONLY + DIRECT KEYPAD LANDING GATE) */}
-        {((activeModal === 'profile' && (isAdminSession || currentUser.isAdmin)) || startupPinLocked) && (() => {
+        {/* 7. FAMILY PROFILE SWITCHER MODAL ("Me" ONLY + DIRECT KEYPAD LANDING GATE) */}
+        {((activeModal === 'profile' && activeUserKey === 'Me') || startupPinLocked) && (() => {
           const targetLockUser = pendingUserSwitch;
           const showKeypad = startupPinLocked || Boolean(targetLockUser);
           return (
@@ -5389,7 +5409,7 @@ function OLLDaySuite() {
                 <>
                   <div className="text-center">
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                      Admin Profile Switcher
+                      Me • Profile Switcher
                     </span>
                     <h3 className="text-xl font-black text-white">Switch Profile</h3>
                   </div>
@@ -5409,6 +5429,7 @@ function OLLDaySuite() {
                             }
                             emitBeep(540);
                             setActiveUserKey(safeKey);
+                            setIsAdminSession(safeKey === 'Me');
                             setActiveModal(null);
                           }}
                           className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
@@ -5523,6 +5544,7 @@ function OLLDaySuite() {
                           const nextVal = pinEntryInput + key;
                           setPinEntryInput(nextVal);
                           if (nextVal.length === 4) {
+                            const latestUsers = usersRef.current || users;
                             if (startupPinLocked) {
                               if (nextVal === adminMasterPin) {
                                 emitBeep(880, 'sine', 0.1);
@@ -5534,13 +5556,14 @@ function OLLDaySuite() {
                                 setActiveModal(null);
                                 return;
                               }
-                              const matchedUser = Object.keys(users).find(
-                                (uKey) => users[uKey]?.pin && users[uKey].pin === nextVal
-                              );
+                              const matchedUser = Object.keys(latestUsers).find((uKey) => {
+                                const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
+                                return storedPin.length === 4 && storedPin === nextVal;
+                              });
                               if (matchedUser) {
                                 emitBeep(880, 'sine', 0.1);
                                 setActiveUserKey(matchedUser);
-                                setIsAdminSession(Boolean(users[matchedUser]?.isAdmin));
+                                setIsAdminSession(matchedUser === 'Me');
                                 setStartupPinLocked(false);
                                 setPendingUserSwitch(null);
                                 setPinEntryInput('');
@@ -5551,10 +5574,11 @@ function OLLDaySuite() {
                                 setPinEntryInput('');
                               }
                             } else {
-                              const targetPin = users[targetLockUser]?.pin || '';
-                              if (nextVal === targetPin || nextVal === adminMasterPin) {
+                              const targetPin = String(latestUsers[targetLockUser]?.pin || '').replace(/\D/g, '');
+                              if ((targetPin.length === 4 && nextVal === targetPin) || nextVal === adminMasterPin) {
                                 emitBeep(880, 'sine', 0.1);
                                 setActiveUserKey(targetLockUser);
+                                setIsAdminSession(targetLockUser === 'Me');
                                 setPendingUserSwitch(null);
                                 setPinEntryInput('');
                                 setActiveModal(null);
