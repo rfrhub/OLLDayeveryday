@@ -48,6 +48,11 @@ const appId =
   (typeof process !== 'undefined' && process.env && (process.env.VITE_APP_ID || process.env.REACT_APP_APP_ID)) ||
   'default-app-id';
 
+const STORAGE_KEYS = {
+  users: `ollday_users_${appId}`,
+  masterPin: `ollday_master_pin_${appId}`
+};
+
 // =========================================================================
 // 1. COMPLETE DATASETS (CROSS, F2L 41 CASES, OLL 57 CASES)
 // =========================================================================
@@ -1180,8 +1185,21 @@ function OLLDaySuite() {
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting'); // 'connecting' | 'synced' | 'offline'
 
-  // Persistent User & App Settings (In-Memory + Cloud Firestore Sync)
-  const [users, setUsers] = useState(() => ({ ...DEFAULT_USERS }));
+  // Persistent User & App Settings (Local Storage Cache + Cloud Firestore Sync)
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.users) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return { ...DEFAULT_USERS, ...parsed };
+        }
+      }
+    } catch {
+      // Fallback to defaults if storage unavailable
+    }
+    return { ...DEFAULT_USERS };
+  });
   const [activeUserKey, setActiveUserKey] = useState('Me');
   const [activePhase, setActivePhase] = useState('f2l'); // 'cross' | 'f2l' | 'oll' | 'pll'
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
@@ -1264,7 +1282,15 @@ function OLLDaySuite() {
   const [pinEntryInput, setPinEntryInput] = useState('');
   const [pinErrorMsg, setPinErrorMsg] = useState('');
   const [myPinDraft, setMyPinDraft] = useState('');
-  const [adminMasterPin, setAdminMasterPin] = useState('1678');
+  const [adminMasterPin, setAdminMasterPin] = useState(() => {
+    try {
+      const savedPin = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.masterPin) : null;
+      if (savedPin && /^\d{4}$/.test(savedPin) && savedPin !== '0000') return savedPin;
+    } catch {
+      // Ignore storage error
+    }
+    return '1678';
+  });
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [adminGateInput, setAdminGateInput] = useState('');
   const [adminGateError, setAdminGateError] = useState('');
@@ -1381,7 +1407,24 @@ function OLLDaySuite() {
   const usersRef = useRef(users);
   useEffect(() => {
     usersRef.current = users;
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+      }
+    } catch {
+      // Ignore quota/private-mode storage errors
+    }
   }, [users]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && /^\d{4}$/.test(adminMasterPin)) {
+        window.localStorage.setItem(STORAGE_KEYS.masterPin, adminMasterPin);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, [adminMasterPin]);
 
   // 2. Real-Time Cloud Sync for Solver Profiles, PINs, Admin Settings & Progress
   useEffect(() => {
@@ -1397,10 +1440,11 @@ function OLLDaySuite() {
         (snapshot) => {
           setCloudSyncStatus('synced');
           if (snapshot.empty) {
-            // Seed initial profiles to cloud on first ever boot
-            Object.entries(DEFAULT_USERS).forEach(([uKey, uVal]) => {
+            // Seed current profiles to cloud on first ever boot
+            Object.entries(usersRef.current || DEFAULT_USERS).forEach(([uKey, uVal]) => {
+              const cleanVal = sanitizeUserRecord(uVal);
               fsOps.setDoc(fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
-                ...uVal,
+                ...cleanVal,
                 name: uKey
               }).catch(() => {});
             });
@@ -1455,11 +1499,19 @@ function OLLDaySuite() {
     };
   }, [cloudAuthUser]);
 
-  // Helper to push individual user updates to Cloud
+  // Helper to push individual user updates to Cloud + Local Cache
   const saveUserToCloud = (uKey, uData) => {
     if (typeof uKey !== 'string') return;
     const cleanData = sanitizeUserRecord(uData);
-    usersRef.current = { ...usersRef.current, [uKey]: cleanData };
+    const nextUsers = { ...usersRef.current, [uKey]: cleanData };
+    usersRef.current = nextUsers;
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(nextUsers));
+      }
+    } catch {
+      // Ignore storage errors
+    }
     if (!db || !fsOps || !cloudAuthUser) return;
     fsOps.setDoc(
       fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
