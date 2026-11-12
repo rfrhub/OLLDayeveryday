@@ -67,12 +67,14 @@ async function getFirebaseServices() {
   return firebaseSdkPromise;
 }
 
-const appId =
+const rawAppId =
   (typeof globalThis !== 'undefined' &&
     (globalThis.__app_id || globalThis.VITE_APP_ID) &&
     String(globalThis.__app_id || globalThis.VITE_APP_ID)) ||
   (typeof process !== 'undefined' && process.env && (process.env.VITE_APP_ID || process.env.REACT_APP_APP_ID)) ||
   'ollday-everyday';
+
+const appId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
 const STORAGE_KEYS = {
   users: `ollday_users_${appId}`,
@@ -907,11 +909,20 @@ function getAlgorithmTriggerTags(alg = '') {
 }
 
 const F2L_VIEW_ANGLES = [
-  { label: 'Front-Right (Target)', rot: 'y-35x-25' },
-  { label: 'Front-Left (Green/Red)', rot: 'y35x-25' },
-  { label: 'Back-Right (Orange/Blue)', rot: 'y-135x-25' },
-  { label: 'Back-Left (Blue/Red)', rot: 'y135x-25' }
+  { label: 'Front-Right (Target)', rot: 'y-35x-25', yaw: -35, pitch: -25 },
+  { label: 'Front-Left (Green/Red)', rot: 'y35x-25', yaw: 35, pitch: -25 },
+  { label: 'Back-Right (Orange/Blue)', rot: 'y-135x-25', yaw: -135, pitch: -25 },
+  { label: 'Back-Left (Blue/Red)', rot: 'y135x-25', yaw: 135, pitch: -25 }
 ];
+
+function getClosestF2LAngleLabel(yaw, pitch) {
+  const normYaw = ((((yaw + 180) % 360) + 360) % 360) - 180;
+  if (pitch > 20) return 'Bottom View';
+  if (normYaw >= -90 && normYaw < 0) return 'Front-Right (Target)';
+  if (normYaw >= 0 && normYaw < 90) return 'Front-Left (Green/Red)';
+  if (normYaw < -90) return 'Back-Right (Orange/Blue)';
+  return 'Back-Left (Blue/Red)';
+}
 
 const getF2LImageUrl = (alg, rot = 'y-35x-25', setupScramble = null) => {
   const baseUrl = `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=f2l&bg=t&cc=080b12&co=100&fc=yyyyyyyyyooooooooogggggggggwwwwwwwwwrrrrrrrrrbbbbbbbbb&r=${rot}`;
@@ -1024,6 +1035,205 @@ const STICKER_HEX = {
   R: '#ef4444'
 };
 
+// =========================================================================
+// 2C. TRUE 3D SPATIAL F2L CUBE SIMULATOR & VOLUMETRIC 3D RENDERER
+// =========================================================================
+function simulateF2LCubeState(setupScramble = '') {
+  // Standard orientation: U=Yellow(0..8), R=Orange(9..17), F=Green(18..26), D=White(27..35), L=Red(36..44), B=Blue(45..53)
+  const s = [
+    ...Array(9).fill('Y'),
+    ...Array(9).fill('O'),
+    ...Array(9).fill('G'),
+    ...Array(9).fill('W'),
+    ...Array(9).fill('R'),
+    ...Array(9).fill('B')
+  ];
+
+  const rotCW = (o) => {
+    const t = [s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8]];
+    s[o] = t[6]; s[o + 1] = t[3]; s[o + 2] = t[0];
+    s[o + 3] = t[7]; s[o + 4] = t[4]; s[o + 5] = t[1];
+    s[o + 6] = t[8]; s[o + 7] = t[5]; s[o + 8] = t[2];
+  };
+
+  const cycle4 = (a, b, c, d) => {
+    const tmp = s[d];
+    s[d] = s[c];
+    s[c] = s[b];
+    s[b] = s[a];
+    s[a] = tmp;
+  };
+
+  const turnOnce = (face) => {
+    if (face === 'U') {
+      rotCW(0);
+      cycle4(18, 36, 45, 9);
+      cycle4(19, 37, 46, 10);
+      cycle4(20, 38, 47, 11);
+    } else if (face === 'D') {
+      rotCW(27);
+      cycle4(24, 15, 51, 42);
+      cycle4(25, 16, 52, 43);
+      cycle4(26, 17, 53, 44);
+    } else if (face === 'R') {
+      rotCW(9);
+      cycle4(2, 51, 29, 20);
+      cycle4(5, 48, 32, 23);
+      cycle4(8, 45, 35, 26);
+    } else if (face === 'L') {
+      rotCW(36);
+      cycle4(0, 18, 27, 53);
+      cycle4(3, 21, 30, 50);
+      cycle4(6, 24, 33, 47);
+    } else if (face === 'F') {
+      rotCW(18);
+      cycle4(6, 9, 29, 44);
+      cycle4(7, 12, 28, 41);
+      cycle4(8, 15, 27, 38);
+    } else if (face === 'B') {
+      rotCW(45);
+      cycle4(2, 36, 33, 17);
+      cycle4(1, 39, 34, 14);
+      cycle4(0, 42, 35, 11);
+    }
+  };
+
+  const tokens = setupScramble.replace(/[()]/g, '').trim().split(/\s+/).filter(Boolean);
+  tokens.forEach((tok) => {
+    const face = tok[0];
+    const mod = tok.slice(1);
+    const reps = mod === '2' ? 2 : mod === "'" ? 3 : 1;
+    for (let i = 0; i < reps; i++) {
+      if (face === 'r') {
+        turnOnce('R');
+        // M' slice
+        cycle4(1, 49, 28, 19);
+        cycle4(4, 46, 31, 22);
+        cycle4(7, 43, 34, 25);
+      } else {
+        turnOnce(face);
+      }
+    }
+  });
+
+  return s;
+}
+
+function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
+  const stickers = simulateF2LCubeState(setupScramble);
+  const half = 48; // 96px true volumetric cube in 3D perspective space
+
+  // Dim non-F2L top-layer stickers slightly to highlight the F2L pair while keeping full 6-sided 3D cube realism
+  const renderFace = (offset, transform, shadeOpacity) => (
+    <div
+      style={{
+        position: 'absolute',
+        width: `${half * 2}px`,
+        height: `${half * 2}px`,
+        transform,
+        backfaceVisibility: 'hidden',
+        backgroundColor: '#070a12',
+        borderRadius: '10px',
+        padding: '4px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gridTemplateRows: 'repeat(3, 1fr)',
+        gap: '3.5px',
+        boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.08)'
+      }}
+    >
+      {Array.from({ length: 9 }).map((_, idx) => {
+        const code = stickers[offset + idx];
+        const isTopYellow = offset === 0 && code === 'Y';
+        const isTopSideYellow = offset !== 0 && idx < 3 && code === 'Y';
+        const muted = isTopYellow || isTopSideYellow;
+        return (
+          <div
+            key={idx}
+            style={{
+              backgroundColor: muted ? '#334155' : STICKER_HEX[code] || '#334155',
+              borderRadius: '4.5px',
+              boxShadow: muted
+                ? 'inset 0 1px 1px rgba(255,255,255,0.08)'
+                : 'inset 0 1.5px 2px rgba(255,255,255,0.45), inset 0 -1.5px 2px rgba(0,0,0,0.28)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            {shadeOpacity > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: `rgba(2, 6, 23, ${shadeOpacity})`
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // Convert VisualCube yaw/pitch convention into true 3D CSS world space
+  const rotX = pitch;
+  const rotY = yaw;
+
+  return (
+    <div
+      style={{
+        width: '154px',
+        height: '154px',
+        perspective: '520px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative'
+      }}
+      className="pointer-events-none"
+    >
+      {/* Ambient 3D Stage Floor Shadow */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '8px',
+          width: '92px',
+          height: '20px',
+          borderRadius: '9999px',
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 72%)',
+          transform: `scale(${isDragging ? 1.08 : 1})`,
+          transition: isDragging ? 'none' : 'transform 0.2s ease'
+        }}
+      />
+
+      {/* True 6-Faced Volumetric 3D Cube */}
+      <div
+        style={{
+          width: `${half * 2}px`,
+          height: `${half * 2}px`,
+          position: 'relative',
+          transformStyle: 'preserve-3d',
+          transform: `translateZ(-12px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${isDragging ? 1.05 : 1})`,
+          transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
+        }}
+      >
+        {/* Front (Green) */}
+        {renderFace(18, `rotateY(0deg) translateZ(${half}px)`, 0.04)}
+        {/* Back (Blue) */}
+        {renderFace(45, `rotateY(180deg) translateZ(${half}px)`, 0.14)}
+        {/* Right (Orange) */}
+        {renderFace(9, `rotateY(90deg) translateZ(${half}px)`, 0.12)}
+        {/* Left (Red) */}
+        {renderFace(36, `rotateY(-90deg) translateZ(${half}px)`, 0.12)}
+        {/* Top (Yellow) */}
+        {renderFace(0, `rotateX(90deg) translateZ(${half}px)`, 0)}
+        {/* Bottom (White) */}
+        {renderFace(27, `rotateX(-90deg) translateZ(${half}px)`, 0.22)}
+      </div>
+    </div>
+  );
+}
+
 function invertAlgorithm(alg) {
   const cleaned = alg.replace(/[()]/g, '').trim();
   if (!cleaned) return '';
@@ -1118,6 +1328,20 @@ const DEFAULT_USERS = {
     pin: '',
     isAdmin: true
   },
+  Victor: {
+    day: 1,
+    f2lDay: 1,
+    pllDay: 1,
+    stats: {},
+    f2lStats: {},
+    pllStats: {},
+    customChunks: null,
+    f2lCustomChunks: null,
+    pllCustomChunks: null,
+    crossClears: 0,
+    pin: '0495',
+    isAdmin: false
+  },
   Dad: {
     day: 1,
     f2lDay: 1,
@@ -1129,7 +1353,21 @@ const DEFAULT_USERS = {
     f2lCustomChunks: null,
     pllCustomChunks: null,
     crossClears: 0,
-    pin: '',
+    pin: '8994',
+    isAdmin: false
+  },
+  Raul: {
+    day: 1,
+    f2lDay: 1,
+    pllDay: 1,
+    stats: {},
+    f2lStats: {},
+    pllStats: {},
+    customChunks: null,
+    f2lCustomChunks: null,
+    pllCustomChunks: null,
+    crossClears: 0,
+    pin: '1505',
     isAdmin: false
   },
   Ephraim: {
@@ -1143,10 +1381,10 @@ const DEFAULT_USERS = {
     f2lCustomChunks: null,
     pllCustomChunks: null,
     crossClears: 0,
-    pin: '',
+    pin: '0713',
     isAdmin: false
   },
-  Victor: {
+  'Discord Test': {
     day: 1,
     f2lDay: 1,
     pllDay: 1,
@@ -1157,10 +1395,67 @@ const DEFAULT_USERS = {
     f2lCustomChunks: null,
     pllCustomChunks: null,
     crossClears: 0,
-    pin: '',
+    pin: '8725',
+    isAdmin: false
+  },
+  Jared: {
+    day: 1,
+    f2lDay: 1,
+    pllDay: 1,
+    stats: {},
+    f2lStats: {},
+    pllStats: {},
+    customChunks: null,
+    f2lCustomChunks: null,
+    pllCustomChunks: null,
+    crossClears: 0,
+    pin: '0006',
+    isAdmin: false
+  },
+  Friends: {
+    day: 1,
+    f2lDay: 1,
+    pllDay: 1,
+    stats: {},
+    f2lStats: {},
+    pllStats: {},
+    customChunks: null,
+    f2lCustomChunks: null,
+    pllCustomChunks: null,
+    crossClears: 0,
+    pin: '0007',
     isAdmin: false
   }
 };
+
+// Apply default user records & default PINs when a default user has no PIN stored yet
+function mergeDefaultUsersWithStored(storedMap) {
+  const result = {};
+  Object.entries(DEFAULT_USERS).forEach(([k, defVal]) => {
+    const existing = storedMap && typeof storedMap === 'object' ? storedMap[k] : null;
+    if (existing && typeof existing === 'object' && !existing.$$typeof) {
+      const cleanPin =
+        typeof existing.pin === 'string' || typeof existing.pin === 'number'
+          ? String(existing.pin).replace(/\D/g, '').slice(0, 4)
+          : '';
+      result[k] = {
+        ...defVal,
+        ...existing,
+        pin: cleanPin.length === 4 ? cleanPin : defVal.pin
+      };
+    } else {
+      result[k] = { ...defVal };
+    }
+  });
+  if (storedMap && typeof storedMap === 'object') {
+    Object.entries(storedMap).forEach(([k, val]) => {
+      if (!result[k] && val && typeof val === 'object' && !val.$$typeof && !val._deleted) {
+        result[k] = val;
+      }
+    });
+  }
+  return result;
+}
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -1218,7 +1513,7 @@ function OLLDaySuite() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return { ...DEFAULT_USERS, ...parsed };
+          return mergeDefaultUsersWithStored(parsed);
         }
       }
     } catch {
@@ -1308,6 +1603,8 @@ function OLLDaySuite() {
   const [pinEntryInput, setPinEntryInput] = useState('');
   const [pinErrorMsg, setPinErrorMsg] = useState('');
   const [myPinDraft, setMyPinDraft] = useState('');
+  const [showOwnPin, setShowOwnPin] = useState(false);
+  const [ownPinStatusMsg, setOwnPinStatusMsg] = useState('');
   const [adminMasterPin, setAdminMasterPin] = useState(() => {
     try {
       const savedPin = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.masterPin) : null;
@@ -1328,6 +1625,11 @@ function OLLDaySuite() {
   const [f2lSession, setF2lSession] = useState(null); // { dayObj, index, queue }
   const [f2lDrillCase, setF2lDrillCase] = useState(null);
   const [f2lViewIdx, setF2lViewIdx] = useState(0);
+  const [f2lDragRot, setF2lDragRot] = useState({ yaw: -35, pitch: -25 });
+  const [f2lCommittedRot, setF2lCommittedRot] = useState({ yaw: -35, pitch: -25 });
+  const [f2lIsDragging, setF2lIsDragging] = useState(false);
+  const f2lDragStartRef = useRef(null);
+  const f2lLastFetchTimeRef = useRef(0);
   const [ollSession, setOllSession] = useState(null);
   const [ollDrillCase, setOllDrillCase] = useState(null);
   const [pllSession, setPllSession] = useState(null);
@@ -1488,17 +1790,46 @@ function OLLDaySuite() {
               });
               return;
             }
+            const remoteRaw = {};
+            const remoteIds = new Set();
+            snapshot.forEach((docSnap) => {
+              const id = String(docSnap.id);
+              remoteIds.add(id);
+              const data = docSnap.data();
+              if (data && typeof data === 'object' && !data.$$typeof) {
+                remoteRaw[id] = data;
+              }
+            });
+
+            // Backfill any missing default profiles or missing default PINs to cloud
+            Object.entries(DEFAULT_USERS).forEach(([defKey, defVal]) => {
+              const rem = remoteRaw[defKey];
+              if (!rem) {
+                fsMod.setDoc(fsMod.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', defKey), {
+                  ...sanitizeUserRecord(defVal),
+                  name: defKey
+                }).catch(() => {});
+              } else if (!rem._deleted && defVal.pin && String(rem.pin || '').replace(/\D/g, '').length !== 4) {
+                fsMod.setDoc(
+                  fsMod.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', defKey),
+                  { pin: defVal.pin, updatedAt: Date.now() },
+                  { merge: true }
+                ).catch(() => {});
+              }
+            });
+
             setUsers((prev) => {
-              const merged = { ...prev };
-              snapshot.forEach((docSnap) => {
-                const id = String(docSnap.id);
-                const data = docSnap.data();
-                if (data && typeof data === 'object' && !data.$$typeof) {
-                  if (data._deleted) {
-                    delete merged[id];
-                  } else {
-                    merged[id] = sanitizeUserRecord(data);
-                  }
+              const merged = mergeDefaultUsersWithStored(prev);
+              Object.entries(remoteRaw).forEach(([id, data]) => {
+                if (data._deleted) {
+                  delete merged[id];
+                } else {
+                  const sanitized = sanitizeUserRecord(data);
+                  const defPin = DEFAULT_USERS[id]?.pin || '';
+                  merged[id] = {
+                    ...sanitized,
+                    pin: sanitized.pin.length === 4 ? sanitized.pin : defPin
+                  };
                 }
               });
               return Object.keys(merged).length > 0 ? merged : prev;
@@ -1892,6 +2223,60 @@ function OLLDaySuite() {
   const activeOLLSessionCase = ollSession?.queue?.[ollSession.index] || null;
   const activePLLSessionCase = pllSession?.queue?.[pllSession.index] || null;
 
+  const setF2LPresetAngle = (nextIdx) => {
+    const preset = F2L_VIEW_ANGLES[nextIdx % F2L_VIEW_ANGLES.length];
+    setF2lViewIdx(nextIdx % F2L_VIEW_ANGLES.length);
+    setF2lDragRot({ yaw: preset.yaw, pitch: preset.pitch });
+    setF2lCommittedRot({ yaw: preset.yaw, pitch: preset.pitch });
+  };
+
+  const handleF2LCubePointerDown = (e) => {
+    e.stopPropagation();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    f2lDragStartRef.current = {
+      lastX: clientX,
+      lastY: clientY,
+      moved: false
+    };
+    setF2lIsDragging(true);
+  };
+
+  const handleF2LCubePointerMove = (e) => {
+    if (!f2lDragStartRef.current) return;
+    if (e.cancelable) e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const deltaX = clientX - f2lDragStartRef.current.lastX;
+    const deltaY = clientY - f2lDragStartRef.current.lastY;
+    f2lDragStartRef.current.lastX = clientX;
+    f2lDragStartRef.current.lastY = clientY;
+
+    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+      f2lDragStartRef.current.moved = true;
+    }
+
+    // Track exact finger velocity & displacement frame-by-frame in real time
+    setF2lDragRot((prev) => {
+      const nextYaw = Math.round(prev.yaw + deltaX * 1.15);
+      const nextPitch = Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)));
+      return { yaw: nextYaw, pitch: nextPitch };
+    });
+  };
+
+  const handleF2LCubePointerUp = () => {
+    if (!f2lDragStartRef.current) return;
+    const wasTap = !f2lDragStartRef.current.moved;
+    f2lDragStartRef.current = null;
+    setF2lIsDragging(false);
+    if (wasTap) {
+      emitBeep(620);
+      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
+    } else {
+      setF2lCommittedRot(f2lDragRot);
+    }
+  };
+
   // Settings Deck Touch Swipe Handlers
   const handleDeckTouchStart = (e) => {
     if (e.target.closest('[data-scrollable="true"]')) return;
@@ -2247,40 +2632,26 @@ function OLLDaySuite() {
 
           <button
             onClick={() => {
-              emitBeep(600);
-              openCurriculumBuilder(activePhase === 'oll' ? 'oll' : activePhase === 'pll' ? 'pll' : 'f2l');
-            }}
-            className="w-full p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left flex items-center justify-between cursor-pointer"
-          >
-            <div>
-              <p className="text-xs font-black text-white">Custom Chunk Curriculum Builder</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Build your own F2L, OLL, or PLL learning groups</p>
-            </div>
-            <span className="text-slate-400 font-black text-sm">→</span>
-          </button>
-
-          <button
-            onClick={() => {
-              emitBeep(400);
+              emitBeep(420);
               setActiveModal('reset');
             }}
-            className="w-full p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
+            className="w-full p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
           >
             <div>
-              <p className="text-xs font-black text-red-300">Reset Progress ({activeUserKey})</p>
-              <p className="text-[10px] text-red-300/75 mt-0.5">Granular F2L, OLL, PLL, stats, or full profile reset</p>
+              <p className="text-xs font-black text-red-300">Granular Reset Progress</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Reset F2L, OLL, or PLL stats &amp; days</p>
             </div>
             <span className="text-red-400 font-black text-sm">↺</span>
           </button>
         </div>
 
-        {/* Card 5: Admin Panel (User PINs, Profiles & Day Overrides) */}
+        {/* Card 5: Admin Panel */}
         <div
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 5 of 5 • System Control
+              Card 5 of 5 • Admin Controls
             </span>
             <button
               onClick={() => {
@@ -2289,32 +2660,83 @@ function OLLDaySuite() {
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              Back to Card 1 →
+              Preferences →
             </button>
           </div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-black text-white">Admin Panel</h3>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                cloudSyncStatus === 'synced'
-                  ? 'bg-green-500/15 text-green-300 border border-green-500/30'
-                  : 'bg-slate-800 text-slate-400'
-              }`}>
-                {cloudSyncStatus === 'synced' ? 'Cloud Synced' : 'Local Mode'}
-              </span>
+          <h3 className="text-lg font-black text-white mb-2">Admin Panel</h3>
+
+          {/* Personal 4-Digit Profile PIN Setter (User can view & change ONLY their own PIN) */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2 mb-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-white">My PIN ({String(activeUserKey)})</span>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-orange-500/15 text-orange-300 border border-orange-500/30">
+                  {currentUser.pin
+                    ? showOwnPin
+                      ? String(currentUser.pin)
+                      : '••••'
+                    : 'Not Set'}
+                </span>
+                {currentUser.pin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(520);
+                      setShowOwnPin((v) => !v);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-black uppercase text-slate-300 cursor-pointer"
+                  >
+                    {showOwnPin ? 'Hide' : 'Show'}
+                  </button>
+                )}
+              </div>
             </div>
-            {adminUnlocked && (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={myPinDraft}
+                onChange={(e) => {
+                  setOwnPinStatusMsg('');
+                  setMyPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4));
+                }}
+                placeholder="New 4-digit PIN"
+                className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500"
+              />
               <button
                 type="button"
                 onClick={() => {
-                  emitBeep(440);
-                  setAdminUnlocked(false);
-                  setAdminGateInput('');
+                  const cleanPin = myPinDraft.replace(/\D/g, '').slice(0, 4);
+                  if (cleanPin.length !== 4) {
+                    setOwnPinStatusMsg('Enter 4 digits');
+                    return;
+                  }
+                  const duplicateUser = Object.entries(usersRef.current || users).find(
+                    ([k, u]) => k !== activeUserKey && String(u?.pin || '').replace(/\D/g, '') === cleanPin
+                  );
+                  if (duplicateUser || cleanPin === adminMasterPin) {
+                    emitBeep(260, 'sawtooth', 0.12);
+                    setOwnPinStatusMsg('PIN unavailable — pick another');
+                    return;
+                  }
+                  emitBeep(760);
+                  const updated = { ...currentUser, pin: cleanPin };
+                  setUsers((prev) => ({
+                    ...prev,
+                    [activeUserKey]: updated
+                  }));
+                  saveUserToCloud(activeUserKey, updated);
+                  setMyPinDraft('');
+                  setOwnPinStatusMsg('PIN updated & saved');
                 }}
-                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
               >
-                Lock Admin
+                Save
               </button>
+            </div>
+            {ownPinStatusMsg && (
+              <p className="text-[10px] font-bold text-amber-300">{ownPinStatusMsg}</p>
             )}
           </div>
 
@@ -2659,24 +3081,20 @@ function OLLDaySuite() {
               <button
                 onClick={() => {
                   emitBeep(520);
-                  if (activeUserKey === 'Me') {
-                    setActiveModal('profile');
-                  } else {
-                    setPinEntryInput('');
-                    setPinErrorMsg('');
-                    setPendingUserSwitch(null);
-                    setIsAdminSession(false);
-                    setStartupPinLocked(true);
-                  }
+                  setPinEntryInput('');
+                  setPinErrorMsg('');
+                  setPendingUserSwitch(null);
+                  setIsAdminSession(false);
+                  setAdminUnlocked(false);
+                  setShowOwnPin(false);
+                  setStartupPinLocked(true);
                 }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
-                title={activeUserKey === 'Me' ? 'Switch Solver (Me Only)' : 'Lock & Return to PIN Screen'}
+                title="Lock & Return to PIN Screen"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                <span className="max-w-[64px] truncate">{String(activeUserKey)}</span>
-                {activeUserKey !== 'Me' && (
-                  <span className="text-[9px] uppercase tracking-wider text-orange-400 font-black ml-0.5">Lock</span>
-                )}
+                <span className="max-w-[76px] truncate">{String(activeUserKey)}</span>
+                <span className="text-[9px] uppercase tracking-wider text-orange-400 font-black ml-0.5">Lock</span>
               </button>
 
               {/* C-F-O-P Phase Selector */}
@@ -4629,15 +5047,15 @@ function OLLDaySuite() {
             <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
               <div className="w-full flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Angle: <strong className="text-orange-400">{F2L_VIEW_ANGLES[f2lViewIdx].label}</strong>
+                  Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
                 </span>
                 <div className="flex items-center gap-1.5">
-                  {f2lViewIdx !== 0 && (
+                  {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
                     <button
                       type="button"
                       onClick={() => {
                         emitBeep(480);
-                        setF2lViewIdx(0);
+                        setF2LPresetAngle(0);
                       }}
                       className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
                     >
@@ -4648,7 +5066,7 @@ function OLLDaySuite() {
                     type="button"
                     onClick={() => {
                       emitBeep(620);
-                      setF2lViewIdx((prev) => (prev + 1) % F2L_VIEW_ANGLES.length);
+                      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
                     }}
                     className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
                   >
@@ -4658,24 +5076,26 @@ function OLLDaySuite() {
               </div>
 
               <div
-                onClick={() => {
-                  emitBeep(620);
-                  setF2lViewIdx((prev) => (prev + 1) % F2L_VIEW_ANGLES.length);
-                }}
-                title="Tap cube to rotate camera angle"
-                className="w-36 h-36 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                onMouseDown={handleF2LCubePointerDown}
+                onMouseMove={handleF2LCubePointerMove}
+                onMouseUp={handleF2LCubePointerUp}
+                onMouseLeave={handleF2LCubePointerUp}
+                onTouchStart={handleF2LCubePointerDown}
+                onTouchMove={handleF2LCubePointerMove}
+                onTouchEnd={handleF2LCubePointerUp}
+                title="Drag in any direction to spin the 3D cube in real time"
+                style={{ touchAction: 'none' }}
+                className="w-44 h-44 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none relative"
               >
-                <img
-                  src={getF2LImageUrl(
-                    activeF2LSessionCase.alg,
-                    F2L_VIEW_ANGLES[f2lViewIdx].rot,
-                    f2lSetupMode === 'realistic'
-                      ? generateF2LSetupScramble(activeF2LSessionCase.alg, 'realistic', f2lSetupSeed)
-                      : null
-                  )}
-                  alt={activeF2LSessionCase.name}
-                  className="w-full h-full object-contain f2l-cube-satin"
+                <F2LSpatial3DCube
+                  setupScramble={generateF2LSetupScramble(activeF2LSessionCase.alg, f2lSetupMode, f2lSetupSeed)}
+                  yaw={f2lDragRot.yaw}
+                  pitch={f2lDragRot.pitch}
+                  isDragging={f2lIsDragging}
                 />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                  3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
+                </span>
               </div>
 
               <div className="text-center">
@@ -4815,15 +5235,15 @@ function OLLDaySuite() {
 
               <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-1.5">
                 <span className="text-[10px] font-bold text-slate-300">
-                  {F2L_VIEW_ANGLES[f2lViewIdx].label}
+                  {getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}
                 </span>
                 <div className="flex items-center gap-1.5">
-                  {f2lViewIdx !== 0 && (
+                  {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
                     <button
                       type="button"
                       onClick={() => {
                         emitBeep(480);
-                        setF2lViewIdx(0);
+                        setF2LPresetAngle(0);
                       }}
                       className="px-2 py-0.5 rounded bg-white/5 text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
                     >
@@ -4834,7 +5254,7 @@ function OLLDaySuite() {
                     type="button"
                     onClick={() => {
                       emitBeep(620);
-                      setF2lViewIdx((prev) => (prev + 1) % F2L_VIEW_ANGLES.length);
+                      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
                     }}
                     className="px-2.5 py-0.5 rounded bg-orange-500/20 border border-orange-500/40 text-[10px] font-black text-orange-400 cursor-pointer"
                   >
@@ -4844,24 +5264,26 @@ function OLLDaySuite() {
               </div>
 
               <div
-                onClick={() => {
-                  emitBeep(620);
-                  setF2lViewIdx((prev) => (prev + 1) % F2L_VIEW_ANGLES.length);
-                }}
-                title="Tap cube to rotate camera angle"
-                className="w-36 h-36 mx-auto flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                onMouseDown={handleF2LCubePointerDown}
+                onMouseMove={handleF2LCubePointerMove}
+                onMouseUp={handleF2LCubePointerUp}
+                onMouseLeave={handleF2LCubePointerUp}
+                onTouchStart={handleF2LCubePointerDown}
+                onTouchMove={handleF2LCubePointerMove}
+                onTouchEnd={handleF2LCubePointerUp}
+                title="Drag in any direction to spin the 3D cube in real time"
+                style={{ touchAction: 'none' }}
+                className="w-44 h-44 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none relative"
               >
-                <img
-                  src={getF2LImageUrl(
-                    f2lDrillCase.alg,
-                    F2L_VIEW_ANGLES[f2lViewIdx].rot,
-                    f2lSetupMode === 'realistic'
-                      ? generateF2LSetupScramble(f2lDrillCase.alg, 'realistic', f2lSetupSeed)
-                      : null
-                  )}
-                  alt={f2lDrillCase.name}
-                  className="w-full h-full object-contain f2l-cube-satin"
+                <F2LSpatial3DCube
+                  setupScramble={generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
+                  yaw={f2lDragRot.yaw}
+                  pitch={f2lDragRot.pitch}
+                  isDragging={f2lIsDragging}
                 />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                  3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
+                </span>
               </div>
 
               <h3 className="text-xl font-black text-white text-center">{f2lDrillCase.name}</h3>
@@ -6059,7 +6481,7 @@ function OLLDaySuite() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-red-400">
                   Granular Data Controls
                 </span>
-                <h3 className="text-xl font-black text-white">Reset {activeUserKey}&apos;s Progress</h3>
+                <h3 className="text-xl font-black text-white">Reset {String(activeUserKey)}&apos;s Progress</h3>
               </div>
 
               {/* Phase F (F2L) Reset Card */}
@@ -6069,28 +6491,18 @@ function OLLDaySuite() {
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
+                    type="button"
                     onClick={() => executeGranularReset('f2l-day')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Reset F2L Day (Day 1)
+                    Reset Day to 1
                   </button>
                   <button
+                    type="button"
                     onClick={() => executeGranularReset('f2l-stats')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Reset F2L PRs &amp; Stats
-                  </button>
-                  <button
-                    onClick={() => executeGranularReset('f2l-chunks')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Default F2L Chunks
-                  </button>
-                  <button
-                    onClick={() => executeGranularReset('f2l-all')}
-                    className="py-2 px-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer"
-                  >
-                    Reset All F2L
+                    Clear F2L PRs
                   </button>
                 </div>
               </div>
@@ -6102,28 +6514,18 @@ function OLLDaySuite() {
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
+                    type="button"
                     onClick={() => executeGranularReset('oll-day')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Reset OLL Day (Day 1)
+                    Reset Day to 1
                   </button>
                   <button
+                    type="button"
                     onClick={() => executeGranularReset('oll-stats')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Reset OLL PRs &amp; Stats
-                  </button>
-                  <button
-                    onClick={() => executeGranularReset('oll-chunks')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Default OLL Chunks
-                  </button>
-                  <button
-                    onClick={() => executeGranularReset('oll-all')}
-                    className="py-2 px-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer"
-                  >
-                    Reset All OLL
+                    Clear OLL PRs
                   </button>
                 </div>
               </div>
@@ -6135,29 +6537,134 @@ function OLLDaySuite() {
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
+                    type="button"
                     onClick={() => executeGranularReset('pll-day')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Reset PLL Day (Day 1)
+                    Reset Day to 1
                   </button>
                   <button
+                    type="button"
                     onClick={() => executeGranularReset('pll-stats')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Reset PLL PRs &amp; Stats
+                    Clear PLL PRs
                   </button>
-                  <button
-                    onClick={() => executeGranularReset('pll-chunks')}
-                    className="py-2 px-2 rounded-xl bg-slate-950 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Default PLL Chunks
-                  </button>
-                  <button
-                    onClick={() => executeGranularReset('pll-all')}
-                    className="py-2 px-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer"
-                  >
-                    Reset All PLL
-                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => executeGranularReset('both')}
+                className="w-full py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/35 text-xs font-black text-red-300 cursor-pointer"
+              >
+                Reset All Phases (Keep PIN)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 7. LOCK SCREEN PIN KEYPAD GATE (NO USER LIST VISIBLE ANYWHERE OUTSIDE ADMIN PANEL) */}
+        {startupPinLocked && (
+          <div className="fixed inset-0 z-[255] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3 shadow-2xl">
+              <div className="space-y-3.5 text-center">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                    OLLDay Everyday
+                  </span>
+                  <h3 className="text-xl font-black text-white">Enter PIN</h3>
+                </div>
+
+                {/* 4 PIN Dot Indicators */}
+                <div className="flex items-center justify-center gap-3 py-1">
+                  {[0, 1, 2, 3].map((idx) => (
+                    <span
+                      key={idx}
+                      className={`w-3.5 h-3.5 rounded-full border transition-all ${
+                        pinEntryInput.length > idx
+                          ? 'bg-orange-500 border-orange-400 scale-110'
+                          : 'bg-slate-950 border-white/20'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  {cloudSyncStatus === 'synced' ? '● Cloud Accounts Ready' : '○ Local & Cloud Ready'}
+                </p>
+
+                {pinErrorMsg && (
+                  <p className="text-[11px] font-bold text-red-400">{String(pinErrorMsg)}</p>
+                )}
+
+                {/* Tactile Numeric Keypad */}
+                <div className="grid grid-cols-3 gap-2">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', '⌫'].map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setPinErrorMsg('');
+                        if (key === 'Clear') {
+                          emitBeep(420);
+                          setPinEntryInput('');
+                          return;
+                        }
+                        if (key === '⌫') {
+                          emitBeep(460);
+                          setPinEntryInput((p) => p.slice(0, -1));
+                          return;
+                        }
+                        if (pinEntryInput.length >= 4) return;
+                        const nextVal = pinEntryInput + key;
+                        setPinEntryInput(nextVal);
+                        if (nextVal.length === 4) {
+                          const latestUsers = mergeDefaultUsersWithStored(usersRef.current || users);
+                          if (nextVal === adminMasterPin) {
+                            emitBeep(880, 'sine', 0.1);
+                            setActiveUserKey('Me');
+                            setIsAdminSession(true);
+                            setStartupPinLocked(false);
+                            setPendingUserSwitch(null);
+                            setPinEntryInput('');
+                            setActiveModal(null);
+                            return;
+                          }
+                          const matchedUser = Object.keys(latestUsers).find((uKey) => {
+                            const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
+                            return storedPin.length === 4 && storedPin === nextVal;
+                          });
+                          if (matchedUser) {
+                            emitBeep(880, 'sine', 0.1);
+                            setActiveUserKey(matchedUser);
+                            setIsAdminSession(matchedUser === 'Me');
+                            setStartupPinLocked(false);
+                            setPendingUserSwitch(null);
+                            setPinEntryInput('');
+                            setActiveModal(null);
+                          } else {
+                            emitBeep(260, 'sawtooth', 0.14);
+                            setPinErrorMsg('Invalid PIN');
+                            setPinEntryInput('');
+                          }
+                        } else {
+                          emitBeep(600, 'sine', 0.04);
+                        }
+                      }}
+                      className="py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 font-mono text-sm font-black text-white active:scale-95 transition-all cursor-pointer"
+                    >
+                      {key}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
