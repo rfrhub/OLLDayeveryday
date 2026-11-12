@@ -259,8 +259,10 @@ export default function App() {
   const lineupItemRefs = useRef([]);
   const lineupDidDragRef = useRef(false);
 
-  // Settings Deck & Modals State
+  // Settings Deck & Touch Swipe State
   const [settingsCard, setSettingsCard] = useState(1);
+  const [deckDragOffset, setDeckDragOffset] = useState(0);
+  const deckTouchStartRef = useRef(null);
   const [notationCategory, setNotationCategory] = useState('SINGLE');
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [activeModal, setActiveModal] = useState(null);
@@ -846,10 +848,55 @@ export default function App() {
     triggerToast(`Added profile: ${newUserName.trim()}`);
   };
 
-  // 3D Settings Deck Class Helper
+  // 3D Settings Deck Class & Mobile Touch Swipe Handlers
   const getDeckClass = (cardNum) => {
     const pos = ((cardNum - settingsCard + 3) % 3) + 1;
     return `deck-card deck-card-${pos}`;
+  };
+
+  const handleDeckTouchStart = (e) => {
+    if (e.target.closest('[data-scrollable="true"]')) {
+      deckTouchStartRef.current = null;
+      return;
+    }
+    const touch = e.touches[0];
+    deckTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    setDeckDragOffset(0);
+  };
+
+  const handleDeckTouchMove = (e) => {
+    if (!deckTouchStartRef.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - deckTouchStartRef.current.x;
+    const dy = touch.clientY - deckTouchStartRef.current.y;
+    const primaryDelta = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
+    setDeckDragOffset(Math.max(-90, Math.min(90, primaryDelta)));
+  };
+
+  const handleDeckTouchEnd = (e) => {
+    if (!deckTouchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - deckTouchStartRef.current.x;
+    const dy = touch.clientY - deckTouchStartRef.current.y;
+    deckTouchStartRef.current = null;
+    setDeckDragOffset(0);
+
+    const threshold = 42;
+    if (Math.abs(dx) >= Math.abs(dy) && Math.abs(dx) > threshold) {
+      emitBeep(580, 'sine', 0.07);
+      if (dx < 0) {
+        setSettingsCard((prev) => (prev % 3) + 1);
+      } else {
+        setSettingsCard((prev) => ((prev + 1) % 3) + 1);
+      }
+    } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > threshold) {
+      emitBeep(580, 'sine', 0.07);
+      if (dy < 0) {
+        setSettingsCard((prev) => (prev % 3) + 1);
+      } else {
+        setSettingsCard((prev) => ((prev + 1) % 3) + 1);
+      }
+    }
   };
 
   // =========================================================================
@@ -950,7 +997,16 @@ export default function App() {
         </button>
       </div>
 
-      <div className="relative w-full flex-1 min-h-[395px] max-h-[440px] my-auto">
+      <div
+        onTouchStart={handleDeckTouchStart}
+        onTouchMove={handleDeckTouchMove}
+        onTouchEnd={handleDeckTouchEnd}
+        style={{
+          transform: deckDragOffset !== 0 ? `translateX(${deckDragOffset * 0.28}px) rotate(${deckDragOffset * 0.03}deg)` : 'none',
+          transition: deckDragOffset === 0 ? 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'none'
+        }}
+        className="relative w-full flex-1 min-h-[395px] max-h-[440px] my-auto touch-pan-y"
+      >
         {/* Card 1: Pace & Environment */}
         <div className={`${getDeckClass(1)} bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between`}>
           <div className="space-y-2">
@@ -1054,7 +1110,7 @@ export default function App() {
               ))}
             </div>
 
-            <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 space-y-2 max-h-[185px] overflow-y-auto no-scrollbar">
+            <div data-scrollable="true" className="bg-[#050811] border border-white/10 rounded-2xl p-3 space-y-2 max-h-[185px] overflow-y-auto no-scrollbar">
               {NOTATION_TABS[notationCategory].map((row) => (
                 <div key={row.move} className="flex items-center gap-3 bg-slate-900/80 border border-white/5 rounded-xl p-2">
                   <span className="px-2.5 py-1 rounded-lg bg-orange-500/15 border border-orange-500/30 font-mono text-[11px] font-black text-orange-400 min-w-[54px] text-center">{row.move}</span>
@@ -2105,10 +2161,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* FIXED BOTTOM NAVIGATION BAR */}
-          <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-4 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
+          {/* FIXED SYMMETRICAL 4-COLUMN BOTTOM NAVIGATION BAR */}
+          <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-3 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
             {currentPhase === 'cross' && (
-              <div className="flex items-center justify-between w-full max-w-[360px] mx-auto">
+              <div className="grid grid-cols-4 gap-1 w-full">
                 {[
                   { id: 'ladder', label: 'Practice', svg: <><path d="M8 3v18"/><path d="M16 3v18"/><path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h8"/></> },
                   { id: 'blind', label: 'Blind Run', svg: <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></> },
@@ -2120,14 +2176,14 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => { emitBeep(460); setCrossTab(tab.id); }}
-                      className={isActive ? "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-orange-500 scale-105 cursor-pointer" : "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-slate-400 hover:text-slate-200 active:scale-95 cursor-pointer"}
+                      className={`w-full flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-2xl transition-all cursor-pointer ${isActive ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'}`}
                     >
                       <div className={isActive ? "p-2 rounded-xl bg-orange-500/15" : "p-2 rounded-xl bg-transparent"}>
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
                           {tab.svg}
                         </svg>
                       </div>
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
+                      <span className={`text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
                     </button>
                   );
                 })}
@@ -2135,7 +2191,7 @@ export default function App() {
             )}
 
             {currentPhase === 'oll' && (
-              <div className="flex items-center justify-between w-full max-w-[360px] mx-auto">
+              <div className="grid grid-cols-4 gap-1 w-full">
                 {[
                   { id: 'grind', label: 'The Grind', svg: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></> },
                   { id: 'algorithms', label: 'Algorithms', svg: <><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/></> },
@@ -2147,14 +2203,14 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => { emitBeep(460); setOllTab(tab.id); }}
-                      className={isActive ? "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-orange-500 scale-105 cursor-pointer" : "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-slate-400 hover:text-slate-200 active:scale-95 cursor-pointer"}
+                      className={`w-full flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-2xl transition-all cursor-pointer ${isActive ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'}`}
                     >
                       <div className={isActive ? "p-2 rounded-xl bg-orange-500/15" : "p-2 rounded-xl bg-transparent"}>
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
                           {tab.svg}
                         </svg>
                       </div>
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
+                      <span className={`text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
                     </button>
                   );
                 })}
@@ -2477,6 +2533,263 @@ export default function App() {
                     >
                       Complete Day {currentDay}
                     </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 5. ISOLATED DRILL MODAL */}
+        {activeModal === 'drill' && (() => {
+          const drillSetupScramble = buildSetupScramble(drillCase.setup, drillAufIdx);
+          return (
+            <div className="fixed inset-0 z-[260] bg-[#060913]/95 backdrop-blur-3xl flex justify-center overflow-hidden">
+              <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/5 shadow-2xl flex flex-col justify-between px-4 pt-4 pb-6 overflow-y-auto no-scrollbar gap-2.5">
+                <div className="flex items-center justify-between flex-shrink-0">
+                  <button onClick={() => { setTimerRunning(false); clearInterval(stopwatchRef.current); setInlineDrillFtOpen(false); setActiveModal(null); }} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs flex items-center justify-center cursor-pointer active:scale-95">✕</button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Isolated Drill • #{drillCase.id}</span>
+                  <div className="w-8"></div>
+                </div>
+
+                <div className="bg-slate-900/75 border border-white/10 rounded-[1.75rem] p-4 text-center space-y-3 my-auto shadow-xl">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">{drillCase.group}</span>
+                  <h3 className="text-2xl font-black text-white leading-tight">{drillCase.name}</h3>
+                  <div className="w-24 h-24 mx-auto bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                    <img src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(drillCase.alg)}`} alt={drillCase.name} className="w-full h-full object-contain" />
+                  </div>
+
+                  <div className="bg-[#050811] border border-white/10 rounded-xl px-3 py-2">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Setup Scramble</span>
+                      <button
+                        onClick={cycleDrillScramble}
+                        className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-bold text-orange-400 cursor-pointer active:scale-95"
+                      >
+                        New Scramble
+                      </button>
+                    </div>
+                    <div className="font-mono text-xs font-bold text-amber-300">{drillSetupScramble}</div>
+                  </div>
+
+                  {showDrillAlg ? (
+                    <div className="bg-[#050811] border border-white/10 rounded-xl py-2.5 px-3 font-mono text-sm font-black text-orange-400">{drillCase.alg}</div>
+                  ) : (
+                    <button onClick={() => setShowDrillAlg(true)} className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Reveal Algorithm</button>
+                  )}
+
+                  {isFingertricksEnabled && (
+                    !inlineDrillFtOpen ? (
+                      <button
+                        onClick={() => { emitBeep(660, 'sine', 0.08); setFtTriggerIdx(0); setInlineDrillFtOpen(true); }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[11px] font-bold text-amber-300 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span>Fingertrick Guide</span>
+                      </button>
+                    ) : (
+                      renderInlineFingertrickPanel(drillCase, () => setInlineDrillFtOpen(false))
+                    )
+                  )}
+
+                  {isTimerEnabled && (
+                    <button
+                      onClick={() => toggleOLLStopwatch(drillCase.id)}
+                      className={`w-full py-3 rounded-2xl border-2 font-mono text-xl font-black transition-all cursor-pointer ${timerRunning ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-slate-950 border-white/15 text-white'}`}
+                    >
+                      {timerRunning ? `${timerElapsed.toFixed(2)}s (STOP)` : `${timerElapsed > 0 ? timerElapsed.toFixed(2) + 's' : 'TAP TO TIME'}`}
+                    </button>
+                  )}
+                </div>
+
+                <button onClick={() => { setInlineDrillFtOpen(false); setActiveModal(null); }} className="w-full py-3.5 rounded-2xl bg-white/10 text-white font-bold text-xs cursor-pointer flex-shrink-0">Done Drilling</button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 6. INTERACTIVE FINGERTRICK DOSSIER MODAL */}
+        {activeModal === 'fingertrick' && (() => {
+          const dossier = FINGERTRICK_GUIDES[ftCase.id] || FINGERTRICK_GUIDES.default;
+          const activeTrig = dossier.triggers[ftTriggerIdx % dossier.triggers.length];
+          return (
+            <div className="fixed inset-0 z-[270] bg-[#060913]/95 backdrop-blur-3xl flex flex-col justify-between p-5 overflow-y-auto no-scrollbar">
+              <div className="flex items-center justify-between max-w-md w-full mx-auto">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Fingertrick Guide</span>
+                  <h3 className="text-xl font-black text-white">{ftCase.name} (#{ftCase.id})</h3>
+                </div>
+                <button
+                  onClick={() => setActiveModal(ftReturnModal)}
+                  className="px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/15 text-xs font-bold text-white cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="max-w-md w-full mx-auto space-y-4 my-4">
+                <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex items-center gap-4">
+                  <div className="w-20 h-20 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center">
+                    <img src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(ftCase.alg)}`} alt={ftCase.name} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <div className="font-mono text-sm font-black text-orange-400">{ftCase.alg}</div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300">Grip: {dossier.grip}</span>
+                      <span className="px-2.5 py-1 rounded-lg bg-green-500/15 border border-green-500/30 text-[10px] font-bold text-green-300">{dossier.regrips}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 px-1">Trigger Breakdown (Tap Pill)</span>
+                  <div className="flex flex-wrap gap-2">
+                    {dossier.triggers.map((t, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => { emitBeep(560); setFtTriggerIdx(idx); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer ${ftTriggerIdx % dossier.triggers.length === idx ? 'bg-orange-500/20 border border-orange-500 text-orange-300' : 'bg-white/5 border border-white/10 text-slate-300'}`}
+                      >
+                        {t.moves}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 space-y-1.5">
+                    <span className="text-xs font-black text-amber-300">{activeTrig.label} ({activeTrig.moves})</span>
+                    <p className="text-xs text-slate-300 leading-relaxed">{activeTrig.tip}</p>
+                  </div>
+                </div>
+
+                <div className="bg-[#050811] border border-orange-500/30 rounded-2xl p-4 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Speedcoach Note</span>
+                  <p className="text-xs text-slate-300 leading-relaxed">{dossier.coachNote}</p>
+                </div>
+              </div>
+
+              <div className="max-w-md w-full mx-auto">
+                <button
+                  onClick={() => setActiveModal(ftReturnModal)}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                >
+                  Back to Practice
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 7. CURRICULUM ARCHITECT MODAL */}
+        {activeModal === 'curriculum' && (() => {
+          const activeBuilderChunk = draftChunks[selectedBuilderChunkIdx] || draftChunks[0];
+          const casesInBuilderChunk = activeBuilderChunk.caseIds.map((id) => OLL_DATA.find((c) => c.id === id)).filter(Boolean);
+          return (
+            <div className="fixed inset-0 z-[270] bg-[#060913]/95 backdrop-blur-3xl flex flex-col justify-between p-5 overflow-y-auto no-scrollbar">
+              <div className="max-w-md w-full mx-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Curriculum Architect</span>
+                    <h3 className="text-xl font-black text-white">Organize Cases</h3>
+                  </div>
+                  <button onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/10 text-white text-xs cursor-pointer">✕</button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={() => applyCurriculumPreset('default')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">Standard 9</button>
+                  <button onClick={() => applyCurriculumPreset('casual')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">Casual 3/Chunk</button>
+                  <button onClick={() => applyCurriculumPreset('shape')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">By Shape</button>
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                  {draftChunks.map((chk, idx) => (
+                    <button
+                      key={chk.id}
+                      onClick={() => { emitBeep(500); setSelectedBuilderChunkIdx(idx); setMovingCaseId(null); }}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-black whitespace-nowrap cursor-pointer ${selectedBuilderChunkIdx === idx ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400'}`}
+                    >
+                      Chunk {idx + 1} ({chk.caseIds.length})
+                    </button>
+                  ))}
+                  <button onClick={addBuilderChunk} className="px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-300 text-[11px] font-black whitespace-nowrap cursor-pointer">+ Chunk</button>
+                </div>
+
+                <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      value={activeBuilderChunk.title}
+                      onChange={(e) => {
+                        const copy = [...draftChunks];
+                        copy[selectedBuilderChunkIdx] = { ...activeBuilderChunk, title: e.target.value };
+                        setDraftChunks(copy);
+                      }}
+                      className="flex-1 bg-[#050811] border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-orange-500"
+                    />
+                    <button onClick={() => shiftBuilderChunk(-1)} className="w-7 h-7 rounded-lg bg-white/5 text-xs font-black text-white cursor-pointer">↑</button>
+                    <button onClick={() => shiftBuilderChunk(1)} className="w-7 h-7 rounded-lg bg-white/5 text-xs font-black text-white cursor-pointer">↓</button>
+                    {draftChunks.length > 1 && (
+                      <button onClick={removeBuilderChunk} className="w-7 h-7 rounded-lg bg-red-500/20 text-xs font-black text-red-400 cursor-pointer">🗑</button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 max-h-[260px] overflow-y-auto no-scrollbar">
+                    {casesInBuilderChunk.map((item) => (
+                      <div key={item.id} className="bg-[#050811] border border-white/5 rounded-xl p-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`} alt={item.name} className="w-8 h-8 bg-slate-200 rounded-lg p-0.5" />
+                          <span className="text-xs font-bold text-white truncate">{item.name}</span>
+                        </div>
+                        {movingCaseId === item.id ? (
+                          <div className="flex gap-1 flex-wrap justify-end">
+                            {draftChunks.map((_, tIdx) => tIdx !== selectedBuilderChunkIdx && (
+                              <button key={tIdx} onClick={() => moveCaseToChunk(item.id, tIdx)} className="px-2 py-1 rounded bg-orange-500 text-slate-950 font-black text-[10px] cursor-pointer">
+                                → C{tIdx + 1}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <button onClick={() => setMovingCaseId(item.id)} className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-orange-400 cursor-pointer">
+                            Move
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="max-w-md w-full mx-auto pt-3">
+                <button onClick={saveCustomCurriculum} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer shadow-lg">
+                  Save Custom Curriculum ({generateSchedule(draftChunks).length} Days)
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 8. BEGINNER ONBOARDING GUIDE MODAL */}
+        {activeModal === 'onboarding' && (() => {
+          const slides = [
+            { tag: "Welcome to OLLDay", title: "Master OLL One Chunk at a Time", body: "Instead of memorizing 57 algorithms overnight, OLLDay breaks them into small daily chunks with dedicated Learn, Drill, and Review days." },
+            { tag: "How to Practice", title: "Hold Yellow on Top", body: "Always hold your 3x3 cube with the Yellow center facing UP. Match the top sticker pattern to the diagram, then execute the algorithm cleanly." },
+            { tag: "Fingertricks & Timing", title: "Triggers Over Single Turns", body: "Use the Fingertrick Guide on any pattern to learn zero-regrip triggers like Sexy Move (R U R' U') and Sledgehammer (R' F R F')." }
+          ];
+          const slide = slides[onboardStep % slides.length];
+          return (
+            <div className="fixed inset-0 z-[275] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/15 px-3 py-1 rounded-full border border-orange-500/30">{slide.tag}</span>
+                <h3 className="text-xl font-black text-white">{slide.title}</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">{slide.body}</p>
+                <div className="flex justify-center gap-1.5">
+                  {slides.map((_, idx) => (
+                    <span key={idx} className={`h-1.5 rounded-full ${onboardStep === idx ? 'w-5 bg-orange-500' : 'w-1.5 bg-slate-700'}`}></span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  {onboardStep < slides.length - 1 ? (
+                    <button onClick={() => { emitBeep(560); setOnboardStep((p) => p + 1); }} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Next Tip →</button>
+                  ) : (
+                    <button onClick={() => { updateCurrentUser({ hasSeenOnboarding: true }); setActiveModal(null); }} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-400 text-slate-950 font-black text-xs cursor-pointer">Start Training</button>
                   )}
                 </div>
               </div>
