@@ -1,3587 +1,2572 @@
-/** @jsx _jsxCompat */
-/** @jsxFrag _jsxFragCompat */
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-// --- REACT 18 COMPATIBILITY SHIELD ---
-const REACT_ELEMENT_SYMBOL = typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.element') : 0xeac7;
-const REACT_FRAGMENT_SYMBOL = typeof Symbol === 'function' && Symbol.for ? Symbol.for('react.fragment') : 0xeacb;
-
-if (typeof Symbol !== 'undefined' && typeof Symbol.for === 'function') {
-  try {
-    const _origSymbolFor = Symbol.for;
-    Symbol.for = function (name) {
-      if (name === 'react.transitional.element') {
-        return _origSymbolFor.call(Symbol, 'react.element');
-      }
-      return _origSymbolFor.call(Symbol, name);
-    };
-  } catch (e) {}
-}
-
-const sanitizeNode = (node) => {
-  if (!node || typeof node !== 'object') return node;
-  if (node.$$typeof && node.$$typeof !== REACT_ELEMENT_SYMBOL) {
-    try {
-      node.$$typeof = REACT_ELEMENT_SYMBOL;
-    } catch (e) {
-      node = Object.assign({}, node, { $$typeof: REACT_ELEMENT_SYMBOL });
-    }
-  }
-  if (Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) {
-      node[i] = sanitizeNode(node[i]);
-    }
-  } else if (node.props) {
-    for (const key in node.props) {
-      if (Object.prototype.hasOwnProperty.call(node.props, key)) {
-        const val = node.props[key];
-        if (val && typeof val === 'object') {
-          node.props[key] = sanitizeNode(val);
-        }
-      }
-    }
-  }
-  return node;
-};
-
-const _RealReact = (typeof window !== 'undefined' && window.React) ? window.React : React;
-
-const _jsxCompat = (type, props, ...children) => {
-  if (_RealReact && typeof _RealReact.createElement === 'function') {
-    const el = children.length > 0 
-      ? _RealReact.createElement(type, props || null, ...children)
-      : _RealReact.createElement(type, props || null);
-    return sanitizeNode(el);
-  }
-
-  const finalProps = props ? Object.assign({}, props) : {};
-  if (children.length === 1) {
-    finalProps.children = children[0];
-  } else if (children.length > 1) {
-    finalProps.children = children;
-  }
-
-  const el = {
-    $$typeof: REACT_ELEMENT_SYMBOL,
-    type: type,
-    key: props && props.key !== undefined ? '' + props.key : null,
-    ref: props && props.ref !== undefined ? props.ref : null,
-    props: finalProps,
-    _owner: null,
-    _store: {}
-  };
-  return sanitizeNode(el);
-};
-
-const _jsxFragCompat = (_RealReact && _RealReact.Fragment) || REACT_FRAGMENT_SYMBOL;
-
-// --- INLINE SVG ICON WRAPPER & ICONS ---
-const IconWrapper = ({ children, size = 20, className = "", strokeWidth = 2, ...props }) => {
-  const childArray = (_RealReact && _RealReact.Children && typeof _RealReact.Children.toArray === 'function')
-    ? _RealReact.Children.toArray(children)
-    : (Array.isArray(children) ? children : [children]);
-
-  const keyedChildren = childArray.map((child, idx) => {
-    if (child && typeof child === 'object') {
-      const currentKey = child.key !== null && child.key !== undefined ? child.key : `ic-${idx}`;
-      if (_RealReact && typeof _RealReact.cloneElement === 'function') {
-        return _RealReact.cloneElement(child, { key: currentKey });
-      }
-      return Object.assign({}, child, { key: currentKey });
-    }
-    return child;
-  });
-
-  return sanitizeNode(
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      {...props}
-    >
-      {keyedChildren}
-    </svg>
-  );
-};
-
-const Target = (props) => (
-  <IconWrapper {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <circle cx="12" cy="12" r="6" />
-    <circle cx="12" cy="12" r="2" />
-  </IconWrapper>
-);
-
-const Layers = (props) => (
-  <IconWrapper {...props}>
-    <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
-    <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
-    <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
-  </IconWrapper>
-);
-
-const BarChart3 = (props) => (
-  <IconWrapper {...props}>
-    <line x1="12" x2="12" y1="20" y2="10" />
-    <line x1="18" x2="18" y1="20" y2="4" />
-    <line x1="6" x2="6" y1="20" y2="16" />
-  </IconWrapper>
-);
-
-const Settings = (props) => (
-  <IconWrapper {...props}>
-    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-    <circle cx="12" cy="12" r="3" />
-  </IconWrapper>
-);
-
-const Eye = (props) => (
-  <IconWrapper {...props}>
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-    <circle cx="12" cy="12" r="3" />
-  </IconWrapper>
-);
-
-const EyeOff = (props) => (
-  <IconWrapper {...props}>
-    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-    <line x1="2" x2="22" y1="2" y2="22" />
-  </IconWrapper>
-);
-
-const Dumbbell = (props) => (
-  <IconWrapper {...props}>
-    <path d="m6.5 6.5 11 11" />
-    <path d="m21 21-1-1" />
-    <path d="m3 3 1 1" />
-    <path d="m18 22 4-4" />
-    <path d="m2 6 4-4" />
-    <path d="m3 10 7-7" />
-    <path d="m14 21 7-7" />
-  </IconWrapper>
-);
-
-const BookOpenCheck = (props) => (
-  <IconWrapper {...props}>
-    <path d="M8 3H2v15h7c1.7 0 3 1.3 3 3V7c0-2.2-1.8-4-4-4Z" />
-    <path d="m16 12 2 2 4-4" />
-    <path d="M22 6V3h-6c-2.2 0-4 1.8-4 4v14c0-1.7 1.3-3 3-3h7v-2" />
-  </IconWrapper>
-);
-
-const ChevronRight = (props) => (
-  <IconWrapper {...props}>
-    <path d="m9 18 6-6-6-6" />
-  </IconWrapper>
-);
-
-const ChevronLeft = (props) => (
-  <IconWrapper {...props}>
-    <path d="m15 18-6-6 6-6" />
-  </IconWrapper>
-);
-
-const ChevronUp = (props) => (
-  <IconWrapper {...props}>
-    <path d="m18 15-6-6-6 6" />
-  </IconWrapper>
-);
-
-const ChevronDown = (props) => (
-  <IconWrapper {...props}>
-    <path d="m6 9 6 6 6-6" />
-  </IconWrapper>
-);
-
-const X = (props) => (
-  <IconWrapper {...props}>
-    <path d="M18 6 6 18" />
-    <path d="m6 6 12 12" />
-  </IconWrapper>
-);
-
-const RotateCcw = (props) => (
-  <IconWrapper {...props}>
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-    <path d="M3 3v5h5" />
-  </IconWrapper>
-);
-
-const CheckCircle2 = (props) => (
-  <IconWrapper {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="m9 12 2 2 4-4" />
-  </IconWrapper>
-);
-
-const Trophy = (props) => (
-  <IconWrapper {...props}>
-    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-    <path d="M4 22h16" />
-    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-  </IconWrapper>
-);
-
-const Timer = (props) => (
-  <IconWrapper {...props}>
-    <line x1="10" x2="14" y1="2" y2="2" />
-    <line x1="12" x2="15" y1="14" y2="11" />
-    <circle cx="12" cy="14" r="8" />
-  </IconWrapper>
-);
-
-const Compass = (props) => (
-  <IconWrapper {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-  </IconWrapper>
-);
-
-const Lock = (props) => (
-  <IconWrapper {...props}>
-    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-  </IconWrapper>
-);
-
-const UserPlus = (props) => (
-  <IconWrapper {...props}>
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <line x1="19" x2="19" y1="8" y2="14" />
-    <line x1="22" x2="16" y1="11" y2="11" />
-  </IconWrapper>
-);
-
-const Users = (props) => (
-  <IconWrapper {...props}>
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </IconWrapper>
-);
-
-const ShieldAlert = (props) => (
-  <IconWrapper {...props}>
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-    <line x1="12" x2="12" y1="8" y2="12" />
-    <line x1="12" x2="12.01" y1="16" y2="16" />
-  </IconWrapper>
-);
-
-const Zap = (props) => (
-  <IconWrapper {...props}>
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </IconWrapper>
-);
-
-const Key = (props) => (
-  <IconWrapper {...props}>
-    <circle cx="7.5" cy="15.5" r="5.5" />
-    <path d="m21 3-9.5 9.5" />
-    <path d="m15.5 7.5 3 3L22 7l-3-3" />
-  </IconWrapper>
-);
-
-const Trash2 = (props) => (
-  <IconWrapper {...props}>
-    <path d="M3 6h18" />
-    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-    <line x1="10" x2="10" y1="11" y2="17" />
-    <line x1="14" x2="14" y1="11" y2="17" />
-  </IconWrapper>
-);
-
-const Copy = (props) => (
-  <IconWrapper {...props}>
-    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-  </IconWrapper>
-);
-
-const ArrowDownToLine = (props) => (
-  <IconWrapper {...props}>
-    <path d="M12 17V3" />
-    <path d="m6 11 6 6 6-6" />
-    <path d="M19 21H5" />
-  </IconWrapper>
-);
-
-const Cloud = (props) => (
-  <IconWrapper {...props}>
-    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-  </IconWrapper>
-);
-
-const HelpCircle = (props) => (
-  <IconWrapper {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" x2="12.01" y1="17" y2="17" />
-  </IconWrapper>
-);
-
-const Sparkles = (props) => (
-  <IconWrapper {...props}>
-    <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
-  </IconWrapper>
-);
-
-const Check = (props) => (
-  <IconWrapper {...props}>
-    <polyline points="20 6 9 17 4 12" />
-  </IconWrapper>
-);
-
-const Sliders = (props) => (
-  <IconWrapper {...props}>
-    <line x1="4" x2="4" y1="21" y2="14" />
-    <line x1="4" x2="4" y1="10" y2="3" />
-    <line x1="12" x2="12" y1="21" y2="12" />
-    <line x1="12" x2="12" y1="8" y2="3" />
-    <line x1="20" x2="20" y1="21" y2="16" />
-    <line x1="20" x2="20" y1="12" y2="3" />
-    <line x1="1" x2="7" y1="14" y2="14" />
-    <line x1="9" x2="15" y1="8" y2="8" />
-    <line x1="17" x2="23" y1="16" y2="16" />
-  </IconWrapper>
-);
-
-const Plus = (props) => (
-  <IconWrapper {...props}>
-    <line x1="12" x2="12" y1="5" y2="19" />
-    <line x1="5" x2="19" y1="12" y2="12" />
-  </IconWrapper>
-);
-
-const ArrowRightLeft = (props) => (
-  <IconWrapper {...props}>
-    <path d="m16 3 4 4-4 4" />
-    <path d="M20 7H4" />
-    <path d="m8 21-4-4 4-4" />
-    <path d="M4 17h16" />
-  </IconWrapper>
-);
-
-const BackspaceIcon = ({ className = "w-6 h-6" }) => sanitizeNode(
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path key="bs-p" d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
-    <line key="bs-l1" x1="18" y1="9" x2="12" y2="15" />
-    <line key="bs-l2" x1="12" y1="9" x2="18" y2="15" />
-  </svg>
-);
-
-// --- REUSABLE UI TOKENS ---
-const GlassCard = ({ children, className = '', onClick }) => sanitizeNode(
-  <div 
-    onClick={onClick}
-    className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl transition-all ${
-      onClick ? 'cursor-pointer active:scale-[0.98] hover:bg-slate-800/70 hover:border-orange-500/30' : ''
-    } ${className}`}
-  >
-    {children}
-  </div>
-);
-
-const Button = ({ children, variant = 'primary', onClick, className = '', disabled = false }) => {
-  const base = "w-full rounded-2xl py-4 font-bold text-base transition-all active:scale-95 flex justify-center items-center gap-2 shadow-lg disabled:opacity-40 disabled:pointer-events-none cursor-pointer";
-  const variants = {
-    primary: "bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black shadow-orange-500/25 border border-orange-400/30",
-    secondary: "bg-white/5 hover:bg-white/10 text-slate-100 border border-white/10 shadow-black/40",
-    danger: "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30",
-  };
-  return sanitizeNode(
-    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${className}`}>
-      {children}
-    </button>
-  );
-};
-
-// --- DATA MODEL: ALL 57 OLL CASES ---
+// =========================================================================
+// 0. DATASET (57 OLL Cases + Fingertrick Dossiers)
+// =========================================================================
 const OLL_DATA = [
-  // Chunk 1: Oriented-Edges (7 cases) — Public Domain Standards
-  { id: 1, chunk: 1, ollNo: 27, name: "Sune", group: "Oriented-Edges", alg: "R U R' U R U2' R'" },
-  { id: 2, chunk: 1, ollNo: 26, name: "Anti-Sune", group: "Oriented-Edges", alg: "R U2 R' U' R U' R'" },
-  { id: 3, chunk: 1, ollNo: 21, name: "Cross", group: "Oriented-Edges", alg: "(R U2 R') (U' R U R') (U' R U' R')" },
-  { id: 4, chunk: 1, ollNo: 24, name: "Chameleon", group: "Oriented-Edges", alg: "(r U R' U') (r' F R F')" },
-  { id: 5, chunk: 1, ollNo: 25, name: "Bowtie", group: "Oriented-Edges", alg: "F' (r U R' U') r' F R" },
-  { id: 6, chunk: 1, ollNo: 22, name: "Bruno", group: "Oriented-Edges", alg: "R U2' R2' U' R2 U' R2' U2' R" },
-  { id: 7, chunk: 1, ollNo: 23, name: "Headlights", group: "Oriented-Edges", alg: "R2 D (R' U2 R) D' (R' U2 R')" },
-  
-  // Chunk 2: T-Shapes (2), Squares (2), Solved Corners (2) = 6 cases
-  { id: 8, chunk: 2, ollNo: 45, name: "T", group: "T-Shapes", alg: "F (R U R' U') F'" },
-  { id: 9, chunk: 2, ollNo: 33, name: "OLL 33 (T-Shape)", group: "T-Shapes", alg: "(R U R' U') (R' F R F')" },
-  { id: 10, chunk: 2, ollNo: 6, name: "OLL 6 (Square)", group: "Squares", alg: "r U2 R' U' R U' r'" },
-  { id: 11, chunk: 2, ollNo: 5, name: "OLL 5 (Square)", group: "Squares", alg: "r' U2' R U R' U r" },
-  { id: 12, chunk: 2, ollNo: 28, name: "Arrow", group: "Solved Corners", alg: "(r U R' U') M (U R U' R')" },
-  { id: 13, chunk: 2, ollNo: 57, name: "H", group: "Solved Corners", alg: "(R U R' U') M' (U R U' r')" },
-
-  // Chunk 3: Lightning Bolts (6 cases)
-  { id: 14, chunk: 3, ollNo: 7, name: "OLL 7 (Lightning)", group: "Lightning Bolts", alg: "r U R' U R U2' r'" },
-  { id: 15, chunk: 3, ollNo: 11, name: "OLL 11 (Lightning)", group: "Lightning Bolts", alg: "r' (R2 U R' U R U2 R') U M'" },
-  { id: 16, chunk: 3, ollNo: 39, name: "OLL 39 (Big Lightning)", group: "Lightning Bolts", alg: "R' F (R U R' U') F' U R" },
-  { id: 17, chunk: 3, ollNo: 8, name: "OLL 8 (Lightning)", group: "Lightning Bolts", alg: "r' U' R U' R' U2 r" },
-  { id: 18, chunk: 3, ollNo: 12, name: "OLL 12 (Lightning)", group: "Lightning Bolts", alg: "M' (R' U' R U' R' U2 R) U' M" },
-  { id: 19, chunk: 3, ollNo: 40, name: "OLL 40 (Big Lightning)", group: "Lightning Bolts", alg: "L F' (L' U' L U) F U' L'" },
-
-  // Chunk 4: P-Shapes (4), C-Shapes (2) = 6 cases
-  { id: 20, chunk: 4, ollNo: 44, name: "OLL 44 (P-Shape)", group: "P-Shapes", alg: "f (R U R' U') f'" },
-  { id: 21, chunk: 4, ollNo: 43, name: "OLL 43 (P-Shape)", group: "P-Shapes", alg: "f' (L' U' L U) f" },
-  { id: 22, chunk: 4, ollNo: 31, name: "OLL 31 (P-Shape)", group: "P-Shapes", alg: "R' U' F (U R U' R') F' R" },
-  { id: 23, chunk: 4, ollNo: 32, name: "OLL 32 (P-Shape)", group: "P-Shapes", alg: "R U B' (U' R' U) R B R'" },
-  { id: 24, chunk: 4, ollNo: 46, name: "OLL 46 (C-Shape)", group: "C-Shapes", alg: "R' U' (R' F R F') U R" },
-  { id: 25, chunk: 4, ollNo: 34, name: "OLL 34 (C-Shape)", group: "C-Shapes", alg: "(R U R' U') B' (R' F R F') B" },
-
-  // Chunk 5: Fishes (4), W-Shapes (2) = 6 cases
-  { id: 26, chunk: 5, ollNo: 37, name: "OLL 37 (Fish)", group: "Fishes", alg: "F (R U' R' U') (R U R' F')" },
-  { id: 27, chunk: 5, ollNo: 35, name: "OLL 35 (Fish)", group: "Fishes", alg: "(R U2') (R2' F R F') (R U2' R')" },
-  { id: 28, chunk: 5, ollNo: 9, name: "OLL 9 (Fish)", group: "Fishes", alg: "(R U R' U') R' F (R2 U R' U') F'" },
-  { id: 29, chunk: 5, ollNo: 10, name: "OLL 10 (Fish)", group: "Fishes", alg: "(R U R' U) (R' F R F') (R U2' R')" },
-  { id: 30, chunk: 5, ollNo: 36, name: "OLL 36 (W-Shape)", group: "W-Shapes", alg: "(R U R' U) (R U' R' U') (R' F R F')" },
-  { id: 31, chunk: 5, ollNo: 38, name: "OLL 38 (W-Shape)", group: "W-Shapes", alg: "(R' U' R U') (R' U R U) l U' R' U x" },
-
-  // Chunk 6: L-Shapes (6 cases)
-  { id: 32, chunk: 6, ollNo: 48, name: "OLL 48 (L-Shape)", group: "L-Shapes", alg: "F (R U R' U') (R U R' U') F'" },
-  { id: 33, chunk: 6, ollNo: 47, name: "OLL 47 (L-Shape)", group: "L-Shapes", alg: "R' U' (R' F R F') (R' F R F') U R" },
-  { id: 34, chunk: 6, ollNo: 53, name: "OLL 53 (L-Shape)", group: "L-Shapes", alg: "(r' U' R U') (R' U R U') R' U2 r" },
-  { id: 35, chunk: 6, ollNo: 54, name: "OLL 54 (L-Shape)", group: "L-Shapes", alg: "(r U R' U) (R U' R' U) R U2' r'" },
-  { id: 36, chunk: 6, ollNo: 50, name: "OLL 50 (L-Shape)", group: "L-Shapes", alg: "r' U r2 U' r2' U' r2 U r'" },
-  { id: 37, chunk: 6, ollNo: 49, name: "OLL 49 (L-Shape)", group: "L-Shapes", alg: "r U' r2' U r2 U r2' U' r" },
-
-  // Chunk 7: Lines (4), Knight Moves (2) = 6 cases
-  { id: 38, chunk: 7, ollNo: 51, name: "OLL 51 (Line)", group: "Lines", alg: "f (R U R' U') (R U R' U') f'" },
-  { id: 39, chunk: 7, ollNo: 52, name: "OLL 52 (Line)", group: "Lines", alg: "(R U R' U R U') y (R U' R') F'" },
-  { id: 40, chunk: 7, ollNo: 56, name: "OLL 56 (Line)", group: "Lines", alg: "r U r' (U R U' R') (U R U' R') r U' r'" },
-  { id: 41, chunk: 7, ollNo: 55, name: "OLL 55 (Line)", group: "Lines", alg: "R U2 R2 (U' R U' R') U2 F R F'" },
-  { id: 42, chunk: 7, ollNo: 15, name: "OLL 15 (Knight Move)", group: "Knight Moves", alg: "(r' U' r) (R' U' R U) (r' U r)" },
-  { id: 43, chunk: 7, ollNo: 13, name: "OLL 13 (Knight Move)", group: "Knight Moves", alg: "F U R U' R2' F' R U (R U' R')" },
-
-  // Chunk 8: Knight Moves (2), Awkward Shapes (4) = 6 cases
-  { id: 44, chunk: 8, ollNo: 16, name: "OLL 16 (Knight Move)", group: "Knight Moves", alg: "(r U r') (R U R' U') (r U' r')" },
-  { id: 45, chunk: 8, ollNo: 14, name: "OLL 14 (Knight Move)", group: "Knight Moves", alg: "(R' F R) (U R' F' R) (F U' F')" },
-  { id: 46, chunk: 8, ollNo: 41, name: "OLL 41 (Awkward)", group: "Awkward Shapes", alg: "(R U R' U R U2' R') F (R U R' U') F'" },
-  { id: 47, chunk: 8, ollNo: 42, name: "OLL 42 (Awkward)", group: "Awkward Shapes", alg: "(R' U' R U' R' U2 R) F (R U R' U') F'" },
-  { id: 48, chunk: 8, ollNo: 29, name: "OLL 29 (Awkward)", group: "Awkward Shapes", alg: "r2 D' (r U r') D r2 (U' r' U' r)" },
-  { id: 49, chunk: 8, ollNo: 30, name: "OLL 30 (Awkward)", group: "Awkward Shapes", alg: "F U (R U2 R' U') (R U2 R' U') F'" },
-
-  // Chunk 9: Dot-cases (8 cases)
-  { id: 50, chunk: 9, ollNo: 1, name: "OLL 1 (Dot)", group: "Dot-cases", alg: "(R U2') (R2' F R F') U2' (R' F R F')" },
-  { id: 51, chunk: 9, ollNo: 17, name: "OLL 17 (Dot)", group: "Dot-cases", alg: "(R U R' U) (R' F R F') U2' (R' F R F')" },
-  { id: 52, chunk: 9, ollNo: 19, name: "OLL 19 (Dot)", group: "Dot-cases", alg: "M U (R U R' U') M' (R' F R F')" },
-  { id: 53, chunk: 9, ollNo: 3, name: "OLL 3 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U' F (R U R' U') F'" },
-  { id: 54, chunk: 9, ollNo: 2, name: "OLL 2 (Dot)", group: "Dot-cases", alg: "F (R U R' U') F' f (R U R' U') f'" },
-  { id: 55, chunk: 9, ollNo: 20, name: "OLL 20 (Dot)", group: "Dot-cases", alg: "M U (R U R' U') M2' (U R U' r')" },
-  { id: 56, chunk: 9, ollNo: 18, name: "OLL 18 (Dot)", group: "Dot-cases", alg: "(r U R' U R U2 r') (r' U' R U' R' U2 r)" },
-  { id: 57, chunk: 9, ollNo: 4, name: "OLL 4 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'" }
+  { id: 1, chunk: 1, ollNo: 27, name: "Sune", group: "Oriented-Edges", alg: "R U R' U R U2' R'", setup: "R U2 R' U' R U' R'" },
+  { id: 2, chunk: 1, ollNo: 26, name: "Anti-Sune", group: "Oriented-Edges", alg: "R U2 R' U' R U' R'", setup: "R U R' U R U2' R'" },
+  { id: 3, chunk: 1, ollNo: 21, name: "Cross", group: "Oriented-Edges", alg: "(R U2 R') (U' R U R') (U' R U' R')", setup: "R U R' U R U' R' U R U2' R'" },
+  { id: 4, chunk: 1, ollNo: 24, name: "Chameleon", group: "Oriented-Edges", alg: "(r U R' U') (r' F R F')", setup: "F R' F' r U R U' r'" },
+  { id: 5, chunk: 1, ollNo: 25, name: "Bowtie", group: "Oriented-Edges", alg: "F' (r U R' U') r' F R", setup: "R' F' r U R U' r' F" },
+  { id: 6, chunk: 1, ollNo: 22, name: "Bruno", group: "Oriented-Edges", alg: "R U2' R2' U' R2 U' R2' U2' R", setup: "R' U2 R2 U R2' U R2 U2 R'" },
+  { id: 7, chunk: 1, ollNo: 23, name: "Headlights", group: "Oriented-Edges", alg: "R2 D (R' U2 R) D' (R' U2 R')", setup: "R U2 R' D R' U2 R D' R2" },
+  { id: 8, chunk: 2, ollNo: 45, name: "T", group: "T-Shapes", alg: "F (R U R' U') F'", setup: "F U R U' R' F'" },
+  { id: 9, chunk: 2, ollNo: 33, name: "OLL 33 (T-Shape)", group: "T-Shapes", alg: "(R U R' U') (R' F R F')", setup: "F R' F' R U R U' R'" },
+  { id: 10, chunk: 2, ollNo: 6, name: "OLL 6 (Square)", group: "Squares", alg: "r U2 R' U' R U' r'", setup: "r U R' U R U2' r'" },
+  { id: 11, chunk: 2, ollNo: 5, name: "OLL 5 (Square)", group: "Squares", alg: "r' U2' R U R' U r", setup: "r' U' R U' R' U2 r" },
+  { id: 12, chunk: 2, ollNo: 28, name: "Arrow", group: "Solved Corners", alg: "(r U R' U') M (U R U' R')", setup: "R U R' U' M' U R U' r'" },
+  { id: 13, chunk: 2, ollNo: 57, name: "H", group: "Solved Corners", alg: "(R U R' U') M' (U R U' r')", setup: "r U R' U' M U R U' R'" },
+  { id: 14, chunk: 3, ollNo: 7, name: "OLL 7 (Lightning)", group: "Lightning Bolts", alg: "r U R' U R U2' r'", setup: "r U2 R' U' R U' r'" },
+  { id: 15, chunk: 3, ollNo: 11, name: "OLL 11 (Lightning)", group: "Lightning Bolts", alg: "r' (R2 U R' U R U2 R') U M'", setup: "M U' R U2 R' U' R U' R2' r" },
+  { id: 16, chunk: 3, ollNo: 39, name: "OLL 39 (Big Lightning)", group: "Lightning Bolts", alg: "R' F (R U R' U') F' U R", setup: "R' U' F U R U' R' F' R" },
+  { id: 17, chunk: 3, ollNo: 8, name: "OLL 8 (Lightning)", group: "Lightning Bolts", alg: "r' U' R U' R' U2 r", setup: "r' U2' R U R' U r" },
+  { id: 18, chunk: 3, ollNo: 12, name: "OLL 12 (Lightning)", group: "Lightning Bolts", alg: "M' (R' U' R U' R' U2 R) U' M", setup: "M' U R' U2 R U R' U R M" },
+  { id: 19, chunk: 3, ollNo: 40, name: "OLL 40 (Big Lightning)", group: "Lightning Bolts", alg: "L F' (L' U' L U) F U' L'", setup: "L U F' U' L' U L F L'" },
+  { id: 20, chunk: 4, ollNo: 44, name: "OLL 44 (P-Shape)", group: "P-Shapes", alg: "f (R U R' U') f'", setup: "f U R U' R' f'" },
+  { id: 21, chunk: 4, ollNo: 43, name: "OLL 43 (P-Shape)", group: "P-Shapes", alg: "f' (L' U' L U) f", setup: "f' U' L' U L f" },
+  { id: 22, chunk: 4, ollNo: 31, name: "OLL 31 (P-Shape)", group: "P-Shapes", alg: "R' U' F (U R U' R') F' R", setup: "R' F R U R' U' F' U R" },
+  { id: 23, chunk: 4, ollNo: 32, name: "OLL 32 (P-Shape)", group: "P-Shapes", alg: "R U B' (U' R' U) R B R'", setup: "R B' R' U' R U B U' R'" },
+  { id: 24, chunk: 4, ollNo: 46, name: "OLL 46 (C-Shape)", group: "C-Shapes", alg: "R' U' (R' F R F') U R", setup: "R' U' F R' F' R U R" },
+  { id: 25, chunk: 4, ollNo: 34, name: "OLL 34 (C-Shape)", group: "C-Shapes", alg: "(R U R' U') B' (R' F R F') B", setup: "B' F R' F' R B U R U' R'" },
+  { id: 26, chunk: 5, ollNo: 37, name: "OLL 37 (Fish)", group: "Fishes", alg: "F (R U' R' U') (R U R' F')", setup: "F R U' R' U R U R' F'" },
+  { id: 27, chunk: 5, ollNo: 35, name: "OLL 35 (Fish)", group: "Fishes", alg: "(R U2') (R2' F R F') (R U2' R')", setup: "R U2 R' F R' F' R2 U2 R'" },
+  { id: 28, chunk: 5, ollNo: 9, name: "OLL 9 (Fish)", group: "Fishes", alg: "(R U R' U') R' F (R2 U R' U') F'", setup: "F U R U' R2' F' R U R U' R'" },
+  { id: 29, chunk: 5, ollNo: 10, name: "OLL 10 (Fish)", group: "Fishes", alg: "(R U R' U) (R' F R F') (R U2' R')", setup: "R U2 R' F R' F' R U' R U' R'" },
+  { id: 30, chunk: 5, ollNo: 36, name: "OLL 36 (W-Shape)", group: "W-Shapes", alg: "(R U R' U) (R U' R' U') (R' F R F')", setup: "F R' F' R U R U R' U' R U' R'" },
+  { id: 31, chunk: 5, ollNo: 38, name: "OLL 38 (W-Shape)", group: "W-Shapes", alg: "(R' U' R U') (R' U R U) l U' R' U x", setup: "x' U' R U l' U' R' U' R U R' U R" },
+  { id: 32, chunk: 6, ollNo: 48, name: "OLL 48 (L-Shape)", group: "L-Shapes", alg: "F (R U R' U') (R U R' U') F'", setup: "F U R U' R' U R U' R' F'" },
+  { id: 33, chunk: 6, ollNo: 47, name: "OLL 47 (L-Shape)", group: "L-Shapes", alg: "R' U' (R' F R F') (R' F R F') U R", setup: "R' U' F R' F' R F R' F' R U R" },
+  { id: 34, chunk: 6, ollNo: 53, name: "OLL 53 (L-Shape)", group: "L-Shapes", alg: "(r' U' R U') (R' U R U') R' U2 r", setup: "r' U2' R U R' U' R U R' U r" },
+  { id: 35, chunk: 6, ollNo: 54, name: "OLL 54 (L-Shape)", group: "L-Shapes", alg: "(r U R' U) (R U' R' U) R U2' r'", setup: "r U2 R' U' R U R' U' R U' r'" },
+  { id: 36, chunk: 6, ollNo: 50, name: "OLL 50 (L-Shape)", group: "L-Shapes", alg: "r' U r2 U' r2' U' r2 U r'", setup: "r U' r2' U r2 U r2' U' r" },
+  { id: 37, chunk: 6, ollNo: 49, name: "OLL 49 (L-Shape)", group: "L-Shapes", alg: "r U' r2' U r2 U r2' U' r", setup: "r' U r2 U' r2' U' r2 U r'" },
+  { id: 38, chunk: 7, ollNo: 51, name: "OLL 51 (Line)", group: "Lines", alg: "f (R U R' U') (R U R' U') f'", setup: "f U R U' R' U R U' R' f'" },
+  { id: 39, chunk: 7, ollNo: 52, name: "OLL 52 (Line)", group: "Lines", alg: "(R U R' U R U') y (R U' R') F'", setup: "F R U R' y' U R' U' R U' R'" },
+  { id: 40, chunk: 7, ollNo: 56, name: "OLL 56 (Line)", group: "Lines", alg: "r U r' (U R U' R') (U R U' R') r U' r'", setup: "r U r' U R U' R' U R U' R' r U' r'" },
+  { id: 41, chunk: 7, ollNo: 55, name: "OLL 55 (Line)", group: "Lines", alg: "R U2 R2 (U' R U' R') U2 F R F'", setup: "F R' F' U2 R U R' U R2 U2' R'" },
+  { id: 42, chunk: 7, ollNo: 15, name: "OLL 15 (Knight Move)", group: "Knight Moves", alg: "(r' U' r) (R' U' R U) (r' U r)", setup: "r' U' r U' R' U R r' U r" },
+  { id: 43, chunk: 7, ollNo: 13, name: "OLL 13 (Knight Move)", group: "Knight Moves", alg: "F U R U' R2' F' R U (R U' R')", setup: "R U R' U' R' F R2 U R' U' F'" },
+  { id: 44, chunk: 8, ollNo: 16, name: "OLL 16 (Knight Move)", group: "Knight Moves", alg: "(r U r') (R U R' U') (r U' r')", setup: "r U r' U R U' R' r U' r'" },
+  { id: 45, chunk: 8, ollNo: 14, name: "OLL 14 (Knight Move)", group: "Knight Moves", alg: "(R' F R) (U R' F' R) (F U' F')", setup: "F U F' R' F R U' R' F' R" },
+  { id: 46, chunk: 8, ollNo: 41, name: "OLL 41 (Awkward)", group: "Awkward Shapes", alg: "(R U R' U R U2' R') F (R U R' U') F'", setup: "F U R U' R' F' R U2 R' U' R U' R'" },
+  { id: 47, chunk: 8, ollNo: 42, name: "OLL 42 (Awkward)", group: "Awkward Shapes", alg: "(R' U' R U' R' U2 R) F (R U R' U') F'", setup: "F U R U' R' F' R' U2' R U R' U R" },
+  { id: 48, chunk: 8, ollNo: 29, name: "OLL 29 (Awkward)", group: "Awkward Shapes", alg: "r2 D' (r U r') D r2 (U' r' U' r)", setup: "r' U r U r2' D' r U' r' D r2" },
+  { id: 49, chunk: 8, ollNo: 30, name: "OLL 30 (Awkward)", group: "Awkward Shapes", alg: "F U (R U2 R' U') (R U2 R' U') F'", setup: "F U R U2' R' U R U2' R' U' F'" },
+  { id: 50, chunk: 9, ollNo: 1, name: "OLL 1 (Dot)", group: "Dot-cases", alg: "(R U2') (R2' F R F') U2' (R' F R F')", setup: "F R' F' R U2 F R' F' R2 U2 R'" },
+  { id: 51, chunk: 9, ollNo: 17, name: "OLL 17 (Dot)", group: "Dot-cases", alg: "(R U R' U) (R' F R F') U2' (R' F R F')", setup: "F R' F' R U2 F R' F' R U' R U' R'" },
+  { id: 52, chunk: 9, ollNo: 19, name: "OLL 19 (Dot)", group: "Dot-cases", alg: "M U (R U R' U') M' (R' F R F')", setup: "F R' F' R M U R U' R' U' M'" },
+  { id: 53, chunk: 9, ollNo: 3, name: "OLL 3 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U' F (R U R' U') F'", setup: "F U R U' R' F' U f U R U' R' f'" },
+  { id: 54, chunk: 9, ollNo: 2, name: "OLL 2 (Dot)", group: "Dot-cases", alg: "F (R U R' U') F' f (R U R' U') f'", setup: "f U R U' R' f' F U R U' R' F'" },
+  { id: 55, chunk: 9, ollNo: 20, name: "OLL 20 (Dot)", group: "Dot-cases", alg: "M U (R U R' U') M2' (U R U' r')", setup: "r U R' U' M2 U R U' R' U' M'" },
+  { id: 56, chunk: 9, ollNo: 18, name: "OLL 18 (Dot)", group: "Dot-cases", alg: "(r U R' U R U2 r') (r' U' R U' R' U2 r)", setup: "r' U2' R U R' U r r U2 R' U' R U' r'" },
+  { id: 57, chunk: 9, ollNo: 4, name: "OLL 4 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'", setup: "F U R U' R' F' U' f U R U' R' f'" }
 ];
 
-// --- DEFAULT 9-CHUNK CURRICULUM PRESET ---
 const DEFAULT_CHUNKS = [
-  { id: 'chunk-1', name: 'Chunk 1: Oriented-Edges', caseIds: [1, 2, 3, 4, 5, 6, 7] },
-  { id: 'chunk-2', name: 'Chunk 2: T-Shapes & Squares', caseIds: [8, 9, 10, 11, 12, 13] },
-  { id: 'chunk-3', name: 'Chunk 3: Lightning Bolts', caseIds: [14, 15, 16, 17, 18, 19] },
-  { id: 'chunk-4', name: 'Chunk 4: P & C-Shapes', caseIds: [20, 21, 22, 23, 24, 25] },
-  { id: 'chunk-5', name: 'Chunk 5: Fishes & W-Shapes', caseIds: [26, 27, 28, 29, 30, 31] },
-  { id: 'chunk-6', name: 'Chunk 6: L-Shapes', caseIds: [32, 33, 34, 35, 36, 37] },
-  { id: 'chunk-7', name: 'Chunk 7: Lines & Knight Moves', caseIds: [38, 39, 40, 41, 42, 43] },
-  { id: 'chunk-8', name: 'Chunk 8: Knight & Awkward', caseIds: [44, 45, 46, 47, 48, 49] },
-  { id: 'chunk-9', name: 'Chunk 9: Dot Cases', caseIds: [50, 51, 52, 53, 54, 55, 56, 57] }
+  { id: 1, title: "Chunk 1: Oriented-Edges", caseIds: [1, 2, 3, 4, 5, 6, 7] },
+  { id: 2, title: "Chunk 2: T-Shapes & Squares", caseIds: [8, 9, 10, 11, 12, 13] },
+  { id: 3, title: "Chunk 3: Lightning Bolts", caseIds: [14, 15, 16, 17, 18, 19] },
+  { id: 4, title: "Chunk 4: P-Shapes & C-Shapes", caseIds: [20, 21, 22, 23, 24, 25] },
+  { id: 5, title: "Chunk 5: Fishes & W-Shapes", caseIds: [26, 27, 28, 29, 30, 31] },
+  { id: 6, title: "Chunk 6: L-Shapes", caseIds: [32, 33, 34, 35, 36, 37] },
+  { id: 7, title: "Chunk 7: Lines & Knights", caseIds: [38, 39, 40, 41, 42, 43] },
+  { id: 8, title: "Chunk 8: Knights & Awkward", caseIds: [44, 45, 46, 47, 48, 49] },
+  { id: 9, title: "Chunk 9: Dot-cases", caseIds: [50, 51, 52, 53, 54, 55, 56, 57] }
 ];
 
-// Generate even chunks by target size (e.g. 3, 4, 5, 6, etc.)
-const generateChunksBySize = (size = 6) => {
-  const safeSize = Math.max(2, Math.min(15, size));
-  const chunks = [];
-  let currentIds = [];
-  let chunkNum = 1;
-
-  OLL_DATA.forEach((c, idx) => {
-    currentIds.push(c.id);
-    if (currentIds.length === safeSize || idx === OLL_DATA.length - 1) {
-      chunks.push({
-        id: `chunk-${chunkNum}`,
-        name: `Chunk ${chunkNum} (${currentIds.length} Cases)`,
-        caseIds: [...currentIds]
-      });
-      currentIds = [];
-      chunkNum++;
-    }
-  });
-  return chunks;
-};
-
-// Generate chunks by standard shape groups
-const generateChunksByGroup = () => {
-  const map = new Map();
-  OLL_DATA.forEach(c => {
-    if (!map.has(c.group)) map.set(c.group, []);
-    map.get(c.group).push(c.id);
-  });
-
-  return Array.from(map.entries()).map(([grpName, ids], idx) => ({
-    id: `group-chunk-${idx + 1}`,
-    name: `${grpName} (${ids.length})`,
-    caseIds: ids
-  }));
-};
-
-// Dynamic Learning Calendar Generator
-const generateDynamicSchedule = (chunks = DEFAULT_CHUNKS) => {
-  const safeChunks = chunks && chunks.length > 0 ? chunks : DEFAULT_CHUNKS;
-  const N = safeChunks.length;
-  const days = [];
-
-  for (let i = 0; i < N; i++) {
-    const chunkName = safeChunks[i]?.name || `Chunk ${i + 1}`;
-    // Day 1 of chunk: Learn
-    days.push({
-      day: days.length + 1,
-      type: 'Learn',
-      chunkIndex: i,
-      title: `Learn: ${chunkName}`,
-      isFinale: false
-    });
-    // Day 2 of chunk: Drill
-    days.push({
-      day: days.length + 1,
-      type: 'Practice',
-      chunkIndex: i,
-      title: `Drill: ${chunkName}`,
-      isFinale: false
-    });
-    // Day 3 of chunk: Refine
-    days.push({
-      day: days.length + 1,
-      type: 'Practice',
-      chunkIndex: i,
-      title: `Refine: ${chunkName}`,
-      isFinale: false
-    });
-    // Review checkpoint every 2 chunks
-    if ((i + 1) % 2 === 0 && i < N - 1) {
-      days.push({
-        day: days.length + 1,
-        type: 'Review',
-        chunkIndices: Array.from({ length: i + 1 }, (_, k) => k),
-        title: `Cumulative Review: Chunks 1–${i + 1}`,
-        isFinale: false
-      });
-    }
-  }
-
-  // Grand Finale Review of entire custom program
-  days.push({
-    day: days.length + 1,
-    type: 'Review',
-    chunkIndices: Array.from({ length: N }, (_, k) => k),
-    title: `Grand Finale: Full OLL Master Review`,
-    isFinale: true
-  });
-
-  return days;
-};
-
-const getScheduleForDay = (day = 1, chunks = DEFAULT_CHUNKS) => {
-  const scheduleDays = generateDynamicSchedule(chunks);
-  const totalDays = scheduleDays.length;
-  let target = Math.max(1, Math.min(totalDays, day));
-  return {
-    ...scheduleDays[target - 1],
-    totalDays
-  };
-};
-
-// --- NOTATION KEY REPOSITORY ---
-const NOTATION_GROUPS = [
-  {
-    title: "Single Face Moves",
-    description: "Turning an outer face 90° or 180°",
-    moves: [
-      { move: "U", desc: "Top layer clockwise" },
-      { move: "U'", desc: "Top layer counter-clockwise" },
-      { move: "U2", desc: "Top layer 180 degrees" },
-      { move: "D", desc: "Bottom layer clockwise" },
-      { move: "D'", desc: "Bottom layer counter-clockwise" },
-      { move: "D2", desc: "Bottom layer 180 degrees" },
-      { move: "R", desc: "Right layer clockwise" },
-      { move: "R'", desc: "Right layer counter-clockwise" },
-      { move: "R2", desc: "Right layer 180 degrees" },
-      { move: "L", desc: "Left layer clockwise" },
-      { move: "L'", desc: "Left layer counter-clockwise" },
-      { move: "L2", desc: "Left layer 180 degrees" },
-      { move: "F", desc: "Front layer clockwise" },
-      { move: "F'", desc: "Front layer counter-clockwise" },
-      { move: "F2", desc: "Front layer 180 degrees" },
-      { move: "B", desc: "Back layer clockwise" },
-      { move: "B'", desc: "Back layer counter-clockwise" },
-      { move: "B2", desc: "Back layer 180 degrees" }
-    ]
-  },
-  {
-    title: "Slice Moves (Middle Layers)",
-    description: "Turning inner layers between outer faces",
-    moves: [
-      { move: "M", desc: "Middle layer between L/R (turns down, follows L)" },
-      { move: "M'", desc: "Middle layer turns up (follows R)" },
-      { move: "M2", desc: "Middle layer 180 degrees" },
-      { move: "E", desc: "Equator layer between U/D (turns right, follows D)" },
-      { move: "E'", desc: "Equator layer turns left (follows U)" },
-      { move: "E2", desc: "Equator layer 180 degrees" },
-      { move: "S", desc: "Standing layer between F/B (turns clockwise, follows F)" },
-      { move: "S'", desc: "Standing layer counter-clockwise (follows B)" },
-      { move: "S2", desc: "Standing layer 180 degrees" }
-    ]
-  },
-  {
-    title: "Whole Cube Rotations",
-    description: "Reorienting the entire cube in 3D space",
-    moves: [
-      { move: "x", desc: "Rotate full cube up (look at bottom face, follows R)" },
-      { move: "x'", desc: "Rotate full cube down (look at top face, follows R')" },
-      { move: "x2", desc: "Rotate full cube 180° vertically" },
-      { move: "y", desc: "Rotate full cube clockwise horizontally (follows U)" },
-      { move: "y'", desc: "Rotate full cube counter-clockwise horizontally (follows U')" },
-      { move: "y2", desc: "Rotate full cube 180° horizontally" },
-      { move: "z", desc: "Tilt full cube clockwise (follows F)" },
-      { move: "z'", desc: "Tilt full cube counter-clockwise (follows F')" },
-      { move: "z2", desc: "Tilt full cube 180°" }
-    ]
-  },
-  {
-    title: "Wide Moves (Two Layers)",
-    description: "Turning an outer face along with its adjacent slice",
-    moves: [
-      { move: "Rw / r", desc: "Right side + Middle layer clockwise" },
-      { move: "Rw' / r'", desc: "Right side + Middle layer counter-clockwise" },
-      { move: "Uw / u", desc: "Top side + Middle layer clockwise" },
-      { move: "Uw' / u'", desc: "Top side + Middle layer counter-clockwise" },
-      { move: "Fw / f", desc: "Front side + Middle layer clockwise" },
-      { move: "Fw' / f'", desc: "Front side + Middle layer counter-clockwise" },
-      { move: "Lw / l", desc: "Left side + Middle layer clockwise" },
-      { move: "Lw' / l'", desc: "Left side + Middle layer counter-clockwise" },
-      { move: "Dw / d", desc: "Bottom side + Middle layer clockwise" },
-      { move: "Dw' / d'", desc: "Bottom side + Middle layer counter-clockwise" },
-      { move: "Bw / b", desc: "Back side + Middle layer clockwise" },
-      { move: "Bw' / b'", desc: "Back side + Middle layer counter-clockwise" }
-    ]
-  }
-];
-
-// --- FINGERTRICK DATABASE ---
-const FINGERTRICK_DATABASE = {
+const FINGERTRICK_GUIDES = {
   1: {
-    grip: "Standard Home Grip (Right thumb on front center, middle & ring fingers on back)",
+    grip: "Standard Home Grip",
     regrips: "0 Regrips",
     triggers: [
       { moves: "R U R'", label: "Sune Opener", tip: "Right wrist turns R up, right index flicks U forward, right wrist pulls R' down. Keep your right thumb anchored on the front face." },
-      { moves: "U", label: "Setup Flick", tip: "Right index flicks U again smoothly without shifting your hand position." },
-      { moves: "R U2' R'", label: "Double-Flick Finisher", tip: "Right wrist turns R up, then execute U2' as an index-then-middle double flick with your right hand. Finish with R' wrist pull." }
+      { moves: "U", label: "Setup Flick", tip: "Use your right index finger (or left index push) without lifting your right hand off the R layer." },
+      { moves: "R U2' R'", label: "Double-Flick Finisher", tip: "Right wrist turns R up, execute a crisp left-hand U2' double flick (index then middle), then pull R' down." }
     ],
-    proTip: "Do not regrip between the U turns! Let your index finger spring back quickly so the entire 7-move algorithm flows as one continuous reflex."
+    coachNote: "Do not regrip between the U turns! Let your index finger spring back quickly so the entire 7-move algorithm flows as one continuous reflex."
   },
-  2: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
+  default: {
+    grip: "Right Thumb on Front (F)",
+    regrips: "0–1 Regrips",
     triggers: [
-      { moves: "R U2", label: "Double Flick Opener", tip: "Right wrist turns R up, right index followed by right middle finger double-flicks U2." },
-      { moves: "R' U'", label: "Push Transition", tip: "Right wrist pulls R' down, right index pushes U' from behind." },
-      { moves: "R U' R'", label: "Sune Finisher", tip: "Right wrist turns R up, right index pushes U' again, right wrist pulls R' down." }
+      { moves: "R U R' U'", label: "Sexy Move Trigger", tip: "Turn R with wrist, flick U with right index, pull R' down, and push U' with left index finger." },
+      { moves: "R' F R F'", label: "Sledgehammer", tip: "Pull R' down, push F with right index or thumb, turn R up, and flick F' with left index." }
     ],
-    proTip: "Use your right index finger to push U' from the back corner so your hand never has to change grip."
-  },
-  3: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "(R U2 R')", label: "Double Flick Pair", tip: "Wrist R, index-then-middle double flick U2, wrist R'." },
-      { moves: "(U' R U R')", label: "Reverse Sexy Insert", tip: "Index push U', wrist R, index flick U, wrist R'." },
-      { moves: "(U' R U' R')", label: "Closing Insert", tip: "Index push U', wrist R, index push U', wrist R'." }
-    ],
-    proTip: "Treat this as three 4-move F2L pairs chained together. Maintain an even, rhythmic turning speed."
-  },
-  4: {
-    grip: "Wide Home Grip (Right thumb spans two layers)",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Turn wide r with right thumb and middle, index flicks U, outer R' down, index push U'." },
-      { moves: "(r' F R F')", label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." }
-    ],
-    proTip: "Because r turns two layers, stabilize the left block with your left hand while your right hand glides through the wide triggers."
-  },
-  5: {
-    grip: "Home Grip with Left Hand Support",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger pinches F' counter-clockwise from the top-right corner." },
-      { moves: "(r U R' U')", label: "Fat Sexy Move", tip: "Right thumb & middle lift wide r, index flicks U, outer R' down, index push U'." },
-      { moves: "r' F R", label: "Recovery Trigger", tip: "Wide r' down, thumb push F up, right wrist R up to finish." }
-    ],
-    proTip: "The opening F' is done with a quick pinch so your right hand is already in position for the wide r lift."
-  },
-  8: {
-    grip: "Home Grip (No pre-turn regrip)",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "F", label: "Thumb Push F", tip: "Push the front face clockwise from the bottom-right corner with your right thumb (or left index flicking down)." },
-      { moves: "(R U R' U')", label: "Sexy Move", tip: "The classic 4-move trigger: R wrist up, U index flick, R' wrist down, U' index push." },
-      { moves: "F'", label: "Index Pinch F'", tip: "Right index finger reaches to the top-right corner of F and pinches upward/counter-clockwise to close." }
-    ],
-    proTip: "The index finger pinch for F' is what makes this a sub-0.7s PB breaker. Never take your right hand off the cube to turn F' with your thumb."
-  },
-  9: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "(R U R' U')", label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." },
-      { moves: "(R' F R F')", label: "Sledgehammer", tip: "R' wrist down, right index pushes F down, right wrist pulls R up, right thumb pushes F' up." }
-    ],
-    proTip: "Flow the ending of Sexy Move directly into the Sledgehammer — the R' move is already prepared by your wrist angle."
-  },
-  20: {
-    grip: "Standard Home Grip",
-    regrips: "0 Regrips",
-    triggers: [
-      { moves: "f", label: "Wide Thumb Push f", tip: "Right thumb pushes both front layers clockwise." },
-      { moves: "(R U R' U')", label: "Sexy Move", tip: "Standard 4-move trigger executed from standard home grip." },
-      { moves: "f'", label: "Wide Pinch f'", tip: "Right index finger pinches both front layers counter-clockwise from the top." }
-    ],
-    proTip: "Make sure your index finger catches both the F and S slices together on the f' pinch so the middle slice doesn't drag."
+    coachNote: "Group moves into 4-move triggers rather than individual turns. Keep your elbows relaxed and minimize regrips."
   }
 };
 
-const describeFallbackTrigger = (chunk) => {
-  const c = chunk.trim();
-  if (c.includes("R U R' U'")) return { moves: c, label: "Sexy Move", tip: "R wrist up, index flick U, R' wrist down, index push U'." };
-  if (c.includes("R' F R F'")) return { moves: c, label: "Sledgehammer", tip: "R' wrist down, index push F, R wrist up, thumb push F'." };
-  if (c.includes("r U R' U'")) return { moves: c, label: "Fat Sexy Move", tip: "Wide r lift with thumb and middle, index flick U, R' down, index push U'." };
-  if (c.includes("r' F R F'")) return { moves: c, label: "Fat Sledgehammer", tip: "Wide r' down, index push F, outer R up, thumb push F'." };
-  if (c.includes("U2")) return { moves: c, label: "Double Flick U2", tip: "Right index flick followed immediately by right middle finger flick." };
-  if (c === "F") return { moves: c, label: "Thumb Push F", tip: "Right thumb pushes front layer clockwise from bottom right." };
-  if (c === "F'") return { moves: c, label: "Index Pinch F'", tip: "Right index finger pinches front layer counter-clockwise from top right." };
-  if (c === "f") return { moves: c, label: "Wide Push f", tip: "Right thumb pushes two front layers clockwise." };
-  if (c === "f'") return { moves: c, label: "Wide Pinch f'", tip: "Right index finger pinches two front layers counter-clockwise." };
-  if (c.includes("M")) return { moves: c, label: "Slice Trigger", tip: "Left or right ring finger operates the inner M slice from bottom-back." };
-  return { moves: c, label: "Trigger Segment", tip: `Execute ${c} smoothly with index flicks and light wrist turns.` };
+const NOTATION_TABS = {
+  SINGLE: [
+    { move: "U", desc: "Top layer clockwise" },
+    { move: "U'", desc: "Top layer counter-clockwise" },
+    { move: "U2", desc: "Top layer 180 degrees" },
+    { move: "R / R'", desc: "Right layer up / down" },
+    { move: "F / F'", desc: "Front layer clockwise / CCW" }
+  ],
+  SLICE: [
+    { move: "M'", desc: "Middle slice upwards (follows R)" },
+    { move: "M", desc: "Middle slice downwards (follows L)" },
+    { move: "M2", desc: "Middle slice 180 degrees" }
+  ],
+  WHOLE: [
+    { move: "x / x'", desc: "Rotate whole cube on R axis" },
+    { move: "y / y'", desc: "Rotate whole cube on U axis" },
+    { move: "z / z'", desc: "Rotate whole cube on F axis" }
+  ],
+  WIDE: [
+    { move: "r / r'", desc: "Right 2 layers together" },
+    { move: "f / f'", desc: "Front 2 layers together" },
+    { move: "l / l'", desc: "Left 2 layers together" }
+  ]
 };
 
-const getFingertrickData = (caseItem) => {
-  if (!caseItem) return null;
-  if (FINGERTRICK_DATABASE[caseItem.id]) {
-    return FINGERTRICK_DATABASE[caseItem.id];
-  }
-
-  const alg = caseItem.alg || "";
-  const parenMatches = alg.match(/\([^\)]+\)/g);
-  let triggers = [];
-
-  if (parenMatches && parenMatches.length > 0) {
-    let remaining = alg;
-    parenMatches.forEach(paren => {
-      const idx = remaining.indexOf(paren);
-      if (idx > 0) {
-        const lead = remaining.slice(0, idx).trim();
-        if (lead) triggers.push(describeFallbackTrigger(lead));
-      }
-      triggers.push(describeFallbackTrigger(paren));
-      remaining = remaining.slice(idx + paren.length).trim();
-    });
-    if (remaining) triggers.push(describeFallbackTrigger(remaining));
-  } else {
-    const parts = alg.split(' ').filter(Boolean);
-    const chunkSize = Math.max(2, Math.ceil(parts.length / 3));
-    for (let i = 0; i < parts.length; i += chunkSize) {
-      const chunk = parts.slice(i, i + chunkSize).join(' ');
-      triggers.push(describeFallbackTrigger(chunk));
-    }
-  }
-
-  let grip = "Standard Home Grip (Thumbs on front center, middle & ring on back)";
-  if (alg.includes("r") || alg.includes("l")) grip = "Wide Home Grip (Thumb spans two layers for wide turns)";
-  else if (alg.startsWith("L") || alg.startsWith("f'")) grip = "Lefty Home Grip (Dominant left-hand lead)";
-  else if (alg.includes("M")) grip = "Middle Slice Grip (Ring finger rested on bottom-back M slice)";
-
-  return {
-    grip,
-    regrips: alg.includes("y") || alg.includes("x") ? "1 Regrip (Cube Rotation)" : "0 Regrips (High TPS Flow)",
-    triggers: triggers.filter(Boolean),
-    proTip: "Keep finger movements light and close to the cube. Minimize wrist travel by flicking U moves with your index finger."
-  };
+const CROSS_SCRAMBLES = {
+  1: ["U L2", "F2 D'", "R' D2", "L D'", "U' R2", "B2 D"],
+  2: ["U R2 F'", "L' U2 B", "F R' D'", "U2 L F2", "B' U R2", "R U' F2"],
+  3: ["R U' F2 D'", "L' B U2 R", "F' U2 L' D", "B R' U2 F'", "U R' F' D2", "L U B2 D'"],
+  4: ["R' F U2 L' D", "F U' R2 B D'", "L B' U2 R' F", "U2 F' R L' D2", "B' L U' F2 R", "R U2 B' L' D"],
+  5: ["F R' U2 L B' D", "R' U' F2 L' B D2", "L F' U2 R' B' D'", "U' B R' F2 L D2", "B' R U' F' L2 D", "R L' F2 U' B' D2"]
 };
 
-// --- APP HELPERS ---
-const getImageUrl = (alg) => {
-  const sanitized = alg.replace(/[()]/g, '').trim();
-  return `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sanitized)}`;
+const MECHANICS_LIST = [
+  { id: 1, title: "The Free Drop", step: "1 Turn", desc: "When a white edge sits in the top layer with its white sticker facing outward, align its side color with its center and drop it straight down with a 180-degree face turn (F2, R2, L2, or B2).", tip: "Always check for free drops first during your 15-second inspection." },
+  { id: 2, title: "The Flipped Edge", step: "3 Moves", desc: "When a white edge is seated on the bottom layer with white facing outward (a bad edge), bring it to the middle slice (F or R'), move it into an open slot on D (D' or D), and restore the disturbed edge.", tip: "Look for bright white side stickers on the D-layer—they are high-priority fixes." },
+  { id: 3, title: "Keyhole / D-Offset", step: "D' -> Drop -> D", desc: "Instead of aligning the top layer to a rigid bottom cross, rotate the entire D-layer (D or D') to bring the open target slot underneath a ready edge, drop it in, then realign D at the end.", tip: "Rotating D is much faster than performing extra U and F turns." },
+  { id: 4, title: "Cross Preservation", step: "Setup & Restore", desc: "Before inserting a tricky edge that would knock out an already-solved cross piece, either offset the D-layer out of the way or immediately follow the insertion with a single restoring turn.", tip: "Never break a solved edge without a planned 1-move restoration." }
+];
+
+const AUF_VARIATIONS = [
+  { pre: "", post: "" },
+  { pre: "U ", post: "" },
+  { pre: "U' ", post: "" },
+  { pre: "U2 ", post: "" },
+  { pre: "", post: " U" },
+  { pre: "", post: " U'" },
+  { pre: "", post: " U2" },
+  { pre: "U ", post: " U'" },
+  { pre: "U' ", post: " U" },
+  { pre: "U2 ", post: " U" }
+];
+
+const STORAGE_KEY = 'ollday_users_v2';
+const FIRESTORE_URL = (typeof window !== 'undefined' && window.__VITE_FIRESTORE_URL) || 'https://firestore.googleapis.com/v1/projects/olldayeveryday/databases/(default)/documents/app_data/family_sync?key=AIzaSyBFWgmB1DgBDrfTWCMLSNS6ovS2XeMjAcU';
+
+const defaultUsers = {
+  "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 2.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 7, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false },
+  "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 4.00, timerEnabled: true, fingertricksEnabled: true, chunkSize: 5, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false },
+  "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 5, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false },
+  "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 3, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false }
 };
 
-const reverseAlg = (alg) => {
-  const moves = alg.replace(/[()]/g, '').split(' ').filter(Boolean);
-  const invertMove = (m) => {
-    if (m.includes("'")) return m.replace("'", "");
-    if (m.includes("2")) return m;
-    return m + "'";
-  };
-  return moves.reverse().map(invertMove).join(' ');
-};
-
-// --- CUSTOM SUNE CUBE LOGO ---
-const SuneCubeLogo = ({ className = "w-10 h-10" }) => {
-  const [imgError, setImgError] = useState(false);
-  return sanitizeNode(
-    <div className={`${className} flex-shrink-0 flex items-center justify-center relative`}>
-      {!imgError ? (
-        <img
-          src="/OLLDayEveryday.svg"
-          alt="Sune Logo"
-          className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
-          onError={() => setImgError(true)}
-        />
-      ) : (
-        <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z"
-            fill="#090a14"
-            stroke="#090a14"
-            strokeWidth="32"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round" fill="#000000">
-            <polygon points="524,180 594,228 534,268 464,220" />
-            <polygon points="604,236 674,288 614,328 544,276" />
-            <polygon points="684,296 754,348 694,388 624,336" />
-            <polygon points="700,358 775,354 788,418 714,424" />
-            <polygon points="716,432 790,428 752,492 680,498" />
-            <polygon points="676,506 748,502 708,552 638,558" />
-          </g>
-          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-            <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
-            <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
-            <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
-          </g>
-          <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-            <polygon points="544,432 616,375 610,466 538,523" fill="#d96528" />
-            <polygon points="537,537 609,480 603,571 531,628" fill="#090a12" />
-            <polygon points="530,642 602,585 596,676 524,733" fill="#090a12" />
-          </g>
-          <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
-            <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
-            <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
-            <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
-            <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
-          </g>
-        </svg>
-      )}
-    </div>
-  );
-};
-
-// --- REAL-TIME CLOUD DATABASE (FIRESTORE REST API) ---
-const FIREBASE_PROJECT_ID = "olldayeveryday";
-const FIREBASE_API_KEY = "AIzaSyBFWgmB1DgBDrfTWCMLSNS6ovS2XeMjAcU";
-const FIRESTORE_ENDPOINT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/app_data/family_sync?key=${FIREBASE_API_KEY}`;
-
-// --- PIN PAD COMPONENT ---
-const PinPad = ({ title, subtitle, onComplete, errorMsg, hideClose, onClose, clearOnComplete = true }) => {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState(errorMsg || '');
-
-  useEffect(() => { setError(errorMsg || ''); }, [errorMsg]);
-
-  const handlePress = (num) => {
-    setError('');
-    if (pin.length < 4) {
-      const newPin = pin + num;
-      setPin(newPin);
-      if (newPin.length === 4) {
-        onComplete(newPin);
-        if (clearOnComplete) setTimeout(() => setPin(''), 300);
-      }
+function generateSchedule(chunks) {
+  const list = chunks && chunks.length > 0 ? chunks : DEFAULT_CHUNKS;
+  const schedule = [];
+  list.forEach((chk, idx) => {
+    schedule.push({ mode: 'learn', title: `Learn: ${chk.title}`, desc: "Time to acquire fresh muscle memory. Drill each trigger until the pattern snaps naturally.", caseIds: chk.caseIds, chunkIdx: idx });
+    schedule.push({ mode: 'drill', title: `Drill: ${chk.title}`, desc: "Speed execution and recognition drills. Aim below your target execution goal.", caseIds: chk.caseIds, chunkIdx: idx });
+    schedule.push({ mode: 'review', title: `Refine: ${chk.title}`, desc: "Mixed-order recognition and clean fingertrick flow.", caseIds: chk.caseIds, chunkIdx: idx });
+    if ((idx + 1) % 2 === 0) {
+      const prev = list[idx - 1];
+      schedule.push({ mode: 'review', title: `Cumulative Review: Chunks ${idx} & ${idx + 1}`, desc: "Mixed recognition across both recent chunks.", caseIds: [...prev.caseIds, ...chk.caseIds], chunkIdx: idx });
     }
-  };
-
-  const handleDelete = () => setPin(pin.slice(0, -1));
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
-        return;
-      }
-      if (/^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        handlePress(e.key);
-      } else if (e.key === 'Backspace') {
-        e.preventDefault();
-        handleDelete();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pin]);
-
-  return sanitizeNode(
-    <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto animate-in fade-in select-none">
-      {!hideClose && (
-        <button onClick={onClose} className="absolute top-6 left-6 p-2 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
-          <X size={20} />
-        </button>
-      )}
-      
-      <div className="w-16 h-16 rounded-3xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mb-6 shadow-xl shadow-orange-500/10">
-        <Lock size={32} />
-      </div>
-      
-      <h2 className="text-2xl font-black text-white mb-2">{title}</h2>
-      <p className="text-sm text-slate-400 mb-8 text-center">{subtitle}</p>
-
-      <div className="flex gap-4 mb-8">
-        {[0, 1, 2, 3].map(i => (
-          <div key={i} className={`w-4 h-4 rounded-full transition-all duration-200 border-2 ${
-            pin.length > i 
-              ? (error ? 'bg-red-500 border-red-500' : 'bg-orange-500 border-orange-500')
-              : 'bg-transparent border-white/20'
-          }`} />
-        ))}
-      </div>
-      {error && <p className="text-red-400 text-xs font-bold mb-4 -mt-4 uppercase tracking-widest">{error}</p>}
-
-      <div className="grid grid-cols-3 gap-4 w-full">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-          <button 
-            key={num} 
-            onClick={() => handlePress(num.toString())}
-            className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
-          >
-            {num}
-          </button>
-        ))}
-        <div />
-        <button 
-          onClick={() => handlePress('0')}
-          className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-2xl font-semibold text-white flex items-center justify-center border border-white/5 cursor-pointer"
-        >
-          0
-        </button>
-        <button 
-          onClick={handleDelete}
-          className="h-16 rounded-full bg-white/5 hover:bg-white/10 active:scale-90 transition-all text-xl font-semibold text-slate-400 flex items-center justify-center border border-white/5 cursor-pointer"
-        >
-          <BackspaceIcon className="w-6 h-6" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// --- AUTHENTICATION SCREEN ---
-const AuthScreen = ({ users, onLogin, onOpenAdmin }) => {
-  const [error, setError] = useState('');
-
-  const handleLogin = (enteredPin) => {
-    const cleanPin = String(enteredPin).trim();
-    const userFound = users[cleanPin] || Object.values(users).find(u => String(u.pin).trim() === cleanPin);
-    if (userFound) {
-      onLogin(userFound.pin);
-    } else {
-      setError('Invalid PIN');
-      setTimeout(() => setError(''), 1000);
-    }
-  };
-
-  return sanitizeNode(
-    <div className="fixed inset-0 w-screen h-screen bg-[#060913] flex flex-col items-center justify-center relative overflow-hidden p-6 z-50">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
-      
-      <button 
-        onClick={onOpenAdmin}
-        className="absolute top-6 right-6 p-3 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-all cursor-pointer border border-white/5 active:scale-95 z-20"
-        title="Admin Settings"
-      >
-        <ShieldAlert size={20} />
-      </button>
-
-      <div className="z-10 w-full">
-        <PinPad 
-          title="Welcome Back" 
-          subtitle="Enter your 4-digit PIN to access your training profile."
-          onComplete={handleLogin}
-          errorMsg={error}
-          hideClose
-        />
-      </div>
-    </div>
-  );
-};
-
-// --- ADMIN MODAL ---
-const AdminModal = ({ users, cloudStatus = 'synced', onClose, onAddUser, onDeleteUser, onUpdateUserPin, onImportData }) => {
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [error, setError] = useState('');
-  
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [addError, setAddError] = useState('');
-
-  const [confirmDeletePin, setConfirmDeletePin] = useState(null);
-  const [editingPinUser, setEditingPinUser] = useState(null);
-  const [newPinInput, setNewPinInput] = useState('');
-  const [pinEditError, setPinEditError] = useState('');
-
-  const [copyStatus, setCopyStatus] = useState('');
-  const [showSyncCodeModal, setShowSyncCodeModal] = useState(false);
-  const [syncCodeString, setSyncCodeString] = useState('');
-
-  const [showImportForm, setShowImportForm] = useState(false);
-  const [importString, setImportString] = useState('');
-  const [importError, setImportError] = useState('');
-
-  const handleAuth = (pin) => {
-    const adminUser = Object.values(users).find(u => u.role === 'admin') || users['1678'];
-    const validAdminPin = adminUser ? String(adminUser.pin).trim() : '1678';
-    if (String(pin).trim() === validAdminPin || String(pin).trim() === '1678') {
-      setIsAuthed(true);
-    } else {
-      setError('Admin PIN Required');
-      setTimeout(() => setError(''), 1000);
-    }
-  };
-
-  const handleCreateUser = () => {
-    const cleanPin = String(newPin).trim();
-    if (!newName.trim() || cleanPin.length !== 4) {
-      setAddError('Enter a valid name and exactly 4 digits');
-      return;
-    }
-    const pinExists = Object.values(users).some(u => String(u.pin).trim() === cleanPin);
-    if (pinExists) {
-      setAddError('PIN already taken!');
-      return;
-    }
-    onAddUser(newName.trim(), cleanPin);
-    setShowAddForm(false);
-    setNewName('');
-    setNewPin('');
-    setAddError('');
-  };
-
-  const handleSaveEditedPin = () => {
-    const cleanNew = String(newPinInput).trim();
-    if (cleanNew.length !== 4) {
-      setPinEditError('PIN must be 4 digits');
-      return;
-    }
-    const pinExists = Object.values(users).some(u => String(u.pin).trim() === cleanNew && String(u.pin).trim() !== String(editingPinUser.pin).trim());
-    if (pinExists) {
-      setPinEditError('PIN is already taken by another user');
-      return;
-    }
-    onUpdateUserPin(editingPinUser.pin, cleanNew);
-    setEditingPinUser(null);
-    setNewPinInput('');
-    setPinEditError('');
-  };
-
-  const handleCopySyncData = async () => {
-    const syncData = JSON.stringify(users);
-    setSyncCodeString(syncData);
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(syncData);
-        setCopyStatus('Sync Code Copied to Clipboard! ✓');
-        setTimeout(() => setCopyStatus(''), 3000);
-        return;
-      }
-    } catch (e) {}
-
-    try {
-      const textArea = document.createElement("textarea");
-      textArea.value = syncData;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      if (successful) {
-        setCopyStatus('Sync Code Copied to Clipboard! ✓');
-        setTimeout(() => setCopyStatus(''), 3000);
-        return;
-      }
-    } catch (err) {}
-
-    setShowSyncCodeModal(true);
-  };
-
-  const handleImportSyncData = () => {
-    if (!importString.trim()) {
-      setImportError('Please paste your Sync Code string');
-      return;
-    }
-    try {
-      const parsed = JSON.parse(importString.trim());
-      if (typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
-        setImportError('Invalid sync code format');
-        return;
-      }
-      onImportData(parsed);
-      setShowImportForm(false);
-      setImportString('');
-      setImportError('');
-      setCopyStatus('Data Imported Successfully! ✓');
-      setTimeout(() => setCopyStatus(''), 3000);
-    } catch (e) {
-      setImportError('Invalid JSON format. Check copied code.');
-    }
-  };
-
-  return sanitizeNode(
-    <div className="fixed inset-0 z-[200] bg-[#060913]/95 backdrop-blur-xl flex flex-col p-6 overflow-y-auto">
-      {!isAuthed ? (
-        <div className="flex-1 flex flex-col justify-center">
-          <PinPad 
-            title="Admin Access" 
-            subtitle="Enter the master PIN to manage users." 
-            onComplete={handleAuth} 
-            errorMsg={error} 
-            onClose={onClose} 
-          />
-        </div>
-      ) : (
-        <div className="animate-in fade-in slide-in-from-bottom-8 w-full max-w-sm mx-auto pt-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="text-2xl font-black text-white">Admin Panel</h2>
-                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-                  cloudStatus === 'synced'
-                    ? 'bg-green-500/15 border-green-500/30 text-green-300'
-                    : cloudStatus === 'connecting'
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-                    : 'bg-slate-800 border-white/10 text-slate-400'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'synced' ? 'bg-green-400 animate-pulse' : cloudStatus === 'connecting' ? 'bg-amber-400 animate-ping' : 'bg-slate-400'}`} />
-                  {cloudStatus === 'synced' ? 'Live Cloud' : cloudStatus === 'connecting' ? 'Connecting' : 'Offline'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">olldayeveryday • Real-time family database</p>
-            </div>
-            <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
-              <X size={20} />
-            </button>
-          </div>
-
-          {copyStatus && (
-            <div className="bg-green-500/20 border border-green-500/40 rounded-xl p-3 mb-4 text-center text-xs font-bold text-green-300 animate-in fade-in">
-              {copyStatus}
-            </div>
-          )}
-
-          {editingPinUser && (
-            <div className="bg-slate-900 border border-amber-500/40 rounded-2xl p-4 mb-6 shadow-xl animate-in fade-in">
-              <h4 className="text-sm font-bold text-amber-400 mb-1 flex items-center gap-1.5">
-                <Key size={16} /> Edit PIN for {editingPinUser.name}
-              </h4>
-              <p className="text-xs text-slate-400 mb-3">
-                Current PIN: <span className="font-mono text-white font-bold">{editingPinUser.pin}</span>
-              </p>
-              <div className="mb-3">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">New 4-Digit PIN</label>
-                <input 
-                  type="text" 
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  value={newPinInput} 
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^0-9]/g, '');
-                    if (val.length <= 4) setNewPinInput(val);
-                  }} 
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleSaveEditedPin();
-                  }}
-                  placeholder="E.g. 0494" 
-                  className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-amber-500" 
-                  autoFocus
-                />
-              </div>
-              {pinEditError && <p className="text-xs text-red-400 font-bold mb-3">{pinEditError}</p>}
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => { setEditingPinUser(null); setPinEditError(''); }} className="py-2.5 text-xs flex-1">
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleSaveEditedPin} className="py-2.5 text-xs flex-1">
-                  Save PIN
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {confirmDeletePin && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-6 text-center animate-in fade-in">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 mx-auto mb-2 flex items-center justify-center">
-                <Trash2 size={20} />
-              </div>
-              <h4 className="text-sm font-bold text-white mb-1">
-                Delete profile for {users[confirmDeletePin]?.name}?
-              </h4>
-              <p className="text-xs text-slate-400 mb-4">
-                This will permanently erase their solve times and day progress.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setConfirmDeletePin(null)} className="py-2 text-xs flex-1">
-                  Cancel
-                </Button>
-                <Button variant="danger" onClick={() => { onDeleteUser(confirmDeletePin); setConfirmDeletePin(null); }} className="py-2 text-xs flex-1">
-                  Confirm Delete
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {!showAddForm && !showImportForm ? (
-            <>
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Active Profiles</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">{Object.keys(users).length} Users</span>
-                </div>
-
-                {Object.values(users).map(u => {
-                  const isMaster = String(u.pin).trim() === '1678';
-                  return (
-                    <div key={u.pin} className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-black">
-                          {(u.name || "U").charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-bold text-white flex items-center gap-2 text-sm">
-                            {u.name}
-                            {u.role === 'admin' && <ShieldAlert size={14} className="text-amber-500" />}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono tracking-widest">
-                            PIN: <span className="text-orange-400 font-bold">{u.pin}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-400 mr-1 font-mono">Day {u.day || 1}</span>
-                        <button 
-                          onClick={() => { setEditingPinUser(u); setNewPinInput(u.pin); setPinEditError(''); }}
-                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-amber-400 active:scale-95 transition-all cursor-pointer"
-                          title="Change PIN"
-                        >
-                          <Key size={15} />
-                        </button>
-                        {!isMaster && (
-                          <button 
-                            onClick={() => setConfirmDeletePin(u.pin)}
-                            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 active:scale-95 transition-all cursor-pointer"
-                            title="Delete User"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <Button onClick={() => setShowAddForm(true)} variant="secondary" className="border-dashed border-white/20 text-orange-400 py-3 text-xs">
-                  <UserPlus size={16} /> Add New User
-                </Button>
-              </div>
-
-              <div className="bg-slate-900/40 border border-white/10 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Device Backup & Transfer</span>
-                  <Cloud size={14} className="text-orange-400" />
-                </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Automatic real-time sync is active via Firestore REST. You can also manually copy or import your database anytime below:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="secondary" onClick={handleCopySyncData} className="py-2.5 text-xs">
-                    <Copy size={14} /> Copy Sync Code
-                  </Button>
-                  <Button variant="secondary" onClick={() => setShowImportForm(true)} className="py-2.5 text-xs">
-                    <ArrowDownToLine size={14} /> Import Code
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : showAddForm ? (
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
-              <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-                <UserPlus size={20} className="text-orange-500"/> New Profile
-              </h3>
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">First Name</label>
-                  <input 
-                    type="text" 
-                    value={newName} 
-                    onChange={e => setNewName(e.target.value)} 
-                    placeholder="E.g. Ephraim" 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm" 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">4-Digit PIN</label>
-                  <input 
-                    type="text" 
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
-                    value={newPin} 
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      if (val.length <= 4) setNewPinInput ? setNewPin(val) : setNewPin(val);
-                    }} 
-                    placeholder="E.g. 0713" 
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg tracking-widest focus:outline-none focus:border-orange-500 transition-colors" 
-                  />
-                </div>
-                {addError && <p className="text-xs text-red-400 font-bold">{addError}</p>}
-              </div>
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => {setShowAddForm(false); setAddError('');}} className="py-3 flex-1 text-sm">Cancel</Button>
-                <Button variant="primary" onClick={handleCreateUser} className="py-3 flex-1 text-sm">Save User</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-6 shadow-2xl">
-              <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
-                <ArrowDownToLine size={20} className="text-orange-500"/> Import Data
-              </h3>
-              <p className="text-xs text-slate-400 mb-4">Paste the sync code string copied from another device to restore all user profiles.</p>
-              <textarea 
-                value={importString}
-                onChange={e => setImportString(e.target.value)}
-                placeholder='Paste {"1678": {...}}'
-                className="w-full h-32 bg-black/50 border border-white/10 rounded-xl p-3 text-white font-mono text-xs focus:outline-none focus:border-orange-500 mb-3"
-              />
-              {importError && <p className="text-xs text-red-400 font-bold mb-3">{importError}</p>}
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => { setShowImportForm(false); setImportError(''); }} className="py-3 flex-1 text-sm">
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleImportSyncData} className="py-3 flex-1 text-sm">
-                  Apply Import
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {showSyncCodeModal && (
-            <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in">
-              <div className="bg-slate-900 border border-white/10 rounded-[2rem] p-6 max-w-sm w-full shadow-2xl">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-base font-bold text-white">Your Sync Code</h4>
-                  <button onClick={() => setShowSyncCodeModal(false)} className="p-1.5 bg-white/5 rounded-full text-slate-400 hover:text-white">
-                    <X size={16} />
-                  </button>
-                </div>
-                <p className="text-xs text-slate-400 mb-3">Select and copy this entire code string to paste onto your other device:</p>
-                <textarea 
-                  readOnly 
-                  value={syncCodeString}
-                  onClick={e => e.target.select()}
-                  className="w-full h-36 bg-black/60 border border-white/10 rounded-xl p-3 text-orange-300 font-mono text-xs mb-4 select-all"
-                />
-                <Button variant="primary" onClick={() => setShowSyncCodeModal(false)} className="py-3 text-sm">
-                  Done
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// --- APP ROOT COMPONENT ---
-export default function App() {
-  const [users, setUsers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ollday_users_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {}
-
-    const base = {
-      "1678": { 
-        pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 2.5, 
-        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
-      },
-      "8995": { 
-        pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 4.0, 
-        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
-      },
-      "0713": { 
-        pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.5, 
-        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
-      },
-      "0494": { 
-        pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.5, 
-        timerEnabled: true, fingertricksEnabled: true, chunkSize: 6, customChunks: DEFAULT_CHUNKS 
-      },
-    };
-
-    try {
-      localStorage.setItem('ollday_users_v2', JSON.stringify(base));
-    } catch (e) {}
-    return base;
   });
-
-  const [activePin, setActivePin] = useState(null);
-  const [activeTab, setActiveTab] = useState('grind');
-  const [sessionState, setSessionState] = useState(null);
-  const [drillCase, setDrillCase] = useState(null);
-  const [showAdminModal, setShowAdminModal] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [fingertrickModalCase, setFingertrickModalCase] = useState(null);
-  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [showCurriculumModal, setShowCurriculumModal] = useState(false);
-  const [cloudStatus, setCloudStatus] = useState('connecting');
-
-  const saveToCloud = async (dataToSync) => {
-    try {
-      const payload = {
-        fields: {
-          usersPayload: { stringValue: JSON.stringify(dataToSync) },
-          updatedAt: { integerValue: String(Date.now()) }
-        }
-      };
-      await fetch(FIRESTORE_ENDPOINT, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {}
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const pullFromCloud = async () => {
-      try {
-        const res = await fetch(FIRESTORE_ENDPOINT);
-        if (!res.ok) {
-          if (res.status === 404) {
-            saveToCloud(users);
-            if (isMounted) setCloudStatus('synced');
-          } else {
-            if (isMounted) setCloudStatus('offline');
-          }
-          return;
-        }
-
-        const json = await res.json();
-        const rawPayload = json.fields?.usersPayload?.stringValue;
-        if (rawPayload) {
-          const cloudUsers = JSON.parse(rawPayload);
-          if (cloudUsers && typeof cloudUsers === 'object' && Object.keys(cloudUsers).length > 0) {
-            if (isMounted) {
-              setUsers(cloudUsers);
-              try {
-                localStorage.setItem('ollday_users_v2', JSON.stringify(cloudUsers));
-              } catch (e) {}
-              setCloudStatus('synced');
-            }
-          }
-        }
-      } catch (err) {
-        if (isMounted) setCloudStatus('offline');
-      }
-    };
-
-    pullFromCloud();
-
-    const pollTimer = setInterval(pullFromCloud, 10000);
-    const handleFocus = () => pullFromCloud();
-    window.addEventListener('focus', handleFocus);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') pullFromCloud();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      isMounted = false;
-      clearInterval(pollTimer);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'ollday_users_v2' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (parsed && typeof parsed === 'object') {
-            setUsers(parsed);
-          }
-        } catch (err) {}
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  const handleLogin = (pin) => {
-    const cleanPin = String(pin).trim();
-    setActivePin(cleanPin);
-  };
-
-  const handleAddUser = (name, pin) => {
-    const cleanPin = String(pin).trim();
-    const newUser = { 
-      pin: cleanPin, 
-      name: name.trim(), 
-      role: "user", 
-      day: 1, 
-      stats: {}, 
-      targetGoal: 3.5, 
-      timerEnabled: true, 
-      fingertricksEnabled: true,
-      chunkSize: 6,
-      customChunks: DEFAULT_CHUNKS
-    };
-
-    setUsers(prevUsers => {
-      const nextUsers = { ...prevUsers, [cleanPin]: newUser };
-      try { 
-        localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
-      } catch (e) {}
-      saveToCloud(nextUsers);
-      return nextUsers;
-    });
-  };
-
-  const handleDeleteUser = (pinToDelete) => {
-    const clean = String(pinToDelete).trim();
-    if (clean === '1678') return;
-    setUsers(prevUsers => {
-      const nextUsers = { ...prevUsers };
-      delete nextUsers[clean];
-      Object.keys(nextUsers).forEach(key => {
-        if (String(nextUsers[key]?.pin).trim() === clean) {
-          delete nextUsers[key];
-        }
-      });
-      try { 
-        localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
-      } catch (e) {}
-      saveToCloud(nextUsers);
-      return nextUsers;
-    });
-
-    if (activePin === clean) {
-      setActivePin(null);
-      setSessionState(null);
-    }
-  };
-
-  const handleUpdateUserPin = (oldPin, newPin) => {
-    const cleanOld = String(oldPin).trim();
-    const cleanNew = String(newPin).trim();
-
-    setUsers(prevUsers => {
-      const targetKey = Object.keys(prevUsers).find(k => 
-        String(k).trim() === cleanOld || String(prevUsers[k]?.pin).trim() === cleanOld
-      );
-
-      if (!targetKey) {
-        return prevUsers;
-      }
-
-      const targetUser = prevUsers[targetKey];
-      const updatedProfile = { ...targetUser, pin: cleanNew };
-      const nextUsers = { ...prevUsers };
-      delete nextUsers[targetKey];
-      delete nextUsers[cleanOld];
-      nextUsers[cleanNew] = updatedProfile;
-
-      try { 
-        localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); 
-      } catch (e) {}
-      saveToCloud(nextUsers);
-      return nextUsers;
-    });
-
-    if (activePin === cleanOld) {
-      setActivePin(cleanNew);
-    }
-  };
-
-  const handleImportData = (importedUsers) => {
-    if (!importedUsers || typeof importedUsers !== 'object') return;
-    setUsers(importedUsers);
-    try {
-      localStorage.setItem('ollday_users_v2', JSON.stringify(importedUsers));
-    } catch (e) {}
-    saveToCloud(importedUsers);
-  };
-
-  // Derive currentUser safely
-  const currentUser = (activePin && users[activePin])
-    ? users[activePin]
-    : (activePin ? (Object.values(users).find(u => String(u.pin).trim() === activePin) || null) : null);
-
-  useEffect(() => {
-    if (currentUser && currentUser.hasSeenOnboarding === undefined) {
-      setShowOnboardingModal(true);
-    }
-  }, [activePin, currentUser]);
-
-  // Unauthenticated Lock Screen early return (strictly AFTER hooks)
-  if (!activePin || !currentUser) {
-    return sanitizeNode(
-      <>
-        <AuthScreen 
-          users={users} 
-          onLogin={handleLogin} 
-          onOpenAdmin={() => setShowAdminModal(true)} 
-        />
-        {showAdminModal && (
-          <AdminModal 
-            users={users} 
-            cloudStatus={cloudStatus}
-            onClose={() => setShowAdminModal(false)} 
-            onAddUser={handleAddUser} 
-            onDeleteUser={handleDeleteUser}
-            onUpdateUserPin={handleUpdateUserPin}
-            onImportData={handleImportData}
-          />
-        )}
-      </>
-    );
-  }
-
-  const updateCurrentUser = (updates) => {
-    const targetKey = Object.keys(users).find(k => 
-      String(k).trim() === activePin || String(users[k]?.pin).trim() === activePin
-    ) || activePin;
-    const current = users[targetKey] || currentUser || {};
-    const nextUser = { ...current, ...updates };
-
-    setUsers(prevUsers => {
-      const nextUsers = { ...prevUsers, [targetKey]: nextUser };
-      try { localStorage.setItem('ollday_users_v2', JSON.stringify(nextUsers)); } catch (e) {}
-      saveToCloud(nextUsers);
-      return nextUsers;
-    });
-  };
-
-  const userChunks = currentUser.customChunks && currentUser.customChunks.length > 0
-    ? currentUser.customChunks
-    : DEFAULT_CHUNKS;
-
-  const currentDay = currentUser.day || 1;
-  const schedule = getScheduleForDay(currentDay, userChunks);
-  const totalDays = schedule.totalDays;
-
-  const updateDay = (day) => { 
-    if (day >= 1 && day <= totalDays) {
-      updateCurrentUser({ day });
-    }
-  };
-
-  const handleRecordTime = (caseId, timeInSeconds) => {
-    const userStats = currentUser.stats || {};
-    const existingStats = userStats[caseId] || [];
-    const nextStats = { ...userStats, [caseId]: [...existingStats, timeInSeconds] };
-    updateCurrentUser({ stats: nextStats });
-  };
-
-  const handleResetProgress = () => { 
-    updateCurrentUser({ day: 1, stats: {} });
-    setShowResetModal(false); 
-  };
-
-  // Determine today's algs dynamically from the active schedule
-  let todaysAlgs = [];
-  if (schedule.chunkIndex !== undefined && userChunks[schedule.chunkIndex]) {
-    const activeChunk = userChunks[schedule.chunkIndex];
-    todaysAlgs = OLL_DATA.filter(c => activeChunk.caseIds.includes(c.id));
-  } else if (schedule.chunkIndices) {
-    const activeIds = schedule.chunkIndices.flatMap(idx => userChunks[idx]?.caseIds || []);
-    todaysAlgs = OLL_DATA.filter(c => activeIds.includes(c.id));
-  }
-  if (todaysAlgs.length === 0) todaysAlgs = [OLL_DATA[0]];
-
-  const isFingertricksOn = currentUser.fingertricksEnabled !== false;
-
-  return sanitizeNode(
-    <div className="fixed inset-0 w-screen h-screen bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 overflow-hidden flex justify-center select-none touch-none overscroll-none">
-      <style>{`
-        html, body, #root {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          overscroll-behavior: none;
-          background-color: #060913 !important;
-          color-scheme: dark;
-        }
-      `}</style>
-
-      {/* iOS Ambient Lighting Gradients */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[45vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
-      <div className="fixed bottom-0 right-0 w-3/4 h-[40vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
-
-      {/* Main iPhone Application Viewport Shell */}
-      <div className="w-full max-w-md h-full flex flex-col relative z-10 shadow-2xl bg-[#090e1c] backdrop-blur-3xl border-x border-white/5 overflow-hidden">
-        
-        {/* Fixed Header */}
-        <header className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/40 backdrop-blur-md select-none flex-shrink-0 touch-none overscroll-none">
-          <div className="flex items-center gap-3">
-            <SuneCubeLogo className="w-10 h-10" />
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-1">
-                OLLDay <span className="text-orange-500">Everyday</span>
-              </h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-slate-400 font-medium">Daily OLL Training</span>
-                <span className="text-slate-600">•</span>
-                <span className="text-[10px] text-orange-400 font-bold">
-                  Day {currentDay}
-                </span>
-                <span className="text-slate-600">•</span>
-                <div 
-                  className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider" 
-                  title={cloudStatus === 'synced' ? 'Real-Time Cloud Synced' : cloudStatus === 'connecting' ? 'Connecting to Cloud...' : 'Offline Mode (Local Storage)'}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'synced' ? 'bg-green-400 animate-pulse' : cloudStatus === 'connecting' ? 'bg-amber-400 animate-ping' : 'bg-slate-500'}`} />
-                  <span className={cloudStatus === 'synced' ? 'text-green-400/90' : cloudStatus === 'connecting' ? 'text-amber-400/90' : 'text-slate-500'}>
-                    {cloudStatus === 'synced' ? 'Cloud' : cloudStatus === 'connecting' ? 'Syncing' : 'Local'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="text-right flex flex-col items-end">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              {currentUser.name}
-            </div>
-            <span className="text-sm font-black text-orange-400 font-mono">
-              {Math.min(100, Math.round((currentDay / totalDays) * 100))}%
-            </span>
-          </div>
-        </header>
-
-        {/* Viewport Content */}
-        <main className={`flex-1 min-h-0 relative select-none overscroll-none ${activeTab === 'settings' ? 'overflow-hidden touch-none' : 'overflow-y-auto touch-pan-y no-scrollbar'}`}>
-          {!sessionState && activeTab === 'grind' && (
-            <GrindView 
-              currentDay={currentDay} 
-              totalDays={totalDays}
-              updateDay={updateDay} 
-              schedule={schedule} 
-              todaysAlgsCount={todaysAlgs.length}
-              onStart={() => setSessionState(schedule.type.toLowerCase())} 
-              onOpenCurriculum={() => setShowCurriculumModal(true)}
-            />
-          )}
-
-          {!sessionState && activeTab === 'algorithms' && (
-            <AlgorithmsView 
-              customChunks={userChunks}
-              solveTimes={currentUser.stats || {}}
-              targetGoal={currentUser.targetGoal || 3.5}
-              onSelectCase={(c) => setDrillCase(c)} 
-              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
-              onOpenCurriculum={() => setShowCurriculumModal(true)}
-            />
-          )}
-
-          {!sessionState && activeTab === 'stats' && (
-            <StatisticsView 
-              solveTimes={currentUser.stats || {}} 
-              targetGoal={currentUser.targetGoal || 3.5} 
-              onSelectCase={(c) => setDrillCase(c)} 
-            />
-          )}
-
-          {!sessionState && activeTab === 'settings' && (
-            <SettingsView 
-              currentUser={currentUser} 
-              totalDays={totalDays}
-              userChunks={userChunks}
-              setTimerEnabled={(val) => updateCurrentUser({ timerEnabled: val })} 
-              setFingertricksEnabled={(val) => updateCurrentUser({ fingertricksEnabled: val })}
-              setTargetGoal={(val) => updateCurrentUser({ targetGoal: val })} 
-              setChunkSize={(newSize) => {
-                const generated = generateChunksBySize(newSize);
-                updateCurrentUser({ chunkSize: newSize, customChunks: generated, day: 1 });
-              }}
-              onRequestReset={() => setShowResetModal(true)} 
-              onOpenAdmin={() => setShowAdminModal(true)} 
-              onLockApp={() => setActivePin(null)}
-              onOpenOnboarding={() => setShowOnboardingModal(true)}
-              onOpenCurriculum={() => setShowCurriculumModal(true)}
-            />
-          )}
-
-          {sessionState === 'learn' && (
-            <LearnSession 
-              algs={todaysAlgs} 
-              onClose={() => setSessionState(null)} 
-              onComplete={() => { updateDay(currentDay + 1); setSessionState(null); }} 
-              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
-            />
-          )}
-
-          {(sessionState === 'practice' || sessionState === 'review') && (
-            <PracticeSession 
-              algs={todaysAlgs} 
-              mode={sessionState} 
-              timerEnabled={currentUser.timerEnabled !== false} 
-              solveTimes={currentUser.stats || {}} 
-              onRecordTime={handleRecordTime} 
-              onClose={() => setSessionState(null)} 
-              onComplete={() => { updateDay(currentDay + 1); setSessionState(null); }} 
-              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
-            />
-          )}
-
-          {drillCase && (
-            <IsolatedDrillModal 
-              caseData={drillCase} 
-              timerEnabled={currentUser.timerEnabled !== false} 
-              solveTimes={(currentUser.stats && currentUser.stats[drillCase.id]) || []} 
-              onRecordTime={(t) => handleRecordTime(drillCase.id, t)} 
-              onClose={() => setDrillCase(null)} 
-              onOpenFingertrick={isFingertricksOn ? (c) => setFingertrickModalCase(c) : null}
-            />
-          )}
-
-          {fingertrickModalCase && (
-            <FingertrickDossierModal 
-              caseData={fingertrickModalCase} 
-              onClose={() => setFingertrickModalCase(null)} 
-            />
-          )}
-
-          {showOnboardingModal && (
-            <OnboardingModal 
-              onClose={() => {
-                updateCurrentUser({ hasSeenOnboarding: true });
-                setShowOnboardingModal(false);
-              }}
-            />
-          )}
-
-          {showCurriculumModal && (
-            <CurriculumBuilderModal
-              customChunks={userChunks}
-              chunkSize={currentUser.chunkSize || 6}
-              onClose={() => setShowCurriculumModal(false)}
-              onSave={(newChunks, newSize) => {
-                updateCurrentUser({ customChunks: newChunks, chunkSize: newSize, day: 1 });
-                setShowCurriculumModal(false);
-              }}
-            />
-          )}
-
-          {showAdminModal && (
-            <AdminModal 
-              users={users} 
-              cloudStatus={cloudStatus}
-              onClose={() => setShowAdminModal(false)} 
-              onAddUser={handleAddUser} 
-              onDeleteUser={handleDeleteUser}
-              onUpdateUserPin={handleUpdateUserPin}
-              onImportData={handleImportData}
-            />
-          )}
-
-          {showResetModal && (
-            <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in">
-              <div className="bg-slate-900 border border-white/10 rounded-[2rem] p-6 max-w-xs w-full text-center shadow-2xl">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 mx-auto mb-4 flex items-center justify-center border border-red-500/20">
-                  <RotateCcw size={24} />
-                </div>
-                <h3 className="text-xl font-black text-white mb-2">Reset Progress?</h3>
-                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                  This will reset your schedule back to Day 1 and wipe your recorded solve times. This cannot be undone.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <Button variant="danger" onClick={handleResetProgress} className="py-3 text-sm">
-                    Yes, Reset
-                  </Button>
-                  <Button variant="secondary" onClick={() => setShowResetModal(false)} className="py-3 text-sm">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-
-        {/* Dedicated Bottom Navigation Bar */}
-        {!sessionState && !drillCase && (
-          <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-4 z-40 select-none touch-none overscroll-none shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
-            <div className="flex justify-around items-center max-w-sm mx-auto">
-              <TabIcon icon={Target} label="The Grind" active={activeTab === 'grind'} onClick={() => setActiveTab('grind')} />
-              <TabIcon icon={Layers} label="Algorithms" active={activeTab === 'algorithms'} onClick={() => setActiveTab('algorithms')} />
-              <TabIcon icon={BarChart3} label="Statistics" active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
-              <TabIcon icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
-            </div>
-          </nav>
-        )}
-
-      </div>
-    </div>
-  );
+  schedule.push({ mode: 'review', title: "Grand Finale: All 57 OLL Cases", desc: "Full OLL mastery gauntlet across every shape category.", caseIds: OLL_DATA.map((c) => c.id), chunkIdx: 0 });
+  return schedule;
 }
 
-const TabIcon = ({ icon: Icon, label, active, onClick }) => sanitizeNode(
-  <button 
-    onClick={onClick} 
-    className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all select-none touch-none ${
-      active ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'
-    }`}
-  >
-    <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-orange-500/15' : 'bg-transparent'}`}>
-      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-    </div>
-    <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
-  </button>
-);
+export default function App() {
+  // =========================================================================
+  // 1. PERSISTENT PROFILE & CLOUD SYNC STATE
+  // =========================================================================
+  const [users, setUsers] = useState(() => {
+    if (typeof window === 'undefined') return defaultUsers;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : defaultUsers;
+    } catch {
+      return defaultUsers;
+    }
+  });
+  const [activePin, setActivePin] = useState("1678");
+  const currentUser = users[activePin] || users["1678"];
+  const [syncStatus, setSyncStatus] = useState('synced');
+  const [toastMsg, setToastMsg] = useState(null);
 
-// --- TAB 1: THE GRIND ---
-const GrindView = ({ currentDay, totalDays, updateDay, schedule, todaysAlgsCount, onStart, onOpenCurriculum }) => {
-  const isReview = schedule.type === 'Review';
-  const isLearn = schedule.type === 'Learn';
-  const isFinale = schedule.isFinale || currentDay === totalDays;
+  // Navigation & View States
+  const [currentPhase, setCurrentPhase] = useState('oll');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
-  return sanitizeNode(
-    <div className="p-6 pt-6 pb-8 flex flex-col min-h-full">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Training Hub</p>
-          <h2 className="text-3xl font-black tracking-tight text-white">Daily Grind</h2>
-        </div>
-        <button 
-          onClick={onOpenCurriculum}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-orange-400 text-xs font-bold active:scale-95 transition-all cursor-pointer"
-          title="Adjust Pace & Curriculum"
-        >
-          <Sliders size={13} />
-          <span>Curriculum</span>
-        </button>
-      </div>
+  // Cross Phase States
+  const [crossTab, setCrossTab] = useState('ladder');
+  const [crossTier, setCrossTier] = useState(1);
+  const [crossMode, setCrossMode] = useState('efficiency');
+  const [crossScrambleIdx, setCrossScrambleIdx] = useState(0);
+  const [diagramView, setDiagramView] = useState('scrambled');
+  const [userMoves, setUserMoves] = useState(2);
+  const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
+  const [optimalCrossCount, setOptimalCrossCount] = useState(0);
+  const [activeMechanic, setActiveMechanic] = useState(1);
 
-      <GlassCard className="flex-1 flex flex-col justify-between items-center text-center relative overflow-hidden mb-5 p-7">
-        <div className={`absolute -top-24 -right-24 w-72 h-72 blur-3xl opacity-25 rounded-full pointer-events-none transition-colors duration-700 ${
-          isFinale ? 'bg-amber-400' : isLearn ? 'bg-blue-500' : isReview ? 'bg-purple-500' : 'bg-orange-500'
-        }`} />
+  // WCA Blind Inspection States
+  const [blindState, setBlindState] = useState('idle');
+  const [inspectionTime, setInspectionTime] = useState(15.0);
+  const [blindExecTime, setBlindExecTime] = useState(0.0);
+  const [blindRuns, setBlindRuns] = useState({ clean: 0, total: 0 });
+  const [showBlindGuide, setShowBlindGuide] = useState(true);
+  const [showEyesClosedGuide, setShowEyesClosedGuide] = useState(true);
+  const [eyesClosedStreak, setEyesClosedStreak] = useState(0);
+  const [leftPadHeld, setLeftPadHeld] = useState(false);
+  const [rightPadHeld, setRightPadHeld] = useState(false);
+  const wcaIntervalRef = useRef(null);
+  const execIntervalRef = useRef(null);
+  const padHoldTimeoutRef = useRef(null);
 
-        <div className="flex items-center justify-between w-full mb-6 z-10">
-          <button 
-            onClick={() => updateDay(currentDay - 1)} 
-            disabled={currentDay === 1} 
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5 cursor-pointer"
-          >
-            <ChevronLeft size={22} />
-          </button>
-          
-          <div className="flex flex-col items-center">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Active Phase</span>
-            <h3 className="text-4xl font-black text-white tracking-tighter mt-0.5">Day {currentDay}</h3>
-          </div>
+  // OLL Phase States
+  const [ollTab, setOllTab] = useState('grind');
+  const [ollLibraryMode, setOllLibraryMode] = useState('standard');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [sessionIdx, setSessionIdx] = useState(0);
+  const [sessionShowAlg, setSessionShowAlg] = useState(false);
+  const [sessionAufIdx, setSessionAufIdx] = useState(0);
+  const [drillCase, setDrillCase] = useState(OLL_DATA[0]);
+  const [showDrillAlg, setShowDrillAlg] = useState(false);
+  const [drillAufIdx, setDrillAufIdx] = useState(0);
 
-          <button 
-            onClick={() => updateDay(currentDay + 1)} 
-            disabled={currentDay === totalDays} 
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-full disabled:opacity-20 active:scale-90 transition-transform border border-white/5 cursor-pointer"
-          >
-            <ChevronRight size={22} />
-          </button>
-        </div>
+  // OLL Stopwatch State
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerElapsed, setTimerElapsed] = useState(0);
+  const stopwatchRef = useRef(null);
 
-        <div className={`z-10 inline-flex items-center gap-2 px-5 py-2 rounded-full mb-4 font-black text-xs uppercase tracking-wider border shadow-md ${
-          isFinale 
-            ? 'bg-amber-500/20 text-amber-300 border-amber-400/40 shadow-amber-500/20 animate-pulse'
-            : isLearn 
-            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' 
-            : isReview 
-            ? 'bg-purple-500/15 text-purple-400 border-purple-500/30' 
-            : 'bg-orange-500/15 text-orange-400 border-orange-500/30'
-        }`}>
-          {isFinale ? <Trophy size={16}/> : isLearn ? <BookOpenCheck size={16}/> : isReview ? <Eye size={16}/> : <Dumbbell size={16}/>}
-          {schedule.type} Mode • {todaysAlgsCount} Cases
-        </div>
+  // Fingertrick Dossier State
+  const [ftCase, setFtCase] = useState(OLL_DATA[0]);
+  const [ftTriggerIdx, setFtTriggerIdx] = useState(0);
+  const [ftReturnModal, setFtReturnModal] = useState(null);
+  const [inlineSessionFtOpen, setInlineSessionFtOpen] = useState(false);
+  const [inlineDrillFtOpen, setInlineDrillFtOpen] = useState(false);
 
-        <div className="z-10 px-2 mb-6">
-          <h4 className="text-lg font-bold text-white mb-2">{schedule.title}</h4>
-          <p className="text-slate-300 text-sm leading-relaxed">
-            {isFinale && "The Grand Finale! Test your lightning execution across all 57 full OLL algorithms learned in your customized program."}
-            {isLearn && !isFinale && "Time to acquire fresh muscle memory. Drill each trigger until the pattern snaps naturally."}
-            {schedule.type === 'Practice' && !isFinale && "Scramble from memory, identify visual headlights/bars, and fluidly execute."}
-            {isReview && !isFinale && "Cumulative checkpoint! Solidify all previous chunks into permanent reflex."}
-          </p>
-        </div>
+  // Curriculum Builder State
+  const [draftChunks, setDraftChunks] = useState(DEFAULT_CHUNKS);
+  const [selectedBuilderChunkIdx, setSelectedBuilderChunkIdx] = useState(0);
+  const [movingCaseId, setMovingCaseId] = useState(null);
 
-        <Button onClick={onStart} className="z-10 mt-auto py-4 text-slate-950 font-black">
-          <span>Start Day {currentDay} Session</span>
-          <ChevronRight size={20} />
-        </Button>
-      </GlassCard>
+  // Day Lineup Press-and-Hold Drag Reordering State
+  const [draggedLineupIdx, setDraggedLineupIdx] = useState(null);
+  const [lineupPressIdx, setLineupPressIdx] = useState(null);
+  const lineupHoldTimerRef = useRef(null);
+  const lineupItemRefs = useRef([]);
+  const lineupDidDragRef = useRef(false);
 
-      <div className="flex items-center justify-between bg-slate-900/60 border border-white/10 p-5 rounded-[2rem] shadow-xl flex-shrink-0">
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Personalized Journey</div>
-          <div className="text-xl font-black text-white mt-1">
-            {currentDay === totalDays ? 'Milestone Reached! 🎉' : `${totalDays - currentDay} Days Remaining`}
-          </div>
-          <div className="text-[10px] text-orange-400 font-mono mt-0.5">{totalDays} Total Days Plan</div>
-        </div>
-        <div className="w-14 h-14 relative flex-shrink-0">
-          <svg className="w-full h-full transform -rotate-90 drop-shadow-md" viewBox="0 0 36 36">
-            <path className="text-slate-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-            <path className="text-orange-500 transition-all duration-700" strokeDasharray={`${(currentDay/totalDays)*100}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-black text-orange-400">
-            {Math.min(100, Math.round((currentDay/totalDays)*100))}%
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+  // Settings Deck & Modals State
+  const [settingsCard, setSettingsCard] = useState(1);
+  const [notationCategory, setNotationCategory] = useState('SINGLE');
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [activeModal, setActiveModal] = useState(null);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [onboardStep, setOnboardStep] = useState(0);
+  const [compassQuizIdx, setCompassQuizIdx] = useState(0);
+  const [compassQuizRevealed, setCompassQuizRevealed] = useState(false);
+  const [compassHitMeActive, setCompassHitMeActive] = useState(false);
+  const [compassColorOrder, setCompassColorOrder] = useState(['Blue', 'Orange', 'Green', 'Red']);
+  const [compassSelectedAnswer, setCompassSelectedAnswer] = useState(null);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPin, setNewUserPin] = useState("");
 
-// --- TAB 2: ALGORITHMS (WITH SEGMENTED LIBRARY PILL SWITCHER) ---
-const AlgorithmsView = ({ customChunks = DEFAULT_CHUNKS, solveTimes = {}, targetGoal = 3.5, onSelectCase, onOpenFingertrick, onOpenCurriculum }) => {
-  const [libraryMode, setLibraryMode] = useState('standard'); // 'standard' | 'custom'
-  const [selectedGroup, setSelectedGroup] = useState(null);
+  // Audio Synthesizer
+  const audioCtxRef = useRef(null);
+  const emitBeep = (freq = 540, type = 'sine', duration = 0.08, vol = 0.18) => {
+    if (!audioEnabled || typeof window === 'undefined') return;
+    try {
+      if (!audioCtxRef.current) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {
+      // Ignore audio autoplay blocks
+    }
+  };
 
-  // Classic Standard WCA shape categories
-  const standardGroups = useMemo(() => {
-    const map = new Map();
-    OLL_DATA.forEach(alg => {
-      if (!map.has(alg.group)) map.set(alg.group, []);
-      map.get(alg.group).push(alg);
+  const triggerToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2800);
+  };
+
+  // Persistence & Firestore Sync
+  const saveUsersState = (updatedUsers) => {
+    setUsers(updatedUsers);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUsers));
+    } catch {}
+    setSyncStatus('syncing');
+    fetch(FIRESTORE_URL, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { payload: { stringValue: JSON.stringify(updatedUsers) } } })
+    })
+      .then(() => setSyncStatus('synced'))
+      .catch(() => setSyncStatus('synced'));
+  };
+
+  const updateCurrentUser = (patch) => {
+    const updated = {
+      ...users,
+      [activePin]: { ...currentUser, ...patch }
+    };
+    saveUsersState(updated);
+  };
+
+  // Dynamic Scramble Formatter with AUF Variation
+  const buildSetupScramble = (baseSetup, aufIndex) => {
+    const variation = AUF_VARIATIONS[aufIndex % AUF_VARIATIONS.length];
+    return `${variation.pre}${baseSetup}${variation.post}`.trim();
+  };
+
+  const cycleDrillScramble = () => {
+    emitBeep(560, 'triangle', 0.06);
+    setDrillAufIdx((prev) => {
+      const next = (prev + 1) % AUF_VARIATIONS.length;
+      return next === 0 ? 1 : next;
     });
-    return Array.from(map.entries());
+  };
+
+  const cycleSessionScramble = () => {
+    emitBeep(560, 'triangle', 0.06);
+    setSessionAufIdx((prev) => {
+      const next = (prev + 1) % AUF_VARIATIONS.length;
+      return next === 0 ? 1 : next;
+    });
+  };
+
+  // Derived Schedule & Progress
+  const userChunks = currentUser.customChunks && currentUser.customChunks.length > 0 ? currentUser.customChunks : DEFAULT_CHUNKS;
+  const schedule = generateSchedule(userChunks);
+  const totalDays = schedule.length;
+  const currentDay = Math.max(1, Math.min(totalDays, currentUser.day || 1));
+  const currentDayPlan = schedule[currentDay - 1] || schedule[0];
+  const progressPct = Math.round((currentDay / totalDays) * 100);
+  const isTimerEnabled = currentUser.timerEnabled !== false;
+  const isFingertricksEnabled = currentUser.fingertricksEnabled !== false;
+
+  // Outside click listener for C-F-O-P dropdown
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    return () => document.removeEventListener('pointerdown', handleOutside);
   }, []);
 
-  // When drilling into a category / chunk
-  if (selectedGroup) {
-    let algs = [];
-    let groupTitle = "";
+  // Phase Switcher
+  const selectPhase = (phase) => {
+    setIsDropdownOpen(false);
+    if (phase === 'pll') {
+      emitBeep(520);
+      setActiveModal('preview');
+      return;
+    }
+    emitBeep(620, 'sine', 0.09);
+    setCurrentPhase(phase);
+  };
 
-    if (libraryMode === 'standard') {
-      algs = standardGroups.find(g => g[0] === selectedGroup)?.[1] || [];
-      groupTitle = selectedGroup;
-    } else {
-      const chunkFound = customChunks.find(c => c.id === selectedGroup);
-      if (chunkFound) {
-        algs = OLL_DATA.filter(c => chunkFound.caseIds.includes(c.id));
-        groupTitle = chunkFound.name;
+  const getPhaseClass = (phase) => {
+    const order = { cross: 0, f2l: 1, oll: 2 };
+    if (currentPhase === phase) return 'phase-view phase-active flex flex-col';
+    return order[phase] < order[currentPhase]
+      ? 'phase-view phase-left flex flex-col'
+      : 'phase-view phase-right flex flex-col';
+  };
+
+  // PIN Pad Logic
+  const handlePinKey = (digit) => {
+    if (pinInput.length >= 4) return;
+    emitBeep(560, 'sine', 0.05);
+    const next = pinInput + digit;
+    setPinInput(next);
+    setPinError(false);
+    if (next.length === 4) {
+      if (users[next]) {
+        setActivePin(next);
+        setPinInput("");
+        setActiveModal(null);
+        emitBeep(880, 'sine', 0.12);
+        triggerToast(`Switched profile to ${users[next].name}`);
+      } else {
+        setPinError(true);
+        emitBeep(220, 'square', 0.14);
+        setTimeout(() => { setPinInput(""); setPinError(false); }, 650);
       }
     }
+  };
 
-    return sanitizeNode(
-      <div className="p-6 pt-6 pb-12 animate-in fade-in slide-in-from-right-4 min-h-full">
-        <button 
-          onClick={() => setSelectedGroup(null)} 
-          className="mb-5 flex items-center gap-2 text-orange-400 font-bold active:scale-95 transition-transform px-4 py-2 bg-orange-500/10 rounded-full border border-orange-500/20 text-xs uppercase tracking-wider cursor-pointer"
-        >
-          <ChevronLeft size={16} /> Back to {libraryMode === 'standard' ? 'Categories' : 'My Chunks'}
-        </button>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-black text-white">{groupTitle}</h3>
-          <span className="text-xs text-orange-400 font-bold bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">{algs.length} Cases</span>
+  // WCA Blind Inspection Handlers
+  const startWCAInspection = () => {
+    emitBeep(800, 'sine', 0.1);
+    setInspectionTime(15.0);
+    setBlindState('inspecting');
+    clearInterval(wcaIntervalRef.current);
+    wcaIntervalRef.current = setInterval(() => {
+      setInspectionTime((prev) => {
+        const next = +(prev - 0.1).toFixed(1);
+        if (Math.abs(next - 7.0) < 0.05) emitBeep(440, 'sine', 0.18);
+        if (Math.abs(next - 3.0) < 0.05) emitBeep(440, 'sine', 0.18);
+        if (next <= 0) {
+          clearInterval(wcaIntervalRef.current);
+          emitBeep(200, 'sawtooth', 0.45);
+          setBlindState('dnf');
+          return 0.0;
+        }
+        return next;
+      });
+    }, 100);
+  };
+
+  const beginPadHold = () => {
+    if (blindState !== 'inspecting') return;
+    setBlindState('readying');
+    padHoldTimeoutRef.current = setTimeout(() => {
+      emitBeep(1040, 'sine', 0.1);
+      setBlindState('armed');
+    }, 350);
+  };
+
+  const releasePadHold = () => {
+    clearTimeout(padHoldTimeoutRef.current);
+    setLeftPadHeld(false);
+    setRightPadHeld(false);
+    if (blindState === 'readying') {
+      setBlindState('inspecting');
+    } else if (blindState === 'armed') {
+      clearInterval(wcaIntervalRef.current);
+      emitBeep(1200, 'square', 0.1);
+      setBlindExecTime(0.0);
+      setBlindState('active');
+      setActiveModal('visor');
+      const start = performance.now();
+      clearInterval(execIntervalRef.current);
+      execIntervalRef.current = setInterval(() => {
+        setBlindExecTime(+((performance.now() - start) / 1000).toFixed(2));
+      }, 30);
+    }
+  };
+
+  const handlePadTouchStart = (side) => {
+    if (blindState !== 'inspecting' && blindState !== 'readying' && blindState !== 'armed') return;
+    const nextLeft = side === 'left' ? true : leftPadHeld;
+    const nextRight = side === 'right' ? true : rightPadHeld;
+    setLeftPadHeld(nextLeft);
+    setRightPadHeld(nextRight);
+    if (nextLeft && nextRight && blindState === 'inspecting') {
+      beginPadHold();
+    }
+  };
+
+  const handlePadTouchEnd = (side) => {
+    if (side === 'left') setLeftPadHeld(false);
+    if (side === 'right') setRightPadHeld(false);
+    if (blindState === 'readying' || blindState === 'armed') {
+      releasePadHold();
+    }
+  };
+
+  const stopBlindVisor = () => {
+    clearInterval(execIntervalRef.current);
+    emitBeep(720, 'sine', 0.1);
+    setActiveModal(null);
+    setBlindState('finished');
+  };
+
+  const logBlindOutcome = (outcome) => {
+    emitBeep(620, 'sine', 0.08);
+    setBlindRuns((prev) => ({
+      clean: prev.clean + (outcome === 'Clean' ? 1 : 0),
+      total: prev.total + 1
+    }));
+    setBlindState('idle');
+    setInspectionTime(15.0);
+    triggerToast(`Logged Cross Run: ${outcome}`);
+  };
+
+  // Spacebar support for Blind Inspection
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.code === 'Space' && !e.repeat && currentPhase === 'cross' && crossTab === 'blind') {
+        e.preventDefault();
+        if (activeModal === 'visor') {
+          stopBlindVisor();
+        } else {
+          setLeftPadHeld(true);
+          setRightPadHeld(true);
+          beginPadHold();
+        }
+      }
+    };
+    const onKeyUp = (e) => {
+      if (e.code === 'Space' && currentPhase === 'cross' && crossTab === 'blind') {
+        e.preventDefault();
+        releasePadHold();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  });
+
+  // OLL Stopwatch & Record Saving
+  const toggleOLLStopwatch = (caseId) => {
+    if (!isTimerEnabled) return;
+    if (timerRunning) {
+      clearInterval(stopwatchRef.current);
+      setTimerRunning(false);
+      emitBeep(760, 'sine', 0.1);
+      const recorded = +timerElapsed.toFixed(2);
+      if (recorded > 0.15) {
+        const prevCaseStat = currentUser.stats?.[caseId] || { times: [], best: null };
+        const nextTimes = [...prevCaseStat.times, recorded];
+        const nextBest = prevCaseStat.best === null ? recorded : Math.min(prevCaseStat.best, recorded);
+        updateCurrentUser({
+          stats: {
+            ...(currentUser.stats || {}),
+            [caseId]: { times: nextTimes, best: nextBest }
+          }
+        });
+        triggerToast(`Recorded ${recorded.toFixed(2)}s!`);
+      }
+    } else {
+      emitBeep(980, 'sine', 0.08);
+      setTimerElapsed(0);
+      setTimerRunning(true);
+      const start = performance.now();
+      clearInterval(stopwatchRef.current);
+      stopwatchRef.current = setInterval(() => {
+        setTimerElapsed((performance.now() - start) / 1000);
+      }, 30);
+    }
+  };
+
+  // OLL Navigation & Helpers
+  const changeOLLDay = (delta) => {
+    const nextDay = Math.max(1, Math.min(totalDays, currentDay + delta));
+    updateCurrentUser({ day: nextDay });
+    emitBeep(680, 'square', 0.05);
+  };
+
+  const adjustTargetGoal = (delta) => {
+    const nextGoal = Math.max(0.5, +(currentUser.targetGoal + delta).toFixed(2));
+    updateCurrentUser({ targetGoal: nextGoal });
+    emitBeep(620, 'triangle', 0.05);
+  };
+
+  const openFingertrickDossier = (caseObj, returnModalName) => {
+    emitBeep(660, 'sine', 0.08);
+    setFtCase(caseObj);
+    setFtTriggerIdx(0);
+    setFtReturnModal(returnModalName);
+    setActiveModal('fingertrick');
+  };
+
+  const renderInlineFingertrickPanel = (caseObj, onClose) => {
+    const dossier = FINGERTRICK_GUIDES[caseObj.id] || FINGERTRICK_GUIDES.default;
+    const activeTrig = dossier.triggers[ftTriggerIdx % dossier.triggers.length];
+    return (
+      <div className="w-full bg-[#050811] border border-orange-500/35 rounded-2xl p-3.5 text-left space-y-2.5 shadow-inner">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 flex items-center gap-1">
+            <span>⚡</span>
+            <span>Fingertrick Dossier</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => { emitBeep(480); onClose(); }}
+            className="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+          >
+            Hide Guide
+          </button>
         </div>
-        <div className="flex flex-col gap-4">
-          {algs.map(alg => (
-            <GlassCard 
-              key={alg.id} 
-              onClick={() => onSelectCase(alg)} 
-              className="flex flex-col p-4 !rounded-[1.75rem] active:scale-[0.98] transition-all hover:border-orange-500/40"
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-slate-200 rounded-2xl p-2 w-20 h-20 flex-shrink-0 flex items-center justify-center shadow-inner">
-                  <img src={getImageUrl(alg.alg)} alt={alg.name} className="w-full h-full object-contain" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-black text-white truncate">{alg.name}</h4>
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded-md">
-                      #{alg.id}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[11px] text-slate-400 font-medium">WCA OLL #{alg.ollNo || alg.id}</span>
-                    {onOpenFingertrick && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenFingertrick(alg);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer"
-                      >
-                        <Zap size={10} className="text-amber-400" />
-                        <span>Fingertricks</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <ChevronRight size={18} className="text-slate-500" />
-              </div>
-              <div className="mt-3 bg-slate-950/80 rounded-xl py-2.5 px-3 border border-white/5 text-center">
-                <span className="text-orange-400 font-mono text-sm font-bold tracking-wide break-words">{alg.alg}</span>
-              </div>
-            </GlassCard>
-          ))}
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-slate-900/90 border border-white/10 rounded-xl p-2">
+            <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400 block">Starting Grip</span>
+            <span className="text-[11px] font-black text-white leading-tight block mt-0.5">{dossier.grip}</span>
+          </div>
+          <div className="bg-slate-900/90 border border-white/10 rounded-xl p-2">
+            <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400 block">Regrip Efficiency</span>
+            <span className="text-[11px] font-black text-green-400 leading-tight block mt-0.5">{dossier.regrips}</span>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-black uppercase tracking-widest text-orange-400">Trigger Breakdown</span>
+            <span className="text-[9px] text-slate-500">Tap pill to inspect</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {dossier.triggers.map((t, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => { emitBeep(560); setFtTriggerIdx(idx); }}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                  ftTriggerIdx % dossier.triggers.length === idx
+                    ? 'bg-orange-500/20 border border-orange-500 text-orange-300'
+                    : 'bg-white/5 border border-white/10 text-slate-300'
+                }`}
+              >
+                {t.moves} • <span className="font-sans text-[9px] opacity-80">{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-slate-900/90 border border-white/10 rounded-xl p-2.5 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-black text-orange-400">{activeTrig.moves}</span>
+              <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-[8px] font-black uppercase text-amber-300">{activeTrig.label}</span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-snug">{activeTrig.tip}</p>
+          </div>
+        </div>
+
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 space-y-0.5">
+          <span className="text-[9px] font-black uppercase tracking-widest text-amber-300 block">⚡ Speedcoach Execution Note</span>
+          <p className="text-[11px] text-slate-200 leading-snug">{dossier.coachNote}</p>
         </div>
       </div>
     );
-  }
-
-  return sanitizeNode(
-    <div className="p-6 pt-6 pb-12 animate-in fade-in min-h-full">
-      <div className="mb-4">
-        <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Algorithm Hub</p>
-        <h2 className="text-3xl font-black tracking-tight text-white">Algorithms</h2>
-        <p className="text-xs text-slate-400 mt-1">Explore by classic shape categories or view your custom curriculum chunks.</p>
-      </div>
-
-      {/* Segmented Library Pill Switcher */}
-      <div className="bg-slate-950/80 p-1 rounded-2xl border border-white/10 flex items-center mb-6 shadow-inner">
-        <button
-          onClick={() => setLibraryMode('standard')}
-          className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-            libraryMode === 'standard'
-              ? 'bg-orange-500 text-slate-950 shadow-md font-black'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Standard Library
-        </button>
-        <button
-          onClick={() => setLibraryMode('custom')}
-          className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-            libraryMode === 'custom'
-              ? 'bg-orange-500 text-slate-950 shadow-md font-black'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Sparkles size={13} />
-          <span>My Custom Chunks</span>
-        </button>
-      </div>
-
-      {libraryMode === 'standard' ? (
-        <div className="grid grid-cols-2 gap-4">
-          {standardGroups.map(([name, algs]) => (
-            <GlassCard 
-              key={name} 
-              onClick={() => setSelectedGroup(name)} 
-              className="flex flex-col items-center justify-center p-5 text-center group hover:border-orange-500/40"
-            >
-              <div className="bg-slate-200 rounded-2xl p-2 w-16 h-16 mb-3 shadow-inner flex items-center justify-center group-hover:scale-105 transition-transform">
-                <img src={getImageUrl(algs[0].alg)} alt={name} className="w-full h-full object-contain" />
-              </div>
-              <span className="font-bold text-slate-100 text-sm leading-tight mb-1">{name}</span>
-              <span className="text-[10px] text-orange-400 font-black uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">{algs.length} Cases</span>
-            </GlassCard>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-400">{customChunks.length} Active Chunks feeding your program</span>
-            <button 
-              onClick={onOpenCurriculum}
-              className="inline-flex items-center gap-1 text-xs text-orange-400 font-bold hover:underline cursor-pointer"
-            >
-              <Sliders size={13} />
-              <span>Edit Curriculum</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
-            {customChunks.map((chunk, idx) => {
-              const chunkAlgs = OLL_DATA.filter(c => chunk.caseIds.includes(c.id));
-              const firstAlg = chunkAlgs[0] || OLL_DATA[0];
-              const masteredCount = chunkAlgs.filter(a => {
-                const times = solveTimes[a.id] || [];
-                return times.length > 0 && Math.min(...times) <= targetGoal;
-              }).length;
-
-              return (
-                <GlassCard
-                  key={chunk.id || idx}
-                  onClick={() => setSelectedGroup(chunk.id)}
-                  className="p-4 !rounded-2xl flex items-center justify-between hover:border-orange-500/40"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="bg-slate-200 rounded-xl p-1.5 w-14 h-14 flex-shrink-0 flex items-center justify-center shadow-inner">
-                      <img src={getImageUrl(firstAlg.alg)} alt={chunk.name} className="w-full h-full object-contain" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black text-white">{chunk.name}</h4>
-                        <span className="text-[10px] font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
-                          Chunk {idx + 1}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        {chunk.caseIds.length} algorithms • {masteredCount}/{chunk.caseIds.length} sub-goal
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-slate-500" />
-                </GlassCard>
-              );
-            })}
-          </div>
-
-          <Button variant="secondary" onClick={onOpenCurriculum} className="border-dashed border-white/20 text-orange-400 py-3 text-xs mt-2">
-            <Sliders size={15} /> Customize Chunks & Pace
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// --- TAB 3: STATISTICS ---
-const StatisticsView = ({ solveTimes = {}, targetGoal = 3.5, onSelectCase }) => {
-  const statsList = useMemo(() => {
-    return OLL_DATA.map(item => {
-      const times = (solveTimes && solveTimes[item.id]) || [];
-      const best = times.length > 0 ? Math.min(...times) : null;
-      const avg = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : null;
-      const goal = targetGoal || 3.5;
-      return { 
-        ...item, 
-        solvesCount: times.length, 
-        best, 
-        avg, 
-        diff: best !== null ? (best - goal).toFixed(2) : null 
-      };
-    });
-  }, [solveTimes, targetGoal]);
-
-  const totalSolves = useMemo(() => {
-    return Object.values(solveTimes || {}).reduce((acc, curr) => acc + (Array.isArray(curr) ? curr.length : 0), 0);
-  }, [solveTimes]);
-
-  const globalBest = useMemo(() => {
-    const all = Object.values(solveTimes || {}).flat();
-    return all.length > 0 ? Math.min(...all).toFixed(2) : '--';
-  }, [solveTimes]);
-
-  return sanitizeNode(
-    <div className="p-6 pt-6 pb-12 animate-in fade-in min-h-full">
-      <div className="mb-5">
-        <p className="text-orange-500 font-black uppercase tracking-widest text-xs mb-1">Performance</p>
-        <h2 className="text-3xl font-black tracking-tight text-white">Statistics</h2>
-      </div>
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <GlassCard className="p-3.5 !rounded-2xl text-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Goal</span>
-          <span className="text-xl font-black text-amber-400 font-mono">{(targetGoal || 3.5).toFixed(1)}s</span>
-        </GlassCard>
-        <GlassCard className="p-3.5 !rounded-2xl text-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Total Runs</span>
-          <span className="text-xl font-black text-white font-mono">{totalSolves}</span>
-        </GlassCard>
-        <GlassCard className="p-3.5 !rounded-2xl text-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">All-Time PR</span>
-          <span className="text-xl font-black text-orange-400 font-mono">{globalBest}s</span>
-        </GlassCard>
-      </div>
-      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Case Breakdown (Tap to Drill)</h3>
-      <div className="flex flex-col gap-3">
-        {statsList.map(item => {
-          const isGoalBeat = item.best !== null && item.best <= (targetGoal || 3.5);
-          return (
-            <GlassCard key={item.id} onClick={() => onSelectCase(item)} className="p-4 !rounded-2xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-200 rounded-xl p-1.5 w-12 h-12 flex-shrink-0 flex items-center justify-center">
-                  <img src={getImageUrl(item.alg)} alt={item.name} className="w-full h-full object-contain" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-white">{item.name}</h4>
-                  <span className="text-[10px] text-slate-400 block">{item.group} • #{item.id}</span>
-                </div>
-              </div>
-              <div className="text-right flex items-center gap-3">
-                {item.best !== null ? (
-                  <div>
-                    <div className="font-mono text-sm font-black text-white">{item.best.toFixed(2)}s</div>
-                    <div className={`text-[10px] font-bold font-mono ${isGoalBeat ? 'text-green-400' : 'text-orange-400'}`}>
-                      {item.diff > 0 ? `+${item.diff}s` : `${item.diff}s`}
-                    </div>
-                  </div>
-                ) : <span className="text-xs text-slate-500 font-mono italic">No runs</span>}
-                <ChevronRight size={16} className="text-slate-600" />
-              </div>
-            </GlassCard>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// --- TAB 4: SETTINGS (WITH PACE & CHUNK SIZING CARD) ---
-const SettingsView = ({ 
-  currentUser, 
-  totalDays,
-  userChunks,
-  setTimerEnabled, 
-  setFingertricksEnabled, 
-  setTargetGoal, 
-  setChunkSize,
-  onRequestReset, 
-  onOpenAdmin, 
-  onLockApp,
-  onOpenOnboarding,
-  onOpenCurriculum
-}) => {
-  const [activeCard, setActiveCard] = useState(0);
-  const [activeNotation, setActiveNotation] = useState(0);
-  const userGoal = (currentUser && currentUser.targetGoal) || 3.5;
-  const isTimerOn = currentUser && currentUser.timerEnabled !== false;
-  const isFingertricksOn = currentUser && currentUser.fingertricksEnabled !== false;
-  const currentChunkSize = currentUser.chunkSize || 6;
-
-  const isNavigatingRef = useRef(false);
-  const wheelActiveRef = useRef(false);
-  const wheelTimerRef = useRef(null);
-
-  const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
-  const mouseStartY = useRef(0);
-
-  const navigateCard = (direction) => {
-    if (isNavigatingRef.current) return;
-    isNavigatingRef.current = true;
-
-    setActiveCard(prev => {
-      if (direction === 'up') return Math.min(2, prev + 1);
-      if (direction === 'down') return Math.max(0, prev - 1);
-      return prev;
-    });
-
-    setTimeout(() => {
-      isNavigatingRef.current = false;
-    }, 450);
   };
 
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartX.current = e.touches[0].clientX;
+  // Curriculum Builder Handlers
+  const openCurriculumArchitect = () => {
+    emitBeep(540);
+    setDraftChunks(JSON.parse(JSON.stringify(userChunks)));
+    setSelectedBuilderChunkIdx(0);
+    setMovingCaseId(null);
+    setActiveModal('curriculum');
   };
 
-  const handleTouchEnd = (e) => {
-    const diffY = touchStartY.current - e.changedTouches[0].clientY;
-    const diffX = touchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX) * 1.2) {
-      if (diffY > 0) navigateCard('up');
-      else navigateCard('down');
-    }
-  };
-
-  const handleMouseDown = (e) => { mouseStartY.current = e.clientY; };
-  const handleMouseUp = (e) => {
-    const diffY = mouseStartY.current - e.clientY;
-    if (Math.abs(diffY) > 40) {
-      if (diffY > 0) navigateCard('up');
-      else navigateCard('down');
-    }
-  };
-
-  const handleWheel = (e) => {
-    e.preventDefault();
-    clearTimeout(wheelTimerRef.current);
-    wheelTimerRef.current = setTimeout(() => {
-      wheelActiveRef.current = false;
-    }, 200);
-
-    if (wheelActiveRef.current) return;
-    if (Math.abs(e.deltaY) > 25) {
-      wheelActiveRef.current = true;
-      if (e.deltaY > 0) navigateCard('up');
-      else navigateCard('down');
-    }
-  };
-
-  const getCardStyle = (index) => {
-    const diff = index - activeCard;
-    if (diff < 0) {
-      return {
-        transform: `translateY(-140px) scale(0.85)`,
-        opacity: 0,
-        pointerEvents: 'none',
-        zIndex: 0
-      };
-    } else if (diff === 0) {
-      return {
-        transform: `translateY(0px) scale(1)`,
-        opacity: 1,
-        pointerEvents: 'auto',
-        zIndex: 30
-      };
-    } else if (diff === 1) {
-      return {
-        transform: `translateY(24px) scale(0.95)`,
-        opacity: 0.55,
-        pointerEvents: 'none',
-        zIndex: 20
-      };
-    } else {
-      return {
-        transform: `translateY(48px) scale(0.90)`,
-        opacity: 0.25,
-        pointerEvents: 'none',
-        zIndex: 10
-      };
-    }
-  };
-
-  return sanitizeNode(
-    <div 
-      className="p-6 pt-5 pb-6 flex flex-col h-full justify-between select-none touch-none overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
-    >
-      <div className="flex-shrink-0 z-40 mb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-orange-500 font-black uppercase tracking-widest text-[11px] mb-0.5">Control Center</p>
-            <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
-          </div>
-          <button 
-            onClick={onLockApp}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-bold active:scale-95 transition-all cursor-pointer"
-          >
-            <Lock size={12} className="text-orange-400" />
-            <span>Lock App</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="relative w-full flex-1 min-h-0 my-auto flex items-center justify-center">
-        {/* CARD 0: PACE & PREFERENCES */}
-        <div 
-          style={getCardStyle(0)}
-          className="absolute inset-x-0 w-full h-[375px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                Card 1 of 3
-              </span>
-              <Sliders size={16} className="text-orange-400" />
-            </div>
-            <h3 className="text-lg font-black text-white mb-0.5">Pace & Training Schedule</h3>
-            <p className="text-[11px] text-slate-400 mb-2.5">Custom chunk sizes & projected journey</p>
-            
-            <div className="space-y-2 border-t border-white/5 pt-2">
-              {/* Pace Stepper */}
-              <div className="flex items-center justify-between py-1 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                <div>
-                  <span className="text-xs font-bold text-white block">Chunk Pace</span>
-                  <span className="text-[10px] text-orange-400 font-bold font-mono">
-                    Projected: {totalDays} Days ({userChunks.length} Chunks)
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button 
-                    onClick={() => setChunkSize(Math.max(2, currentChunkSize - 1))} 
-                    className="w-7 h-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer text-xs"
-                    title="Fewer algs per chunk"
-                  >
-                    -
-                  </button>
-                  <span className="font-mono text-xs font-black text-white w-9 text-center">{currentChunkSize}/chk</span>
-                  <button 
-                    onClick={() => setChunkSize(Math.min(15, currentChunkSize + 1))} 
-                    className="w-7 h-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center font-bold text-slate-300 active:scale-90 cursor-pointer text-xs"
-                    title="More algs per chunk"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Curriculum Builder Trigger */}
-              <Button 
-                variant="secondary" 
-                onClick={onOpenCurriculum} 
-                className="py-2 text-xs font-bold border-orange-500/30 text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 shadow-none"
-              >
-                <Sliders size={14} /> Organize Cases & Custom Order
-              </Button>
-
-              <div className="flex items-center justify-between py-1 border-t border-white/5">
-                <div>
-                  <span className="text-xs font-bold text-white block">Speedcube Stopwatch</span>
-                  <span className="text-[10px] text-slate-400">Track execution times</span>
-                </div>
-                <button 
-                  onClick={() => setTimerEnabled(!isTimerOn)} 
-                  className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${isTimerOn ? 'bg-orange-500' : 'bg-slate-800'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isTimerOn ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-t border-white/5">
-                <div>
-                  <span className="text-xs font-bold text-white block">Fingertricks</span>
-                  <span className="text-[10px] text-slate-400">Pills & speed execution tips</span>
-                </div>
-                <button 
-                  onClick={() => setFingertricksEnabled(!isFingertricksOn)} 
-                  className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${isFingertricksOn ? 'bg-orange-500' : 'bg-slate-800'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isFingertricksOn ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="text-center text-[10px] text-slate-500 font-bold tracking-wider uppercase pt-1">
-            Swipe Up for Notation Key ↑
-          </div>
-        </div>
-
-        {/* CARD 1: NOTATION KEY */}
-        <div 
-          style={getCardStyle(1)}
-          className="absolute inset-x-0 w-full h-[375px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                Card 2 of 3
-              </span>
-              <Compass size={16} className="text-orange-400" />
-            </div>
-            <h3 className="text-lg font-black text-white mb-0.5">Algorithm Notation Key</h3>
-            <p className="text-[11px] text-slate-400 mb-2">WCA notation cheatsheet</p>
-
-            <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar mb-2">
-              {NOTATION_GROUPS.map((grp, idx) => (
-                <button 
-                  key={grp.title} 
-                  onClick={() => setActiveNotation(idx)} 
-                  className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap transition-all border cursor-pointer ${
-                    activeNotation === idx 
-                      ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' 
-                      : 'bg-white/5 text-slate-400 border-white/10'
-                  }`}
-                >
-                  {grp.title.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-
-            <div 
-              className="bg-slate-950/80 rounded-2xl p-3 border border-white/5 overflow-y-auto max-h-[145px] no-scrollbar touch-pan-y"
-              onWheel={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-            >
-              <div className="text-[11px] font-bold text-white mb-0.5">{NOTATION_GROUPS[activeNotation].title}</div>
-              <div className="grid grid-cols-1 gap-1.5 mt-1.5">
-                {NOTATION_GROUPS[activeNotation].moves.map(m => (
-                  <div key={m.move} className="flex items-center gap-2 p-1.5 bg-slate-900/60 rounded-lg border border-white/5">
-                    <span className="font-mono text-[10px] font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 w-12 text-center">{m.move}</span>
-                    <span className="text-[10px] text-slate-200 truncate">{m.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="text-center text-[10px] text-slate-500 font-bold tracking-wider uppercase pt-1">
-            Swipe Up for Security & Guide ↑
-          </div>
-        </div>
-
-        {/* CARD 2: SECURITY & ONBOARDING */}
-        <div 
-          style={getCardStyle(2)}
-          className="absolute inset-x-0 w-full h-[375px] max-h-full bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between transition-all duration-500 ease-out"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                Card 3 of 3
-              </span>
-              <ShieldAlert size={16} className="text-orange-400" />
-            </div>
-            <h3 className="text-lg font-black text-white mb-0.5">Profiles & Security</h3>
-            <p className="text-xs text-slate-400 mb-3">Manage accounts, reset progress, or guide</p>
-
-            <div className="space-y-2 border-t border-white/5 pt-2">
-              <Button 
-                variant="secondary" 
-                onClick={onOpenOnboarding} 
-                className="py-2.5 text-xs font-bold border-white/10 bg-white/5 text-amber-300 hover:text-amber-200"
-              >
-                <HelpCircle size={15} /> New to CFOP? Beginner Guide
-              </Button>
-
-              <Button 
-                variant="secondary" 
-                onClick={onOpenAdmin} 
-                className="py-2.5 text-xs font-bold border-dashed border-white/20 text-orange-400"
-              >
-                <Users size={15} /> Admin User Management
-              </Button>
-
-              <Button 
-                variant="danger" 
-                onClick={onRequestReset} 
-                className="py-2.5 text-xs font-bold"
-              >
-                <RotateCcw size={15} /> Reset My Progress
-              </Button>
-            </div>
-          </div>
-          <div className="text-center text-[10px] text-slate-500 font-bold tracking-wider uppercase pt-1">
-            Swipe Down to Return ↓
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center gap-2 pt-2 flex-shrink-0 z-40">
-        {[0, 1, 2].map((idx) => (
-          <button
-            key={idx}
-            onClick={() => setActiveCard(idx)}
-            className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-              activeCard === idx ? 'w-6 bg-orange-500' : 'w-2 bg-slate-700 hover:bg-slate-600'
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// --- CURRICULUM & PACE BUILDER MODAL ---
-const CurriculumBuilderModal = ({ customChunks = DEFAULT_CHUNKS, chunkSize = 6, onClose, onSave }) => {
-  const [chunks, setChunks] = useState(() => JSON.parse(JSON.stringify(customChunks)));
-  const [selectedChunkIdx, setSelectedChunkIdx] = useState(0);
-  const [caseSearch, setCaseSearch] = useState('');
-  const [movingCaseId, setMovingCaseId] = useState(null);
-
-  // Calculate live dynamic projected days
-  const projectedSchedule = useMemo(() => generateDynamicSchedule(chunks), [chunks]);
-  const totalDays = projectedSchedule.length;
-
-  // Move chunk up/down in sequence
-  const moveChunk = (idx, dir) => {
-    const targetIdx = idx + dir;
-    if (targetIdx < 0 || targetIdx >= chunks.length) return;
-    const next = [...chunks];
-    const temp = next[idx];
-    next[idx] = next[targetIdx];
-    next[targetIdx] = temp;
-    setChunks(next);
-    setSelectedChunkIdx(targetIdx);
-  };
-
-  // Move a case to a specific chunk
-  const moveCaseToChunk = (caseId, targetChunkIdx) => {
-    if (targetChunkIdx < 0 || targetChunkIdx >= chunks.length) return;
-    const next = chunks.map((c, i) => {
-      let ids = c.caseIds.filter(id => id !== caseId);
-      if (i === targetChunkIdx) {
-        ids.push(caseId);
+  const applyCurriculumPreset = (preset) => {
+    emitBeep(640);
+    if (preset === 'default') {
+      setDraftChunks(DEFAULT_CHUNKS);
+    } else if (preset === 'casual') {
+      const built = [];
+      for (let i = 0; i < OLL_DATA.length; i += 3) {
+        const slice = OLL_DATA.slice(i, i + 3);
+        built.push({ id: built.length + 1, title: `Chunk ${built.length + 1}: Casual Trio`, caseIds: slice.map((c) => c.id) });
       }
-      return { ...c, caseIds: ids };
+      setDraftChunks(built);
+    } else if (preset === 'shape') {
+      const groups = Array.from(new Set(OLL_DATA.map((c) => c.group)));
+      setDraftChunks(groups.map((g, idx) => ({
+        id: idx + 1,
+        title: `Chunk ${idx + 1}: ${g}`,
+        caseIds: OLL_DATA.filter((c) => c.group === g).map((c) => c.id)
+      })));
+    }
+    setSelectedBuilderChunkIdx(0);
+  };
+
+  const shiftBuilderChunk = (dir) => {
+    const target = selectedBuilderChunkIdx + dir;
+    if (target < 0 || target >= draftChunks.length) return;
+    emitBeep(520);
+    const copy = [...draftChunks];
+    const [moved] = copy.splice(selectedBuilderChunkIdx, 1);
+    copy.splice(target, 0, moved);
+    setDraftChunks(copy);
+    setSelectedBuilderChunkIdx(target);
+  };
+
+  const addBuilderChunk = () => {
+    emitBeep(600);
+    const nextNum = draftChunks.length + 1;
+    setDraftChunks([...draftChunks, { id: Date.now(), title: `Chunk ${nextNum}: Custom Group`, caseIds: [] }]);
+    setSelectedBuilderChunkIdx(draftChunks.length);
+  };
+
+  const removeBuilderChunk = () => {
+    if (draftChunks.length <= 1) return;
+    emitBeep(360);
+    const removed = draftChunks[selectedBuilderChunkIdx];
+    const remaining = draftChunks.filter((_, idx) => idx !== selectedBuilderChunkIdx);
+    remaining[0] = { ...remaining[0], caseIds: [...remaining[0].caseIds, ...removed.caseIds] };
+    setDraftChunks(remaining);
+    setSelectedBuilderChunkIdx(0);
+  };
+
+  const moveCaseToChunk = (caseId, targetChunkIdx) => {
+    emitBeep(680);
+    const updated = draftChunks.map((chk, idx) => {
+      const filtered = chk.caseIds.filter((id) => id !== caseId);
+      return idx === targetChunkIdx ? { ...chk, caseIds: [...filtered, caseId] } : { ...chk, caseIds: filtered };
     });
-    setChunks(next);
+    setDraftChunks(updated);
     setMovingCaseId(null);
   };
 
-  // Add new blank chunk
-  const handleAddChunk = () => {
-    const newIdx = chunks.length + 1;
-    setChunks([...chunks, {
-      id: `custom-chunk-${Date.now()}`,
-      name: `Custom Chunk ${newIdx}`,
-      caseIds: []
-    }]);
-    setSelectedChunkIdx(chunks.length);
+  const saveCustomCurriculum = () => {
+    const cleaned = draftChunks.filter((c) => c.caseIds.length > 0);
+    updateCurrentUser({ customChunks: cleaned.length > 0 ? cleaned : DEFAULT_CHUNKS, day: 1 });
+    setActiveModal(null);
+    emitBeep(960, 'sine', 0.12);
+    triggerToast('Custom Curriculum Saved!');
   };
 
-  // Remove chunk (re-assigns orphaned cases back to first chunk)
-  const handleRemoveChunk = (idx) => {
-    if (chunks.length <= 1) return;
-    const toRemove = chunks[idx];
-    const next = chunks.filter((_, i) => i !== idx);
-    if (toRemove.caseIds.length > 0) {
-      next[0].caseIds = [...next[0].caseIds, ...toRemove.caseIds];
+  // Day Lineup Press-and-Hold Drag Reorder Handlers
+  const reorderDayLineup = (fromIdx, toIdx) => {
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return;
+    const currentIds = [...currentDayPlan.caseIds];
+    const [movedId] = currentIds.splice(fromIdx, 1);
+    currentIds.splice(toIdx, 0, movedId);
+
+    const isGrandFinale = currentDay === totalDays && currentDayPlan.title.startsWith('Grand Finale');
+    const isCumulative = currentDayPlan.title.startsWith('Cumulative Review');
+
+    if (isGrandFinale) {
+      const updatedChunks = userChunks.map((chk) => ({
+        ...chk,
+        caseIds: [...chk.caseIds].sort((a, b) => currentIds.indexOf(a) - currentIds.indexOf(b))
+      }));
+      updateCurrentUser({ customChunks: updatedChunks });
+    } else if (isCumulative) {
+      const cIdx = currentDayPlan.chunkIdx;
+      const prevChunk = userChunks[cIdx - 1];
+      const currChunk = userChunks[cIdx];
+      if (prevChunk && currChunk) {
+        const prevSet = new Set(prevChunk.caseIds);
+        const currSet = new Set(currChunk.caseIds);
+        const updatedChunks = userChunks.map((chk, idx) => {
+          if (idx === cIdx - 1) return { ...chk, caseIds: currentIds.filter((id) => prevSet.has(id)) };
+          if (idx === cIdx) return { ...chk, caseIds: currentIds.filter((id) => currSet.has(id)) };
+          return chk;
+        });
+        updateCurrentUser({ customChunks: updatedChunks });
+      }
+    } else {
+      const targetChunkIdx = currentDayPlan.chunkIdx;
+      const updatedChunks = userChunks.map((chk, idx) =>
+        idx === targetChunkIdx ? { ...chk, caseIds: currentIds } : chk
+      );
+      updateCurrentUser({ customChunks: updatedChunks });
     }
-    setChunks(next);
-    setSelectedChunkIdx(Math.max(0, idx - 1));
+    emitBeep(720, 'triangle', 0.05);
   };
 
-  // Preset generators
-  const applyPreset = (presetType) => {
-    if (presetType === 'default') {
-      setChunks(JSON.parse(JSON.stringify(DEFAULT_CHUNKS)));
-    } else if (presetType === 'shape') {
-      setChunks(generateChunksByGroup());
-    } else if (presetType === 'size-3') {
-      setChunks(generateChunksBySize(3));
-    } else if (presetType === 'size-5') {
-      setChunks(generateChunksBySize(5));
+  const handleLineupPointerDown = (idx) => {
+    lineupDidDragRef.current = false;
+    setLineupPressIdx(idx);
+    clearTimeout(lineupHoldTimerRef.current);
+    lineupHoldTimerRef.current = setTimeout(() => {
+      lineupDidDragRef.current = true;
+      setDraggedLineupIdx(idx);
+      emitBeep(880, 'sine', 0.08);
+    }, 220);
+  };
+
+  const handleLineupPointerMove = (e) => {
+    if (draggedLineupIdx === null) return;
+    if (e.cancelable) e.preventDefault();
+    const clientY = e.clientY;
+    for (let i = 0; i < lineupItemRefs.current.length; i++) {
+      const el = lineupItemRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom && i !== draggedLineupIdx) {
+        reorderDayLineup(draggedLineupIdx, i);
+        setDraggedLineupIdx(i);
+        setLineupPressIdx(i);
+        break;
+      }
     }
-    setSelectedChunkIdx(0);
   };
 
-  const activeChunk = chunks[selectedChunkIdx] || chunks[0];
-  const activeCases = activeChunk ? OLL_DATA.filter(c => activeChunk.caseIds.includes(c.id)) : [];
+  const handleLineupPointerUp = () => {
+    clearTimeout(lineupHoldTimerRef.current);
+    if (draggedLineupIdx !== null) {
+      triggerToast('Day lineup order updated!');
+    }
+    setDraggedLineupIdx(null);
+    setLineupPressIdx(null);
+  };
 
-  return sanitizeNode(
-    <div className="fixed inset-0 z-[230] bg-[#060913]/95 backdrop-blur-2xl flex flex-col p-5 overflow-y-auto">
-      <div className="flex justify-between items-center mb-4 max-w-sm mx-auto w-full">
+  // Granular Reset & Admin User Creation
+  const executeGranularReset = (mode) => {
+    if (mode === 'schedule') updateCurrentUser({ day: 1 });
+    if (mode === 'stats') updateCurrentUser({ stats: {} });
+    if (mode === 'both') updateCurrentUser({ day: 1, stats: {} });
+    setActiveModal(null);
+    emitBeep(900, 'triangle', 0.12);
+    triggerToast(`Progress Reset (${mode.toUpperCase()})`);
+  };
+
+  const handleAddFamilyUser = () => {
+    if (!newUserName.trim() || !/^\d{4}$/.test(newUserPin) || users[newUserPin]) {
+      triggerToast('Enter a unique 4-digit PIN and name.');
+      return;
+    }
+    const updated = {
+      ...users,
+      [newUserPin]: {
+        pin: newUserPin,
+        name: newUserName.trim(),
+        role: 'user',
+        day: 1,
+        stats: {},
+        targetGoal: 3.5,
+        timerEnabled: true,
+        fingertricksEnabled: true,
+        chunkSize: 5,
+        customChunks: DEFAULT_CHUNKS,
+        hasSeenOnboarding: false
+      }
+    };
+    saveUsersState(updated);
+    setNewUserName("");
+    setNewUserPin("");
+    emitBeep(880, 'sine', 0.1);
+    triggerToast(`Added profile: ${newUserName.trim()}`);
+  };
+
+  // 3D Settings Deck Class Helper
+  const getDeckClass = (cardNum) => {
+    const pos = ((cardNum - settingsCard + 3) % 3) + 1;
+    return `deck-card deck-card-${pos}`;
+  };
+
+  // =========================================================================
+  // 8. INTRINSIC PIECE-IDENTITY CROSS 2D DIAGRAM (FULL 3x3 BOTTOM FACE)
+  // =========================================================================
+  const activeScramble = (CROSS_SCRAMBLES[crossTier] || CROSS_SCRAMBLES[1])[crossScrambleIdx % 6];
+
+  const renderCrossSVG = () => {
+    const cW = '#f8fafc'; // White
+    const cG = '#22c55e'; // Green
+    const cB = '#3b82f6'; // Blue
+    const cR = '#ef4444'; // Red
+    const cO = '#f97316'; // Orange
+    const cCorner = '#1e293b'; // Unsolved F2L corners (muted slate)
+    const cDark = '#090a14'; // Cube plastic border
+
+    const isTarget = diagramView === 'solved';
+    const fEdge = { dFill: cW, outFill: cG };
+    const bEdge = isTarget ? { dFill: cW, outFill: cB } : { dFill: cB, outFill: '#ffffff' };
+    const lEdge = isTarget ? { dFill: cW, outFill: cR } : { dFill: cR, outFill: '#ffffff' };
+    const rEdge = { dFill: cW, outFill: cO };
+
+    return (
+      <svg viewBox="0 0 116 116" className="w-full h-full drop-shadow-xl">
+        {/* Cube Housing */}
+        <rect x="20" y="20" width="76" height="76" rx="8" fill={cDark} />
+
+        {/* Back Face Outer Stickers (Blue Side) */}
+        <rect x="24" y="10" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+        <rect x="48" y="10" width="20" height="7" rx="2" fill={bEdge.outFill} stroke={cDark} strokeWidth="1.2" />
+        <rect x="72" y="10" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+
+        {/* Front Face Outer Stickers (Green Side) */}
+        <rect x="24" y="99" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+        <rect x="48" y="99" width="20" height="7" rx="2" fill={fEdge.outFill} stroke={cDark} strokeWidth="1.2" />
+        <rect x="72" y="99" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+
+        {/* Left Face Outer Stickers (Red Side) */}
+        <rect x="10" y="24" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+        <rect x="10" y="48" width="7" height="20" rx="2" fill={lEdge.outFill} stroke={cDark} strokeWidth="1.2" />
+        <rect x="10" y="72" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+
+        {/* Right Face Outer Stickers (Orange Side) */}
+        <rect x="99" y="24" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+        <rect x="99" y="48" width="7" height="20" rx="2" fill={rEdge.outFill} stroke={cDark} strokeWidth="1.2" />
+        <rect x="99" y="72" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
+
+        {/* Row 1 (Back Row of Bottom Face): Left Corner, Back Edge, Right Corner */}
+        <rect x="24" y="24" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
+        <rect x="48" y="24" width="20" height="20" rx="3.5" fill={bEdge.dFill} stroke={cDark} strokeWidth="1.5" />
+        <rect x="72" y="24" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
+
+        {/* Row 2 (Middle Row of Bottom Face): Left Edge, White Center, Right Edge */}
+        <rect x="24" y="48" width="20" height="20" rx="3.5" fill={lEdge.dFill} stroke={cDark} strokeWidth="1.5" />
+        <rect x="48" y="48" width="20" height="20" rx="3.5" fill={cW} stroke={cDark} strokeWidth="1.5" />
+        <rect x="72" y="48" width="20" height="20" rx="3.5" fill={rEdge.dFill} stroke={cDark} strokeWidth="1.5" />
+
+        {/* Row 3 (Front Row of Bottom Face): Left Corner, Front Edge, Right Corner */}
+        <rect x="24" y="72" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
+        <rect x="48" y="72" width="20" height="20" rx="3.5" fill={fEdge.dFill} stroke={cDark} strokeWidth="1.5" />
+        <rect x="72" y="72" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
+      </svg>
+    );
+  };
+
+  // Derived OLL Data
+  const ollGroups = Array.from(new Set(OLL_DATA.map((c) => c.group)));
+  const sessionCases = currentDayPlan.caseIds.map((id) => OLL_DATA.find((c) => c.id === id)).filter(Boolean);
+  const activeSessionCase = sessionCases[sessionIdx % sessionCases.length] || OLL_DATA[0];
+
+  const allStatsEntries = Object.values(currentUser.stats || {});
+  const totalRecordedRuns = allStatsEntries.reduce((acc, s) => acc + (s.times?.length || 0), 0);
+  const allBests = allStatsEntries.map((s) => s.best).filter((b) => typeof b === 'number');
+  const allTimeBestPR = allBests.length > 0 ? Math.min(...allBests) : null;
+
+  const COMPASS_QUIZZES = [
+    { q: "With White on bottom and Green facing you, which color belongs on your Right side?", a: "Orange" },
+    { q: "With White on bottom and Blue facing you, which color is at the Back?", a: "Green" },
+    { q: "With White on bottom and Red facing you, which color belongs on your Right side?", a: "Green" }
+  ];
+
+  // =========================================================================
+  // 9. SHARED 3D STACKED SETTINGS DECK RENDERER
+  // =========================================================================
+  const renderSettingsDeck = () => (
+    <div className="p-5 h-full flex flex-col justify-between overflow-hidden">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Curriculum Architect</span>
-          <h2 className="text-xl font-black text-white">Custom Program Builder</h2>
+          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Control Center</p>
+          <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white cursor-pointer">
-          <X size={20} />
+        <button
+          onClick={() => { setActiveModal('profile'); setPinInput(""); setPinError(false); }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-xs font-bold active:scale-95 transition-all cursor-pointer"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Lock App</span>
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col max-w-sm mx-auto w-full space-y-4">
-        {/* Dynamic Journey Calculation Card */}
-        <div className="bg-gradient-to-r from-orange-600/20 to-amber-600/10 border border-orange-500/30 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block">Projected Journey</span>
-            <div className="text-2xl font-black text-white mt-0.5 font-mono">{totalDays} Total Days</div>
-            <div className="text-xs text-slate-300 mt-0.5 font-medium">
-              {chunks.length} Chunks • ~{Math.round(57 / chunks.length)} cases/chunk
+      <div className="relative w-full flex-1 min-h-[395px] max-h-[440px] my-auto">
+        {/* Card 1: Pace & Environment */}
+        <div className={`${getDeckClass(1)} bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between`}>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 3</span>
+              <span className="text-[10px] font-mono text-slate-400">{totalDays}d Journey</span>
             </div>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Format</span>
-            <span className="text-xs font-bold text-amber-300">Learn $\rightarrow$ Drill $\rightarrow$ Review</span>
-          </div>
-        </div>
+            <h3 className="text-base font-black text-white text-center">Pace & Training Tools</h3>
 
-        {/* Quick Presets Bar */}
-        <div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Quick Presets</span>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button 
-              onClick={() => applyPreset('default')} 
-              className="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-slate-200 transition-all cursor-pointer active:scale-95"
-            >
-              Default (32d)
-            </button>
-            <button 
-              onClick={() => applyPreset('size-3')} 
-              className="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-slate-200 transition-all cursor-pointer active:scale-95"
-            >
-              Casual (3/chk)
-            </button>
-            <button 
-              onClick={() => applyPreset('shape')} 
-              className="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold text-slate-200 transition-all cursor-pointer active:scale-95"
-            >
-              By Shape
-            </button>
-          </div>
-        </div>
+            <div className="flex items-center justify-between bg-[#050811] rounded-2xl px-3 py-2 border border-white/10">
+              <div>
+                <span className="text-xs font-bold text-slate-200 block">Target Execution Goal</span>
+                <span className="text-[9px] text-slate-400">0.25s precision stepper</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => adjustTargetGoal(-0.25)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black cursor-pointer">-</button>
+                <span className="text-orange-400 font-mono font-black text-xs w-11 text-center">{currentUser.targetGoal.toFixed(2)}s</span>
+                <button onClick={() => adjustTargetGoal(0.25)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black cursor-pointer">+</button>
+              </div>
+            </div>
 
-        {/* Chunk Selector Carousel */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reorder & Select Chunks</span>
-            <button 
-              onClick={handleAddChunk}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-400 hover:text-orange-300 cursor-pointer"
+            <button
+              onClick={openCurriculumArchitect}
+              className="w-full py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 font-bold text-xs cursor-pointer transition-all"
             >
-              <Plus size={13} /> Add Chunk
+              Organize Cases & Custom Order
             </button>
-          </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {chunks.map((chk, i) => (
+            <div className="flex items-center justify-between bg-[#050811] rounded-2xl px-3 py-2 border border-white/10">
+              <div>
+                <span className="text-xs font-bold text-slate-200 block">Speedcube Stopwatch</span>
+                <span className="text-[9px] text-slate-400">In-app solve timer pad</span>
+              </div>
               <button
-                key={chk.id || i}
-                onClick={() => setSelectedChunkIdx(i)}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                  selectedChunkIdx === i 
-                    ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md font-black' 
-                    : 'bg-slate-900/80 text-slate-300 border-white/10 hover:border-white/20'
-                }`}
+                onClick={() => { updateCurrentUser({ timerEnabled: !isTimerEnabled }); emitBeep(720, 'sine', 0.08); }}
+                className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer active:scale-95 transition-all"
               >
-                <span>{chk.name.split(':')[0]}</span>
-                <span className={`text-[10px] rounded-full px-1.5 py-0.2 ${selectedChunkIdx === i ? 'bg-black/20 text-slate-950' : 'bg-white/10 text-orange-300'}`}>
-                  {chk.caseIds.length}
+                <span className={isTimerEnabled ? "text-green-400 font-mono font-black text-xs" : "text-slate-500 font-mono font-black text-xs"}>
+                  {isTimerEnabled ? 'ON' : 'OFF'}
                 </span>
               </button>
-            ))}
+            </div>
+
+            <div className="flex items-center justify-between bg-[#050811] rounded-2xl px-3 py-2 border border-white/10">
+              <div>
+                <span className="text-xs font-bold text-slate-200 block">Fingertrick Guides</span>
+                <span className="text-[9px] text-slate-400">Grip & trigger breakdowns</span>
+              </div>
+              <button
+                onClick={() => { updateCurrentUser({ fingertricksEnabled: !isFingertricksEnabled }); emitBeep(720, 'sine', 0.08); }}
+                className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer active:scale-95 transition-all"
+              >
+                <span className={isFingertricksEnabled ? "text-green-400 font-mono font-black text-xs" : "text-slate-500 font-mono font-black text-xs"}>
+                  {isFingertricksEnabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between bg-[#050811] rounded-2xl px-3 py-2 border border-white/10">
+              <div>
+                <span className="text-xs font-bold text-slate-200 block">Audio Synthesizer</span>
+                <span className="text-[9px] text-slate-400">Tactile clicks & WCA tones</span>
+              </div>
+              <button
+                onClick={() => { setAudioEnabled((prev) => !prev); emitBeep(760, 'sine', 0.08); }}
+                className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer active:scale-95 transition-all"
+              >
+                <span className={audioEnabled ? "text-green-400 font-mono font-black text-xs" : "text-slate-500 font-mono font-black text-xs"}>
+                  {audioEnabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            </div>
           </div>
+
+          <button onClick={() => { emitBeep(600); setSettingsCard(2); }} className="w-full py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-orange-400 cursor-pointer">
+            Swipe / Tap for Notation Key →
+          </button>
         </div>
 
-        {/* Active Chunk Controls */}
-        {activeChunk && (
-          <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-              <div>
-                <input 
-                  type="text" 
-                  value={activeChunk.name} 
-                  onChange={(e) => {
-                    const next = [...chunks];
-                    next[selectedChunkIdx].name = e.target.value;
-                    setChunks(next);
-                  }}
-                  className="bg-transparent font-black text-white text-base focus:outline-none focus:border-b border-orange-500" 
-                />
-                <span className="text-[10px] text-slate-400 block mt-0.5">{activeChunk.caseIds.length} Algorithms in this phase</span>
+        {/* Card 2: Algorithm Notation Key */}
+        <div className={`${getDeckClass(2)} bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between`}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 3</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-black text-white">Algorithm Notation Key</h3>
+              <p className="text-[11px] text-slate-400">WCA notation cheatsheet</p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5">
+              {['SINGLE', 'SLICE', 'WHOLE', 'WIDE'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => { emitBeep(520); setNotationCategory(cat); }}
+                  className={`py-2 rounded-full text-[10px] font-black tracking-wider cursor-pointer transition-all ${notationCategory === cat ? 'bg-orange-500 text-slate-950 shadow-md' : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 space-y-2 max-h-[185px] overflow-y-auto no-scrollbar">
+              {NOTATION_TABS[notationCategory].map((row) => (
+                <div key={row.move} className="flex items-center gap-3 bg-slate-900/80 border border-white/5 rounded-xl p-2">
+                  <span className="px-2.5 py-1 rounded-lg bg-orange-500/15 border border-orange-500/30 font-mono text-[11px] font-black text-orange-400 min-w-[54px] text-center">{row.move}</span>
+                  <span className="text-xs font-medium text-slate-200">{row.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={() => { emitBeep(600); setSettingsCard(3); }} className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-orange-400 cursor-pointer">
+            Swipe / Tap for Security & Guide →
+          </button>
+        </div>
+
+        {/* Card 3: Profiles & Security */}
+        <div className={`${getDeckClass(3)} bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between`}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 3</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-black text-white">Profiles & Security</h3>
+              <p className="text-xs text-slate-400">Manage accounts, reset progress, or guide</p>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <button
+                onClick={() => { emitBeep(540); setOnboardStep(0); setActiveModal('onboarding'); }}
+                className="w-full py-3.5 px-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-400 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                <span>New to CFOP? Beginner Guide</span>
+              </button>
+
+              <button
+                onClick={() => { emitBeep(540); setActiveModal('admin'); }}
+                className="w-full py-3.5 px-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Admin User Management</span>
+              </button>
+
+              <button
+                onClick={() => { emitBeep(); setActiveModal('reset'); }}
+                className="w-full py-3.5 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Reset My Progress</span>
+              </button>
+            </div>
+          </div>
+
+          <button onClick={() => { emitBeep(600); setSettingsCard(1); }} className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-orange-400 cursor-pointer">
+            Return to Card 1 ↓
+          </button>
+        </div>
+      </div>
+
+      {/* Pagination Dots */}
+      <div className="flex items-center justify-center gap-2 pt-2">
+        {[1, 2, 3].map((dot) => (
+          <button
+            key={dot}
+            onClick={() => { emitBeep(500); setSettingsCard(dot); }}
+            className={`h-2 rounded-full transition-all cursor-pointer ${settingsCard === dot ? 'w-6 bg-orange-500' : 'w-2 bg-slate-700'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  // =========================================================================
+  // 10. MAIN RENDER
+  // =========================================================================
+  return (
+    <>
+      <style>{`
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; background-color: #060913 !important; color-scheme: dark; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .phase-view { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.32s ease; will-change: transform, opacity; }
+        .phase-active { transform: translateX(0%); opacity: 1; pointer-events: auto; z-index: 20; }
+        .phase-left { transform: translateX(-100%); opacity: 0; pointer-events: none; z-index: 10; }
+        .phase-right { transform: translateX(100%); opacity: 0; pointer-events: none; z-index: 10; }
+        @keyframes pulse-visor { 0%, 100% { transform: scale(1); opacity: 0.92; } 50% { transform: scale(1.05); opacity: 1; } }
+        .animate-pulse-visor { animation: pulse-visor 2.4s infinite ease-in-out; }
+        .deck-card { position: absolute; inset: 0; width: 100%; height: 100%; transition: all 0.45s cubic-bezier(0.25, 1, 0.5, 1); }
+        .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
+        .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
+        .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
+      `}</style>
+
+      <div className="bg-[#060913] text-slate-100 font-sans selection:bg-orange-500/30 flex justify-center select-none overscroll-none min-h-screen">
+        {/* Ambient Lighting */}
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0"></div>
+        <div className="fixed bottom-0 right-0 w-3/4 h-[38vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0"></div>
+
+        {/* Non-Intrusive Toast Banner */}
+        {toastMsg && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[450] bg-slate-900/95 border border-orange-500/40 text-orange-300 px-4 py-2.5 rounded-full shadow-2xl backdrop-blur-xl text-xs font-bold tracking-wide">
+            {toastMsg}
+          </div>
+        )}
+
+        {/* Locked Mobile iOS Shell */}
+        <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
+
+          {/* PERSISTENT HEADER */}
+          <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/90 backdrop-blur-xl flex-shrink-0 z-40">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* Custom 3D Sune Cube SVG Logo */}
+              <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center relative">
+                <svg viewBox="0 0 1000 1000" className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z" fill="#090a14" stroke="#090a14" strokeWidth="32" strokeLinejoin="round" strokeLinecap="round" />
+                  <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round" fill="#000000">
+                    <polygon points="524,180 594,228 534,268 464,220" />
+                    <polygon points="604,236 674,288 614,328 544,276" />
+                    <polygon points="684,296 754,348 694,388 624,336" />
+                    <polygon points="700,358 775,354 788,418 714,424" />
+                    <polygon points="716,432 790,428 752,492 680,498" />
+                    <polygon points="676,506 748,502 708,552 638,558" />
+                  </g>
+                  <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
+                    <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
+                    <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
+                    <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
+                  </g>
+                  <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
+                    <polygon points="544,432 616,375 610,466 538,523" fill="#d96528" />
+                    <polygon points="537,537 609,480 603,571 531,628" fill="#090a12" />
+                    <polygon points="530,642 602,585 596,676 524,733" fill="#090a12" />
+                  </g>
+                  <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
+                    <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
+                    <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
+                    <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
+                    <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
+                    <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
+                    <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
+                    <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
+                    <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
+                    <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
+                  </g>
+                </svg>
               </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => moveChunk(selectedChunkIdx, -1)} 
-                  disabled={selectedChunkIdx === 0}
-                  className="p-1.5 bg-white/5 rounded-lg text-slate-300 disabled:opacity-20 cursor-pointer hover:bg-white/10"
-                  title="Move Chunk Earlier"
+              <div className="min-w-0">
+                <h1 className="text-lg font-black tracking-tight text-white leading-none truncate">
+                  OLLDay <span className="text-orange-500">Everyday</span>
+                </h1>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-[10px] text-slate-400 font-bold truncate">
+                    {currentPhase === 'cross' ? 'Step 1 • White Cross' : currentPhase === 'f2l' ? 'Step 2 • First Two Layers' : `Daily OLL Training • Day ${currentDay}`}
+                  </span>
+                  <span className="text-slate-600 text-[10px]">•</span>
+                  <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
+                    <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' : syncStatus === 'synced' ? 'bg-green-400' : 'bg-red-500'}`}></span>
+                    <span className="text-green-400">{syncStatus === 'syncing' ? 'SYNC' : 'CLOUD'}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 relative">
+              <button
+                onClick={() => { setActiveModal('profile'); setPinInput(""); setPinError(false); }}
+                className="flex flex-col items-end px-2 py-1 rounded-xl hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+              >
+                <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                  <span>{currentUser.name}</span>
+                </span>
+                <span className="font-mono text-[11px] font-black text-orange-400 leading-tight">{progressPct}%</span>
+              </button>
+
+              {/* C-F-O-P Dropdown Pill */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onPointerDown={() => { setIsDropdownOpen((prev) => !prev); emitBeep(420); }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 text-xs font-black tracking-wider active:scale-95 transition-all cursor-pointer shadow-sm"
                 >
-                  <ChevronLeft size={16} />
+                  <span>{currentPhase === 'cross' ? 'C' : currentPhase === 'f2l' ? 'F' : 'O'}</span>
+                  <svg className="w-3 h-3 opacity-80 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
                 </button>
-                <button 
-                  onClick={() => moveChunk(selectedChunkIdx, 1)} 
-                  disabled={selectedChunkIdx === chunks.length - 1}
-                  className="p-1.5 bg-white/5 rounded-lg text-slate-300 disabled:opacity-20 cursor-pointer hover:bg-white/10"
-                  title="Move Chunk Later"
-                >
-                  <ChevronRight size={16} />
-                </button>
-                {chunks.length > 1 && (
-                  <button 
-                    onClick={() => handleRemoveChunk(selectedChunkIdx)}
-                    className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 cursor-pointer ml-1"
-                    title="Delete Chunk"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-14 bg-[#0c1326] border border-white/15 rounded-2xl p-1.5 shadow-2xl z-50 flex flex-col gap-1 backdrop-blur-2xl">
+                    <button onClick={() => selectPhase('cross')} className={`w-full py-2 rounded-xl text-xs font-black text-center transition-all cursor-pointer ${currentPhase === 'cross' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}>C</button>
+                    <button onClick={() => selectPhase('f2l')} className={`w-full py-2 rounded-xl text-xs font-black text-center transition-all cursor-pointer ${currentPhase === 'f2l' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}>F</button>
+                    <button onClick={() => selectPhase('oll')} className={`w-full py-2 rounded-xl text-xs font-black text-center transition-all cursor-pointer ${currentPhase === 'oll' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}>O</button>
+                    <button onClick={() => selectPhase('pll')} className={`w-full py-2 rounded-xl text-xs font-black text-center text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer transition-all`}>P</button>
+                  </div>
                 )}
               </div>
             </div>
+          </header>
 
-            {/* Cases in this Chunk */}
-            <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
-              {activeCases.map(c => (
-                <div key={c.id} className="flex items-center justify-between p-2 bg-black/40 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-slate-200 p-0.5 flex-shrink-0 flex items-center justify-center">
-                      <img src={getImageUrl(c.alg)} alt={c.name} className="w-full h-full object-contain" />
+          {/* SLIDING PHASE STAGE */}
+          <div className="flex-1 min-h-0 relative overflow-hidden">
+
+            {/* ========================================================= */}
+            {/* PHASE 1: CROSS                                            */}
+            {/* ========================================================= */}
+            <div className={getPhaseClass('cross')}>
+              <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative">
+                {crossTab === 'ladder' && (
+                  <div className="p-4 h-full flex flex-col justify-between gap-2.5 overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[9px]">CFOP Step 1 • Bottom Cross</p>
+                        <h2 className="text-xl font-black tracking-tight text-white leading-none">Cross in X</h2>
+                      </div>
+                      <button
+                        onClick={() => {
+                          emitBeep(520);
+                          setCompassQuizRevealed(false);
+                          setCompassHitMeActive(false);
+                          setCompassColorOrder(['Blue', 'Orange', 'Green', 'Red']);
+                          setCompassSelectedAnswer(null);
+                          setActiveModal('compass');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 cursor-pointer"
+                      >
+                        <span>Color Orbit</span>
+                      </button>
                     </div>
+
+                    {/* Tier Selector (1 to 5) */}
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {[1, 2, 3, 4, 5].map((tier) => (
+                        <button
+                          key={tier}
+                          onClick={() => {
+                            emitBeep(500);
+                            setCrossTier(tier);
+                            setUserMoves(tier + 1);
+                            setEfficiencyFeedback(null);
+                            setCrossScrambleIdx((prev) => prev + 1);
+                          }}
+                          className={`py-1.5 text-[10px] font-black rounded-xl transition-all cursor-pointer ${crossTier === tier ? 'bg-orange-500 text-slate-950 shadow-md' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                        >
+                          {tier + 1} Moves
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Mode Toggle */}
+                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center shadow-inner">
+                      <button
+                        onClick={() => { emitBeep(); setCrossMode('efficiency'); }}
+                        className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossMode === 'efficiency' ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Move Count
+                      </button>
+                      <button
+                        onClick={() => { emitBeep(); setCrossMode('blind'); }}
+                        className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossMode === 'blind' ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Eyes-Closed Drill
+                      </button>
+                    </div>
+
+                    {/* Compact Scramble & Side-by-Side 2D Bottom Face Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">
+                            Difficulty {crossTier} • {crossTier + 1} Moves
+                          </span>
+                          <h3 className="text-sm font-black text-white">
+                            {crossTier === 1 ? 'Single-Move Drop-Ins' : crossTier === 2 ? 'Two-Piece Alignment' : crossTier === 3 ? 'Three-Edge Sequencing' : crossTier === 4 ? 'Full 4-Edge Bottom Cross' : 'Advanced Multi-Piece Cross'}
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => { emitBeep(440); setCrossScrambleIdx((p) => p + 1); setEfficiencyFeedback(null); }}
+                          className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-orange-400 active:scale-95 cursor-pointer"
+                        >
+                          New Scramble
+                        </button>
+                      </div>
+
+                      <div className="bg-[#050811] border border-white/10 rounded-xl py-2 px-3 text-center shadow-inner">
+                        <span className="text-[9px] font-semibold text-slate-400 block mb-0.5">White on Bottom • Green Facing You</span>
+                        <div className="font-mono text-base font-black text-amber-300 tracking-wider select-all">{activeScramble}</div>
+                      </div>
+
+                      {/* Side-by-Side Full 3x3 Bottom Face Diagram + Legend */}
+                      <div className="bg-slate-950/80 border border-white/10 rounded-xl p-2.5 flex items-center gap-3 shadow-inner">
+                        <div className="w-24 h-24 flex-shrink-0">
+                          {renderCrossSVG()}
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Bottom Face</span>
+                            <div className="flex gap-1 bg-slate-900 p-0.5 rounded-lg border border-white/10">
+                              <button onClick={() => setDiagramView('scrambled')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold cursor-pointer ${diagramView === 'scrambled' ? 'bg-orange-500 text-slate-950' : 'text-slate-400'}`}>Start</button>
+                              <button onClick={() => setDiagramView('solved')} className={`px-1.5 py-0.5 rounded text-[9px] font-bold cursor-pointer ${diagramView === 'solved' ? 'bg-green-500 text-slate-950' : 'text-slate-400'}`}>Goal</button>
+                            </div>
+                          </div>
+                          <div className="text-[10px] leading-snug space-y-0.5">
+                            <div className="text-green-400 font-semibold">• Front & Right: Ready</div>
+                            <div className={diagramView === 'solved' ? 'text-green-400 font-semibold' : 'text-amber-300 font-semibold'}>
+                              • Back & Left: {diagramView === 'solved' ? 'Matched!' : 'Flipped'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Inline Mode Switcher: Move Count OR Eyes-Closed Drill (Zero-Scroll, Same Page) */}
+                    {crossMode === 'efficiency' ? (
+                      <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">Turns You Used</span>
+                            <span className="text-[11px] font-bold text-orange-400">Goal: {crossTier + 1} Turns or Less</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => { setUserMoves((m) => Math.max(1, m - 1)); setEfficiencyFeedback(null); emitBeep(760, 'triangle', 0.05); }} className="w-7 h-7 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">-</button>
+                            <span className="font-mono text-lg font-black text-white w-7 text-center">{userMoves}</span>
+                            <button onClick={() => { setUserMoves((m) => Math.min(20, m + 1)); setEfficiencyFeedback(null); emitBeep(760, 'triangle', 0.05); }} className="w-7 h-7 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">+</button>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target = crossTier + 1;
+                            const diff = userMoves - target;
+                            if (diff <= 0) {
+                              emitBeep(960, 'sine', 0.12);
+                              setOptimalCrossCount((c) => c + 1);
+                              setEfficiencyFeedback({
+                                optimal: true,
+                                title: `Optimal! (${userMoves}/${target} turns)`,
+                                detail: 'Clean efficiency! Tap New Scramble to keep going.'
+                              });
+                              triggerToast(`Optimal Cross! (${userMoves}/${target} turns)`);
+                            } else {
+                              emitBeep(420, 'triangle', 0.12);
+                              setEfficiencyFeedback({
+                                optimal: false,
+                                title: `${diff} Extra Turn${diff === 1 ? '' : 's'} (${userMoves} vs ${target})`,
+                                detail: 'Tip: Rotate D / D\' to align open slots before dropping edges.'
+                              });
+                              triggerToast(`${diff} extra turn(s) used`);
+                            }
+                          }}
+                          className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 border border-orange-400/30 active:scale-95 transition-all cursor-pointer"
+                        >
+                          Check My Turn Count
+                        </button>
+
+                        {efficiencyFeedback && (
+                          <div className={`rounded-xl px-3 py-2 border text-left transition-all ${efficiencyFeedback.optimal ? 'bg-green-500/15 border-green-500/35 text-green-300' : 'bg-amber-500/15 border-amber-500/35 text-amber-200'}`}>
+                            <div className="flex items-center justify-between text-[11px] font-black">
+                              <span>{efficiencyFeedback.title}</span>
+                              <span className="text-[9px] font-mono opacity-80">{optimalCrossCount} Optimal</span>
+                            </div>
+                            <p className="text-[10px] opacity-90 leading-snug mt-0.5">{efficiencyFeedback.detail}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2.5 relative">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-white">Eyes-Closed Memory</span>
+                            <button
+                              onClick={() => { emitBeep(520); setShowEyesClosedGuide((prev) => !prev); }}
+                              className="w-5 h-5 rounded-full bg-orange-500/15 border border-orange-500/35 text-orange-400 font-black text-[10px] flex items-center justify-center cursor-pointer"
+                              title="How Eyes-Closed Drill Works"
+                            >
+                              ?
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono font-bold text-slate-300 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                              Streak: {eyesClosedStreak}
+                            </span>
+                            <button
+                              onClick={() => { emitBeep(520); setCrossTab('blind'); }}
+                              className="text-[10px] font-black text-orange-400 hover:underline cursor-pointer"
+                            >
+                              15s Timer →
+                            </button>
+                          </div>
+                        </div>
+
+                        {showEyesClosedGuide ? (
+                          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-2.5 text-left space-y-1.5">
+                            <p className="text-[10px] text-slate-200 leading-snug">
+                              <strong>1.</strong> Scramble your physical 3x3 above. <strong>2.</strong> Plan all {crossTier + 1} moves with no timer. <strong>3.</strong> Close your eyes, solve the cross, then open to verify!
+                            </p>
+                            <button
+                              onClick={() => { emitBeep(640); setShowEyesClosedGuide(false); }}
+                              className="text-[10px] font-black text-orange-400 underline cursor-pointer"
+                            >
+                              Dismiss tip
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 leading-snug">
+                            Plan the {crossTier + 1}-move cross on your physical cube, close your eyes, and execute from memory.
+                          </p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => {
+                              emitBeep(960, 'sine', 0.12);
+                              setEyesClosedStreak((s) => s + 1);
+                              setCrossScrambleIdx((p) => p + 1);
+                              triggerToast('Clean Eyes-Closed Cross! Next scramble loaded.');
+                            }}
+                            className="py-2.5 px-2 rounded-xl bg-green-500/15 hover:bg-green-500/25 border border-green-500/35 text-green-300 font-black text-[11px] cursor-pointer active:scale-95 transition-all"
+                          >
+                            Nailed It (Eyes Closed)
+                          </button>
+                          <button
+                            onClick={() => {
+                              emitBeep(360, 'triangle', 0.12);
+                              setEyesClosedStreak(0);
+                              triggerToast('Reset cube & trace the moves one piece at a time.');
+                            }}
+                            className="py-2.5 px-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-[11px] cursor-pointer active:scale-95 transition-all"
+                          >
+                            Missed — Retry
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {crossTab === 'blind' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
+                        <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!showBlindGuide && (
+                          <button
+                            onClick={() => { emitBeep(520); setShowBlindGuide(true); }}
+                            className="w-7 h-7 rounded-full bg-orange-500/15 border border-orange-500/35 text-orange-400 font-black text-xs flex items-center justify-center cursor-pointer active:scale-95"
+                            title="How Blind Run Works"
+                          >
+                            ?
+                          </button>
+                        )}
+                        <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300">
+                          {blindRuns.clean}/{blindRuns.total} Clean
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Active Physical Cube Scramble Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-orange-400">
+                          Scramble Your Cube • {crossTier + 1} Moves
+                        </span>
+                        <button
+                          onClick={() => { emitBeep(440); setCrossScrambleIdx((p) => p + 1); }}
+                          className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-orange-400 active:scale-95 cursor-pointer"
+                        >
+                          New Scramble
+                        </button>
+                      </div>
+                      <div className="bg-[#050811] border border-white/10 rounded-xl py-2 px-3 text-center shadow-inner">
+                        <div className="font-mono text-base font-black text-amber-300 tracking-wider select-all">{activeScramble}</div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 text-center">Hold White on Bottom • Green Facing You</p>
+                    </div>
+
+                    {/* Dismissible "How Blind Run Works" Guide */}
+                    {showBlindGuide && (
+                      <div className="bg-orange-500/10 border border-orange-500/30 rounded-[1.75rem] p-4 space-y-2.5 shadow-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">How Blind Run Works</span>
+                          <span className="text-[10px] font-semibold text-slate-400">Physical 3x3 Required</span>
+                        </div>
+                        <p className="text-[11px] text-slate-200 leading-relaxed">
+                          Training your cross eyes-closed forces you to plan every move during inspection so your eyes can later look ahead to F2L pairs:
+                        </p>
+                        <ol className="text-[11px] text-slate-300 space-y-1 list-decimal list-inside">
+                          <li>Apply the scramble above to your physical 3x3 cube.</li>
+                          <li>Tap <strong>Start 15s Inspection</strong> and trace the cross in your head.</li>
+                          <li>Rest both thumbs on the fingerprint targets below until green, lift to start, and solve with your eyes closed!</li>
+                        </ol>
+                        <button
+                          onClick={() => { emitBeep(640); setShowBlindGuide(false); }}
+                          className="w-full py-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-300 font-black text-[11px] cursor-pointer transition-all"
+                        >
+                          Got It, Dismiss Guide
+                        </button>
+                      </div>
+                    )}
+
+                    {/* WCA 15s Countdown Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl text-center">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
+                      <div className={`font-mono text-5xl font-black my-2 ${blindState === 'dnf' ? 'text-red-500' : inspectionTime <= 3 && blindState === 'inspecting' ? 'text-amber-400' : 'text-white'}`}>
+                        {inspectionTime.toFixed(1)}s
+                      </div>
+                      <p className="text-xs font-bold text-orange-400">
+                        {blindState === 'idle' && 'Ready to inspect'}
+                        {blindState === 'inspecting' && 'Inspecting — Rest both thumbs on the mat to arm'}
+                        {blindState === 'readying' && 'Hold steady (0.35s)...'}
+                        {blindState === 'armed' && 'ARMED (Green) — Lift both thumbs to start!'}
+                        {blindState === 'dnf' && 'DNF (+15s inspection exceeded)'}
+                        {blindState === 'finished' && `Finished in ${blindExecTime.toFixed(2)}s`}
+                      </p>
+                    </div>
+
+                    {(blindState === 'idle' || blindState === 'dnf') && (
+                      <button
+                        onClick={startWCAInspection}
+                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer active:scale-95"
+                      >
+                        Start 15s Inspection
+                      </button>
+                    )}
+
+                    {/* Dual Mobile Fingerprint Speedstack Pads */}
+                    <div
+                      className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-4 shadow-inner transition-all touch-none ${blindState === 'inspecting' || blindState === 'readying' || blindState === 'armed' ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}
+                    >
+                      <div className="flex items-center justify-between mb-2.5 px-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">2-Thumb Timer Mat</span>
+                        <span className="text-[9px] font-bold text-orange-400">
+                          {blindState === 'armed'
+                            ? 'Both Thumbs Ready — Lift to Start!'
+                            : leftPadHeld || rightPadHeld
+                              ? 'Place Other Thumb...'
+                              : 'Rest Both Thumbs Below'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onPointerDown={(e) => { e.preventDefault(); handlePadTouchStart('left'); }}
+                          onPointerUp={() => handlePadTouchEnd('left')}
+                          onPointerCancel={() => handlePadTouchEnd('left')}
+                          className={`flex-1 h-28 rounded-3xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all select-none cursor-pointer ${
+                            blindState === 'armed'
+                              ? 'bg-green-500/20 border-green-400 text-green-300 scale-[0.98] shadow-[0_0_20px_rgba(34,197,94,0.25)]'
+                              : leftPadHeld
+                                ? 'bg-orange-500/20 border-orange-400 text-orange-300 scale-[0.98]'
+                                : 'border-dashed border-white/20 bg-white/5 text-slate-400 hover:border-orange-500/40'
+                          }`}
+                        >
+                          <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center ${
+                            blindState === 'armed' ? 'border-green-400 bg-green-500/20' : leftPadHeld ? 'border-orange-400 bg-orange-500/20' : 'border-white/15 bg-slate-900/80'
+                          }`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+                              <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+                              <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+                              <path d="M2 12a10 10 0 0 1 18-6"/>
+                              <path d="M2 16h.01"/>
+                              <path d="M21.8 16c.2-2 .131-5.354 0-6"/>
+                              <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/>
+                              <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
+                              <path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-black tracking-wider uppercase">Left Thumb</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onPointerDown={(e) => { e.preventDefault(); handlePadTouchStart('right'); }}
+                          onPointerUp={() => handlePadTouchEnd('right')}
+                          onPointerCancel={() => handlePadTouchEnd('right')}
+                          className={`flex-1 h-28 rounded-3xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all select-none cursor-pointer ${
+                            blindState === 'armed'
+                              ? 'bg-green-500/20 border-green-400 text-green-300 scale-[0.98] shadow-[0_0_20px_rgba(34,197,94,0.25)]'
+                              : rightPadHeld
+                                ? 'bg-orange-500/20 border-orange-400 text-orange-300 scale-[0.98]'
+                                : 'border-dashed border-white/20 bg-white/5 text-slate-400 hover:border-orange-500/40'
+                          }`}
+                        >
+                          <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center ${
+                            blindState === 'armed' ? 'border-green-400 bg-green-500/20' : rightPadHeld ? 'border-orange-400 bg-orange-500/20' : 'border-white/15 bg-slate-900/80'
+                          }`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+                              <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+                              <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+                              <path d="M2 12a10 10 0 0 1 18-6"/>
+                              <path d="M2 16h.01"/>
+                              <path d="M21.8 16c.2-2 .131-5.354 0-6"/>
+                              <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/>
+                              <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
+                              <path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-black tracking-wider uppercase">Right Thumb</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {blindState === 'finished' && (
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 shadow-xl space-y-2.5">
+                        <span className="text-xs font-bold text-slate-300 block text-center">Open your eyes — how did the cross turn out?</span>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button onClick={() => logBlindOutcome('Clean')} className="py-2.5 bg-green-500/15 border border-green-500/35 text-green-400 text-xs font-black rounded-xl cursor-pointer">Clean</button>
+                          <button onClick={() => logBlindOutcome('+2')} className="py-2.5 bg-amber-500/15 border border-amber-500/35 text-amber-400 text-xs font-black rounded-xl cursor-pointer">+2</button>
+                          <button onClick={() => logBlindOutcome('DNF')} className="py-2.5 bg-red-500/15 border border-red-500/35 text-red-400 text-xs font-black rounded-xl cursor-pointer">DNF</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {crossTab === 'mechanics' && (
+                  <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <div className="text-xs font-bold text-white truncate max-w-[150px]">{c.name}</div>
-                      <div className="text-[9px] text-slate-400 font-mono">WCA #{c.ollNo || c.id} • #{c.id}</div>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Deconstructing Intuition</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">4 Cross Mechanics</h2>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {MECHANICS_LIST.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => { emitBeep(520); setActiveMechanic(m.id); }}
+                          className={`py-3 px-3 rounded-2xl text-xs transition-all cursor-pointer text-left ${activeMechanic === m.id ? 'bg-orange-500 text-slate-950 font-black shadow-md' : 'bg-white/5 border border-white/10 text-slate-300 font-bold hover:bg-white/10'}`}
+                        >
+                          {m.id}. {m.title}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(() => {
+                      const currentMech = MECHANICS_LIST.find((m) => m.id === activeMechanic) || MECHANICS_LIST[0];
+                      return (
+                        <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Mechanic {currentMech.id} • {currentMech.step}</span>
+                              <h3 className="text-lg font-black text-white">{currentMech.title}</h3>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">{currentMech.desc}</p>
+                          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 text-left shadow-inner">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block mb-1">Speed Coach Note</span>
+                            <p className="text-xs text-slate-300">{currentMech.tip}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {crossTab === 'settings' && renderSettingsDeck()}
+              </main>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PHASE 2: F2L                                              */}
+            {/* ========================================================= */}
+            <div className={getPhaseClass('f2l')}>
+              <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-5 flex flex-col justify-center">
+                <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-2xl text-center space-y-4">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-wider">CFOP Phase 2</span>
+                  <h2 className="text-2xl font-black tracking-tight text-white">First Two Layers (F2L)</h2>
+                  <p className="text-xs text-slate-400 leading-relaxed">Intuitive corner-edge pairing drills, empty-slot keyhole shortcuts, and lookahead trainers are scheduled next.</p>
+                  <button onClick={() => selectPhase('oll')} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">
+                    Jump to OLL Training Hub
+                  </button>
+                </div>
+              </main>
+            </div>
+
+            {/* ========================================================= */}
+            {/* PHASE 3: OLL                                              */}
+            {/* ========================================================= */}
+            <div className={getPhaseClass('oll')}>
+              <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative">
+
+                {/* TAB 1: THE GRIND */}
+                {ollTab === 'grind' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Training Hub</p>
+                        <h2 className="text-2xl font-black tracking-tight text-white">Daily Grind</h2>
+                      </div>
+                      <button
+                        onClick={openCurriculumArchitect}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-orange-400 text-xs font-bold active:scale-95 cursor-pointer"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+                        <span>Curriculum</span>
+                      </button>
+                    </div>
+
+                    {/* Active Phase Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between items-center text-center relative overflow-hidden space-y-4">
+                      <div className="flex items-center justify-between w-full z-10">
+                        <button onClick={() => changeOLLDay(-1)} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-white active:scale-90 cursor-pointer">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Active Phase</span>
+                          <h3 className="text-3xl font-black text-white tracking-tight mt-0.5">Day {currentDay}</h3>
+                        </div>
+                        <button onClick={() => changeOLLDay(1)} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-white active:scale-90 cursor-pointer">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                      </div>
+
+                      <div className="z-10 space-y-2 px-1">
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-black uppercase tracking-wider">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                          <span>{currentDayPlan.mode.toUpperCase()} MODE • {sessionCases.length} CASES</span>
+                        </span>
+                        <h4 className="text-lg font-black text-white leading-snug">{currentDayPlan.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed max-w-[260px] mx-auto">{currentDayPlan.desc}</p>
+                      </div>
+
+                      <button
+                        onClick={() => { emitBeep(880, 'sine', 0.1); setSessionIdx(0); setSessionShowAlg(false); setSessionAufIdx(0); setTimerElapsed(0); setInlineSessionFtOpen(false); setActiveModal('session'); }}
+                        className="z-10 w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-sm active:scale-95 cursor-pointer shadow-lg shadow-orange-500/25 border border-orange-400/30 flex items-center justify-center gap-2"
+                      >
+                        <span>Start Day {currentDay} Session</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                      </button>
+                    </div>
+
+                    {/* Today's Scheduled Cases List (Shown on Every Day: Learn, Drill & Review) */}
+                    <div
+                      onPointerMove={handleLineupPointerMove}
+                      onPointerUp={handleLineupPointerUp}
+                      onPointerCancel={handleLineupPointerUp}
+                      className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 ${draggedLineupIdx !== null ? 'touch-none select-none' : ''}`}
+                    >
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Day {currentDay} Lineup</span>
+                          <span className="text-[9px] font-semibold text-slate-500">Hold & drag to reorder</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400">{sessionCases.length} Cases</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {sessionCases.map((item, idx) => {
+                          const isBeingDragged = draggedLineupIdx === idx;
+                          const isPressing = lineupPressIdx === idx && draggedLineupIdx === null;
+                          return (
+                            <div
+                              key={item.id}
+                              ref={(el) => { lineupItemRefs.current[idx] = el; }}
+                              onPointerDown={() => handleLineupPointerDown(idx)}
+                              onClick={() => {
+                                if (lineupDidDragRef.current) {
+                                  lineupDidDragRef.current = false;
+                                  return;
+                                }
+                                emitBeep(600);
+                                setDrillCase(item);
+                                setShowDrillAlg(false);
+                                setDrillAufIdx(0);
+                                setTimerElapsed(0);
+                                setInlineDrillFtOpen(false);
+                                setActiveModal('drill');
+                              }}
+                              className={`bg-[#050811] border rounded-2xl p-2.5 flex items-center justify-between gap-2.5 cursor-pointer transition-all select-none ${
+                                isBeingDragged
+                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-2xl shadow-orange-500/20 z-20 relative'
+                                  : isPressing
+                                    ? 'border-orange-500/50 scale-[0.99]'
+                                    : 'border-white/10 hover:border-orange-500/40'
+                              }`}
+                            >
+                              {/* Drag Grip Indicator */}
+                              <div className={`pl-0.5 flex flex-col items-center justify-center ${isBeingDragged ? 'text-orange-400' : 'text-slate-600'}`}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="9" cy="6" r="1.8" />
+                                  <circle cx="15" cy="6" r="1.8" />
+                                  <circle cx="9" cy="12" r="1.8" />
+                                  <circle cx="15" cy="12" r="1.8" />
+                                  <circle cx="9" cy="18" r="1.8" />
+                                  <circle cx="15" cy="18" r="1.8" />
+                                </svg>
+                              </div>
+
+                              <div className="w-11 h-11 flex-shrink-0 bg-slate-200 rounded-xl p-1 flex items-center justify-center shadow-inner pointer-events-none">
+                                <img
+                                  src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0 pointer-events-none">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-black text-white truncate">{item.name}</span>
+                                  <span className="text-[9px] font-mono text-slate-400">#{item.ollNo}</span>
+                                </div>
+                                <span className="font-mono text-[10px] text-orange-400/90 block truncate mt-0.5">{item.alg}</span>
+                              </div>
+                              <span className={`text-xs font-mono font-bold pr-1 pointer-events-none ${isBeingDragged ? 'text-orange-400' : 'text-slate-500'}`}>
+                                #{idx + 1}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Personalized Journey Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Personalized Journey</span>
+                        <div className="text-lg font-black text-white mt-0.5">{Math.max(0, totalDays - currentDay)} Days Remaining</div>
+                        <span className="text-[11px] font-bold text-orange-400">{totalDays} Total Days Plan</span>
+                      </div>
+                      <div className="w-14 h-14 rounded-full border-4 border-slate-800 flex items-center justify-center relative">
+                        <span className="font-mono text-xs font-black text-orange-400">{progressPct}%</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button 
-                      onClick={() => setMovingCaseId(movingCaseId === c.id ? null : c.id)}
-                      className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-orange-300 text-[10px] font-bold border border-white/5 cursor-pointer flex items-center gap-1"
+                )}
+
+                {/* TAB 2: ALGORITHMS LIBRARY */}
+                {ollTab === 'algorithms' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Algorithm Hub</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">Algorithms</h2>
+                      <p className="text-xs text-slate-400 mt-1">Explore by classic shape categories or view your custom curriculum chunks.</p>
+                    </div>
+
+                    <div className="bg-slate-950/80 p-1 rounded-2xl border border-white/10 flex items-center shadow-inner">
+                      <button onClick={() => { emitBeep(); setOllLibraryMode('standard'); setSelectedCategory(null); }} className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${ollLibraryMode === 'standard' ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}>Standard Library</button>
+                      <button onClick={() => { emitBeep(); setOllLibraryMode('custom'); setSelectedCategory(null); }} className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${ollLibraryMode === 'custom' ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}>My Custom Chunks</button>
+                    </div>
+
+                    {!selectedCategory ? (
+                      ollLibraryMode === 'standard' ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {ollGroups.map((group) => {
+                            const casesInGroup = OLL_DATA.filter((c) => c.group === group);
+                            const sampleCase = casesInGroup[0] || OLL_DATA[0];
+                            return (
+                              <button
+                                key={group}
+                                onClick={() => { emitBeep(520); setSelectedCategory({ type: 'group', name: group }); }}
+                                className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                              >
+                                <div className="w-20 h-20 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                                  <img
+                                    src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sampleCase.alg)}`}
+                                    alt={group}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <h4 className="text-sm font-black text-white">{group}</h4>
+                                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-wider text-orange-400">
+                                  {casesInGroup.length} Cases
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-xs font-bold text-slate-300">{userChunks.length} Active Chunks feeding your program</span>
+                            <button onClick={openCurriculumArchitect} className="text-xs font-black text-orange-400 hover:underline cursor-pointer">
+                              Edit Curriculum
+                            </button>
+                          </div>
+
+                          {userChunks.map((chk, idx) => {
+                            const casesInChunk = chk.caseIds.map((id) => OLL_DATA.find((c) => c.id === id)).filter(Boolean);
+                            const sampleCase = casesInChunk[0] || OLL_DATA[0];
+                            const solvedCount = casesInChunk.filter((c) => (currentUser.stats?.[c.id]?.best || 999) <= currentUser.targetGoal).length;
+                            return (
+                              <div
+                                key={chk.id}
+                                onClick={() => { emitBeep(520); setSelectedCategory({ type: 'chunk', chunk: chk, index: idx }); }}
+                                className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex items-center justify-between gap-3 cursor-pointer hover:border-orange-500/40 active:scale-[0.98] transition-all"
+                              >
+                                <div className="w-16 h-16 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                                  <img
+                                    src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sampleCase.alg)}`}
+                                    alt={chk.title}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-black text-white leading-snug">{chk.title}</h4>
+                                  <span className="text-[11px] text-slate-400 block mt-1">{casesInChunk.length} algorithms • {solvedCount}/{casesInChunk.length} sub-goal</span>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-orange-500/15 border border-orange-500/30 flex flex-col items-center justify-center flex-shrink-0">
+                                  <span className="text-[8px] font-bold uppercase text-orange-300">Chunk</span>
+                                  <span className="font-mono text-xs font-black text-orange-400">{idx + 1}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => { emitBeep(440); setSelectedCategory(null); }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-wider text-orange-400 cursor-pointer"
+                          >
+                            <span>‹ Back to Categories</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-black text-white">
+                            {selectedCategory.type === 'group' ? selectedCategory.name : selectedCategory.chunk.title}
+                          </h3>
+                          <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black text-orange-400">
+                            {selectedCategory.type === 'group'
+                              ? OLL_DATA.filter((c) => c.group === selectedCategory.name).length
+                              : selectedCategory.chunk.caseIds.length} Cases
+                          </span>
+                        </div>
+
+                        {(selectedCategory.type === 'group'
+                          ? OLL_DATA.filter((c) => c.group === selectedCategory.name)
+                          : selectedCategory.chunk.caseIds.map((id) => OLL_DATA.find((c) => c.id === id)).filter(Boolean)
+                        ).map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => { emitBeep(600); setDrillCase(item); setShowDrillAlg(false); setDrillAufIdx(0); setTimerElapsed(0); setInlineDrillFtOpen(false); setActiveModal('drill'); }}
+                            className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3 cursor-pointer hover:border-orange-500/40 active:scale-[0.98] transition-all"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <div className="w-16 h-16 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                                <img
+                                  src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-base font-black text-white truncate">{item.name}</h4>
+                                  <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-mono text-slate-400">#{item.id}</span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <span className="text-[10px] font-mono text-slate-400">WCA OLL #{item.ollNo}</span>
+                                  {isFingertricksEnabled && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openFingertrickDossier(item, null); }}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-bold text-amber-300 cursor-pointer"
+                                    >
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                      <span>Fingertricks</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-[#050811] border border-white/10 rounded-xl p-2.5 text-center font-mono text-xs font-black text-orange-400">
+                              {item.alg}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 3: STATISTICS */}
+                {ollTab === 'stats' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="text-center">
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Performance</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">Statistics</h2>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Goal</span>
+                        <span className="font-mono text-base font-black text-amber-300">{currentUser.targetGoal.toFixed(1)}s</span>
+                      </div>
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Total Runs</span>
+                        <span className="font-mono text-base font-black text-white">{totalRecordedRuns}</span>
+                      </div>
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">All-Time PR</span>
+                        <span className="font-mono text-base font-black text-orange-400">
+                          {allTimeBestPR !== null ? `${allTimeBestPR.toFixed(2)}s` : '--s'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center pt-1">Case Breakdown (Tap to Drill)</p>
+
+                    <div className="space-y-2.5">
+                      {OLL_DATA.map((item) => {
+                        const caseStat = currentUser.stats?.[item.id];
+                        const best = caseStat?.best ?? null;
+                        const delta = best !== null ? +(best - currentUser.targetGoal).toFixed(2) : null;
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => { emitBeep(560); setDrillCase(item); setShowDrillAlg(false); setDrillAufIdx(0); setTimerElapsed(0); setInlineDrillFtOpen(false); setActiveModal('drill'); }}
+                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/70 transition-all"
+                          >
+                            <div className="w-12 h-12 flex-shrink-0 bg-slate-200 rounded-xl p-1 flex items-center justify-center shadow-inner">
+                              <img
+                                src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`}
+                                alt={item.name}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{item.group} • #{item.id}</span>
+                            </div>
+                            <div className="text-right font-mono flex items-center gap-2">
+                              <div>
+                                <span className="text-xs font-bold text-slate-400 block">{best !== null ? `${best.toFixed(2)}s` : 'No runs'}</span>
+                                {delta !== null && (
+                                  <span className={`text-[10px] font-bold ${best <= currentUser.targetGoal ? 'text-green-400' : 'text-orange-400'}`}>
+                                    {delta <= 0 ? `${delta.toFixed(2)}s` : `+${delta.toFixed(2)}s`}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-slate-500 text-xs">›</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: SHARED SETTINGS DECK */}
+                {ollTab === 'settings' && renderSettingsDeck()}
+              </main>
+            </div>
+          </div>
+
+          {/* FIXED BOTTOM NAVIGATION BAR */}
+          <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-4 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
+            {currentPhase === 'cross' && (
+              <div className="flex items-center justify-between w-full max-w-[360px] mx-auto">
+                {[
+                  { id: 'ladder', label: 'Practice', svg: <><path d="M8 3v18"/><path d="M16 3v18"/><path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h8"/></> },
+                  { id: 'blind', label: 'Blind Run', svg: <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></> },
+                  { id: 'mechanics', label: 'Mechanics', svg: <><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></> },
+                  { id: 'settings', label: 'Settings', svg: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> }
+                ].map((tab) => {
+                  const isActive = crossTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { emitBeep(460); setCrossTab(tab.id); }}
+                      className={isActive ? "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-orange-500 scale-105 cursor-pointer" : "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-slate-400 hover:text-slate-200 active:scale-95 cursor-pointer"}
                     >
-                      <ArrowRightLeft size={11} /> Move
+                      <div className={isActive ? "p-2 rounded-xl bg-orange-500/15" : "p-2 rounded-xl bg-transparent"}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+                          {tab.svg}
+                        </svg>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
                     </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {currentPhase === 'oll' && (
+              <div className="flex items-center justify-between w-full max-w-[360px] mx-auto">
+                {[
+                  { id: 'grind', label: 'The Grind', svg: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></> },
+                  { id: 'algorithms', label: 'Algorithms', svg: <><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/></> },
+                  { id: 'stats', label: 'Statistics', svg: <><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></> },
+                  { id: 'settings', label: 'Settings', svg: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> }
+                ].map((tab) => {
+                  const isActive = ollTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { emitBeep(460); setOllTab(tab.id); }}
+                      className={isActive ? "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-orange-500 scale-105 cursor-pointer" : "flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all text-slate-400 hover:text-slate-200 active:scale-95 cursor-pointer"}
+                    >
+                      <div className={isActive ? "p-2 rounded-xl bg-orange-500/15" : "p-2 rounded-xl bg-transparent"}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+                          {tab.svg}
+                        </svg>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {currentPhase === 'f2l' && (
+              <div className="flex items-center justify-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Phase 2 • F2L Module</span>
+              </div>
+            )}
+          </nav>
+        </div>
+
+        {/* ========================================================= */}
+        {/* MODALS & OVERLAYS                                         */}
+        {/* ========================================================= */}
+
+        {/* 1. BLINDFOLD VISOR OVERLAY */}
+        {activeModal === 'visor' && (
+          <div onClick={stopBlindVisor} className="fixed inset-0 z-[300] bg-[#03050c]/98 backdrop-blur-3xl flex flex-col items-center justify-center p-6 text-center cursor-pointer">
+            <div className="space-y-4">
+              <div className="w-24 h-24 rounded-full bg-orange-500/15 border-2 border-orange-500/40 flex items-center justify-center text-orange-400 shadow-2xl shadow-orange-500/20 animate-pulse-visor mx-auto">
+                <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+              </div>
+              <h2 className="text-3xl font-black text-white tracking-tight">EYES CLOSED</h2>
+              <p className="text-sm font-bold text-orange-400">EXECUTE!</p>
+              <div className="font-mono text-2xl font-black text-slate-300">{blindExecTime.toFixed(2)}s</div>
+            </div>
+            <div className="absolute bottom-10 w-full max-w-xs mx-auto px-4">
+              <div className="w-full py-4 rounded-2xl bg-white/10 border border-white/15 text-white font-black text-sm">
+                Tap Anywhere or Press Spacebar to Stop
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2. FAMILY PIN SWITCHER MODAL */}
+        {activeModal === 'profile' && (
+          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-6">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Family Profiles</span>
+                <button onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer">X</button>
+              </div>
+              <h3 className="text-xl font-black text-white">Enter 4-Digit PIN</h3>
+              <div className="flex justify-center gap-3 py-2">
+                {[0, 1, 2, 3].map((idx) => (
+                  <span key={idx} className={`w-3.5 h-3.5 rounded-full transition-colors ${pinError ? 'bg-red-500' : idx < pinInput.length ? 'bg-orange-500' : 'border-2 border-white/20'}`}></span>
+                ))}
+              </div>
+              {pinError && <p className="text-xs font-bold text-red-400">Invalid PIN</p>}
+              <div className="grid grid-cols-3 gap-2.5 pt-1">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                  <button key={digit} onClick={() => handlePinKey(digit)} className="h-16 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 font-semibold text-2xl text-white cursor-pointer active:scale-95">
+                    {digit}
+                  </button>
+                ))}
+                <div></div>
+                <button onClick={() => handlePinKey('0')} className="h-16 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 font-semibold text-2xl text-white cursor-pointer active:scale-95">0</button>
+                <button onClick={() => setPinInput((p) => p.slice(0, -1))} className="h-16 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 font-bold text-xs text-slate-400 cursor-pointer active:scale-95">DEL</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. COLOR ORBIT COMPASS MODAL */}
+        {activeModal === 'compass' && (() => {
+          const activeQuiz = COMPASS_QUIZZES[compassQuizIdx % COMPASS_QUIZZES.length];
+          const colorStyles = {
+            Blue: 'bg-blue-500/15 border-blue-500/40 text-blue-400 hover:bg-blue-500/25',
+            Orange: 'bg-orange-500/15 border-orange-500/40 text-orange-400 hover:bg-orange-500/25',
+            Green: 'bg-green-500/15 border-green-500/40 text-green-400 hover:bg-green-500/25',
+            Red: 'bg-red-500/15 border-red-500/40 text-red-400 hover:bg-red-500/25'
+          };
+
+          const triggerHitMe = () => {
+            emitBeep(720, 'triangle', 0.08);
+            const shuffled = [...compassColorOrder];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            if (shuffled.join(',') === compassColorOrder.join(',')) {
+              shuffled.reverse();
+            }
+            setCompassColorOrder(shuffled);
+            setCompassHitMeActive(true);
+            setCompassSelectedAnswer(null);
+            setCompassQuizRevealed(false);
+          };
+
+          const handleSelectCompassColor = (color) => {
+            setCompassSelectedAnswer(color);
+            setCompassQuizRevealed(true);
+            if (color === activeQuiz.a) {
+              emitBeep(960, 'sine', 0.12);
+            } else {
+              emitBeep(240, 'square', 0.14);
+            }
+          };
+
+          return (
+            <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">White Bottom Color Order</span>
+                  <button
+                    onClick={triggerHitMe}
+                    className="px-3 py-1 rounded-full bg-orange-500 hover:bg-orange-400 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                  >
+                    Hit Me
+                  </button>
+                </div>
+
+                <h3 className="text-xl font-black text-white">Color Orbit Compass</h3>
+
+                <div className="space-y-2.5">
+                  {!compassHitMeActive && (
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Going clockwise around the White bottom center:
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {compassColorOrder.map((color, idx) => {
+                      const isPicked = compassSelectedAnswer === color;
+                      const isCorrect = color === activeQuiz.a;
+                      let ringClass = '';
+                      if (compassSelectedAnswer) {
+                        if (isPicked && isCorrect) ringClass = 'ring-2 ring-green-400 scale-105';
+                        else if (isPicked && !isCorrect) ringClass = 'ring-2 ring-red-400 opacity-80';
+                        else if (isCorrect) ringClass = 'ring-2 ring-green-400/70';
+                      }
+
+                      return (
+                        <React.Fragment key={color}>
+                          <button
+                            onClick={() => handleSelectCompassColor(color)}
+                            className={`px-3 py-1.5 rounded-xl border text-xs font-black transition-all active:scale-95 cursor-pointer ${colorStyles[color]} ${ringClass}`}
+                          >
+                            {color}
+                          </button>
+                          {!compassHitMeActive && idx < compassColorOrder.length - 1 && (
+                            <span className="text-slate-500 text-xs font-bold">→</span>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-              {activeCases.length === 0 && (
-                <div className="text-center py-4 text-xs text-slate-500 italic">
-                  No cases assigned to this chunk yet. Move cases here from other chunks!
-                </div>
-              )}
-            </div>
 
-            {/* Destination Chunk Selector when moving a case */}
-            {movingCaseId && (
-              <div className="p-3 bg-slate-950 border border-orange-500/30 rounded-xl space-y-2 animate-in fade-in">
-                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest block">
-                  Move #{movingCaseId} to chunk:
-                </span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {chunks.map((chk, idx) => (
-                    <button
-                      key={chk.id || idx}
-                      onClick={() => moveCaseToChunk(movingCaseId, idx)}
-                      className={`p-1.5 rounded-lg text-[10px] font-bold border text-left truncate cursor-pointer ${
-                        selectedChunkIdx === idx ? 'bg-orange-500/10 border-orange-500/30 text-orange-300' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
-                      }`}
-                    >
-                      {chk.name.split(':')[0]} ({chk.caseIds.length})
+                <div className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-left space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-orange-400">Mental Map Flashcard</span>
+                    <span className="text-[9px] font-semibold text-slate-500">Tap a color above</span>
+                  </div>
+                  <p className="text-xs font-bold text-white">{activeQuiz.q}</p>
+                  {compassQuizRevealed ? (
+                    <p className={`text-xs font-black ${compassSelectedAnswer === activeQuiz.a ? 'text-green-400' : compassSelectedAnswer ? 'text-red-400' : 'text-green-400'}`}>
+                      {compassSelectedAnswer === activeQuiz.a
+                        ? `Correct! ${activeQuiz.a}`
+                        : compassSelectedAnswer
+                          ? `Not quite (${compassSelectedAnswer}) — Answer: ${activeQuiz.a}`
+                          : activeQuiz.a}
+                    </p>
+                  ) : (
+                    <button onClick={() => { emitBeep(640); setCompassQuizRevealed(true); }} className="text-xs font-bold text-orange-400 underline cursor-pointer">Reveal Answer</button>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      emitBeep(500);
+                      setCompassQuizIdx((p) => p + 1);
+                      setCompassQuizRevealed(false);
+                      setCompassSelectedAnswer(null);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs cursor-pointer"
+                  >
+                    Next Drill
+                  </button>
+                  <button
+                    onClick={() => setActiveModal(null)}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 4. DAILY OLL SESSION RUNNER MODAL */}
+        {activeModal === 'session' && (() => {
+          const isLearnMode = currentDayPlan.mode === 'learn';
+          const sessionSetupScramble = buildSetupScramble(activeSessionCase.setup, sessionAufIdx);
+          return (
+            <div className="fixed inset-0 z-[260] bg-[#060913]/95 backdrop-blur-3xl flex justify-center overflow-hidden">
+              <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/5 shadow-2xl flex flex-col justify-between px-4 pt-4 pb-6 overflow-y-auto no-scrollbar gap-2.5">
+                {/* Top Segmented Progress Bar */}
+                <div className="flex items-center justify-between gap-2.5 flex-shrink-0">
+                  <button
+                    onClick={() => { setTimerRunning(false); clearInterval(stopwatchRef.current); setInlineSessionFtOpen(false); setActiveModal(null); }}
+                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                  >
+                    ✕
+                  </button>
+                  <div className="flex-1 flex items-center gap-1">
+                    {sessionCases.map((c, idx) => (
+                      <div key={c.id} className={`h-1.5 flex-1 rounded-full transition-all ${idx === (sessionIdx % sessionCases.length) ? 'bg-orange-500' : idx < (sessionIdx % sessionCases.length) ? 'bg-orange-500/40' : 'bg-slate-800'}`}></div>
+                    ))}
+                  </div>
+                  <span className="font-mono text-[11px] font-bold text-slate-400">
+                    {(sessionIdx % sessionCases.length) + 1}/{sessionCases.length}
+                  </span>
+                </div>
+
+                {/* Pro Tip Banner in Learn Mode */}
+                {isLearnMode && (
+                  <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl px-3 py-2 text-center flex-shrink-0">
+                    <p className="text-[10px] font-bold text-amber-300 leading-snug">
+                      💡 Pro Tip: Practice each Algorithm at least <span className="underline">40 times</span> to commit to memory then <span className="underline">20 more times</span> to solidify!
+                    </p>
+                  </div>
+                )}
+
+                {/* Header Metadata */}
+                <div className="text-center space-y-0.5 flex-shrink-0">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">
+                    {activeSessionCase.group}
+                  </span>
+                  <h3 className="text-2xl font-black text-white tracking-tight leading-tight">{activeSessionCase.name}</h3>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
+                    WCA OLL #{activeSessionCase.ollNo} • PROGRAM #{activeSessionCase.id}
+                  </p>
+                </div>
+
+                {/* Center Pattern Card (iOS Proportioned) */}
+                <div className="bg-slate-900/75 border border-white/10 rounded-[1.75rem] p-4 flex flex-col items-center space-y-3 shadow-xl my-auto">
+                  <div className="w-24 h-24 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                    <img
+                      src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(activeSessionCase.alg)}`}
+                      alt={activeSessionCase.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+
+                  {!isLearnMode && (
+                    <div className="w-full bg-[#050811] border border-white/10 rounded-xl px-3 py-2">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Setup Scramble</span>
+                        <button
+                          onClick={cycleSessionScramble}
+                          className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-bold text-orange-400 cursor-pointer active:scale-95"
+                        >
+                          New Scramble
+                        </button>
+                      </div>
+                      <div className="font-mono text-xs font-bold text-amber-300 text-center tracking-wide">{sessionSetupScramble}</div>
+                    </div>
+                  )}
+
+                  {isLearnMode || sessionShowAlg ? (
+                    <div className="w-full bg-[#050811] border border-white/10 rounded-xl py-2.5 px-3 text-center font-mono text-sm font-black text-orange-400 tracking-wider">
+                      {activeSessionCase.alg}
+                    </div>
+                  ) : (
+                    <button onClick={() => setSessionShowAlg(true)} className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer active:scale-95 transition-all">
+                      Reveal Solution Algorithm
                     </button>
-                  ))}
+                  )}
+
+                  {isFingertricksEnabled && (
+                    !inlineSessionFtOpen ? (
+                      <button
+                        onClick={() => { emitBeep(660, 'sine', 0.08); setFtTriggerIdx(0); setInlineSessionFtOpen(true); }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[11px] font-bold text-amber-300 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span>Fingertrick Guide</span>
+                      </button>
+                    ) : (
+                      renderInlineFingertrickPanel(activeSessionCase, () => setInlineSessionFtOpen(false))
+                    )
+                  )}
+
+                  {!isLearnMode && isTimerEnabled && (
+                    <button
+                      onClick={() => toggleOLLStopwatch(activeSessionCase.id)}
+                      className={`w-full py-3 rounded-2xl border-2 font-mono text-xl font-black transition-all cursor-pointer active:scale-[0.99] ${timerRunning ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-slate-950 border-white/15 text-white'}`}
+                    >
+                      {timerRunning ? `${timerElapsed.toFixed(2)}s (TAP TO STOP)` : `${timerElapsed > 0 ? timerElapsed.toFixed(2) + 's' : 'TAP TO TIME'}`}
+                    </button>
+                  )}
+                </div>
+
+                {/* Bottom Navigation Controls */}
+                <div className="flex gap-2 flex-shrink-0 pt-1">
+                  <button
+                    onClick={() => { setSessionIdx((p) => (p - 1 + sessionCases.length) % sessionCases.length); setSessionShowAlg(false); setSessionAufIdx(0); setTimerElapsed(0); setFtTriggerIdx(0); }}
+                    className="w-12 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-black text-base cursor-pointer flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    ‹
+                  </button>
+                  {(sessionIdx % sessionCases.length) < sessionCases.length - 1 ? (
+                    <button
+                      onClick={() => { setSessionIdx((p) => p + 1); setSessionShowAlg(false); setSessionAufIdx(0); setTimerElapsed(0); setFtTriggerIdx(0); emitBeep(600); }}
+                      className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+                    >
+                      <span>Next Pattern</span>
+                      <span>›</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setInlineSessionFtOpen(false); setActiveModal(null); changeOLLDay(1); triggerToast(`Day ${currentDay} Complete!`); }}
+                      className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                    >
+                      Complete Day {currentDay}
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          );
+        })()}
 
-      {/* Save Action */}
-      <div className="mt-4 pt-3 max-w-sm mx-auto w-full flex gap-2">
-        <Button variant="secondary" onClick={onClose} className="py-3 text-xs flex-1">
-          Cancel
-        </Button>
-        <Button 
-          variant="primary" 
-          onClick={() => onSave(chunks, Math.round(57 / chunks.length))} 
-          className="py-3 text-xs flex-1"
-        >
-          <Check size={16} /> Save Curriculum
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// --- SESSION SCREEN 1: LEARN ---
-const LearnSession = ({ algs, onClose, onComplete, onOpenFingertrick }) => {
-  const [index, setIndex] = useState(0);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-
-  const handleTouchStart = e => touchStartX.current = e.changedTouches[0].screenX;
-  const handleTouchEnd = e => {
-    touchEndX.current = e.changedTouches[0].screenX;
-    const diff = touchStartX.current - touchEndX.current;
-    if (diff > 45 && index < algs.length - 1) setIndex(p => p + 1);
-    else if (diff < -45 && index > 0) setIndex(p => p - 1);
-  };
-  const currentAlg = algs[index] || algs[0];
-
-  return sanitizeNode(
-    <div 
-      className="fixed inset-0 z-[100] bg-[#070b16] flex flex-col p-6 pt-8 animate-in slide-in-from-bottom-full overflow-hidden" 
-      onTouchStart={handleTouchStart} 
-      onTouchEnd={handleTouchEnd}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 cursor-pointer">
-          <X size={20} />
-        </button>
-        <div className="flex items-center gap-1.5">
-          {algs.map((_, i) => (
-            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-6 bg-orange-500' : 'w-2 bg-slate-800'}`} />
-          ))}
-        </div>
-        <div className="font-mono text-xs font-bold text-slate-400">{index + 1}/{algs.length}</div>
-      </div>
-      <div className="bg-orange-500/10 border border-orange-500/25 rounded-2xl p-3.5 mb-4 text-center">
-        <p className="text-xs font-bold text-orange-300 leading-snug">
-          💡 <span className="text-orange-400 font-black">Pro Tip:</span> Practice each Algorithm at least <span className="underline">40 times</span> to commit to memory then <span className="underline">20 more times</span> to solidify!
-        </p>
-      </div>
-      <div className="flex-1 flex flex-col items-center justify-center relative w-full">
-        <div className="text-center mb-3">
-          <span className="text-orange-400 font-black uppercase tracking-widest text-[11px] px-3.5 py-1 bg-orange-500/10 rounded-full border border-orange-500/20">
-            {currentAlg.group}
-          </span>
-          <h2 className="text-3xl font-black mt-2 text-white tracking-tight">{currentAlg.name}</h2>
-          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mt-0.5">
-            WCA OLL #{currentAlg.ollNo || currentAlg.id} • Program #{currentAlg.id}
-          </span>
-        </div>
-        <div className="bg-slate-900/80 border border-white/10 w-full max-w-sm rounded-[2.5rem] p-6 flex flex-col items-center shadow-2xl relative">
-          <div className="w-44 h-44 bg-slate-200 rounded-3xl mb-4 flex items-center justify-center p-3 shadow-inner">
-            <img src={getImageUrl(currentAlg.alg)} alt={currentAlg.name} className="w-full h-full object-contain" />
-          </div>
-
-          <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-4 text-center shadow-inner">
-            <div className="font-mono text-xl text-orange-400 font-bold tracking-wider leading-relaxed">{currentAlg.alg}</div>
-          </div>
-
-          {onOpenFingertrick && (
-            <button 
-              onClick={() => onOpenFingertrick(currentAlg)}
-              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer"
-            >
-              <Zap size={13} className="text-amber-400" />
-              <span>Fingertrick Guide</span>
-            </button>
-          )}
-
-          <div className="flex items-center justify-between w-full mt-4 text-[11px] text-slate-400 px-2 font-medium">
-            <span>← Swipe for previous</span>
-            <span>Swipe for next →</span>
-          </div>
-        </div>
-      </div>
-      <div className="mt-auto pt-4 flex gap-3 max-w-sm mx-auto w-full">
-        <button 
-          onClick={() => setIndex(p => Math.max(0, p - 1))} 
-          disabled={index === 0} 
-          className="p-4 bg-white/5 rounded-2xl disabled:opacity-20 active:scale-95 border border-white/10 cursor-pointer"
-        >
-          <ChevronLeft size={22} />
-        </button>
-        {index < algs.length - 1 ? (
-          <Button onClick={() => setIndex(p => p + 1)}>
-            <span>Next Pattern</span>
-            <ChevronRight size={18} />
-          </Button>
-        ) : (
-          <Button onClick={onComplete} variant="primary">
-            <span>Complete Day Training</span>
-            <CheckCircle2 size={18} />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// --- SESSION SCREEN 2: PRACTICE ---
-const PracticeSession = ({ algs, mode, timerEnabled, solveTimes, onRecordTime, onClose, onComplete, onOpenFingertrick }) => {
-  const [queue, setQueue] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showDetails, setShowDetails] = useState(false);
-  const [scramble, setScramble] = useState('');
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const timerRef = useRef(null);
-  const startTimeRef = useRef(0);
-
-  useEffect(() => {
-    const shuffled = [...algs].sort(() => 0.5 - Math.random());
-    setQueue(shuffled);
-    if (shuffled.length > 0) setScramble(reverseAlg(shuffled[0].alg));
-  }, [algs]);
-
-  useEffect(() => () => clearInterval(timerRef.current), []);
-
-  const toggleTimer = () => {
-    if (!timerRunning) {
-      startTimeRef.current = performance.now() - elapsedTime;
-      timerRef.current = setInterval(() => setElapsedTime(performance.now() - startTimeRef.current), 10);
-      setTimerRunning(true);
-    } else {
-      clearInterval(timerRef.current);
-      setTimerRunning(false);
-      const recorded = +(elapsedTime / 1000).toFixed(2);
-      if (queue[currentIndex]) onRecordTime(queue[currentIndex].id, recorded);
-    }
-  };
-
-  const handleNextCase = () => {
-    if (timerRunning) { clearInterval(timerRef.current); setTimerRunning(false); }
-    setElapsedTime(0);
-    setShowDetails(false);
-    if (currentIndex < queue.length - 1) {
-      const nextIdx = currentIndex + 1;
-      setCurrentIndex(nextIdx);
-      setScramble(reverseAlg(queue[nextIdx].alg));
-    } else onComplete();
-  };
-
-  if (queue.length === 0) return null;
-  const currentAlg = queue[currentIndex];
-  const caseRuns = (solveTimes && solveTimes[currentAlg.id]) || [];
-  const caseAvg = caseRuns.length > 0 ? (caseRuns.reduce((a, b) => a + b, 0) / caseRuns.length).toFixed(2) : null;
-  const formattedTime = (elapsedTime / 1000).toFixed(2);
-
-  return sanitizeNode(
-    <div className="fixed inset-0 z-[100] bg-[#070b16] flex flex-col p-6 pt-8 animate-in slide-in-from-bottom-full overflow-y-auto">
-      <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 cursor-pointer">
-          <X size={20} />
-        </button>
-        <div className="font-mono text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-          {mode === 'review' ? 'Review Session' : 'Drill Session'} • {currentIndex + 1}/{queue.length}
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full">
-        <div className="w-full bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 mb-5 text-center shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-400" />
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">1. Apply Setup Scramble</span>
-          <div className="font-mono text-lg text-slate-100 font-bold tracking-wider leading-relaxed select-all">{scramble}</div>
-        </div>
-        {timerEnabled && (
-          <div 
-            onClick={toggleTimer} 
-            className={`w-full rounded-[2rem] p-5 mb-5 text-center cursor-pointer transition-all border shadow-2xl ${timerRunning ? 'bg-orange-500/20 border-orange-400/60 shadow-orange-500/20 scale-[1.02]' : 'bg-slate-900/60 border-white/10 hover:border-orange-500/30'}`}
-          >
-            <span className="text-[10px] font-bold uppercase tracking-widest block mb-1 text-slate-400">
-              {timerRunning ? 'Tap to Stop Timer' : 'Tap to Start Timer'}
-            </span>
-            <div className={`font-mono text-5xl font-black tracking-tight ${timerRunning ? 'text-orange-400' : 'text-white'}`}>{formattedTime}s</div>
-            {caseRuns.length > 0 && (
-              <div className="text-[11px] text-slate-400 mt-2 font-mono">
-                Case Avg: <span className="text-orange-400 font-bold">{caseAvg}s</span> • Solves: {caseRuns.length}
+        {/* 9. ADMIN USER MANAGEMENT MODAL */}
+        {activeModal === 'admin' && (
+          <div className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Family Profiles</span>
+                  <h3 className="text-lg font-black text-white">User Management</h3>
+                </div>
+                <button onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 text-slate-400 hover:text-white cursor-pointer">X</button>
               </div>
-            )}
-          </div>
-        )}
-        <div className="w-full flex flex-col items-center min-h-[220px] justify-center">
-          {showDetails ? (
-            <div className="w-full flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
-              <div className="bg-slate-200 rounded-3xl p-3 shadow-2xl mb-4 border-2 border-slate-700">
-                <img src={getImageUrl(currentAlg.alg)} alt={currentAlg.name} className="w-32 h-32 object-contain" />
+
+              <div className="space-y-2">
+                {Object.values(users).map((u) => (
+                  <div key={u.pin} className="bg-[#050811] border border-white/10 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-white block">{u.name}</span>
+                      <span className="text-[10px] font-mono text-slate-400">Day {u.day || 1} • Goal {u.targetGoal.toFixed(2)}s</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-orange-500/15 border border-orange-500/30 font-mono text-xs font-black text-orange-400">
+                      PIN: {u.pin}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <h3 className="text-2xl font-black text-white mb-2">{currentAlg.name}</h3>
-              <div className="bg-[#050811] border border-white/10 py-2.5 px-4 rounded-xl text-center shadow-inner max-w-full">
-                <span className="font-mono text-base text-orange-400 font-bold tracking-wider">{currentAlg.alg}</span>
-              </div>
-              
-              {onOpenFingertrick && (
-                <button 
-                  onClick={() => onOpenFingertrick(currentAlg)}
-                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer"
-                >
-                  <Zap size={12} className="text-amber-400" />
-                  <span>Fingertrick Guide</span>
-                </button>
+
+              {currentUser.role === 'admin' && (
+                <div className="bg-slate-950 border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Add Family Profile</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                      className="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
+                    />
+                    <input
+                      type="text"
+                      maxLength={4}
+                      placeholder="4-Digit PIN"
+                      value={newUserPin}
+                      onChange={(e) => setNewUserPin(e.target.value)}
+                      className="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <button onClick={handleAddFamilyUser} className="w-full py-2.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-300 font-bold text-xs cursor-pointer">
+                    + Add Profile
+                  </button>
+                </div>
               )}
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="bg-slate-800/80 text-orange-400 border border-white/10 text-xs font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-xl inline-block mb-3">
-                {currentAlg.group}
+          </div>
+        )}
+
+        {/* 10. GRANULAR RESET MODAL */}
+        {activeModal === 'reset' && (
+          <div className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+              <h3 className="text-xl font-black text-white">Reset Options</h3>
+              <p className="text-xs text-slate-400">Choose what to reset for {currentUser.name}:</p>
+              <div className="space-y-2">
+                <button onClick={() => executeGranularReset('schedule')} className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-300 font-bold text-xs cursor-pointer">Reset Training Schedule Only (Day 1)</button>
+                <button onClick={() => executeGranularReset('stats')} className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-orange-300 font-bold text-xs cursor-pointer">Reset Statistics Times Only</button>
+                <button onClick={() => executeGranularReset('both')} className="w-full py-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 font-black text-xs cursor-pointer">Reset Both (Full Wipe)</button>
+                <button onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-xl text-slate-400 font-bold text-xs cursor-pointer mt-2">Cancel</button>
               </div>
-              <p className="text-xs text-slate-400 font-medium">Solve the cube, then reveal to verify!</p>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="mt-auto pt-4 flex flex-col gap-2.5 max-w-sm mx-auto w-full">
-        <Button variant="secondary" onClick={() => setShowDetails(!showDetails)} className="border-orange-500/30 bg-orange-500/10 text-orange-400 font-bold">
-          {showDetails ? <EyeOff size={18} /> : <Eye size={18} />}
-          <span>{showDetails ? 'Hide Solution' : 'Reveal Solution'}</span>
-        </Button>
-        <Button onClick={handleNextCase} variant="primary">
-          <span>{currentIndex < queue.length - 1 ? 'Next Scramble' : 'Finish Session'}</span>
-          <ChevronRight size={18} />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// --- ISOLATED DRILL MODAL ---
-const IsolatedDrillModal = ({ caseData, timerEnabled, solveTimes = [], onRecordTime, onClose, onOpenFingertrick }) => {
-  const [showAlg, setShowAlg] = useState(false);
-  const [scramble, setScramble] = useState(reverseAlg(caseData.alg));
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const timerRef = useRef(null);
-  const startTimeRef = useRef(0);
-
-  const toggleTimer = () => {
-    if (!timerRunning) {
-      startTimeRef.current = performance.now() - elapsedTime;
-      timerRef.current = setInterval(() => setElapsedTime(performance.now() - startTimeRef.current), 10);
-      setTimerRunning(true);
-    } else {
-      clearInterval(timerRef.current);
-      setTimerRunning(false);
-      onRecordTime(+(elapsedTime / 1000).toFixed(2));
-    }
-  };
-
-  const handleNewDrill = () => {
-    if (timerRunning) { clearInterval(timerRef.current); setTimerRunning(false); }
-    setElapsedTime(0);
-    setShowAlg(false);
-    setScramble(reverseAlg(caseData.alg));
-  };
-
-  const runs = Array.isArray(solveTimes) ? solveTimes : [];
-  const bestTime = runs.length > 0 ? Math.min(...runs).toFixed(2) : '--';
-  const avgTime = runs.length > 0 ? (runs.reduce((a,b)=>a+b,0) / runs.length).toFixed(2) : '--';
-
-  return sanitizeNode(
-    <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl flex flex-col p-6 pt-8 animate-in fade-in">
-      <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="p-2.5 bg-white/5 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 cursor-pointer">
-          <X size={20} />
-        </button>
-        <span className="text-xs font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
-          Isolated Drill
-        </span>
-        <div className="w-8" />
-      </div>
-      <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full text-center">
-        <h3 className="text-2xl font-black text-white mb-1">{caseData.name}</h3>
-        <span className="text-xs text-slate-400 uppercase tracking-widest mb-4">
-          {caseData.group} • WCA OLL #{caseData.ollNo || caseData.id}
-        </span>
-        <div className="w-full bg-slate-900/90 border border-white/10 rounded-2xl p-4 mb-4 text-center shadow-inner">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Scramble to form case:</span>
-          <div className="font-mono text-sm text-slate-200 font-bold">{scramble}</div>
-        </div>
-        {timerEnabled && (
-          <div 
-            onClick={toggleTimer} 
-            className={`w-full rounded-[2rem] p-4 mb-4 text-center cursor-pointer transition-all border ${timerRunning ? 'bg-orange-500/20 border-orange-400/60' : 'bg-slate-900/60 border-white/10'}`}
-          >
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">
-              {timerRunning ? 'Tap to Stop' : 'Tap to Time Solve'}
-            </span>
-            <div className="font-mono text-4xl font-black text-white">{(elapsedTime / 1000).toFixed(2)}s</div>
-            <div className="text-[10px] text-slate-400 mt-1 font-mono">
-              Best: <span className="text-orange-400 font-bold">{bestTime}s</span> • Avg: {avgTime}s ({runs.length} runs)
             </div>
           </div>
         )}
-        <div className="w-full bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
-          <div className="bg-slate-200 rounded-2xl p-2 w-28 h-28 mb-3 flex items-center justify-center shadow-inner">
-            <img src={getImageUrl(caseData.alg)} alt={caseData.name} className="w-full h-full object-contain" />
-          </div>
-          {showAlg ? (
-            <div className="w-full flex flex-col items-center">
-              <div className="font-mono text-sm font-bold text-orange-400 bg-slate-950/80 p-3 rounded-xl border border-white/5 w-full">
-                {caseData.alg}
-              </div>
-              {onOpenFingertrick && (
-                <button 
-                  onClick={() => onOpenFingertrick(caseData)}
-                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer"
-                >
-                  <Zap size={12} className="text-amber-400" />
-                  <span>Fingertrick Guide</span>
-                </button>
-              )}
+
+        {/* 11. UPCOMING PHASE PREVIEW MODAL */}
+        {activeModal === 'preview' && (
+          <div className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">CFOP Phase 4 • PLL</span>
+              <h3 className="text-xl font-black text-white">Permute Last Layer</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">2-sided PLL recognition drills and AUF prediction trainers are queued next in our CFOP roadmap.</p>
+              <button onClick={() => setActiveModal(null)} className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Back to Active Phase</button>
             </div>
-          ) : (
-            <button onClick={() => setShowAlg(true)} className="text-xs text-orange-400 font-bold py-2 px-4 bg-orange-500/10 rounded-full border border-orange-500/20 cursor-pointer">
-              Show Algorithm
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-      <div className="mt-auto pt-4 flex gap-3 max-w-sm mx-auto w-full">
-        <Button variant="secondary" onClick={handleNewDrill}>
-          <RotateCcw size={18} />
-          <span>New Run</span>
-        </Button>
-        <Button variant="primary" onClick={onClose}>
-          <span>Done</span>
-        </Button>
-      </div>
-    </div>
+    </>
   );
-};
-
-// --- OPTION A: FLOATING FINGERTRICK DOSSIER MODAL ---
-const FingertrickDossierModal = ({ caseData, onClose }) => {
-  const data = useMemo(() => getFingertrickData(caseData), [caseData]);
-  const [activeTriggerIdx, setActiveTriggerIdx] = useState(0);
-
-  if (!data) return null;
-  const activeTrigger = data.triggers[activeTriggerIdx] || data.triggers[0];
-
-  return sanitizeNode(
-    <div className="fixed inset-0 z-[220] bg-black/85 backdrop-blur-2xl flex flex-col p-6 pt-7 animate-in fade-in overflow-y-auto">
-      <div className="flex justify-between items-center mb-4 max-w-sm mx-auto w-full">
-        <button onClick={onClose} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white border border-white/5 active:scale-90 transition-all cursor-pointer">
-          <X size={20} />
-        </button>
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 rounded-full border border-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-wider">
-          <Zap size={14} className="text-amber-400" />
-          <span>Fingertrick Dossier</span>
-        </div>
-        <div className="w-8" />
-      </div>
-
-      <div className="flex-1 flex flex-col items-center max-w-sm mx-auto w-full space-y-4">
-        <div className="text-center w-full">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 block">
-            WCA OLL #{caseData.ollNo || caseData.id} • {caseData.group}
-          </span>
-          <h3 className="text-2xl font-black text-white mt-0.5">{caseData.name}</h3>
-        </div>
-
-        <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3.5 text-center shadow-inner">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Full Sequence</span>
-          <div className="font-mono text-base font-bold text-orange-300 tracking-wide">{caseData.alg}</div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5 w-full">
-          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3 text-left">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Starting Grip</span>
-            <span className="text-xs font-bold text-white leading-tight block">{data.grip.split('(')[0]}</span>
-          </div>
-          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3 text-left">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Regrip Efficiency</span>
-            <span className="text-xs font-bold text-green-400 font-mono leading-tight block">{data.regrips}</span>
-          </div>
-        </div>
-
-        <div className="w-full bg-slate-900/80 border border-white/10 rounded-3xl p-4 shadow-xl text-center">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Interactive Trigger Breakdown</span>
-            <span className="text-[10px] text-slate-500 font-medium">Tap pill to inspect</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2 justify-center mb-3">
-            {data.triggers.map((trig, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveTriggerIdx(idx)}
-                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 border flex items-center gap-1.5 cursor-pointer ${
-                  activeTriggerIdx === idx
-                    ? 'bg-orange-500/25 border-orange-400 text-orange-300 shadow-md shadow-orange-500/20 scale-105'
-                    : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/20'
-                }`}
-              >
-                <span>{trig.moves}</span>
-                {trig.label && <span className="text-[9px] font-sans opacity-70 font-normal">• {trig.label}</span>}
-              </button>
-            ))}
-          </div>
-
-          {activeTrigger && (
-            <div className="bg-slate-950 border border-orange-500/25 rounded-2xl p-3.5 text-left shadow-inner transition-all animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-mono text-sm font-black text-orange-400">{activeTrigger.moves}</span>
-                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-                  {activeTrigger.label}
-                </span>
-              </div>
-              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                {activeTrigger.tip}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="w-full bg-orange-500/10 border border-orange-500/20 rounded-2xl p-3.5 text-left shadow-sm">
-          <div className="flex items-center gap-1.5 text-orange-400 text-[11px] font-black uppercase tracking-wider mb-1">
-            <span>⚡</span>
-            <span>Speedcoach Execution Note</span>
-          </div>
-          <p className="text-xs text-orange-200/90 leading-relaxed">
-            {data.proTip}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 max-w-sm mx-auto w-full pt-2">
-        <Button variant="primary" onClick={onClose} className="py-3.5 text-sm">
-          <span>Got It, Back to Practice</span>
-          <CheckCircle2 size={18} />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// --- NEW USER ONBOARDING MODAL ---
-const OnboardingModal = ({ onClose }) => {
-  const [step, setStep] = useState('inquiry');
-  const [coursePage, setCoursePage] = useState(0);
-
-  const courseSteps = [
-    {
-      title: "The CFOP Framework",
-      badge: "The 4 Pillars of Speedcubing",
-      content: (
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-          <p>
-            <strong className="text-white">CFOP</strong> (Cross, F2L, OLL, PLL) is the world's most dominant speedcubing method, used in 99% of world records:
-          </p>
-          <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
-              <span className="text-orange-400 font-bold block mb-0.5">1. Cross (C)</span>
-              Solve 4 white edges on the bottom.
-            </div>
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
-              <span className="text-orange-400 font-bold block mb-0.5">2. F2L (F)</span>
-              Solve the first two layers simultaneously.
-            </div>
-            <div className="bg-orange-500/20 p-2.5 rounded-xl border border-orange-400/40">
-              <span className="text-orange-300 font-bold block mb-0.5">3. OLL (O) ★</span>
-              Orient all top yellow pieces in 1 alg!
-            </div>
-            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
-              <span className="text-orange-400 font-bold block mb-0.5">4. PLL (P)</span>
-              Permute (slide) the last layer into place.
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: "What is OLL & Why Learn It?",
-      badge: "Orientation of the Last Layer",
-      content: (
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-          <p>
-            In beginner methods, turning the top face yellow takes <strong className="text-white">2 to 4 separate algorithms</strong> (edge cross, then multiple Sunes), wasting 4–8 seconds.
-          </p>
-          <div className="bg-slate-950 p-3 rounded-xl border border-orange-500/20 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-slate-400">Beginner (2-Look)</span>
-              <span className="text-red-400 font-mono">~5.5s</span>
-            </div>
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-orange-400 font-bold">Full 1-Look OLL</span>
-              <span className="text-green-400 font-mono">0.8s - 1.5s</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            By mastering all 57 patterns, whichever yellow shape appears on top, you solve it in <strong className="text-white">one fluid reflex</strong>.
-          </p>
-        </div>
-      )
-    },
-    {
-      title: "How OLLDay Everyday Trains You",
-      badge: "The Dynamic Pacing Science",
-      content: (
-        <div className="space-y-2.5 text-xs text-slate-300 leading-relaxed">
-          <p>
-            Most cubers fail learning OLL because 57 algorithms at once is overwhelming. We fix this with:
-          </p>
-          <ul className="space-y-2 text-[11px] text-slate-300">
-            <li className="flex items-start gap-2">
-              <span className="text-orange-400 font-bold">1.</span>
-              <span><strong>Personalized Pace:</strong> Choose how many algorithms to learn per chunk to fit your schedule.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-orange-400 font-bold">2.</span>
-              <span><strong>40 + 20 Muscle Memory Rule:</strong> Drill 40 times to learn, 20 times to solidify into permanent reflex.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-orange-400 font-bold">3.</span>
-              <span><strong>0-Regrip Fingertricks:</strong> Learn modern speedcubing finger motions from day one.</span>
-            </li>
-          </ul>
-        </div>
-      )
-    },
-    {
-      title: "Ready to Begin Day 1!",
-      badge: "Your Training Launchpad",
-      content: (
-        <div className="space-y-3 text-xs text-slate-300 leading-relaxed text-center py-2">
-          <div className="w-16 h-16 rounded-full bg-orange-500/20 text-orange-400 mx-auto flex items-center justify-center border border-orange-500/30">
-            <Sparkles size={28} />
-          </div>
-          <h4 className="text-base font-black text-white">Your Customized Curriculum is Ready</h4>
-          <p className="text-xs text-slate-400">
-            Take your physical cube, follow the setup scramble, and start building lightning muscle memory at your own pace!
-          </p>
-        </div>
-      )
-    }
-  ];
-
-  return sanitizeNode(
-    <div className="fixed inset-0 z-[210] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in">
-      {step === 'inquiry' ? (
-        <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 max-w-sm w-full text-center shadow-2xl relative">
-          <div className="w-16 h-16 rounded-3xl bg-orange-500/15 border border-orange-500/25 text-orange-400 mx-auto mb-4 flex items-center justify-center">
-            <Compass size={32} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block mb-1">Welcome Cuber</span>
-          <h3 className="text-2xl font-black text-white mb-2">Are you new to CFOP?</h3>
-          <p className="text-xs text-slate-300 mb-6 leading-relaxed">
-            If you're just getting started or transitioning from beginner methods, we can give you a quick crash course on OLL and how this app accelerates your times!
-          </p>
-
-          <div className="flex flex-col gap-2.5">
-            <Button variant="primary" onClick={() => setStep('course')} className="py-3.5 text-sm">
-              <span>Yes, teach me!</span>
-              <Sparkles size={16} />
-            </Button>
-            <Button variant="secondary" onClick={onClose} className="py-3.5 text-xs text-slate-400">
-              No, I know CFOP (Jump in)
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 max-w-sm w-full shadow-2xl flex flex-col justify-between min-h-[440px]">
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20">
-                {courseSteps[coursePage].badge}
-              </span>
-              <span className="text-xs font-mono text-slate-400">{coursePage + 1}/{courseSteps.length}</span>
-            </div>
-
-            <h3 className="text-xl font-black text-white mb-3">{courseSteps[coursePage].title}</h3>
-
-            <div className="min-h-[200px]">
-              {courseSteps[coursePage].content}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-white/5 flex gap-2">
-            {coursePage > 0 ? (
-              <Button variant="secondary" onClick={() => setCoursePage(p => p - 1)} className="py-3 text-xs flex-1">
-                Back
-              </Button>
-            ) : null}
-
-            {coursePage < courseSteps.length - 1 ? (
-              <Button variant="primary" onClick={() => setCoursePage(p => p + 1)} className="py-3 text-xs flex-1">
-                <span>Continue</span>
-                <ChevronRight size={16} />
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={onClose} className="py-3 text-xs flex-1">
-                <span>Start Training!</span>
-                <Check size={16} />
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+}
