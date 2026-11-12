@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
-// Initialize Cloud Sync Services safely
+// Initialize Cloud Sync Services safely (ES2015 / Vercel / Sandbox compatible)
 let firebaseApp = null;
 let auth = null;
 let db = null;
 try {
+  const rawConfig =
+    (typeof globalThis !== 'undefined' && (globalThis.__firebase_config || globalThis.VITE_FIREBASE_CONFIG)) ||
+    (typeof process !== 'undefined' && process.env && (process.env.VITE_FIREBASE_CONFIG || process.env.REACT_APP_FIREBASE_CONFIG)) ||
+    null;
   const firebaseConfig =
-    typeof __firebase_config !== 'undefined' && __firebase_config
-      ? typeof __firebase_config === 'string'
-        ? JSON.parse(__firebase_config)
-        : __firebase_config
-      : null;
+    rawConfig && typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
   if (firebaseConfig && typeof firebaseConfig === 'object' && firebaseConfig.apiKey) {
     firebaseApp = initializeApp(firebaseConfig);
     auth = getAuth(firebaseApp);
@@ -24,7 +24,10 @@ try {
   auth = null;
   db = null;
 }
-const appId = typeof __app_id !== 'undefined' && __app_id ? String(__app_id) : 'default-app-id';
+const appId =
+  (typeof globalThis !== 'undefined' && globalThis.__app_id && String(globalThis.__app_id)) ||
+  (typeof process !== 'undefined' && process.env && (process.env.VITE_APP_ID || process.env.REACT_APP_APP_ID)) ||
+  'default-app-id';
 
 // =========================================================================
 // 1. COMPLETE DATASETS (CROSS, F2L 41 CASES, OLL 57 CASES)
@@ -1272,8 +1275,10 @@ function OLLDaySuite() {
     }
     const initAuth = async () => {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
+        const initialToken =
+          typeof globalThis !== 'undefined' ? globalThis.__initial_auth_token : null;
+        if (initialToken) {
+          await signInWithCustomToken(auth, initialToken);
         } else {
           await signInAnonymously(auth);
         }
