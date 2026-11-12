@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // =========================================================================
-// 0. DATASET (57 OLL Cases + Fingertrick Dossiers)
+// 0. DATASETS (57 OLL Cases + 41 F2L Cases + Fingertrick Dossiers)
 // =========================================================================
 const OLL_DATA = [
   { id: 1, chunk: 1, ollNo: 27, name: "Sune", group: "Oriented-Edges", alg: "R U R' U R U2' R'", setup: "R U2 R' U' R U' R'" },
@@ -63,6 +63,57 @@ const OLL_DATA = [
   { id: 57, chunk: 9, ollNo: 4, name: "OLL 4 (Dot)", group: "Dot-cases", alg: "f (R U R' U') f' U F (R U R' U') F'", setup: "F U R U' R' F' U' f U R U' R' f'" }
 ];
 
+// All 41 Standard F2L Cases
+// Orientation: White on Bottom (D) • Orange in Front (F) • Front-Right Target Slot (Orange-Blue-White)
+const F2L_DATA = [
+  { id: 1, chunk: 1, f2lNo: 1, name: "F2L 1 (Right Insert)", group: "Basic Inserts", alg: "U (R U' R')", setup: "R U R' U'", step1: "Open the front-right slot with U so the corner clears.", step2: "Pair with the matching edge in back and drop straight in." },
+  { id: 2, chunk: 1, f2lNo: 2, name: "F2L 2 (Left/Front Insert)", group: "Basic Inserts", alg: "y' U' (R' U R)", setup: "R' U' R U y", step1: "Rotate y' so the target slot moves to Front-Left.", step2: "Open the slot with U' and insert the joined pair cleanly." },
+  { id: 3, chunk: 1, f2lNo: 3, name: "F2L 3 (Back-Left Pair)", group: "Basic Inserts", alg: "y' (R' U' R)", setup: "R' U R y", step1: "Rotate y' to bring the joined pair above the slot.", step2: "Drop the pre-paired block directly into the bottom slot." },
+  { id: 4, chunk: 1, f2lNo: 4, name: "F2L 4 (Direct Right Drop)", group: "Basic Inserts", alg: "(R U R')", setup: "R U' R'", step1: "Corner and edge are already joined above Front-Right.", step2: "Execute a 3-move R U R' trigger to seat the pair." },
+
+  { id: 5, chunk: 2, f2lNo: 5, name: "F2L 5 (Same Top • Split)", group: "Top: Same Color", alg: "(U' R U R') U2 (R U' R')", setup: "R U R' U2 R U' R' U", step1: "Hide the corner in back while shifting the edge across.", step2: "Bring the corner back up paired, then insert with R U' R'." },
+  { id: 6, chunk: 2, f2lNo: 6, name: "F2L 6 (Same Top • Mirror)", group: "Top: Same Color", alg: "d (R' U' R) U2' (R' U R)", setup: "R' U' R U2 R' U R d'", step1: "Use d (wide U) to position the slot without an extra rotation.", step2: "Separate, pair the matching top stickers, and insert." },
+  { id: 7, chunk: 2, f2lNo: 7, name: "F2L 7 (Far Edge • Right)", group: "Top: Same Color", alg: "(U' R U2' R') U2 (R U' R')", setup: "R U R' U2 R U2 R' U", step1: "Lift the corner and sweep the edge U2' into alignment.", step2: "Re-pair on the top layer and drop into Front-Right." },
+  { id: 8, chunk: 2, f2lNo: 8, name: "F2L 8 (Far Edge • Mirror)", group: "Top: Same Color", alg: "d (R' U2 R) U2' (R' U R)", setup: "R' U' R U2 R' U2 R d'", step1: "Wide-turn d aligns the back-left slot for pairing.", step2: "Swing the edge U2 to join the corner and insert." },
+  { id: 9, chunk: 2, f2lNo: 9, name: "F2L 9 (Adjacent • Back)", group: "Top: Same Color", alg: "d (R' U' R) U' (R' U' R)", setup: "R' U R U R' U R d'", step1: "Rotate top two layers (d) and tuck the corner down.", step2: "Slide the adjacent edge over and insert together." },
+  { id: 10, chunk: 2, f2lNo: 10, name: "F2L 10 (Adjacent • Right)", group: "Top: Same Color", alg: "(U' R U R') U (R U R')", setup: "R U' R' U' R U' R' U", step1: "Hide corner in the Front-Right slot while moving edge.", step2: "Pop the corner back up joined and insert with R U R'." },
+
+  { id: 11, chunk: 3, f2lNo: 11, name: "F2L 11 (Opposite • Split)", group: "Top: Opposite Colors", alg: "(U' R U2' R') U (F' U' F)", setup: "F' U F U' R U2 R' U", step1: "Lift corner and send edge across with U2' to pair.", step2: "Insert the newly formed pair cleanly via F' U' F." },
+  { id: 12, chunk: 3, f2lNo: 12, name: "F2L 12 (Opposite • Sweep)", group: "Top: Opposite Colors", alg: "(R U' R') U2 (F' U' F)", setup: "F' U F U2 R U R'", step1: "Hide the corner in Front-Right while sweeping edge U2.", step2: "Pair opposite top stickers and insert via F' U' F." },
+  { id: 13, chunk: 3, f2lNo: 13, name: "F2L 13 (Opposite • Rotated)", group: "Top: Opposite Colors", alg: "y' U (R' U R) U' (R' U' R)", setup: "R' U R U R' U' R U' y", step1: "Rotate y' to bring the target slot to Front-Left.", step2: "Separate the awkward pair and insert with R' U' R." },
+  { id: 14, chunk: 3, f2lNo: 14, name: "F2L 14 (Opposite • Direct)", group: "Top: Opposite Colors", alg: "(U' R U' R') U (R U R')", setup: "R U' R' U' R U R' U", step1: "Tuck corner with U' R U' R' to clear the edge path.", step2: "Bring the pair together with U and drop with R U R'." },
+  { id: 15, chunk: 3, f2lNo: 15, name: "F2L 15 (Connected • Flip)", group: "Top: Opposite Colors", alg: "(R U R') U2 (R U' R' U) (R U' R')", setup: "R U R' U' R U R' U2 R U' R'", step1: "Lift the connected pair and break it apart with U2.", step2: "Re-pair properly on the right side and insert." },
+  { id: 16, chunk: 3, f2lNo: 16, name: "F2L 16 (Connected • Sledge)", group: "Top: Opposite Colors", alg: "(R U' R') U2 (F' U' F)", setup: "F' U F U2 R U R'", step1: "Split the misoriented pair by hiding the corner down.", step2: "Align the edge across and finish with F' U' F." },
+
+  { id: 17, chunk: 4, f2lNo: 17, name: "F2L 17 (White Up • Right)", group: "Top: White Up", alg: "(R U2 R') U' (R U R')", setup: "R U' R' U R U2 R'", step1: "Place edge at back-left, then swing corner over it with R U2 R'.", step2: "The pair forms automatically—insert with R U R'." },
+  { id: 18, chunk: 4, f2lNo: 18, name: "F2L 18 (White Up • Left)", group: "Top: White Up", alg: "y' (R' U2 R) U (R' U' R)", setup: "R' U R U' R' U2 R y", step1: "Rotate y' and match the edge over the back-right center.", step2: "Swing the white-up corner onto the edge and insert." },
+  { id: 19, chunk: 4, f2lNo: 19, name: "F2L 19 (White Up • Far R)", group: "Top: White Up", alg: "U (R U2 R') U (R U' R')", setup: "R U R' U' R U2 R' U'", step1: "Offset U so the corner lands directly onto the edge.", step2: "Execute R U2 R' to pair, then U R U' R' to seat." },
+  { id: 20, chunk: 4, f2lNo: 20, name: "F2L 20 (White Up • Far L)", group: "Top: White Up", alg: "y' U' (R' U2 R) U' (R' U R)", setup: "R' U' R U R' U2 R U y", step1: "Rotate y', offset U', and swing corner onto edge.", step2: "Finish with a smooth U' R' U R left-hand insert." },
+  { id: 21, chunk: 4, f2lNo: 21, name: "F2L 21 (White Up • Double)", group: "Top: White Up", alg: "U2 (R U R' U) (R U' R')", setup: "R U R' U' R U' R' U2", step1: "U2 aligns the corner above the empty slot.", step2: "Lift, pair in one fluid motion, and drop into Front-Right." },
+  { id: 22, chunk: 4, f2lNo: 22, name: "F2L 22 (White Up • Back)", group: "Top: White Up", alg: "F' L' U2 L F", setup: "F' L' U2 L F", step1: "Use F' to bring the slot up to meet the back edge.", step2: "U2 joins the pair cleanly before restoring F." },
+  { id: 23, chunk: 4, f2lNo: 23, name: "F2L 23 (White Up • Stack)", group: "Top: White Up", alg: "U2 R2 U2 (R' U' R U') R2", setup: "R2 U R' U R U2 R2 U2", step1: "Double-turn R2 pairs the stacked pieces in the back.", step2: "U' aligns the block and R2 drops it straight home." },
+  { id: 24, chunk: 4, f2lNo: 24, name: "F2L 24 (White Up • Sledge)", group: "Top: White Up", alg: "(F U R U' R' F') (R U' R')", setup: "R U R' F R U R' U' F'", step1: "F U R U' R' F' orients and pairs the pieces on top.", step2: "Finish immediately with R U' R' into Front-Right." },
+
+  { id: 25, chunk: 5, f2lNo: 25, name: "F2L 25 (Corner In • Free)", group: "Corner in Bottom", alg: "U' (R' F R F') (R U R')", setup: "R U' R' F R' F' R U", step1: "Use a quick Sledgehammer (R' F R F') to free & pair.", step2: "Insert the newly joined pair with R U R'." },
+  { id: 26, chunk: 5, f2lNo: 26, name: "F2L 26 (Corner In • Sexy)", group: "Corner in Bottom", alg: "U (R U' R') (F' U' F)", setup: "F' U F R U R' U'", step1: "Extract the solved corner while pairing with the top edge.", step2: "Drop the pair cleanly into the front via F' U' F." },
+  { id: 27, chunk: 5, f2lNo: 27, name: "F2L 27 (Twist Right • 1)", group: "Corner in Bottom", alg: "(R U' R' U) (R U' R')", setup: "R U R' U' R U R'", step1: "Pop the twisted corner out with R U' R'.", step2: "Re-align with U and insert cleanly with R U' R'." },
+  { id: 28, chunk: 5, f2lNo: 28, name: "F2L 28 (Twist Front • 1)", group: "Corner in Bottom", alg: "(R U R' U') (R U R')", setup: "R U' R' U R U' R'", step1: "Execute Sexy Move (R U R' U') to lift & pair.", step2: "Finish with R U R' to seat the corner flat." },
+  { id: 29, chunk: 5, f2lNo: 29, name: "F2L 29 (Twist Front • 2)", group: "Corner in Bottom", alg: "(R' F R F') (R' F R F')", setup: "F R' F' R F R' F' R", step1: "First Sledgehammer extracts the twisted corner.", step2: "Second Sledgehammer pairs and seats it zero-regrip." },
+  { id: 30, chunk: 5, f2lNo: 30, name: "F2L 30 (Twist Right • 2)", group: "Corner in Bottom", alg: "(R U R' U') (R U R')", setup: "R U' R' U R U' R'", step1: "Lift the corner out while holding the edge in place.", step2: "Drop the united pair straight back into Front-Right." },
+
+  { id: 31, chunk: 6, f2lNo: 31, name: "F2L 31 (Edge In • Flip)", group: "Edge in Middle / Both In", alg: "(U' R' F R F') (R U' R')", setup: "R U R' F R' F' R U", step1: "Sledgehammer pops the trapped edge out and flips it.", step2: "Pair immediately with the top corner and insert." },
+  { id: 32, chunk: 6, f2lNo: 32, name: "F2L 32 (Edge In • Triple)", group: "Edge in Middle / Both In", alg: "(R U R' U') (R U R' U') (R U R')", setup: "R U' R' U R U' R' U R U' R'", step1: "Two Sexy Moves cycle the trapped edge out cleanly.", step2: "Finish with R U R' into the Front-Right slot." },
+  { id: 33, chunk: 6, f2lNo: 33, name: "F2L 33 (Edge In • Right)", group: "Edge in Middle / Both In", alg: "(U' R U' R') U2 (R U' R')", setup: "R U R' U2 R U R' U", step1: "Extract the middle-layer edge alongside the corner.", step2: "U2 aligns the pair for a fast R U' R' insertion." },
+  { id: 34, chunk: 6, f2lNo: 34, name: "F2L 34 (Edge In • Left)", group: "Edge in Middle / Both In", alg: "(U R U R') U2 (R U R')", setup: "R U' R' U2 R U' R' U'", step1: "Bring the corner down to meet the trapped edge.", step2: "Swing U2 and insert together with R U R'." },
+  { id: 35, chunk: 6, f2lNo: 35, name: "F2L 35 (Edge In • Sledge)", group: "Edge in Middle / Both In", alg: "(U' R U R') U (F' U' F)", setup: "F' U F U' R U' R' U", step1: "Lift the edge out while positioning the corner on top.", step2: "Insert the joined pair smoothly via F' U' F." },
+  { id: 36, chunk: 6, f2lNo: 36, name: "F2L 36 (Edge In • Back)", group: "Edge in Middle / Both In", alg: "(U2 R' F R F') U2 (R U R')", setup: "R U' R' U2 F R' F' R U2", step1: "U2 sets up a Sledgehammer to free the flipped edge.", step2: "U2 realigns the pair for a crisp R U R' finish." },
+  { id: 37, chunk: 6, f2lNo: 37, name: "F2L 37 (Triple Sexy)", group: "Edge in Middle / Both In", alg: "(R U' R') d (R' U2 R) U2' (R' U R)", setup: "R' U' R U2 R' U2 R d' R U R'", step1: "Extract both trapped pieces with R U' R' d.", step2: "Pair on the back-left with R' U2 R and insert." },
+  { id: 38, chunk: 6, f2lNo: 38, name: "F2L 38 (Both In • Right)", group: "Edge in Middle / Both In", alg: "(R U' R' U') (R U R') U2 (R U' R')", setup: "R U R' U2 R U' R' U R U R'", step1: "Pull both pieces out of the slot together.", step2: "Separate with U2 and insert cleanly with R U' R'." },
+  { id: 39, chunk: 6, f2lNo: 39, name: "F2L 39 (Both In • Front)", group: "Edge in Middle / Both In", alg: "(R U' R' U) (R U2' R') U (R U' R')", setup: "R U R' U' R U2 R' U' R U R'", step1: "Lift the trapped pair and swing the corner U2'.", step2: "Drop the united pair straight into Front-Right." },
+  { id: 40, chunk: 6, f2lNo: 40, name: "F2L 40 (Both In • Flip R)", group: "Edge in Middle / Both In", alg: "(R U' R') F' L' U2 L F", setup: "F' L' U2 L F R U R'", step1: "Extract the corner with R U' R'.", step2: "Use F' L' U2 L F to flip the edge and insert." },
+  { id: 41, chunk: 6, f2lNo: 41, name: "F2L 41 (Both In • Flip F)", group: "Edge in Middle / Both In", alg: "(R U R' U') (R U' R') U2 (F' U' F)", setup: "F' U F U2 R U R' U R U' R'", step1: "Sexy Move extracts both pieces cleanly to top.", step2: "U2 pairs them and F' U' F seats the slot." }
+];
+
 const DEFAULT_CHUNKS = [
   { id: 1, title: "Chunk 1: Oriented-Edges", caseIds: [1, 2, 3, 4, 5, 6, 7] },
   { id: 2, title: "Chunk 2: T-Shapes & Squares", caseIds: [8, 9, 10, 11, 12, 13] },
@@ -73,6 +124,15 @@ const DEFAULT_CHUNKS = [
   { id: 7, title: "Chunk 7: Lines & Knights", caseIds: [38, 39, 40, 41, 42, 43] },
   { id: 8, title: "Chunk 8: Knights & Awkward", caseIds: [44, 45, 46, 47, 48, 49] },
   { id: 9, title: "Chunk 9: Dot-cases", caseIds: [50, 51, 52, 53, 54, 55, 56, 57] }
+];
+
+const F2L_DEFAULT_CHUNKS = [
+  { id: 101, title: "Chunk 1: Basic Inserts", caseIds: [1, 2, 3, 4] },
+  { id: 102, title: "Chunk 2: Top Same Color", caseIds: [5, 6, 7, 8, 9, 10] },
+  { id: 103, title: "Chunk 3: Top Opposite Colors", caseIds: [11, 12, 13, 14, 15, 16] },
+  { id: 104, title: "Chunk 4: Top White Facing Up", caseIds: [17, 18, 19, 20, 21, 22, 23, 24] },
+  { id: 105, title: "Chunk 5: Corner in Bottom", caseIds: [25, 26, 27, 28, 29, 30] },
+  { id: 106, title: "Chunk 6: Edge / Both Trapped", caseIds: [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41] }
 ];
 
 const FINGERTRICK_GUIDES = {
@@ -97,6 +157,18 @@ const FINGERTRICK_GUIDES = {
   }
 };
 
+const F2L_FINGERTRICK_GUIDES = {
+  default: {
+    grip: "Right Thumb on Front (Orange)",
+    regrips: "0 Regrips (Rotate y/y' cleanly)",
+    triggers: [
+      { moves: "R U' R'", label: "Right Hedge Insert", tip: "Lift R with wrist, push U' with left index finger without regripping, and pull R' straight down." },
+      { moves: "y' R' U R", label: "Rotated Left Insert", tip: "Regrip whole cube y' (turn cube CCW on U axis), pull R' down, flick U with right index, and lift R." }
+    ],
+    coachNote: "Keep White glued to the bottom face during every y / y' rotation so you never lose your cross reference."
+  }
+};
+
 const NOTATION_TABS = {
   SINGLE: [
     { move: "U", desc: "Top layer clockwise" },
@@ -118,7 +190,7 @@ const NOTATION_TABS = {
   WIDE: [
     { move: "r / r'", desc: "Right 2 layers together" },
     { move: "f / f'", desc: "Front 2 layers together" },
-    { move: "l / l'", desc: "Left 2 layers together" }
+    { move: "d / d'", desc: "Bottom 2 layers together" }
   ]
 };
 
@@ -150,21 +222,31 @@ const AUF_VARIATIONS = [
   { pre: "U2 ", post: " U" }
 ];
 
+const F2L_REALISTIC_JUNK = [
+  "L' U' L U",
+  "L' U L U'",
+  "B U B' U'",
+  "L' U2 L U2",
+  "L' U' L U B U' B'",
+  "B U2 B' U2"
+];
+
 const STORAGE_KEY = 'ollday_users_v2';
 const FIRESTORE_URL = (typeof window !== 'undefined' && window.__VITE_FIRESTORE_URL) || 'https://firestore.googleapis.com/v1/projects/olldayeveryday/databases/(default)/documents/app_data/family_sync?key=AIzaSyBFWgmB1DgBDrfTWCMLSNS6ovS2XeMjAcU';
 
 const defaultUsers = {
-  "1678": { pin: "1678", name: "Me", role: "admin", day: 1, stats: {}, targetGoal: 2.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 7, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false },
-  "8995": { pin: "8995", name: "Dad", role: "user", day: 1, stats: {}, targetGoal: 4.00, timerEnabled: true, fingertricksEnabled: true, chunkSize: 5, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false },
-  "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, stats: {}, targetGoal: 3.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 5, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false },
-  "0494": { pin: "0494", name: "Victor", role: "user", day: 1, stats: {}, targetGoal: 3.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 3, customChunks: DEFAULT_CHUNKS, hasSeenOnboarding: false }
+  "1678": { pin: "1678", name: "Me", role: "admin", day: 1, f2lDay: 1, stats: {}, f2lStats: {}, targetGoal: 2.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 7, customChunks: DEFAULT_CHUNKS, f2lCustomChunks: F2L_DEFAULT_CHUNKS, hasSeenOnboarding: false },
+  "8995": { pin: "8995", name: "Dad", role: "user", day: 1, f2lDay: 1, stats: {}, f2lStats: {}, targetGoal: 4.00, timerEnabled: true, fingertricksEnabled: true, chunkSize: 5, customChunks: DEFAULT_CHUNKS, f2lCustomChunks: F2L_DEFAULT_CHUNKS, hasSeenOnboarding: false },
+  "0713": { pin: "0713", name: "Ephraim", role: "user", day: 1, f2lDay: 1, stats: {}, f2lStats: {}, targetGoal: 3.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 5, customChunks: DEFAULT_CHUNKS, f2lCustomChunks: F2L_DEFAULT_CHUNKS, hasSeenOnboarding: false },
+  "0494": { pin: "0494", name: "Victor", role: "user", day: 1, f2lDay: 1, stats: {}, f2lStats: {}, targetGoal: 3.50, timerEnabled: true, fingertricksEnabled: true, chunkSize: 3, customChunks: DEFAULT_CHUNKS, f2lCustomChunks: F2L_DEFAULT_CHUNKS, hasSeenOnboarding: false }
 };
 
-function generateSchedule(chunks) {
-  const list = chunks && chunks.length > 0 ? chunks : DEFAULT_CHUNKS;
+function generateSchedule(chunks, phaseLabel = "OLL", allCases = OLL_DATA) {
+  const fallback = phaseLabel === "F2L" ? F2L_DEFAULT_CHUNKS : DEFAULT_CHUNKS;
+  const list = chunks && chunks.length > 0 ? chunks : fallback;
   const schedule = [];
   list.forEach((chk, idx) => {
-    schedule.push({ mode: 'learn', title: `Learn: ${chk.title}`, desc: "Time to acquire fresh muscle memory. Drill each trigger until the pattern snaps naturally.", caseIds: chk.caseIds, chunkIdx: idx });
+    schedule.push({ mode: 'learn', title: `Learn: ${chk.title}`, desc: phaseLabel === "F2L" ? "Follow the 2-step intuitive breakdown until pairing and insertion feel effortless." : "Time to acquire fresh muscle memory. Drill each trigger until the pattern snaps naturally.", caseIds: chk.caseIds, chunkIdx: idx });
     schedule.push({ mode: 'drill', title: `Drill: ${chk.title}`, desc: "Speed execution and recognition drills. Aim below your target execution goal.", caseIds: chk.caseIds, chunkIdx: idx });
     schedule.push({ mode: 'review', title: `Refine: ${chk.title}`, desc: "Mixed-order recognition and clean fingertrick flow.", caseIds: chk.caseIds, chunkIdx: idx });
     if ((idx + 1) % 2 === 0) {
@@ -172,9 +254,15 @@ function generateSchedule(chunks) {
       schedule.push({ mode: 'review', title: `Cumulative Review: Chunks ${idx} & ${idx + 1}`, desc: "Mixed recognition across both recent chunks.", caseIds: [...prev.caseIds, ...chk.caseIds], chunkIdx: idx });
     }
   });
-  schedule.push({ mode: 'review', title: "Grand Finale: All 57 OLL Cases", desc: "Full OLL mastery gauntlet across every shape category.", caseIds: OLL_DATA.map((c) => c.id), chunkIdx: 0 });
+  schedule.push({ mode: 'review', title: `Grand Finale: All ${allCases.length} ${phaseLabel} Cases`, desc: `Full ${phaseLabel} mastery gauntlet across every category.`, caseIds: allCases.map((c) => c.id), chunkIdx: 0 });
   return schedule;
 }
+
+const getF2LImageUrl = (alg) =>
+  `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=f2l&bg=t&fc=yyyyyybbbbboooooowwwwwwggggggrrrrrr&r=y-35x-25&case=${encodeURIComponent(alg)}`;
+
+const getOLLImageUrl = (alg) =>
+  `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(alg)}`;
 
 export default function App() {
   // =========================================================================
@@ -195,7 +283,7 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState(null);
 
   // Navigation & View States
-  const [currentPhase, setCurrentPhase] = useState('oll');
+  const [currentPhase, setCurrentPhase] = useState('f2l');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -224,6 +312,20 @@ export default function App() {
   const execIntervalRef = useRef(null);
   const padHoldTimeoutRef = useRef(null);
 
+  // F2L Phase States
+  const [f2lTab, setF2lTab] = useState('grind');
+  const [f2lLibraryMode, setF2lLibraryMode] = useState('standard');
+  const [f2lSelectedCategory, setF2lSelectedCategory] = useState(null);
+  const [f2lScrambleStyle, setF2lScrambleStyle] = useState('beginner');
+  const [f2lSessionIdx, setF2lSessionIdx] = useState(0);
+  const [f2lSessionShowAlg, setF2lSessionShowAlg] = useState(false);
+  const [f2lSessionAufIdx, setF2lSessionAufIdx] = useState(0);
+  const [f2lDrillCase, setF2lDrillCase] = useState(F2L_DATA[0]);
+  const [f2lShowDrillAlg, setF2lShowDrillAlg] = useState(false);
+  const [f2lDrillAufIdx, setF2lDrillAufIdx] = useState(0);
+  const [inlineF2lSessionFtOpen, setInlineF2lSessionFtOpen] = useState(false);
+  const [inlineF2lDrillFtOpen, setInlineF2lDrillFtOpen] = useState(false);
+
   // OLL Phase States
   const [ollTab, setOllTab] = useState('grind');
   const [ollLibraryMode, setOllLibraryMode] = useState('standard');
@@ -235,19 +337,21 @@ export default function App() {
   const [showDrillAlg, setShowDrillAlg] = useState(false);
   const [drillAufIdx, setDrillAufIdx] = useState(0);
 
-  // OLL Stopwatch State
+  // Stopwatch State (Shared across OLL & F2L)
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerElapsed, setTimerElapsed] = useState(0);
   const stopwatchRef = useRef(null);
 
   // Fingertrick Dossier State
   const [ftCase, setFtCase] = useState(OLL_DATA[0]);
+  const [ftPhaseContext, setFtPhaseContext] = useState('oll');
   const [ftTriggerIdx, setFtTriggerIdx] = useState(0);
   const [ftReturnModal, setFtReturnModal] = useState(null);
   const [inlineSessionFtOpen, setInlineSessionFtOpen] = useState(false);
   const [inlineDrillFtOpen, setInlineDrillFtOpen] = useState(false);
 
   // Curriculum Builder State
+  const [builderPhase, setBuilderPhase] = useState('oll');
   const [draftChunks, setDraftChunks] = useState(DEFAULT_CHUNKS);
   const [selectedBuilderChunkIdx, setSelectedBuilderChunkIdx] = useState(0);
   const [movingCaseId, setMovingCaseId] = useState(null);
@@ -255,8 +359,10 @@ export default function App() {
   // Day Lineup Press-and-Hold Drag Reordering State
   const [draggedLineupIdx, setDraggedLineupIdx] = useState(null);
   const [lineupPressIdx, setLineupPressIdx] = useState(null);
+  const [dragLineupPhase, setDragLineupPhase] = useState('oll');
   const lineupHoldTimerRef = useRef(null);
   const lineupItemRefs = useRef([]);
+  const f2lLineupItemRefs = useRef([]);
   const lineupDidDragRef = useRef(false);
   const lineupTouchStartYRef = useRef(null);
   const draggedLineupIdxRef = useRef(null);
@@ -302,9 +408,7 @@ export default function App() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + duration);
-    } catch {
-      // Ignore audio autoplay blocks
-    }
+    } catch {}
   };
 
   const triggerToast = (msg) => {
@@ -336,10 +440,21 @@ export default function App() {
     saveUsersState(updated);
   };
 
-  // Dynamic Scramble Formatter with AUF Variation
+  // Dynamic Scramble Formatters (OLL + F2L Beginner vs. Realistic)
   const buildSetupScramble = (baseSetup, aufIndex) => {
     const variation = AUF_VARIATIONS[aufIndex % AUF_VARIATIONS.length];
     return `${variation.pre}${baseSetup}${variation.post}`.trim();
+  };
+
+  const buildF2LSetupScramble = (baseSetup, variationIdx, style) => {
+    if (style === 'beginner') {
+      const aufOnly = ["", "U", "U'", "U2"];
+      const pre = variationIdx === 0 ? "" : aufOnly[variationIdx % aufOnly.length];
+      return `${pre ? pre + ' ' : ''}${baseSetup}`.trim();
+    }
+    const junk = F2L_REALISTIC_JUNK[variationIdx % F2L_REALISTIC_JUNK.length];
+    const auf = ["", "U ", "U' ", "U2 "][variationIdx % 4];
+    return `${junk} ${auf}${baseSetup}`.trim();
   };
 
   const cycleDrillScramble = () => {
@@ -358,13 +473,32 @@ export default function App() {
     });
   };
 
-  // Derived Schedule & Progress
+  const cycleF2LDrillScramble = () => {
+    emitBeep(560, 'triangle', 0.06);
+    setF2lDrillAufIdx((prev) => prev + 1);
+  };
+
+  const cycleF2LSessionScramble = () => {
+    emitBeep(560, 'triangle', 0.06);
+    setF2lSessionAufIdx((prev) => prev + 1);
+  };
+
+  // Derived OLL Schedule & Progress
   const userChunks = currentUser.customChunks && currentUser.customChunks.length > 0 ? currentUser.customChunks : DEFAULT_CHUNKS;
-  const schedule = generateSchedule(userChunks);
+  const schedule = generateSchedule(userChunks, "OLL", OLL_DATA);
   const totalDays = schedule.length;
   const currentDay = Math.max(1, Math.min(totalDays, currentUser.day || 1));
   const currentDayPlan = schedule[currentDay - 1] || schedule[0];
   const progressPct = Math.round((currentDay / totalDays) * 100);
+
+  // Derived F2L Schedule & Progress
+  const userF2LChunks = currentUser.f2lCustomChunks && currentUser.f2lCustomChunks.length > 0 ? currentUser.f2lCustomChunks : F2L_DEFAULT_CHUNKS;
+  const f2lSchedule = generateSchedule(userF2LChunks, "F2L", F2L_DATA);
+  const totalF2LDays = f2lSchedule.length;
+  const currentF2LDay = Math.max(1, Math.min(totalF2LDays, currentUser.f2lDay || 1));
+  const currentF2LDayPlan = f2lSchedule[currentF2LDay - 1] || f2lSchedule[0];
+  const f2lProgressPct = Math.round((currentF2LDay / totalF2LDays) * 100);
+
   const isTimerEnabled = currentUser.timerEnabled !== false;
   const isFingertricksEnabled = currentUser.fingertricksEnabled !== false;
 
@@ -537,8 +671,8 @@ export default function App() {
     };
   });
 
-  // OLL Stopwatch & Record Saving
-  const toggleOLLStopwatch = (caseId) => {
+  // Stopwatch & Record Saving (Supports both OLL & F2L)
+  const toggleStopwatch = (caseId, phase = 'oll') => {
     if (!isTimerEnabled) return;
     if (timerRunning) {
       clearInterval(stopwatchRef.current);
@@ -546,12 +680,14 @@ export default function App() {
       emitBeep(760, 'sine', 0.1);
       const recorded = +timerElapsed.toFixed(2);
       if (recorded > 0.15) {
-        const prevCaseStat = currentUser.stats?.[caseId] || { times: [], best: null };
+        const statsKey = phase === 'f2l' ? 'f2lStats' : 'stats';
+        const currentStatsMap = currentUser[statsKey] || {};
+        const prevCaseStat = currentStatsMap[caseId] || { times: [], best: null };
         const nextTimes = [...prevCaseStat.times, recorded];
         const nextBest = prevCaseStat.best === null ? recorded : Math.min(prevCaseStat.best, recorded);
         updateCurrentUser({
-          stats: {
-            ...(currentUser.stats || {}),
+          [statsKey]: {
+            ...currentStatsMap,
             [caseId]: { times: nextTimes, best: nextBest }
           }
         });
@@ -569,10 +705,16 @@ export default function App() {
     }
   };
 
-  // OLL Navigation & Helpers
+  // Day Navigation & Helpers
   const changeOLLDay = (delta) => {
     const nextDay = Math.max(1, Math.min(totalDays, currentDay + delta));
     updateCurrentUser({ day: nextDay });
+    emitBeep(680, 'square', 0.05);
+  };
+
+  const changeF2LDay = (delta) => {
+    const nextDay = Math.max(1, Math.min(totalF2LDays, currentF2LDay + delta));
+    updateCurrentUser({ f2lDay: nextDay });
     emitBeep(680, 'square', 0.05);
   };
 
@@ -582,16 +724,19 @@ export default function App() {
     emitBeep(620, 'triangle', 0.05);
   };
 
-  const openFingertrickDossier = (caseObj, returnModalName) => {
+  const openFingertrickDossier = (caseObj, returnModalName, phaseContext = 'oll') => {
     emitBeep(660, 'sine', 0.08);
     setFtCase(caseObj);
+    setFtPhaseContext(phaseContext);
     setFtTriggerIdx(0);
     setFtReturnModal(returnModalName);
     setActiveModal('fingertrick');
   };
 
-  const renderInlineFingertrickPanel = (caseObj, onClose) => {
-    const dossier = FINGERTRICK_GUIDES[caseObj.id] || FINGERTRICK_GUIDES.default;
+  const renderInlineFingertrickPanel = (caseObj, onClose, phaseContext = 'oll') => {
+    const dossier = phaseContext === 'f2l'
+      ? F2L_FINGERTRICK_GUIDES.default
+      : (FINGERTRICK_GUIDES[caseObj.id] || FINGERTRICK_GUIDES.default);
     const activeTrig = dossier.triggers[ftTriggerIdx % dossier.triggers.length];
     return (
       <div className="w-full bg-[#050811] border border-orange-500/35 rounded-2xl p-3.5 text-left space-y-2.5 shadow-inner">
@@ -659,10 +804,35 @@ export default function App() {
     );
   };
 
-  // Curriculum Builder Handlers
-  const openCurriculumArchitect = () => {
+  // Rotation Caution Helper for F2L
+  const hasYRotation = (alg) => /\by['2]?\b/.test(alg);
+
+  const renderF2LRotationCaution = (alg) => {
+    if (!hasYRotation(alg)) return null;
+    const isYPrime = /\by'/.test(alg);
+    return (
+      <div className="w-full bg-amber-500/10 border border-amber-500/35 rounded-xl p-2.5 text-left flex items-start gap-2.5">
+        <span className="text-amber-400 text-sm leading-none mt-0.5">⚠️</span>
+        <div className="space-y-0.5">
+          <span className="text-[9px] font-black uppercase tracking-widest text-amber-300 block">
+            Cube Rotation Caution ({isYPrime ? "y'" : "y"})
+          </span>
+          <p className="text-[10.5px] text-slate-200 leading-snug">
+            {isYPrime
+              ? "Rotate the ENTIRE cube counter-clockwise (like a U' turn) so Green moves to Front while keeping White glued on Bottom."
+              : "Rotate the ENTIRE cube clockwise (like a U turn) so Blue moves to Front while keeping White glued on Bottom."}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // Curriculum Builder Handlers (Supports both OLL & F2L)
+  const openCurriculumArchitect = (targetPhase = 'oll') => {
     emitBeep(540);
-    setDraftChunks(JSON.parse(JSON.stringify(userChunks)));
+    setBuilderPhase(targetPhase);
+    const sourceChunks = targetPhase === 'f2l' ? userF2LChunks : userChunks;
+    setDraftChunks(JSON.parse(JSON.stringify(sourceChunks)));
     setSelectedBuilderChunkIdx(0);
     setMovingCaseId(null);
     setActiveModal('curriculum');
@@ -670,21 +840,23 @@ export default function App() {
 
   const applyCurriculumPreset = (preset) => {
     emitBeep(640);
+    const sourceData = builderPhase === 'f2l' ? F2L_DATA : OLL_DATA;
+    const defaultSet = builderPhase === 'f2l' ? F2L_DEFAULT_CHUNKS : DEFAULT_CHUNKS;
     if (preset === 'default') {
-      setDraftChunks(DEFAULT_CHUNKS);
+      setDraftChunks(defaultSet);
     } else if (preset === 'casual') {
       const built = [];
-      for (let i = 0; i < OLL_DATA.length; i += 3) {
-        const slice = OLL_DATA.slice(i, i + 3);
+      for (let i = 0; i < sourceData.length; i += 3) {
+        const slice = sourceData.slice(i, i + 3);
         built.push({ id: built.length + 1, title: `Chunk ${built.length + 1}: Casual Trio`, caseIds: slice.map((c) => c.id) });
       }
       setDraftChunks(built);
     } else if (preset === 'shape') {
-      const groups = Array.from(new Set(OLL_DATA.map((c) => c.group)));
+      const groups = Array.from(new Set(sourceData.map((c) => c.group)));
       setDraftChunks(groups.map((g, idx) => ({
         id: idx + 1,
         title: `Chunk ${idx + 1}: ${g}`,
-        caseIds: OLL_DATA.filter((c) => c.group === g).map((c) => c.id)
+        caseIds: sourceData.filter((c) => c.group === g).map((c) => c.id)
       })));
     }
     setSelectedBuilderChunkIdx(0);
@@ -729,56 +901,68 @@ export default function App() {
   };
 
   const saveCustomCurriculum = () => {
+    const defaultSet = builderPhase === 'f2l' ? F2L_DEFAULT_CHUNKS : DEFAULT_CHUNKS;
     const cleaned = draftChunks.filter((c) => c.caseIds.length > 0);
-    updateCurrentUser({ customChunks: cleaned.length > 0 ? cleaned : DEFAULT_CHUNKS, day: 1 });
+    if (builderPhase === 'f2l') {
+      updateCurrentUser({ f2lCustomChunks: cleaned.length > 0 ? cleaned : defaultSet, f2lDay: 1 });
+    } else {
+      updateCurrentUser({ customChunks: cleaned.length > 0 ? cleaned : defaultSet, day: 1 });
+    }
     setActiveModal(null);
     emitBeep(960, 'sine', 0.12);
-    triggerToast('Custom Curriculum Saved!');
+    triggerToast(`Custom ${builderPhase.toUpperCase()} Curriculum Saved!`);
   };
 
-  // Day Lineup Press-and-Hold Drag Reorder Handlers
-  const reorderDayLineup = (fromIdx, toIdx) => {
+  // Day Lineup Press-and-Hold Drag Reorder Handlers (OLL & F2L)
+  const reorderDayLineup = (fromIdx, toIdx, phaseType = dragLineupPhase) => {
     if (fromIdx === null || toIdx === null || fromIdx === toIdx) return;
-    const currentIds = [...currentDayPlan.caseIds];
+    const plan = phaseType === 'f2l' ? currentF2LDayPlan : currentDayPlan;
+    const chunksList = phaseType === 'f2l' ? userF2LChunks : userChunks;
+    const totalD = phaseType === 'f2l' ? totalF2LDays : totalDays;
+    const currD = phaseType === 'f2l' ? currentF2LDay : currentDay;
+    const patchKey = phaseType === 'f2l' ? 'f2lCustomChunks' : 'customChunks';
+
+    const currentIds = [...plan.caseIds];
     const [movedId] = currentIds.splice(fromIdx, 1);
     currentIds.splice(toIdx, 0, movedId);
 
-    const isGrandFinale = currentDay === totalDays && currentDayPlan.title.startsWith('Grand Finale');
-    const isCumulative = currentDayPlan.title.startsWith('Cumulative Review');
+    const isGrandFinale = currD === totalD && plan.title.startsWith('Grand Finale');
+    const isCumulative = plan.title.startsWith('Cumulative Review');
 
     if (isGrandFinale) {
-      const updatedChunks = userChunks.map((chk) => ({
+      const updatedChunks = chunksList.map((chk) => ({
         ...chk,
         caseIds: [...chk.caseIds].sort((a, b) => currentIds.indexOf(a) - currentIds.indexOf(b))
       }));
-      updateCurrentUser({ customChunks: updatedChunks });
+      updateCurrentUser({ [patchKey]: updatedChunks });
     } else if (isCumulative) {
-      const cIdx = currentDayPlan.chunkIdx;
-      const prevChunk = userChunks[cIdx - 1];
-      const currChunk = userChunks[cIdx];
+      const cIdx = plan.chunkIdx;
+      const prevChunk = chunksList[cIdx - 1];
+      const currChunk = chunksList[cIdx];
       if (prevChunk && currChunk) {
         const prevSet = new Set(prevChunk.caseIds);
         const currSet = new Set(currChunk.caseIds);
-        const updatedChunks = userChunks.map((chk, idx) => {
+        const updatedChunks = chunksList.map((chk, idx) => {
           if (idx === cIdx - 1) return { ...chk, caseIds: currentIds.filter((id) => prevSet.has(id)) };
           if (idx === cIdx) return { ...chk, caseIds: currentIds.filter((id) => currSet.has(id)) };
           return chk;
         });
-        updateCurrentUser({ customChunks: updatedChunks });
+        updateCurrentUser({ [patchKey]: updatedChunks });
       }
     } else {
-      const targetChunkIdx = currentDayPlan.chunkIdx;
-      const updatedChunks = userChunks.map((chk, idx) =>
+      const targetChunkIdx = plan.chunkIdx;
+      const updatedChunks = chunksList.map((chk, idx) =>
         idx === targetChunkIdx ? { ...chk, caseIds: currentIds } : chk
       );
-      updateCurrentUser({ customChunks: updatedChunks });
+      updateCurrentUser({ [patchKey]: updatedChunks });
     }
     emitBeep(720, 'triangle', 0.05);
   };
 
-  const handleLineupPointerDown = (idx, clientY = null) => {
+  const handleLineupPointerDown = (idx, clientY = null, phaseType = 'oll') => {
     lineupDidDragRef.current = false;
     lineupTouchStartYRef.current = clientY;
+    setDragLineupPhase(phaseType);
     setLineupPressIdx(idx);
     clearTimeout(lineupHoldTimerRef.current);
     lineupHoldTimerRef.current = setTimeout(() => {
@@ -800,12 +984,13 @@ export default function App() {
   const updateLineupDragPosition = (clientY) => {
     const activeIdx = draggedLineupIdxRef.current;
     if (activeIdx === null) return;
-    for (let i = 0; i < lineupItemRefs.current.length; i++) {
-      const el = lineupItemRefs.current[i];
+    const refsArray = dragLineupPhase === 'f2l' ? f2lLineupItemRefs.current : lineupItemRefs.current;
+    for (let i = 0; i < refsArray.length; i++) {
+      const el = refsArray[i];
       if (!el) continue;
       const rect = el.getBoundingClientRect();
       if (clientY >= rect.top && clientY <= rect.bottom && i !== activeIdx) {
-        reorderDayLineup(activeIdx, i);
+        reorderDayLineup(activeIdx, i, dragLineupPhase);
         draggedLineupIdxRef.current = i;
         setDraggedLineupIdx(i);
         setLineupPressIdx(i);
@@ -834,8 +1019,6 @@ export default function App() {
     setLineupPressIdx(null);
   };
 
-  // Non-passive mobile touch lock while actively dragging a Day Lineup item,
-  // automatically restoring native scroll & navigation when the touch ends.
   useEffect(() => {
     if (draggedLineupIdx === null) return;
     const onWindowTouchMove = (e) => {
@@ -859,12 +1042,29 @@ export default function App() {
 
   // Granular Reset & Admin User Creation
   const executeGranularReset = (mode) => {
-    if (mode === 'schedule') updateCurrentUser({ day: 1 });
-    if (mode === 'stats') updateCurrentUser({ stats: {} });
-    if (mode === 'both') updateCurrentUser({ day: 1, stats: {} });
+    if (mode === 'f2l_schedule') updateCurrentUser({ f2lDay: 1 });
+    if (mode === 'f2l_stats') updateCurrentUser({ f2lStats: {} });
+    if (mode === 'f2l_chunks') updateCurrentUser({ f2lCustomChunks: F2L_DEFAULT_CHUNKS, f2lDay: 1 });
+    if (mode === 'f2l_all') updateCurrentUser({ f2lDay: 1, f2lStats: {}, f2lCustomChunks: F2L_DEFAULT_CHUNKS });
+    if (mode === 'oll_schedule') updateCurrentUser({ day: 1 });
+    if (mode === 'oll_stats') updateCurrentUser({ stats: {} });
+    if (mode === 'oll_chunks') updateCurrentUser({ customChunks: DEFAULT_CHUNKS, day: 1 });
+    if (mode === 'oll_all') updateCurrentUser({ day: 1, stats: {}, customChunks: DEFAULT_CHUNKS });
+    if (mode === 'both') updateCurrentUser({ day: 1, f2lDay: 1, stats: {}, f2lStats: {}, customChunks: DEFAULT_CHUNKS, f2lCustomChunks: F2L_DEFAULT_CHUNKS });
     setActiveModal(null);
     emitBeep(900, 'triangle', 0.12);
-    triggerToast(`Progress Reset (${mode.toUpperCase()})`);
+    const labelMap = {
+      f2l_schedule: 'F2L Day 1 Schedule',
+      f2l_stats: 'F2L Statistics & PRs',
+      f2l_chunks: 'F2L Default Chunks',
+      f2l_all: 'All F2L Progress',
+      oll_schedule: 'OLL Day 1 Schedule',
+      oll_stats: 'OLL Statistics & PRs',
+      oll_chunks: 'OLL Default Chunks',
+      oll_all: 'All OLL Progress',
+      both: 'Full Account Wipe'
+    };
+    triggerToast(`Reset: ${labelMap[mode] || mode.toUpperCase()}`);
   };
 
   const handleAddFamilyUser = () => {
@@ -879,12 +1079,15 @@ export default function App() {
         name: newUserName.trim(),
         role: 'user',
         day: 1,
+        f2lDay: 1,
         stats: {},
+        f2lStats: {},
         targetGoal: 3.5,
         timerEnabled: true,
         fingertricksEnabled: true,
         chunkSize: 5,
         customChunks: DEFAULT_CHUNKS,
+        f2lCustomChunks: F2L_DEFAULT_CHUNKS,
         hasSeenOnboarding: false
       }
     };
@@ -952,13 +1155,13 @@ export default function App() {
   const activeScramble = (CROSS_SCRAMBLES[crossTier] || CROSS_SCRAMBLES[1])[crossScrambleIdx % 6];
 
   const renderCrossSVG = () => {
-    const cW = '#f8fafc'; // White
-    const cG = '#22c55e'; // Green
-    const cB = '#3b82f6'; // Blue
-    const cR = '#ef4444'; // Red
-    const cO = '#f97316'; // Orange
-    const cCorner = '#1e293b'; // Unsolved F2L corners (muted slate)
-    const cDark = '#090a14'; // Cube plastic border
+    const cW = '#f8fafc';
+    const cG = '#22c55e';
+    const cB = '#3b82f6';
+    const cR = '#ef4444';
+    const cO = '#f97316';
+    const cCorner = '#1e293b';
+    const cDark = '#090a14';
 
     const isTarget = diagramView === 'solved';
     const fEdge = { dFill: cW, outFill: cG };
@@ -968,40 +1171,31 @@ export default function App() {
 
     return (
       <svg viewBox="0 0 116 116" className="w-full h-full drop-shadow-xl">
-        {/* Cube Housing */}
         <rect x="20" y="20" width="76" height="76" rx="8" fill={cDark} />
-
-        {/* Back Face Outer Stickers (Blue Side) */}
         <rect x="24" y="10" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
         <rect x="48" y="10" width="20" height="7" rx="2" fill={bEdge.outFill} stroke={cDark} strokeWidth="1.2" />
         <rect x="72" y="10" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
 
-        {/* Front Face Outer Stickers (Green Side) */}
         <rect x="24" y="99" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
         <rect x="48" y="99" width="20" height="7" rx="2" fill={fEdge.outFill} stroke={cDark} strokeWidth="1.2" />
         <rect x="72" y="99" width="20" height="7" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
 
-        {/* Left Face Outer Stickers (Red Side) */}
         <rect x="10" y="24" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
         <rect x="10" y="48" width="7" height="20" rx="2" fill={lEdge.outFill} stroke={cDark} strokeWidth="1.2" />
         <rect x="10" y="72" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
 
-        {/* Right Face Outer Stickers (Orange Side) */}
         <rect x="99" y="24" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
         <rect x="99" y="48" width="7" height="20" rx="2" fill={rEdge.outFill} stroke={cDark} strokeWidth="1.2" />
         <rect x="99" y="72" width="7" height="20" rx="2" fill={cCorner} stroke={cDark} strokeWidth="1.2" />
 
-        {/* Row 1 (Back Row of Bottom Face): Left Corner, Back Edge, Right Corner */}
         <rect x="24" y="24" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
         <rect x="48" y="24" width="20" height="20" rx="3.5" fill={bEdge.dFill} stroke={cDark} strokeWidth="1.5" />
         <rect x="72" y="24" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
 
-        {/* Row 2 (Middle Row of Bottom Face): Left Edge, White Center, Right Edge */}
         <rect x="24" y="48" width="20" height="20" rx="3.5" fill={lEdge.dFill} stroke={cDark} strokeWidth="1.5" />
         <rect x="48" y="48" width="20" height="20" rx="3.5" fill={cW} stroke={cDark} strokeWidth="1.5" />
         <rect x="72" y="48" width="20" height="20" rx="3.5" fill={rEdge.dFill} stroke={cDark} strokeWidth="1.5" />
 
-        {/* Row 3 (Front Row of Bottom Face): Left Corner, Front Edge, Right Corner */}
         <rect x="24" y="72" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
         <rect x="48" y="72" width="20" height="20" rx="3.5" fill={fEdge.dFill} stroke={cDark} strokeWidth="1.5" />
         <rect x="72" y="72" width="20" height="20" rx="3.5" fill={cCorner} stroke={cDark} strokeWidth="1.5" />
@@ -1019,6 +1213,16 @@ export default function App() {
   const allBests = allStatsEntries.map((s) => s.best).filter((b) => typeof b === 'number');
   const allTimeBestPR = allBests.length > 0 ? Math.min(...allBests) : null;
 
+  // Derived F2L Data
+  const f2lGroups = Array.from(new Set(F2L_DATA.map((c) => c.group)));
+  const f2lSessionCases = currentF2LDayPlan.caseIds.map((id) => F2L_DATA.find((c) => c.id === id)).filter(Boolean);
+  const activeF2LSessionCase = f2lSessionCases[f2lSessionIdx % f2lSessionCases.length] || F2L_DATA[0];
+
+  const allF2LStatsEntries = Object.values(currentUser.f2lStats || {});
+  const totalF2LRecordedRuns = allF2LStatsEntries.reduce((acc, s) => acc + (s.times?.length || 0), 0);
+  const allF2LBests = allF2LStatsEntries.map((s) => s.best).filter((b) => typeof b === 'number');
+  const allTimeF2LBestPR = allF2LBests.length > 0 ? Math.min(...allF2LBests) : null;
+
   const COMPASS_QUIZZES = [
     { q: "With White on bottom and Green facing you, which color belongs on your Right side?", a: "Orange" },
     { q: "With White on bottom and Blue facing you, which color is at the Back?", a: "Green" },
@@ -1028,7 +1232,7 @@ export default function App() {
   // =========================================================================
   // 9. SHARED 3D STACKED SETTINGS DECK RENDERER
   // =========================================================================
-  const renderSettingsDeck = () => (
+  const renderSettingsDeck = (phaseContext = 'oll') => (
     <div className="p-5 h-full flex flex-col justify-between overflow-hidden">
       <div className="flex items-center justify-between mb-2">
         <div>
@@ -1059,7 +1263,9 @@ export default function App() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 3</span>
-              <span className="text-[10px] font-mono text-slate-400">{totalDays}d Journey</span>
+              <span className="text-[10px] font-mono text-slate-400">
+                {phaseContext === 'f2l' ? `${totalF2LDays}d F2L Plan` : `${totalDays}d OLL Plan`}
+              </span>
             </div>
             <h3 className="text-base font-black text-white text-center">Pace & Training Tools</h3>
 
@@ -1076,10 +1282,10 @@ export default function App() {
             </div>
 
             <button
-              onClick={openCurriculumArchitect}
+              onClick={() => openCurriculumArchitect(phaseContext === 'f2l' ? 'f2l' : 'oll')}
               className="w-full py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 font-bold text-xs cursor-pointer transition-all"
             >
-              Organize Cases & Custom Order
+              Organize {phaseContext === 'f2l' ? 'F2L' : 'OLL'} Cases & Order
             </button>
 
             <div className="flex items-center justify-between bg-[#050811] rounded-2xl px-3 py-2 border border-white/10">
@@ -1310,7 +1516,11 @@ export default function App() {
                 </h1>
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="text-[10px] text-slate-400 font-bold truncate">
-                    {currentPhase === 'cross' ? 'Step 1 • White Cross' : currentPhase === 'f2l' ? 'Step 2 • First Two Layers' : `Daily OLL Training • Day ${currentDay}`}
+                    {currentPhase === 'cross'
+                      ? 'Step 1 • White Cross'
+                      : currentPhase === 'f2l'
+                        ? `Daily F2L Training • Day ${currentF2LDay}`
+                        : `Daily OLL Training • Day ${currentDay}`}
                   </span>
                   <span className="text-slate-600 text-[10px]">•</span>
                   <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
@@ -1330,7 +1540,9 @@ export default function App() {
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
                   <span>{currentUser.name}</span>
                 </span>
-                <span className="font-mono text-[11px] font-black text-orange-400 leading-tight">{progressPct}%</span>
+                <span className="font-mono text-[11px] font-black text-orange-400 leading-tight">
+                  {currentPhase === 'f2l' ? `${f2lProgressPct}%` : `${progressPct}%`}
+                </span>
               </button>
 
               {/* C-F-O-P Dropdown Pill */}
@@ -1469,7 +1681,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Inline Mode Switcher: Move Count OR Eyes-Closed Drill (Zero-Scroll, Same Page) */}
+                    {/* Inline Mode Switcher: Move Count OR Eyes-Closed Drill */}
                     {crossMode === 'efficiency' ? (
                       <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2.5">
                         <div className="flex items-center justify-between">
@@ -1605,7 +1817,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Active Physical Cube Scramble Card */}
                     <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 shadow-xl space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-black uppercase tracking-widest text-orange-400">
@@ -1624,7 +1835,6 @@ export default function App() {
                       <p className="text-[10px] text-slate-400 text-center">Hold White on Bottom • Green Facing You</p>
                     </div>
 
-                    {/* Dismissible "How Blind Run Works" Guide */}
                     {showBlindGuide && (
                       <div className="bg-orange-500/10 border border-orange-500/30 rounded-[1.75rem] p-4 space-y-2.5 shadow-xl">
                         <div className="flex items-center justify-between">
@@ -1648,7 +1858,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* WCA 15s Countdown Card */}
                     <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl text-center">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
                       <div className={`font-mono text-5xl font-black my-2 ${blindState === 'dnf' ? 'text-red-500' : inspectionTime <= 3 && blindState === 'inspecting' ? 'text-amber-400' : 'text-white'}`}>
@@ -1673,7 +1882,6 @@ export default function App() {
                       </button>
                     )}
 
-                    {/* Dual Mobile Fingerprint Speedstack Pads */}
                     <div
                       className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-4 shadow-inner transition-all touch-none ${blindState === 'inspecting' || blindState === 'readying' || blindState === 'armed' ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}
                     >
@@ -1805,23 +2013,427 @@ export default function App() {
                   </div>
                 )}
 
-                {crossTab === 'settings' && renderSettingsDeck()}
+                {crossTab === 'settings' && renderSettingsDeck('oll')}
               </main>
             </div>
 
             {/* ========================================================= */}
-            {/* PHASE 2: F2L                                              */}
+            {/* PHASE 2: F2L (FIRST TWO LAYERS — 41 CASES)                */}
             {/* ========================================================= */}
             <div className={getPhaseClass('f2l')}>
-              <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-5 flex flex-col justify-center">
-                <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-2xl text-center space-y-4">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-wider">CFOP Phase 2</span>
-                  <h2 className="text-2xl font-black tracking-tight text-white">First Two Layers (F2L)</h2>
-                  <p className="text-xs text-slate-400 leading-relaxed">Intuitive corner-edge pairing drills, empty-slot keyhole shortcuts, and lookahead trainers are scheduled next.</p>
-                  <button onClick={() => selectPhase('oll')} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">
-                    Jump to OLL Training Hub
-                  </button>
-                </div>
+              <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative">
+
+                {/* F2L TAB 1: THE GRIND */}
+                {f2lTab === 'grind' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Step 2 • Front-Right Slot</p>
+                        <h2 className="text-2xl font-black tracking-tight text-white">F2L Daily Grind</h2>
+                      </div>
+                      <button
+                        onClick={() => openCurriculumArchitect('f2l')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-orange-400 text-xs font-bold active:scale-95 cursor-pointer"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+                        <span>Curriculum</span>
+                      </button>
+                    </div>
+
+                    {/* Reference Orientation & Beginner/Realistic Scramble Toggle */}
+                    <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">Hold Cube Orientation</span>
+                          <span className="text-[11px] font-bold text-slate-200">White Bottom • Orange Front</span>
+                        </div>
+                        <div className="bg-slate-950 p-1 rounded-xl border border-white/10 flex items-center">
+                          <button
+                            onClick={() => { emitBeep(500); setF2lScrambleStyle('beginner'); }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${f2lScrambleStyle === 'beginner' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                          >
+                            Beginner
+                          </button>
+                          <button
+                            onClick={() => { emitBeep(500); setF2lScrambleStyle('realistic'); }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${f2lScrambleStyle === 'realistic' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                          >
+                            Realistic
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10.5px] text-slate-400 leading-snug border-t border-white/5 pt-2">
+                        {f2lScrambleStyle === 'beginner'
+                          ? 'Start from a solved cube: sets up only the Front-Right target pair while keeping the White Cross and other 3 slots solved.'
+                          : 'Start from a solved cube: keeps the White Cross intact, scrambles the back/left slots like a real solve, and sets the Front-Right target pair.'}
+                      </p>
+                    </div>
+
+                    {/* Active Phase Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl flex flex-col justify-between items-center text-center relative overflow-hidden space-y-4">
+                      <div className="flex items-center justify-between w-full z-10">
+                        <button onClick={() => changeF2LDay(-1)} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-white active:scale-90 cursor-pointer">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Active Phase</span>
+                          <h3 className="text-3xl font-black text-white tracking-tight mt-0.5">Day {currentF2LDay}</h3>
+                        </div>
+                        <button onClick={() => changeF2LDay(1)} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-white active:scale-90 cursor-pointer">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                      </div>
+
+                      <div className="z-10 space-y-2 px-1">
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-black uppercase tracking-wider">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                          <span>{currentF2LDayPlan.mode.toUpperCase()} MODE • {f2lSessionCases.length} PAIRS</span>
+                        </span>
+                        <h4 className="text-lg font-black text-white leading-snug">{currentF2LDayPlan.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed max-w-[260px] mx-auto">{currentF2LDayPlan.desc}</p>
+                      </div>
+
+                      <button
+                        onClick={() => { emitBeep(880, 'sine', 0.1); setF2lSessionIdx(0); setF2lSessionShowAlg(false); setF2lSessionAufIdx(0); setTimerElapsed(0); setInlineF2lSessionFtOpen(false); setActiveModal('f2lSession'); }}
+                        className="z-10 w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-sm active:scale-95 cursor-pointer shadow-lg shadow-orange-500/25 border border-orange-400/30 flex items-center justify-center gap-2"
+                      >
+                        <span>Start Day {currentF2LDay} Session</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                      </button>
+                    </div>
+
+                    {/* Day Lineup (Hold & Drag to Reorder) */}
+                    <div
+                      onPointerMove={handleLineupPointerMove}
+                      onPointerUp={handleLineupPointerUp}
+                      onPointerCancel={handleLineupPointerUp}
+                      onTouchMove={(e) => {
+                        if (draggedLineupIdx === null && e.touches && e.touches[0]) {
+                          handleLineupPreHoldMove(e.touches[0].clientY);
+                        }
+                      }}
+                      onTouchEnd={handleLineupPointerUp}
+                      onTouchCancel={handleLineupPointerUp}
+                      className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 ${draggedLineupIdx !== null && dragLineupPhase === 'f2l' ? 'touch-none select-none overflow-hidden' : ''}`}
+                    >
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Day {currentF2LDay} Lineup</span>
+                          <span className="text-[9px] font-semibold text-slate-500">
+                            {draggedLineupIdx !== null && dragLineupPhase === 'f2l' ? 'Drag up or down to place...' : 'Hold & drag to reorder'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400">{f2lSessionCases.length} Pairs</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {f2lSessionCases.map((item, idx) => {
+                          const isBeingDragged = draggedLineupIdx === idx && dragLineupPhase === 'f2l';
+                          const isPressing = lineupPressIdx === idx && draggedLineupIdx === null && dragLineupPhase === 'f2l';
+                          return (
+                            <div
+                              key={item.id}
+                              ref={(el) => { f2lLineupItemRefs.current[idx] = el; }}
+                              onContextMenu={(e) => e.preventDefault()}
+                              onPointerDown={(e) => {
+                                if (e.pointerType === 'touch') return;
+                                handleLineupPointerDown(idx, e.clientY, 'f2l');
+                              }}
+                              onTouchStart={(e) => {
+                                const y = e.touches && e.touches[0] ? e.touches[0].clientY : null;
+                                handleLineupPointerDown(idx, y, 'f2l');
+                              }}
+                              onClick={() => {
+                                if (lineupDidDragRef.current) {
+                                  lineupDidDragRef.current = false;
+                                  return;
+                                }
+                                emitBeep(600);
+                                setF2lDrillCase(item);
+                                setF2lShowDrillAlg(false);
+                                setF2lDrillAufIdx(0);
+                                setTimerElapsed(0);
+                                setInlineF2lDrillFtOpen(false);
+                                setActiveModal('f2lDrill');
+                              }}
+                              className={`bg-[#050811] border rounded-2xl p-2.5 flex items-center justify-between gap-2.5 cursor-pointer transition-all select-none ${
+                                isBeingDragged
+                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-2xl shadow-orange-500/20 z-20 relative'
+                                  : isPressing
+                                    ? 'border-orange-500/50 scale-[0.99]'
+                                    : 'border-white/10 hover:border-orange-500/40'
+                              }`}
+                            >
+                              <div className={`pl-0.5 flex flex-col items-center justify-center ${isBeingDragged ? 'text-orange-400' : 'text-slate-600'}`}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="9" cy="6" r="1.8" />
+                                  <circle cx="15" cy="6" r="1.8" />
+                                  <circle cx="9" cy="12" r="1.8" />
+                                  <circle cx="15" cy="12" r="1.8" />
+                                  <circle cx="9" cy="18" r="1.8" />
+                                  <circle cx="15" cy="18" r="1.8" />
+                                </svg>
+                              </div>
+
+                              <div className="w-11 h-11 flex-shrink-0 bg-slate-200 rounded-xl p-1 flex items-center justify-center shadow-inner pointer-events-none">
+                                <img
+                                  src={getF2LImageUrl(item.alg)}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0 pointer-events-none">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-black text-white truncate">{item.name}</span>
+                                  {hasYRotation(item.alg) && (
+                                    <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-[8px] font-black text-amber-300">ROT</span>
+                                  )}
+                                </div>
+                                <span className="font-mono text-[10px] text-orange-400/90 block truncate mt-0.5">{item.alg}</span>
+                              </div>
+                              <span className={`text-xs font-mono font-bold pr-1 pointer-events-none ${isBeingDragged ? 'text-orange-400' : 'text-slate-500'}`}>
+                                #{idx + 1}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Personalized F2L Journey Card */}
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">F2L Mastery Plan</span>
+                        <div className="text-lg font-black text-white mt-0.5">{Math.max(0, totalF2LDays - currentF2LDay)} Days Remaining</div>
+                        <span className="text-[11px] font-bold text-orange-400">{totalF2LDays} Total Days Plan</span>
+                      </div>
+                      <div className="w-14 h-14 rounded-full border-4 border-slate-800 flex items-center justify-center relative">
+                        <span className="font-mono text-xs font-black text-orange-400">{f2lProgressPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* F2L TAB 2: ALGORITHMS LIBRARY */}
+                {f2lTab === 'algorithms' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">F2L Pair Hub</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">F2L Cases (41)</h2>
+                      <p className="text-xs text-slate-400 mt-1">White on Bottom • Orange in Front • Front-Right target slot.</p>
+                    </div>
+
+                    <div className="bg-slate-950/80 p-1 rounded-2xl border border-white/10 flex items-center shadow-inner">
+                      <button onClick={() => { emitBeep(); setF2lLibraryMode('standard'); setF2lSelectedCategory(null); }} className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${f2lLibraryMode === 'standard' ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}>6 Pair Groups</button>
+                      <button onClick={() => { emitBeep(); setF2lLibraryMode('custom'); setF2lSelectedCategory(null); }} className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${f2lLibraryMode === 'custom' ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}>My Custom Chunks</button>
+                    </div>
+
+                    {!f2lSelectedCategory ? (
+                      f2lLibraryMode === 'standard' ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {f2lGroups.map((group) => {
+                            const casesInGroup = F2L_DATA.filter((c) => c.group === group);
+                            const sampleCase = casesInGroup[0] || F2L_DATA[0];
+                            return (
+                              <button
+                                key={group}
+                                onClick={() => { emitBeep(520); setF2lSelectedCategory({ type: 'group', name: group }); }}
+                                className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                              >
+                                <div className="w-20 h-20 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                                  <img
+                                    src={getF2LImageUrl(sampleCase.alg)}
+                                    alt={group}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <h4 className="text-xs font-black text-white leading-tight">{group}</h4>
+                                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-wider text-orange-400">
+                                  {casesInGroup.length} Pairs
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-xs font-bold text-slate-300">{userF2LChunks.length} Active F2L Chunks</span>
+                            <button onClick={() => openCurriculumArchitect('f2l')} className="text-xs font-black text-orange-400 hover:underline cursor-pointer">
+                              Edit Curriculum
+                            </button>
+                          </div>
+
+                          {userF2LChunks.map((chk, idx) => {
+                            const casesInChunk = chk.caseIds.map((id) => F2L_DATA.find((c) => c.id === id)).filter(Boolean);
+                            const sampleCase = casesInChunk[0] || F2L_DATA[0];
+                            const solvedCount = casesInChunk.filter((c) => (currentUser.f2lStats?.[c.id]?.best || 999) <= currentUser.targetGoal).length;
+                            return (
+                              <div
+                                key={chk.id}
+                                onClick={() => { emitBeep(520); setF2lSelectedCategory({ type: 'chunk', chunk: chk, index: idx }); }}
+                                className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex items-center justify-between gap-3 cursor-pointer hover:border-orange-500/40 active:scale-[0.98] transition-all"
+                              >
+                                <div className="w-16 h-16 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                                  <img
+                                    src={getF2LImageUrl(sampleCase.alg)}
+                                    alt={chk.title}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-black text-white leading-snug">{chk.title}</h4>
+                                  <span className="text-[11px] text-slate-400 block mt-1">{casesInChunk.length} pairs • {solvedCount}/{casesInChunk.length} sub-goal</span>
+                                </div>
+                                <div className="w-12 h-12 rounded-full bg-orange-500/15 border border-orange-500/30 flex flex-col items-center justify-center flex-shrink-0">
+                                  <span className="text-[8px] font-bold uppercase text-orange-300">Chunk</span>
+                                  <span className="font-mono text-xs font-black text-orange-400">{idx + 1}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => { emitBeep(440); setF2lSelectedCategory(null); }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-wider text-orange-400 cursor-pointer"
+                          >
+                            <span>‹ Back to Categories</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-black text-white">
+                            {f2lSelectedCategory.type === 'group' ? f2lSelectedCategory.name : f2lSelectedCategory.chunk.title}
+                          </h3>
+                          <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black text-orange-400">
+                            {f2lSelectedCategory.type === 'group'
+                              ? F2L_DATA.filter((c) => c.group === f2lSelectedCategory.name).length
+                              : f2lSelectedCategory.chunk.caseIds.length} Cases
+                          </span>
+                        </div>
+
+                        {(f2lSelectedCategory.type === 'group'
+                          ? F2L_DATA.filter((c) => c.group === f2lSelectedCategory.name)
+                          : f2lSelectedCategory.chunk.caseIds.map((id) => F2L_DATA.find((c) => c.id === id)).filter(Boolean)
+                        ).map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => { emitBeep(600); setF2lDrillCase(item); setF2lShowDrillAlg(false); setF2lDrillAufIdx(0); setTimerElapsed(0); setInlineF2lDrillFtOpen(false); setActiveModal('f2lDrill'); }}
+                            className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 cursor-pointer hover:border-orange-500/40 active:scale-[0.98] transition-all"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <div className="w-16 h-16 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                                <img
+                                  src={getF2LImageUrl(item.alg)}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <h4 className="text-sm font-black text-white truncate">{item.name}</h4>
+                                  <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-mono text-slate-400">#{item.f2lNo}</span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                  {hasYRotation(item.alg) && (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-[9px] font-black text-amber-300">
+                                      ⚠️ Rotation
+                                    </span>
+                                  )}
+                                  {isFingertricksEnabled && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openFingertrickDossier(item, null, 'f2l'); }}
+                                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-bold text-amber-300 cursor-pointer"
+                                    >
+                                      <span>⚡ Fingertricks</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-[#050811] border border-white/10 rounded-xl p-2.5 text-center font-mono text-xs font-black text-orange-400">
+                              {item.alg}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* F2L TAB 3: STATISTICS */}
+                {f2lTab === 'stats' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="text-center">
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">F2L Performance</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">F2L Statistics</h2>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Goal</span>
+                        <span className="font-mono text-base font-black text-amber-300">{currentUser.targetGoal.toFixed(1)}s</span>
+                      </div>
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Total Runs</span>
+                        <span className="font-mono text-base font-black text-white">{totalF2LRecordedRuns}</span>
+                      </div>
+                      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">All-Time PR</span>
+                        <span className="font-mono text-base font-black text-orange-400">
+                          {allTimeF2LBestPR !== null ? `${allTimeF2LBestPR.toFixed(2)}s` : '--s'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center pt-1">41 F2L Pairs (Tap to Drill)</p>
+
+                    <div className="space-y-2.5">
+                      {F2L_DATA.map((item) => {
+                        const caseStat = currentUser.f2lStats?.[item.id];
+                        const best = caseStat?.best ?? null;
+                        const delta = best !== null ? +(best - currentUser.targetGoal).toFixed(2) : null;
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => { emitBeep(560); setF2lDrillCase(item); setF2lShowDrillAlg(false); setF2lDrillAufIdx(0); setTimerElapsed(0); setInlineF2lDrillFtOpen(false); setActiveModal('f2lDrill'); }}
+                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/70 transition-all"
+                          >
+                            <div className="w-12 h-12 flex-shrink-0 bg-slate-200 rounded-xl p-1 flex items-center justify-center shadow-inner">
+                              <img
+                                src={getF2LImageUrl(item.alg)}
+                                alt={item.name}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                              <span className="text-[10px] font-mono text-slate-400">{item.group} • #{item.f2lNo}</span>
+                            </div>
+                            <div className="text-right font-mono flex items-center gap-2">
+                              <div>
+                                <span className="text-xs font-bold text-slate-400 block">{best !== null ? `${best.toFixed(2)}s` : 'No runs'}</span>
+                                {delta !== null && (
+                                  <span className={`text-[10px] font-bold ${best <= currentUser.targetGoal ? 'text-green-400' : 'text-orange-400'}`}>
+                                    {delta <= 0 ? `${delta.toFixed(2)}s` : `+${delta.toFixed(2)}s`}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-slate-500 text-xs">›</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* F2L TAB 4: SHARED SETTINGS DECK */}
+                {f2lTab === 'settings' && renderSettingsDeck('f2l')}
               </main>
             </div>
 
@@ -1840,7 +2452,7 @@ export default function App() {
                         <h2 className="text-2xl font-black tracking-tight text-white">Daily Grind</h2>
                       </div>
                       <button
-                        onClick={openCurriculumArchitect}
+                        onClick={() => openCurriculumArchitect('oll')}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-orange-400 text-xs font-bold active:scale-95 cursor-pointer"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
@@ -1881,7 +2493,7 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Today's Scheduled Cases List (Shown on Every Day: Learn, Drill & Review) */}
+                    {/* Today's Scheduled Cases List */}
                     <div
                       onPointerMove={handleLineupPointerMove}
                       onPointerUp={handleLineupPointerUp}
@@ -1893,13 +2505,13 @@ export default function App() {
                       }}
                       onTouchEnd={handleLineupPointerUp}
                       onTouchCancel={handleLineupPointerUp}
-                      className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 ${draggedLineupIdx !== null ? 'touch-none select-none overflow-hidden' : ''}`}
+                      className={`bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-2.5 ${draggedLineupIdx !== null && dragLineupPhase === 'oll' ? 'touch-none select-none overflow-hidden' : ''}`}
                     >
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Day {currentDay} Lineup</span>
                           <span className="text-[9px] font-semibold text-slate-500">
-                            {draggedLineupIdx !== null ? 'Drag up or down to place...' : 'Hold & drag to reorder'}
+                            {draggedLineupIdx !== null && dragLineupPhase === 'oll' ? 'Drag up or down to place...' : 'Hold & drag to reorder'}
                           </span>
                         </div>
                         <span className="text-[10px] font-mono text-slate-400">{sessionCases.length} Cases</span>
@@ -1907,8 +2519,8 @@ export default function App() {
 
                       <div className="space-y-2">
                         {sessionCases.map((item, idx) => {
-                          const isBeingDragged = draggedLineupIdx === idx;
-                          const isPressing = lineupPressIdx === idx && draggedLineupIdx === null;
+                          const isBeingDragged = draggedLineupIdx === idx && dragLineupPhase === 'oll';
+                          const isPressing = lineupPressIdx === idx && draggedLineupIdx === null && dragLineupPhase === 'oll';
                           return (
                             <div
                               key={item.id}
@@ -1916,11 +2528,11 @@ export default function App() {
                               onContextMenu={(e) => e.preventDefault()}
                               onPointerDown={(e) => {
                                 if (e.pointerType === 'touch') return;
-                                handleLineupPointerDown(idx, e.clientY);
+                                handleLineupPointerDown(idx, e.clientY, 'oll');
                               }}
                               onTouchStart={(e) => {
                                 const y = e.touches && e.touches[0] ? e.touches[0].clientY : null;
-                                handleLineupPointerDown(idx, y);
+                                handleLineupPointerDown(idx, y, 'oll');
                               }}
                               onClick={() => {
                                 if (lineupDidDragRef.current) {
@@ -1943,7 +2555,6 @@ export default function App() {
                                     : 'border-white/10 hover:border-orange-500/40'
                               }`}
                             >
-                              {/* Drag Grip Indicator */}
                               <div className={`pl-0.5 flex flex-col items-center justify-center ${isBeingDragged ? 'text-orange-400' : 'text-slate-600'}`}>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                   <circle cx="9" cy="6" r="1.8" />
@@ -1957,7 +2568,7 @@ export default function App() {
 
                               <div className="w-11 h-11 flex-shrink-0 bg-slate-200 rounded-xl p-1 flex items-center justify-center shadow-inner pointer-events-none">
                                 <img
-                                  src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`}
+                                  src={getOLLImageUrl(item.alg)}
                                   alt={item.name}
                                   className="w-full h-full object-contain"
                                 />
@@ -2020,7 +2631,7 @@ export default function App() {
                               >
                                 <div className="w-20 h-20 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
                                   <img
-                                    src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sampleCase.alg)}`}
+                                    src={getOLLImageUrl(sampleCase.alg)}
                                     alt={group}
                                     className="w-full h-full object-contain"
                                   />
@@ -2037,7 +2648,7 @@ export default function App() {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between px-1">
                             <span className="text-xs font-bold text-slate-300">{userChunks.length} Active Chunks feeding your program</span>
-                            <button onClick={openCurriculumArchitect} className="text-xs font-black text-orange-400 hover:underline cursor-pointer">
+                            <button onClick={() => openCurriculumArchitect('oll')} className="text-xs font-black text-orange-400 hover:underline cursor-pointer">
                               Edit Curriculum
                             </button>
                           </div>
@@ -2054,7 +2665,7 @@ export default function App() {
                               >
                                 <div className="w-16 h-16 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
                                   <img
-                                    src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(sampleCase.alg)}`}
+                                    src={getOLLImageUrl(sampleCase.alg)}
                                     alt={chk.title}
                                     className="w-full h-full object-contain"
                                   />
@@ -2106,7 +2717,7 @@ export default function App() {
                             <div className="flex items-center gap-3.5">
                               <div className="w-16 h-16 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
                                 <img
-                                  src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`}
+                                  src={getOLLImageUrl(item.alg)}
                                   alt={item.name}
                                   className="w-full h-full object-contain"
                                 />
@@ -2120,7 +2731,7 @@ export default function App() {
                                   <span className="text-[10px] font-mono text-slate-400">WCA OLL #{item.ollNo}</span>
                                   {isFingertricksEnabled && (
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); openFingertrickDossier(item, null); }}
+                                      onClick={(e) => { e.stopPropagation(); openFingertrickDossier(item, null, 'oll'); }}
                                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-bold text-amber-300 cursor-pointer"
                                     >
                                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -2180,7 +2791,7 @@ export default function App() {
                           >
                             <div className="w-12 h-12 flex-shrink-0 bg-slate-200 rounded-xl p-1 flex items-center justify-center shadow-inner">
                               <img
-                                src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`}
+                                src={getOLLImageUrl(item.alg)}
                                 alt={item.name}
                                 className="w-full h-full object-contain"
                               />
@@ -2208,7 +2819,7 @@ export default function App() {
                 )}
 
                 {/* TAB 4: SHARED SETTINGS DECK */}
-                {ollTab === 'settings' && renderSettingsDeck()}
+                {ollTab === 'settings' && renderSettingsDeck('oll')}
               </main>
             </div>
           </div>
@@ -2228,6 +2839,33 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => { emitBeep(460); setCrossTab(tab.id); }}
+                      className={`w-full flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-2xl transition-all cursor-pointer ${isActive ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'}`}
+                    >
+                      <div className={isActive ? "p-2 rounded-xl bg-orange-500/15" : "p-2 rounded-xl bg-transparent"}>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+                          {tab.svg}
+                        </svg>
+                      </div>
+                      <span className={`text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {currentPhase === 'f2l' && (
+              <div className="grid grid-cols-4 gap-1 w-full">
+                {[
+                  { id: 'grind', label: 'The Grind', svg: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></> },
+                  { id: 'algorithms', label: 'Algorithms', svg: <><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/></> },
+                  { id: 'stats', label: 'Statistics', svg: <><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></> },
+                  { id: 'settings', label: 'Settings', svg: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> }
+                ].map((tab) => {
+                  const isActive = f2lTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { emitBeep(460); setF2lTab(tab.id); }}
                       className={`w-full flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-2xl transition-all cursor-pointer ${isActive ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-200 active:scale-95'}`}
                     >
                       <div className={isActive ? "p-2 rounded-xl bg-orange-500/15" : "p-2 rounded-xl bg-transparent"}>
@@ -2266,12 +2904,6 @@ export default function App() {
                     </button>
                   );
                 })}
-              </div>
-            )}
-
-            {currentPhase === 'f2l' && (
-              <div className="flex items-center justify-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Phase 2 • F2L Module</span>
               </div>
             )}
           </nav>
@@ -2458,14 +3090,257 @@ export default function App() {
           );
         })()}
 
-        {/* 4. DAILY OLL SESSION RUNNER MODAL */}
+        {/* 4A. DAILY F2L SESSION RUNNER MODAL */}
+        {activeModal === 'f2lSession' && (() => {
+          const isLearnMode = currentF2LDayPlan.mode === 'learn';
+          const sessionSetupScramble = buildF2LSetupScramble(activeF2LSessionCase.setup, f2lSessionAufIdx, f2lScrambleStyle);
+          return (
+            <div className="fixed inset-0 z-[260] bg-[#060913]/95 backdrop-blur-3xl flex justify-center overflow-hidden">
+              <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/5 shadow-2xl flex flex-col justify-between px-4 pt-4 pb-6 overflow-y-auto no-scrollbar gap-2.5">
+                <div className="flex items-center justify-between gap-2.5 flex-shrink-0">
+                  <button
+                    onClick={() => { setTimerRunning(false); clearInterval(stopwatchRef.current); setInlineF2lSessionFtOpen(false); setActiveModal(null); }}
+                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                  >
+                    ✕
+                  </button>
+                  <div className="flex-1 flex items-center gap-1">
+                    {f2lSessionCases.map((c, idx) => (
+                      <div key={c.id} className={`h-1.5 flex-1 rounded-full transition-all ${idx === (f2lSessionIdx % f2lSessionCases.length) ? 'bg-orange-500' : idx < (f2lSessionIdx % f2lSessionCases.length) ? 'bg-orange-500/40' : 'bg-slate-800'}`}></div>
+                    ))}
+                  </div>
+                  <span className="font-mono text-[11px] font-bold text-slate-400">
+                    {(f2lSessionIdx % f2lSessionCases.length) + 1}/{f2lSessionCases.length}
+                  </span>
+                </div>
+
+                {/* Orientation & Beginner/Realistic Pill Bar */}
+                <div className="flex items-center justify-between bg-slate-900/70 border border-white/10 rounded-xl px-3 py-1.5 flex-shrink-0">
+                  <span className="text-[10px] font-bold text-slate-300">White Bottom • Orange Front</span>
+                  <button
+                    onClick={() => { emitBeep(500); setF2lScrambleStyle((s) => s === 'beginner' ? 'realistic' : 'beginner'); }}
+                    className="px-2 py-0.5 rounded-md bg-orange-500/15 border border-orange-500/35 text-[9px] font-black uppercase text-orange-400 cursor-pointer"
+                  >
+                    {f2lScrambleStyle === 'beginner' ? 'Beginner Setup' : 'Realistic Setup'}
+                  </button>
+                </div>
+
+                {/* Header Metadata */}
+                <div className="text-center space-y-0.5 flex-shrink-0">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">
+                    {activeF2LSessionCase.group}
+                  </span>
+                  <h3 className="text-xl font-black text-white tracking-tight leading-tight">{activeF2LSessionCase.name}</h3>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
+                    Target Slot: Front-Right (Orange-Blue-White)
+                  </p>
+                </div>
+
+                {/* Center F2L Card */}
+                <div className="bg-slate-900/75 border border-white/10 rounded-[1.75rem] p-4 flex flex-col items-center space-y-3 shadow-xl my-auto">
+                  <div className="w-24 h-24 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                    <img
+                      src={getF2LImageUrl(activeF2LSessionCase.alg)}
+                      alt={activeF2LSessionCase.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+
+                  {/* Setup Scramble Always Available with New Scramble Button */}
+                  <div className="w-full bg-[#050811] border border-white/10 rounded-xl px-3 py-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                        Setup Scramble ({f2lScrambleStyle})
+                      </span>
+                      <button
+                        onClick={cycleF2LSessionScramble}
+                        className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-bold text-orange-400 cursor-pointer active:scale-95"
+                      >
+                        New Scramble
+                      </button>
+                    </div>
+                    <div className="font-mono text-xs font-bold text-amber-300 text-center tracking-wide">{sessionSetupScramble}</div>
+                    <p className="text-[9.5px] text-slate-400 text-center leading-snug">
+                      {f2lScrambleStyle === 'beginner'
+                        ? 'Start from a solved cube (White Bottom • Orange Front). Other 3 slots stay solved.'
+                        : 'Start from a solved cube (White Bottom • Orange Front). Scrambles back/left slots + sets Front-Right pair.'}
+                    </p>
+                  </div>
+
+                  {/* 2-Step Intuitive Breakdown (Shown in Learn Mode) */}
+                  {isLearnMode && (
+                    <div className="w-full bg-blue-500/10 border border-blue-500/30 rounded-xl p-2.5 text-left space-y-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-300 block">Intuitive 2-Step Breakdown</span>
+                      <p className="text-[11px] text-slate-200 leading-snug"><strong>1.</strong> {activeF2LSessionCase.step1}</p>
+                      <p className="text-[11px] text-slate-200 leading-snug"><strong>2.</strong> {activeF2LSessionCase.step2}</p>
+                    </div>
+                  )}
+
+                  {/* Solution Algorithm */}
+                  {isLearnMode || f2lSessionShowAlg ? (
+                    <div className="w-full bg-[#050811] border border-white/10 rounded-xl py-2.5 px-3 text-center font-mono text-sm font-black text-orange-400 tracking-wider">
+                      {activeF2LSessionCase.alg}
+                    </div>
+                  ) : (
+                    <button onClick={() => setF2lSessionShowAlg(true)} className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer active:scale-95 transition-all">
+                      Reveal Solution Algorithm
+                    </button>
+                  )}
+
+                  {/* Rotation Caution Notice */}
+                  {renderF2LRotationCaution(activeF2LSessionCase.alg)}
+
+                  {/* Inline Fingertrick Guide */}
+                  {isFingertricksEnabled && (
+                    !inlineF2lSessionFtOpen ? (
+                      <button
+                        onClick={() => { emitBeep(660, 'sine', 0.08); setFtTriggerIdx(0); setInlineF2lSessionFtOpen(true); }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[11px] font-bold text-amber-300 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span>Fingertrick Guide</span>
+                      </button>
+                    ) : (
+                      renderInlineFingertrickPanel(activeF2LSessionCase, () => setInlineF2lSessionFtOpen(false), 'f2l')
+                    )
+                  )}
+
+                  {/* Speedcube Stopwatch */}
+                  {isTimerEnabled && (
+                    <button
+                      onClick={() => toggleStopwatch(activeF2LSessionCase.id, 'f2l')}
+                      className={`w-full py-3 rounded-2xl border-2 font-mono text-xl font-black transition-all cursor-pointer active:scale-[0.99] ${timerRunning ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-slate-950 border-white/15 text-white'}`}
+                    >
+                      {timerRunning ? `${timerElapsed.toFixed(2)}s (TAP TO STOP)` : `${timerElapsed > 0 ? timerElapsed.toFixed(2) + 's' : 'TAP TO TIME'}`}
+                    </button>
+                  )}
+                </div>
+
+                {/* Bottom Navigation */}
+                <div className="flex gap-2 flex-shrink-0 pt-1">
+                  <button
+                    onClick={() => { setF2lSessionIdx((p) => (p - 1 + f2lSessionCases.length) % f2lSessionCases.length); setF2lSessionShowAlg(false); setF2lSessionAufIdx(0); setTimerElapsed(0); setFtTriggerIdx(0); }}
+                    className="w-12 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-black text-base cursor-pointer flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    ‹
+                  </button>
+                  {(f2lSessionIdx % f2lSessionCases.length) < f2lSessionCases.length - 1 ? (
+                    <button
+                      onClick={() => { setF2lSessionIdx((p) => p + 1); setF2lSessionShowAlg(false); setF2lSessionAufIdx(0); setTimerElapsed(0); setFtTriggerIdx(0); emitBeep(600); }}
+                      className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+                    >
+                      <span>Next Pair</span>
+                      <span>›</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setInlineF2lSessionFtOpen(false); setActiveModal(null); changeF2LDay(1); triggerToast(`F2L Day ${currentF2LDay} Complete!`); }}
+                      className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-green-500/20 active:scale-95 transition-all"
+                    >
+                      Complete Day {currentF2LDay}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 4B. ISOLATED F2L DRILL MODAL */}
+        {activeModal === 'f2lDrill' && (() => {
+          const drillSetupScramble = buildF2LSetupScramble(f2lDrillCase.setup, f2lDrillAufIdx, f2lScrambleStyle);
+          return (
+            <div className="fixed inset-0 z-[260] bg-[#060913]/95 backdrop-blur-3xl flex justify-center overflow-hidden">
+              <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/5 shadow-2xl flex flex-col justify-between px-4 pt-4 pb-6 overflow-y-auto no-scrollbar gap-2.5">
+                <div className="flex items-center justify-between flex-shrink-0">
+                  <button onClick={() => { setTimerRunning(false); clearInterval(stopwatchRef.current); setInlineF2lDrillFtOpen(false); setActiveModal(null); }} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs flex items-center justify-center cursor-pointer active:scale-95">✕</button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">F2L Pair Drill • #{f2lDrillCase.f2lNo}</span>
+                  <button
+                    onClick={() => { emitBeep(500); setF2lScrambleStyle((s) => s === 'beginner' ? 'realistic' : 'beginner'); }}
+                    className="px-2 py-1 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[9px] font-black uppercase text-orange-400 cursor-pointer"
+                  >
+                    {f2lScrambleStyle}
+                  </button>
+                </div>
+
+                <div className="bg-slate-900/75 border border-white/10 rounded-[1.75rem] p-4 text-center space-y-3 my-auto shadow-xl">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">{f2lDrillCase.group}</span>
+                  <h3 className="text-xl font-black text-white leading-tight">{f2lDrillCase.name}</h3>
+                  <p className="text-[10px] text-slate-400">White Bottom • Orange Front • Front-Right Slot</p>
+
+                  <div className="w-24 h-24 mx-auto bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                    <img src={getF2LImageUrl(f2lDrillCase.alg)} alt={f2lDrillCase.name} className="w-full h-full object-contain" />
+                  </div>
+
+                  <div className="bg-[#050811] border border-white/10 rounded-xl px-3 py-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Setup Scramble ({f2lScrambleStyle})</span>
+                      <button
+                        onClick={cycleF2LDrillScramble}
+                        className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-bold text-orange-400 cursor-pointer active:scale-95"
+                      >
+                        New Scramble
+                      </button>
+                    </div>
+                    <div className="font-mono text-xs font-bold text-amber-300">{drillSetupScramble}</div>
+                    <p className="text-[9.5px] text-slate-400 text-center leading-snug">
+                      {f2lScrambleStyle === 'beginner'
+                        ? 'Start from a solved cube (White Bottom • Orange Front). Other 3 slots stay solved.'
+                        : 'Start from a solved cube (White Bottom • Orange Front). Scrambles back/left slots + sets Front-Right pair.'}
+                    </p>
+                  </div>
+
+                  <div className="w-full bg-blue-500/10 border border-blue-500/30 rounded-xl p-2.5 text-left space-y-1">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-300 block">Intuitive 2-Step Breakdown</span>
+                    <p className="text-[11px] text-slate-200 leading-snug"><strong>1.</strong> {f2lDrillCase.step1}</p>
+                    <p className="text-[11px] text-slate-200 leading-snug"><strong>2.</strong> {f2lDrillCase.step2}</p>
+                  </div>
+
+                  {f2lShowDrillAlg ? (
+                    <div className="bg-[#050811] border border-white/10 rounded-xl py-2.5 px-3 font-mono text-sm font-black text-orange-400">{f2lDrillCase.alg}</div>
+                  ) : (
+                    <button onClick={() => setF2lShowDrillAlg(true)} className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Reveal Algorithm</button>
+                  )}
+
+                  {renderF2LRotationCaution(f2lDrillCase.alg)}
+
+                  {isFingertricksEnabled && (
+                    !inlineF2lDrillFtOpen ? (
+                      <button
+                        onClick={() => { emitBeep(660, 'sine', 0.08); setFtTriggerIdx(0); setInlineF2lDrillFtOpen(true); }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[11px] font-bold text-amber-300 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        <span>Fingertrick Guide</span>
+                      </button>
+                    ) : (
+                      renderInlineFingertrickPanel(f2lDrillCase, () => setInlineF2lDrillFtOpen(false), 'f2l')
+                    )
+                  )}
+
+                  {isTimerEnabled && (
+                    <button
+                      onClick={() => toggleStopwatch(f2lDrillCase.id, 'f2l')}
+                      className={`w-full py-3 rounded-2xl border-2 font-mono text-xl font-black transition-all cursor-pointer ${timerRunning ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-slate-950 border-white/15 text-white'}`}
+                    >
+                      {timerRunning ? `${timerElapsed.toFixed(2)}s (STOP)` : `${timerElapsed > 0 ? timerElapsed.toFixed(2) + 's' : 'TAP TO TIME'}`}
+                    </button>
+                  )}
+                </div>
+
+                <button onClick={() => { setInlineF2lDrillFtOpen(false); setActiveModal(null); }} className="w-full py-3.5 rounded-2xl bg-white/10 text-white font-bold text-xs cursor-pointer flex-shrink-0">Done Drilling</button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 4C. DAILY OLL SESSION RUNNER MODAL */}
         {activeModal === 'session' && (() => {
           const isLearnMode = currentDayPlan.mode === 'learn';
           const sessionSetupScramble = buildSetupScramble(activeSessionCase.setup, sessionAufIdx);
           return (
             <div className="fixed inset-0 z-[260] bg-[#060913]/95 backdrop-blur-3xl flex justify-center overflow-hidden">
               <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/5 shadow-2xl flex flex-col justify-between px-4 pt-4 pb-6 overflow-y-auto no-scrollbar gap-2.5">
-                {/* Top Segmented Progress Bar */}
                 <div className="flex items-center justify-between gap-2.5 flex-shrink-0">
                   <button
                     onClick={() => { setTimerRunning(false); clearInterval(stopwatchRef.current); setInlineSessionFtOpen(false); setActiveModal(null); }}
@@ -2483,31 +3358,20 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* Pro Tip Banner in Learn Mode */}
-                {isLearnMode && (
-                  <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl px-3 py-2 text-center flex-shrink-0">
-                    <p className="text-[10px] font-bold text-amber-300 leading-snug">
-                      💡 Pro Tip: Practice each Algorithm at least <span className="underline">40 times</span> to commit to memory then <span className="underline">20 more times</span> to solidify!
-                    </p>
-                  </div>
-                )}
-
-                {/* Header Metadata */}
                 <div className="text-center space-y-0.5 flex-shrink-0">
                   <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">
                     {activeSessionCase.group}
                   </span>
-                  <h3 className="text-2xl font-black text-white tracking-tight leading-tight">{activeSessionCase.name}</h3>
+                  <h3 className="text-xl font-black text-white tracking-tight leading-tight">{activeSessionCase.name}</h3>
                   <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
-                    WCA OLL #{activeSessionCase.ollNo} • PROGRAM #{activeSessionCase.id}
+                    WCA OLL #{activeSessionCase.ollNo} • {currentDayPlan.mode}
                   </p>
                 </div>
 
-                {/* Center Pattern Card (iOS Proportioned) */}
                 <div className="bg-slate-900/75 border border-white/10 rounded-[1.75rem] p-4 flex flex-col items-center space-y-3 shadow-xl my-auto">
                   <div className="w-24 h-24 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
                     <img
-                      src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(activeSessionCase.alg)}`}
+                      src={getOLLImageUrl(activeSessionCase.alg)}
                       alt={activeSessionCase.name}
                       className="w-full h-full object-contain"
                     />
@@ -2548,13 +3412,13 @@ export default function App() {
                         <span>Fingertrick Guide</span>
                       </button>
                     ) : (
-                      renderInlineFingertrickPanel(activeSessionCase, () => setInlineSessionFtOpen(false))
+                      renderInlineFingertrickPanel(activeSessionCase, () => setInlineSessionFtOpen(false), 'oll')
                     )
                   )}
 
                   {!isLearnMode && isTimerEnabled && (
                     <button
-                      onClick={() => toggleOLLStopwatch(activeSessionCase.id)}
+                      onClick={() => toggleStopwatch(activeSessionCase.id, 'oll')}
                       className={`w-full py-3 rounded-2xl border-2 font-mono text-xl font-black transition-all cursor-pointer active:scale-[0.99] ${timerRunning ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-slate-950 border-white/15 text-white'}`}
                     >
                       {timerRunning ? `${timerElapsed.toFixed(2)}s (TAP TO STOP)` : `${timerElapsed > 0 ? timerElapsed.toFixed(2) + 's' : 'TAP TO TIME'}`}
@@ -2562,7 +3426,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Bottom Navigation Controls */}
                 <div className="flex gap-2 flex-shrink-0 pt-1">
                   <button
                     onClick={() => { setSessionIdx((p) => (p - 1 + sessionCases.length) % sessionCases.length); setSessionShowAlg(false); setSessionAufIdx(0); setTimerElapsed(0); setFtTriggerIdx(0); }}
@@ -2592,7 +3455,7 @@ export default function App() {
           );
         })()}
 
-        {/* 5. ISOLATED DRILL MODAL */}
+        {/* 5. ISOLATED OLL DRILL MODAL */}
         {activeModal === 'drill' && (() => {
           const drillSetupScramble = buildSetupScramble(drillCase.setup, drillAufIdx);
           return (
@@ -2608,7 +3471,7 @@ export default function App() {
                   <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">{drillCase.group}</span>
                   <h3 className="text-2xl font-black text-white leading-tight">{drillCase.name}</h3>
                   <div className="w-24 h-24 mx-auto bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
-                    <img src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(drillCase.alg)}`} alt={drillCase.name} className="w-full h-full object-contain" />
+                    <img src={getOLLImageUrl(drillCase.alg)} alt={drillCase.name} className="w-full h-full object-contain" />
                   </div>
 
                   <div className="bg-[#050811] border border-white/10 rounded-xl px-3 py-2">
@@ -2640,13 +3503,13 @@ export default function App() {
                         <span>Fingertrick Guide</span>
                       </button>
                     ) : (
-                      renderInlineFingertrickPanel(drillCase, () => setInlineDrillFtOpen(false))
+                      renderInlineFingertrickPanel(drillCase, () => setInlineDrillFtOpen(false), 'oll')
                     )
                   )}
 
                   {isTimerEnabled && (
                     <button
-                      onClick={() => toggleOLLStopwatch(drillCase.id)}
+                      onClick={() => toggleStopwatch(drillCase.id, 'oll')}
                       className={`w-full py-3 rounded-2xl border-2 font-mono text-xl font-black transition-all cursor-pointer ${timerRunning ? 'bg-green-500/20 border-green-500 text-green-300' : 'bg-slate-950 border-white/15 text-white'}`}
                     >
                       {timerRunning ? `${timerElapsed.toFixed(2)}s (STOP)` : `${timerElapsed > 0 ? timerElapsed.toFixed(2) + 's' : 'TAP TO TIME'}`}
@@ -2662,7 +3525,9 @@ export default function App() {
 
         {/* 6. INTERACTIVE FINGERTRICK DOSSIER MODAL */}
         {activeModal === 'fingertrick' && (() => {
-          const dossier = FINGERTRICK_GUIDES[ftCase.id] || FINGERTRICK_GUIDES.default;
+          const dossier = ftPhaseContext === 'f2l'
+            ? F2L_FINGERTRICK_GUIDES.default
+            : (FINGERTRICK_GUIDES[ftCase.id] || FINGERTRICK_GUIDES.default);
           const activeTrig = dossier.triggers[ftTriggerIdx % dossier.triggers.length];
           return (
             <div className="fixed inset-0 z-[270] bg-[#060913]/95 backdrop-blur-3xl flex flex-col justify-between p-5 overflow-y-auto no-scrollbar">
@@ -2682,7 +3547,11 @@ export default function App() {
               <div className="max-w-md w-full mx-auto space-y-4 my-4">
                 <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex items-center gap-4">
                   <div className="w-20 h-20 flex-shrink-0 bg-slate-200 rounded-2xl p-1.5 flex items-center justify-center">
-                    <img src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(ftCase.alg)}`} alt={ftCase.name} className="w-full h-full object-contain" />
+                    <img
+                      src={ftPhaseContext === 'f2l' ? getF2LImageUrl(ftCase.alg) : getOLLImageUrl(ftCase.alg)}
+                      alt={ftCase.name}
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   <div className="space-y-2 flex-1">
                     <div className="font-mono text-sm font-black text-orange-400">{ftCase.alg}</div>
@@ -2730,25 +3599,31 @@ export default function App() {
           );
         })()}
 
-        {/* 7. CURRICULUM ARCHITECT MODAL */}
+        {/* 7. CURRICULUM ARCHITECT MODAL (OLL & F2L) */}
         {activeModal === 'curriculum' && (() => {
+          const sourceData = builderPhase === 'f2l' ? F2L_DATA : OLL_DATA;
           const activeBuilderChunk = draftChunks[selectedBuilderChunkIdx] || draftChunks[0];
-          const casesInBuilderChunk = activeBuilderChunk.caseIds.map((id) => OLL_DATA.find((c) => c.id === id)).filter(Boolean);
+          const casesInBuilderChunk = activeBuilderChunk.caseIds.map((id) => sourceData.find((c) => c.id === id)).filter(Boolean);
+          const previewDays = generateSchedule(draftChunks, builderPhase.toUpperCase(), sourceData).length;
           return (
             <div className="fixed inset-0 z-[270] bg-[#060913]/95 backdrop-blur-3xl flex flex-col justify-between p-5 overflow-y-auto no-scrollbar">
               <div className="max-w-md w-full mx-auto space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Curriculum Architect</span>
-                    <h3 className="text-xl font-black text-white">Organize Cases</h3>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                      {builderPhase.toUpperCase()} Curriculum Architect
+                    </span>
+                    <h3 className="text-xl font-black text-white">Organize {builderPhase.toUpperCase()} Cases</h3>
                   </div>
                   <button onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/10 text-white text-xs cursor-pointer">✕</button>
                 </div>
 
                 <div className="grid grid-cols-3 gap-1.5">
-                  <button onClick={() => applyCurriculumPreset('default')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">Standard 9</button>
+                  <button onClick={() => applyCurriculumPreset('default')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">
+                    {builderPhase === 'f2l' ? 'Standard 6' : 'Standard 9'}
+                  </button>
                   <button onClick={() => applyCurriculumPreset('casual')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">Casual 3/Chunk</button>
-                  <button onClick={() => applyCurriculumPreset('shape')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">By Shape</button>
+                  <button onClick={() => applyCurriculumPreset('shape')} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">By Group</button>
                 </div>
 
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
@@ -2787,7 +3662,11 @@ export default function App() {
                     {casesInBuilderChunk.map((item) => (
                       <div key={item.id} className="bg-[#050811] border border-white/5 rounded-xl p-2 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <img src={`https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=oll&view=plan&bg=t&case=${encodeURIComponent(item.alg)}`} alt={item.name} className="w-8 h-8 bg-slate-200 rounded-lg p-0.5" />
+                          <img
+                            src={builderPhase === 'f2l' ? getF2LImageUrl(item.alg) : getOLLImageUrl(item.alg)}
+                            alt={item.name}
+                            className="w-8 h-8 bg-slate-200 rounded-lg p-0.5"
+                          />
                           <span className="text-xs font-bold text-white truncate">{item.name}</span>
                         </div>
                         {movingCaseId === item.id ? (
@@ -2811,37 +3690,136 @@ export default function App() {
 
               <div className="max-w-md w-full mx-auto pt-3">
                 <button onClick={saveCustomCurriculum} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer shadow-lg">
-                  Save Custom Curriculum ({generateSchedule(draftChunks).length} Days)
+                  Save Custom Curriculum ({previewDays} Days)
                 </button>
               </div>
             </div>
           );
         })()}
 
-        {/* 8. BEGINNER ONBOARDING GUIDE MODAL */}
+        {/* 8. COMPLETE 4-PHASE CFOP BEGINNER'S GUIDE MODAL */}
         {activeModal === 'onboarding' && (() => {
           const slides = [
-            { tag: "Welcome to OLLDay", title: "Master OLL One Chunk at a Time", body: "Instead of memorizing 57 algorithms overnight, OLLDay breaks them into small daily chunks with dedicated Learn, Drill, and Review days." },
-            { tag: "How to Practice", title: "Hold Yellow on Top", body: "Always hold your 3x3 cube with the Yellow center facing UP. Match the top sticker pattern to the diagram, then execute the algorithm cleanly." },
-            { tag: "Fingertricks & Timing", title: "Triggers Over Single Turns", body: "Use the Fingertrick Guide on any pattern to learn zero-regrip triggers like Sexy Move (R U R' U') and Sledgehammer (R' F R F')." }
+            {
+              tag: "Step 1 of 5 • Overview",
+              title: "How CFOP Works",
+              body: "CFOP is the world-record speedcubing method broken into 4 sequential phases: Cross (C), First Two Layers (F), Orient Last Layer (O), and Permute Last Layer (P). Switch phases anytime using the top-right C-F-O-P selector."
+            },
+            {
+              tag: "Step 2 of 5 • Phase C",
+              title: "Phase 1: The White Cross",
+              body: "Build a white plus sign on the bottom face while matching each edge's side color to its center. Use Cross in X to solve in fewer turns, then train Eyes-Closed & 15s Blind Inspection so your hands run on autopilot."
+            },
+            {
+              tag: "Step 3 of 5 • Phase F",
+              title: "Phase 2: First Two Layers (F2L)",
+              body: "Hold White on Bottom and Orange in Front. Pair each bottom white corner with its matching middle-layer edge and insert them together into the Front-Right slot—switching between Beginner and Realistic setups as you improve."
+            },
+            {
+              tag: "Step 4 of 5 • Phase O",
+              title: "Phase 3: Orient Last Layer (OLL)",
+              body: "Turn the entire top face solid Yellow in a single algorithm. Master small daily chunks across Learn, Drill, and Refine days using zero-regrip Fingertrick triggers."
+            },
+            {
+              tag: "Step 5 of 5 • Phase P & Launch",
+              title: "Phase 4: Permute Last Layer (PLL)",
+              body: "Once the top face is solid Yellow, PLL swaps the final top-layer corners and edges into their solved positions without disturbing anything below. Choose where you want to jump in right now:"
+            }
           ];
           const slide = slides[onboardStep % slides.length];
+          const isFinalSlide = onboardStep === slides.length - 1;
+
+          const launchFromGuide = (targetPhase) => {
+            emitBeep(880, 'sine', 0.12);
+            updateCurrentUser({ hasSeenOnboarding: true });
+            setActiveModal(null);
+            selectPhase(targetPhase);
+          };
+
           return (
             <div className="fixed inset-0 z-[275] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
               <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/15 px-3 py-1 rounded-full border border-orange-500/30">{slide.tag}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/15 px-3 py-1 rounded-full border border-orange-500/30">
+                    {slide.tag}
+                  </span>
+                  <button
+                    onClick={() => { updateCurrentUser({ hasSeenOnboarding: true }); setActiveModal(null); }}
+                    className="w-7 h-7 rounded-full bg-white/5 text-slate-400 hover:text-white text-xs flex items-center justify-center cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
                 <h3 className="text-xl font-black text-white">{slide.title}</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">{slide.body}</p>
+
+                {isFinalSlide && (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      onClick={() => launchFromGuide('cross')}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-left transition-all cursor-pointer"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">Phase C</span>
+                      <span className="text-xs font-black text-white">White Cross</span>
+                    </button>
+                    <button
+                      onClick={() => launchFromGuide('f2l')}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-left transition-all cursor-pointer"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">Phase F</span>
+                      <span className="text-xs font-black text-white">F2L Pairs</span>
+                    </button>
+                    <button
+                      onClick={() => launchFromGuide('oll')}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-left transition-all cursor-pointer"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">Phase O</span>
+                      <span className="text-xs font-black text-white">OLL Cases</span>
+                    </button>
+                    <button
+                      onClick={() => launchFromGuide('pll')}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 text-left transition-all cursor-pointer"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">Phase P</span>
+                      <span className="text-xs font-black text-white">PLL Roadmap</span>
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex justify-center gap-1.5">
                   {slides.map((_, idx) => (
-                    <span key={idx} className={`h-1.5 rounded-full ${onboardStep === idx ? 'w-5 bg-orange-500' : 'w-1.5 bg-slate-700'}`}></span>
+                    <button
+                      key={idx}
+                      onClick={() => { emitBeep(500); setOnboardStep(idx); }}
+                      className={`h-1.5 rounded-full transition-all cursor-pointer ${onboardStep === idx ? 'w-5 bg-orange-500' : 'w-1.5 bg-slate-700'}`}
+                    />
                   ))}
                 </div>
+
                 <div className="flex gap-2">
-                  {onboardStep < slides.length - 1 ? (
-                    <button onClick={() => { emitBeep(560); setOnboardStep((p) => p + 1); }} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Next Tip →</button>
+                  {onboardStep > 0 && (
+                    <button
+                      onClick={() => { emitBeep(480); setOnboardStep((p) => p - 1); }}
+                      className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs cursor-pointer"
+                    >
+                      ‹ Back
+                    </button>
+                  )}
+                  {!isFinalSlide ? (
+                    <button
+                      onClick={() => { emitBeep(560); setOnboardStep((p) => p + 1); }}
+                      className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer"
+                    >
+                      Next Step →
+                    </button>
                   ) : (
-                    <button onClick={() => { updateCurrentUser({ hasSeenOnboarding: true }); setActiveModal(null); }} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-400 text-slate-950 font-black text-xs cursor-pointer">Start Training</button>
+                    <button
+                      onClick={() => { updateCurrentUser({ hasSeenOnboarding: true }); setActiveModal(null); }}
+                      className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs cursor-pointer"
+                    >
+                      Stay Here
+                    </button>
                   )}
                 </div>
               </div>
@@ -2866,7 +3844,7 @@ export default function App() {
                   <div key={u.pin} className="bg-[#050811] border border-white/10 rounded-xl p-3 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-black text-white block">{u.name}</span>
-                      <span className="text-[10px] font-mono text-slate-400">Day {u.day || 1} • Goal {u.targetGoal.toFixed(2)}s</span>
+                      <span className="text-[10px] font-mono text-slate-400">F2L D{u.f2lDay || 1} • OLL D{u.day || 1}</span>
                     </div>
                     <span className="px-2.5 py-1 rounded-lg bg-orange-500/15 border border-orange-500/30 font-mono text-xs font-black text-orange-400">
                       PIN: {u.pin}
@@ -2907,83 +3885,65 @@ export default function App() {
         {/* 10. GRANULAR RESET MODAL */}
         {activeModal === 'reset' && (
           <div className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-              <h3 className="text-xl font-black text-white">Reset Options</h3>
-              <p className="text-xs text-slate-400">Choose what to reset for {currentUser.name}:</p>
-              <div className="space-y-2">
-                <button onClick={() => executeGranularReset('schedule')} className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-300 font-bold text-xs cursor-pointer">Reset Training Schedule Only (Day 1)</button>
-                <button onClick={() => executeGranularReset('stats')} className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-orange-300 font-bold text-xs cursor-pointer">Reset Statistics Times Only</button>
-                <button onClick={() => executeGranularReset('both')} className="w-full py-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 font-black text-xs cursor-pointer">Reset Both (Full Wipe)</button>
-                <button onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-xl text-slate-400 font-bold text-xs cursor-pointer mt-2">Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 11. UPCOMING PHASE PREVIEW MODAL */}
-        {activeModal === 'preview' && (
-          <div className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">CFOP Phase 4 • PLL</span>
-              <h3 className="text-xl font-black text-white">Permute Last Layer</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">2-sided PLL recognition drills and AUF prediction trainers are queued next in our CFOP roadmap.</p>
-              <button onClick={() => setActiveModal(null)} className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Back to Active Phase</button>
-            </div>
-          </div>
-        )}
-
-        {/* 12. SUBTLE FLOATING TURN-COUNT FEEDBACK MODAL */}
-        {efficiencyFeedback && (
-          <div
-            onClick={() => setEfficiencyFeedback(null)}
-            className="fixed inset-0 z-[265] bg-black/45 backdrop-blur-[2px] flex items-center justify-center p-5 transition-opacity"
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900/95 border border-white/15 rounded-[2rem] p-5 max-w-xs w-full text-center space-y-3.5 shadow-2xl"
-            >
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3.5 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
               <div className="flex items-center justify-between">
-                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                  efficiencyFeedback.optimal
-                    ? 'bg-green-500/15 border-green-500/35 text-green-300'
-                    : 'bg-amber-500/15 border-amber-500/35 text-amber-300'
-                }`}>
-                  {efficiencyFeedback.optimal ? 'Target Hit' : 'Optimization Tip'}
-                </span>
-                <span className="text-[10px] font-mono font-bold text-slate-400">
-                  {optimalCrossCount} Optimal
-                </span>
+                <div className="text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-red-400 block">Granular Control</span>
+                  <h3 className="text-lg font-black text-white">Reset Progress</h3>
+                </div>
+                <button onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 text-slate-400 hover:text-white text-xs flex items-center justify-center cursor-pointer">✕</button>
+              </div>
+              <p className="text-[11px] text-slate-400 text-left">Select an individual phase track or full wipe for <strong className="text-slate-200">{currentUser.name}</strong>:</p>
+
+              {/* Phase F: F2L Options */}
+              <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 space-y-1.5 text-left">
+                <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block px-1">Phase F • First Two Layers (F2L)</span>
+                <button onClick={() => executeGranularReset('f2l_schedule')} className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-amber-300 font-bold text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Reset F2L Schedule Only</span>
+                  <span className="text-[10px] font-mono text-slate-400">Day 1</span>
+                </button>
+                <button onClick={() => executeGranularReset('f2l_stats')} className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-orange-300 font-bold text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Reset F2L Statistics & PRs</span>
+                  <span className="text-[10px] font-mono text-slate-400">Clear</span>
+                </button>
+                <button onClick={() => executeGranularReset('f2l_chunks')} className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-slate-200 font-bold text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Restore Default F2L Chunks</span>
+                  <span className="text-[10px] font-mono text-slate-400">6 Chunks</span>
+                </button>
+                <button onClick={() => executeGranularReset('f2l_all')} className="w-full py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 font-black text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Reset All F2L Progress</span>
+                  <span className="text-[10px] font-mono">F2L Wipe</span>
+                </button>
               </div>
 
-              <h3 className={`text-lg font-black leading-snug ${efficiencyFeedback.optimal ? 'text-green-300' : 'text-amber-200'}`}>
-                {efficiencyFeedback.title}
-              </h3>
-
-              <p className="text-xs text-slate-300 leading-relaxed">
-                {efficiencyFeedback.detail}
-              </p>
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    emitBeep(480);
-                    setEfficiencyFeedback(null);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs cursor-pointer active:scale-95 transition-all"
-                >
-                  Retry Scramble
+              {/* Phase O: OLL Options */}
+              <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 space-y-1.5 text-left">
+                <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block px-1">Phase O • Orient Last Layer (OLL)</span>
+                <button onClick={() => executeGranularReset('oll_schedule')} className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-amber-300 font-bold text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Reset OLL Schedule Only</span>
+                  <span className="text-[10px] font-mono text-slate-400">Day 1</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    emitBeep(560);
-                    setCrossScrambleIdx((p) => p + 1);
-                    setEfficiencyFeedback(null);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer active:scale-95 transition-all"
-                >
-                  Next Scramble
+                <button onClick={() => executeGranularReset('oll_stats')} className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-orange-300 font-bold text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Reset OLL Statistics & PRs</span>
+                  <span className="text-[10px] font-mono text-slate-400">Clear</span>
+                </button>
+                <button onClick={() => executeGranularReset('oll_chunks')} className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-slate-200 font-bold text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Restore Default OLL Chunks</span>
+                  <span className="text-[10px] font-mono text-slate-400">9 Chunks</span>
+                </button>
+                <button onClick={() => executeGranularReset('oll_all')} className="w-full py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 font-black text-xs text-left flex items-center justify-between cursor-pointer">
+                  <span>Reset All OLL Progress</span>
+                  <span className="text-[10px] font-mono">OLL Wipe</span>
+                </button>
+              </div>
+
+              {/* Global Wipe */}
+              <div className="space-y-1.5 pt-0.5">
+                <button onClick={() => executeGranularReset('both')} className="w-full py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 font-black text-xs cursor-pointer">
+                  Reset Everything (Full Profile Wipe)
+                </button>
+                <button onClick={() => setActiveModal(null)} className="w-full py-2 rounded-xl text-slate-400 hover:text-white font-bold text-xs cursor-pointer">
+                  Cancel
                 </button>
               </div>
             </div>
