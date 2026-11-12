@@ -851,6 +851,9 @@ const getPLLImageUrl = (alg, setupScramble = null) => {
     : `${baseUrl}&case=${encodeURIComponent(alg)}`;
 };
 
+const getCrossImageUrl = (scramble) =>
+  `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=cross&bg=t&cc=080b12&co=100&fc=yyyyyyyyyooooooooogggggggggwwwwwwwwwrrrrrrrrrbbbbbbbbb&r=y-35x25&alg=${encodeURIComponent(scramble)}`;
+
 function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
   if (variationSeed === 0) return inverseAlg;
   const aufOptions = ['', 'U', "U'", 'U2'];
@@ -858,6 +861,89 @@ function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
   const postAuf = aufOptions[Math.floor(variationSeed / 2) % aufOptions.length];
   return `${preAuf} ${inverseAlg} ${postAuf}`.replace(/\s+/g, ' ').trim();
 }
+
+// =========================================================================
+// 2B. LIVE 3x3 CUBE SIMULATOR FOR CROSS 180° BOTTOM-VIEW SVG DIAGRAM
+// =========================================================================
+function simulateCrossCubeState(scramble = '') {
+  // Faces: U(0..8 Yellow), R(9..17 Orange), F(18..26 Green), D(27..35 White), L(36..44 Red), B(45..53 Blue)
+  const s = [
+    ...Array(9).fill('Y'),
+    ...Array(9).fill('O'),
+    ...Array(9).fill('G'),
+    ...Array(9).fill('W'),
+    ...Array(9).fill('R'),
+    ...Array(9).fill('B')
+  ];
+
+  const rotCW = (o) => {
+    const t = [s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8]];
+    s[o] = t[6]; s[o + 1] = t[3]; s[o + 2] = t[0];
+    s[o + 3] = t[7]; s[o + 4] = t[4]; s[o + 5] = t[1];
+    s[o + 6] = t[8]; s[o + 7] = t[5]; s[o + 8] = t[2];
+  };
+
+  const cycle4 = (a, b, c, d) => {
+    const tmp = s[d];
+    s[d] = s[c];
+    s[c] = s[b];
+    s[b] = s[a];
+    s[a] = tmp;
+  };
+
+  const turnOnce = (face) => {
+    if (face === 'U') {
+      rotCW(0);
+      cycle4(18, 36, 45, 9);
+      cycle4(19, 37, 46, 10);
+      cycle4(20, 38, 47, 11);
+    } else if (face === 'D') {
+      rotCW(27);
+      cycle4(24, 15, 51, 42);
+      cycle4(25, 16, 52, 43);
+      cycle4(26, 17, 53, 44);
+    } else if (face === 'R') {
+      rotCW(9);
+      cycle4(2, 51, 29, 20);
+      cycle4(5, 48, 32, 23);
+      cycle4(8, 45, 35, 26);
+    } else if (face === 'L') {
+      rotCW(36);
+      cycle4(0, 18, 27, 53);
+      cycle4(3, 21, 30, 50);
+      cycle4(6, 24, 33, 47);
+    } else if (face === 'F') {
+      rotCW(18);
+      cycle4(6, 9, 29, 44);
+      cycle4(7, 12, 28, 41);
+      cycle4(8, 15, 27, 38);
+    } else if (face === 'B') {
+      rotCW(45);
+      cycle4(2, 36, 33, 17);
+      cycle4(1, 39, 34, 14);
+      cycle4(0, 42, 35, 11);
+    }
+  };
+
+  const tokens = scramble.trim().split(/\s+/).filter(Boolean);
+  tokens.forEach((tok) => {
+    const face = tok[0];
+    const mod = tok.slice(1);
+    const reps = mod === '2' ? 2 : mod === "'" ? 3 : 1;
+    for (let i = 0; i < reps; i++) turnOnce(face);
+  });
+
+  return s;
+}
+
+const STICKER_HEX = {
+  W: '#f8fafc',
+  Y: '#facc15',
+  G: '#22c55e',
+  B: '#3b82f6',
+  O: '#f97316',
+  R: '#ef4444'
+};
 
 function invertAlgorithm(alg) {
   const cleaned = alg.replace(/[()]/g, '').trim();
@@ -1030,14 +1116,22 @@ export default function App() {
   const [crossTier, setCrossTier] = useState(1);
   const [crossScrambleIdx, setCrossScrambleIdx] = useState(0);
   const [crossLadderMode, setCrossLadderMode] = useState('efficiency'); // 'efficiency' | 'blind'
+  const [crossBottomView, setCrossBottomView] = useState(true);
   const [crossUserMoves, setCrossUserMoves] = useState(2);
   const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
   const [activeMechanicId, setActiveMechanicId] = useState(1);
 
-  // Blind Inspection Timer State
+  // Blind Inspection Trainer State
   const [blindState, setBlindState] = useState('idle'); // 'idle' | 'inspecting' | 'readying' | 'armed' | 'visor' | 'done'
   const [inspectionLeft, setInspectionLeft] = useState(15.0);
   const [blindLogs, setBlindLogs] = useState([]);
+
+  // Color Orbit Flash Card Game State
+  const [orbitQuizIdx, setOrbitQuizIdx] = useState(0);
+  const [orbitQuizActive, setOrbitQuizActive] = useState(false);
+  const [orbitShuffledColors, setOrbitShuffledColors] = useState(['Green', 'Red', 'Orange', 'Blue']);
+  const [orbitStreak, setOrbitStreak] = useState(0);
+  const [orbitFeedback, setOrbitFeedback] = useState(null); // { correct: boolean, chosen: string }
   const padHoldTimeoutRef = useRef(null);
 
   // F2L & OLL Library / Lineup State
@@ -1066,6 +1160,7 @@ export default function App() {
   const [builderPhase, setBuilderPhase] = useState('f2l');
   const [builderChunks, setBuilderChunks] = useState([]);
   const [newChunkName, setNewChunkName] = useState('');
+  const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
   // Session & Drill Runners (F2L, OLL & PLL)
   const [f2lSession, setF2lSession] = useState(null); // { dayObj, index, queue }
   const [f2lDrillCase, setF2lDrillCase] = useState(null);
@@ -1965,6 +2060,133 @@ export default function App() {
                           {activeCrossScramble}
                         </div>
                       </div>
+
+                      {/* 180° Bottom Verification Diagram (Interactive SVG) */}
+                      {(() => {
+                        const cube = simulateCrossCubeState(activeCrossScramble);
+                        // Bottom D-face (tilted 180° so White D is facing viewer, Green F is Top/Front, Orange R is Right, Red L is Left, Blue B is Bottom)
+                        // D indices: 27(DF-L), 28(DF), 29(DF-R), 30(DL), 31(D center), 32(DR), 33(DB-L), 34(DB), 35(DB-R)
+                        const dGrid = [
+                          [cube[27], cube[28], cube[29]],
+                          [cube[30], cube[31], cube[32]],
+                          [cube[33], cube[34], cube[35]]
+                        ];
+                        const uGrid = [
+                          [cube[0], cube[1], cube[2]],
+                          [cube[3], cube[4], cube[5]],
+                          [cube[6], cube[7], cube[8]]
+                        ];
+                        const grid = crossBottomView ? dGrid : uGrid;
+                        // Surrounding side-layer edge/corner strips for Bottom View vs Top View
+                        const topStrip = crossBottomView ? [cube[24], cube[25], cube[26]] : [cube[47], cube[46], cube[45]];
+                        const bottomStrip = crossBottomView ? [cube[51], cube[52], cube[53]] : [cube[18], cube[19], cube[20]];
+                        const leftStrip = crossBottomView ? [cube[42], cube[43], cube[44]] : [cube[36], cube[37], cube[38]];
+                        const rightStrip = crossBottomView ? [cube[17], cube[16], cube[15]] : [cube[11], cube[10], cube[9]];
+
+                        return (
+                          <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-2">
+                            <div className="w-full flex items-center justify-between px-1">
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {crossBottomView ? '180° Bottom Verification Diagram (D-Face)' : 'Top Overview Diagram (U-Face)'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  emitBeep(540);
+                                  setCrossBottomView((v) => !v);
+                                }}
+                                className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer active:scale-95 transition-all"
+                              >
+                                {crossBottomView ? 'Show Top ↻' : 'Flip 180° ↻'}
+                              </button>
+                            </div>
+
+                            <svg viewBox="0 0 180 180" className="w-36 h-36 drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]">
+                              {/* Top Edge Strip (Green F in Bottom View / Blue B in Top View) */}
+                              {topStrip.map((c, idx) => (
+                                <rect
+                                  key={`t-${idx}`}
+                                  x={45 + idx * 31}
+                                  y={16}
+                                  width={27}
+                                  height={11}
+                                  rx={3}
+                                  fill={STICKER_HEX[c] || '#334155'}
+                                  stroke="#090e1c"
+                                  strokeWidth="1.5"
+                                />
+                              ))}
+                              {/* Bottom Edge Strip (Blue B in Bottom View / Green F in Top View) */}
+                              {bottomStrip.map((c, idx) => (
+                                <rect
+                                  key={`b-${idx}`}
+                                  x={45 + idx * 31}
+                                  y={153}
+                                  width={27}
+                                  height={11}
+                                  rx={3}
+                                  fill={STICKER_HEX[c] || '#334155'}
+                                  stroke="#090e1c"
+                                  strokeWidth="1.5"
+                                />
+                              ))}
+                              {/* Left Edge Strip (Red L) */}
+                              {leftStrip.map((c, idx) => (
+                                <rect
+                                  key={`l-${idx}`}
+                                  x={16}
+                                  y={45 + idx * 31}
+                                  width={11}
+                                  height={27}
+                                  rx={3}
+                                  fill={STICKER_HEX[c] || '#334155'}
+                                  stroke="#090e1c"
+                                  strokeWidth="1.5"
+                                />
+                              ))}
+                              {/* Right Edge Strip (Orange R) */}
+                              {rightStrip.map((c, idx) => (
+                                <rect
+                                  key={`r-${idx}`}
+                                  x={153}
+                                  y={45 + idx * 31}
+                                  width={11}
+                                  height={27}
+                                  rx={3}
+                                  fill={STICKER_HEX[c] || '#334155'}
+                                  stroke="#090e1c"
+                                  strokeWidth="1.5"
+                                />
+                              ))}
+
+                              {/* Center 3x3 Face */}
+                              <rect x="38" y="38" width="104" height="104" rx="12" fill="#090a14" stroke="#1e293b" strokeWidth="2" />
+                              {grid.map((row, rIdx) =>
+                                row.map((c, cIdx) => (
+                                  <rect
+                                    key={`cell-${rIdx}-${cIdx}`}
+                                    x={45 + cIdx * 31}
+                                    y={45 + rIdx * 31}
+                                    width={27}
+                                    height={27}
+                                    rx={5}
+                                    fill={STICKER_HEX[c] || '#334155'}
+                                    stroke="#090a14"
+                                    strokeWidth="1.5"
+                                  />
+                                ))
+                              )}
+                            </svg>
+
+                            <div className="flex items-center gap-3 text-[9.5px] font-bold text-slate-400">
+                              <span className="text-green-400">▲ Green (F)</span>
+                              <span className="text-red-400">◀ Red (L)</span>
+                              <span className="text-orange-400">Orange (R) ▶</span>
+                              <span className="text-blue-400">▼ Blue (B)</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">
                         {activeTierObj.hint}
@@ -4521,184 +4743,262 @@ export default function App() {
         )}
 
         {/* 8. COLOR ORBIT COMPASS MODAL */}
-        {activeModal === 'compass' && (
-          <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">WCA Color Scheme</span>
-              <h3 className="text-xl font-black text-white">Cross Color Orbit</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                With <strong>White on Bottom</strong> and <strong>Green in Front</strong>:
-                <br />
-                <strong>Orange</strong> is Right • <strong>Blue</strong> is Back • <strong>Red</strong> is Left.
-                <br />
-                Mnemonic: <em>&ldquo;Boy&rdquo; (Blue-Orange-Yellow) clockwise around top-front-right!</em>
-              </p>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        )}
+        {activeModal === 'compass' && (() => {
+          const ORBIT_QUESTIONS = [
+            { prompt: 'White bottom, Blue is front — what color is to the right?', answer: 'Red' },
+            { prompt: 'White bottom, Green is front — what color is to the right?', answer: 'Orange' },
+            { prompt: 'White bottom, Orange is front — what color is to the right?', answer: 'Blue' },
+            { prompt: 'White bottom, Red is front — what color is to the right?', answer: 'Green' },
+            { prompt: 'White bottom, Blue is front — what color is to the left?', answer: 'Orange' },
+            { prompt: 'White bottom, Green is front — what color is to the left?', answer: 'Red' },
+            { prompt: 'White bottom, Orange is front — what color is opposite?', answer: 'Red' },
+            { prompt: 'White bottom, Green is front — what color is opposite?', answer: 'Blue' }
+          ];
+          const COLOR_STYLES = {
+            Green: 'text-green-400 border-green-500/30 hover:bg-green-500/15',
+            Red: 'text-red-400 border-red-500/30 hover:bg-red-500/15',
+            Orange: 'text-orange-400 border-orange-500/30 hover:bg-orange-500/15',
+            Blue: 'text-blue-400 border-blue-500/30 hover:bg-blue-500/15'
+          };
+          const currentQ = ORBIT_QUESTIONS[orbitQuizIdx % ORBIT_QUESTIONS.length];
 
-        {/* 9. 5-SLIDE CFOP BEGINNER'S GUIDE MODAL */}
-        {activeModal === 'onboarding' && (
-          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-sm w-full space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  CFOP Roadmap • {onboardingSlide + 1}/5
-                </span>
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-              {onboardingSlide === 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black text-white">Welcome to CFOP</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    CFOP (Cross → F2L → OLL → PLL) is the speedcubing method used by world champions. Instead of solving layer-by-layer, you solve the first two layers together!
-                  </p>
-                </div>
-              )}
-              {onboardingSlide === 1 && (
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black text-white">1. Cross (Bottom)</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Solve the 4 white edges on the bottom face in 8 moves or fewer, matching each side sticker to its center.
-                  </p>
-                </div>
-              )}
-              {onboardingSlide === 2 && (
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black text-white">2. F2L (First Two Layers)</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Pair each bottom white corner with its middle-layer edge and insert all 4 pairs into the bottom slots.
-                  </p>
-                </div>
-              )}
-              {onboardingSlide === 3 && (
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black text-white">3. OLL (Orient Last Layer)</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Make the entire top face solid Yellow in a single algorithm (57 cases, starting with 2-Look OLL).
-                  </p>
-                </div>
-              )}
-              {onboardingSlide === 4 && (
-                <div className="space-y-3">
-                  <h3 className="text-xl font-black text-white">4. PLL &amp; Launch</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Permute the final yellow-layer corners and edges into place (21 standard PLLs + 4 variants). Jump straight into any phase below:
-                  </p>
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    <button
-                      onClick={() => {
-                        setActivePhase('cross');
-                        setActiveModal(null);
-                      }}
-                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
-                    >
-                      Cross
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActivePhase('f2l');
-                        setActiveModal(null);
-                      }}
-                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
-                    >
-                      F2L
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActivePhase('oll');
-                        setActiveModal(null);
-                      }}
-                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
-                    >
-                      OLL
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActivePhase('pll');
-                        setActiveModal(null);
-                      }}
-                      className="py-2.5 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
-                    >
-                      PLL
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  onClick={() => setOnboardingSlide((s) => Math.max(0, s - 1))}
-                  disabled={onboardingSlide === 0}
-                  className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                >
-                  ← Back
-                </button>
-                {onboardingSlide < 4 ? (
-                  <button
-                    onClick={() => setOnboardingSlide((s) => s + 1)}
-                    className="px-5 py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-xs cursor-pointer"
-                  >
-                    Next →
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setActiveModal(null)}
-                    className="px-5 py-2 rounded-xl bg-white/10 text-white font-black text-xs cursor-pointer"
-                  >
-                    Done
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+          const triggerHitMe = () => {
+            emitBeep(620);
+            const shuffled = ['Green', 'Red', 'Orange', 'Blue']
+              .map((val) => ({ val, sort: Math.random() }))
+              .sort((a, b) => a.sort - b.sort)
+              .map(({ val }) => val);
+            setOrbitShuffledColors(shuffled);
+            setOrbitFeedback(null);
+            setOrbitQuizActive(true);
+            setOrbitQuizIdx((i) => i + 1 + Math.floor(Math.random() * (ORBIT_QUESTIONS.length - 1)));
+          };
 
-        {/* 10. CUSTOM CURRICULUM BUILDER MODAL */}
-        {activeModal === 'curriculum' && (
-          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full max-h-[85dvh] flex flex-col space-y-3 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black text-white">
-                  {builderPhase === 'f2l' ? 'F2L' : builderPhase === 'pll' ? 'PLL' : 'OLL'} Chunk Builder
-                </h3>
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
-                {builderChunks.map((chk, idx) => (
-                  <div key={chk.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-black text-white">{chk.title}</p>
-                      <p className="text-[10px] text-slate-400">{chk.ids.length} Cases</p>
-                    </div>
-                    {builderChunks.length > 1 && (
-                      <button
-                        onClick={() => setBuilderChunks((prev) => prev.filter((_, i) => i !== idx))}
-                        className="text-xs font-bold text-red-400 px-2 py-1 cursor-pointer"
-                      >
-                        Remove
-                      </button>
+          return (
+            <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-4 shadow-2xl">
+                {/* Top Header with Hit Me in Top Right */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                      Color Orbit
+                    </span>
+                    {orbitQuizActive && (
+                      <span className="font-mono text-[10px] font-bold text-slate-400">
+                        Streak: {orbitStreak}
+                      </span>
                     )}
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={triggerHitMe}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
+                  >
+                    Hit Me
+                  </button>
+                </div>
 
-                {/* Create New Chunk */}
+                {/* Orientation Reference Text (Hidden once Hit Me is pressed) */}
+                {!orbitQuizActive ? (
+                  <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 space-y-2.5 text-center shadow-inner">
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Hold <strong className="text-white">White</strong> on the bottom (<strong className="text-white">D</strong>). Going clockwise around the sides:
+                    </p>
+                    <p className="font-mono text-sm font-black tracking-wide">
+                      <span className="text-green-400">Green</span>
+                      <span className="text-slate-500"> → </span>
+                      <span className="text-orange-400">Orange</span>
+                      <span className="text-slate-500"> → </span>
+                      <span className="text-blue-400">Blue</span>
+                      <span className="text-slate-500"> → </span>
+                      <span className="text-red-400">Red</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-white/10">
+                      Opposites: <span className="text-green-400 font-bold">Green</span> ↔ <span className="text-blue-400 font-bold">Blue</span> &nbsp;•&nbsp; <span className="text-orange-400 font-bold">Orange</span> ↔ <span className="text-red-400 font-bold">Red</span>
+                    </p>
+                  </div>
+                ) : (
+                  /* Center Drill Question + Randomly Shuffled Color Buttons */
+                  <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 space-y-3.5 text-center shadow-inner">
+                    <p className="text-sm font-bold text-white leading-snug min-h-[2.75rem] flex items-center justify-center">
+                      {currentQ.prompt}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {orbitShuffledColors.map((colorName) => {
+                        const isPicked = orbitFeedback?.chosen === colorName;
+                        const isRight = colorName === currentQ.answer;
+                        let btnStyle = `bg-slate-900/90 ${COLOR_STYLES[colorName]}`;
+                        if (orbitFeedback) {
+                          if (isRight) btnStyle = 'bg-green-500/20 border-green-400 text-green-300';
+                          else if (isPicked) btnStyle = 'bg-red-500/20 border-red-400 text-red-300';
+                        }
+                        return (
+                          <button
+                            key={colorName}
+                            type="button"
+                            onClick={() => {
+                              if (orbitFeedback) return;
+                              const correct = colorName === currentQ.answer;
+                              emitBeep(correct ? 880 : 320, 'sine', 0.1);
+                              setOrbitStreak((s) => (correct ? s + 1 : 0));
+                              setOrbitFeedback({ correct, chosen: colorName });
+                            }}
+                            className={`py-2.5 px-3 rounded-xl border text-xs font-black transition-all cursor-pointer ${btnStyle}`}
+                          >
+                            {colorName}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {orbitFeedback && (
+                      <p className={`text-[11px] font-black ${orbitFeedback.correct ? 'text-green-400' : 'text-red-400'}`}>
+                        {orbitFeedback.correct
+                          ? 'Correct!'
+                          : `Answer: ${currentQ.answer}`}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModal(null);
+                    setOrbitQuizActive(false);
+                    setOrbitFeedback(null);
+                  }}
+                  className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs uppercase cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 9. BEGINNER'S GUIDE MODAL */}
+        {activeModal === 'onboarding' && (() => {
+          const ONBOARDING_SLIDES = [
+            {
+              badge: 'Step 1 of 4 • C (Cross)',
+              title: 'Solve the White Cross on Bottom',
+              desc: 'Hold White on the bottom (D) and Green in front (F). Use the Cross in X Ladder to solve all 4 white edges in 6 moves or fewer while matching side center colors.'
+            },
+            {
+              badge: 'Step 2 of 4 • F (F2L)',
+              title: 'First Two Layers (41 Pairs)',
+              desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—cutting your move count in half.'
+            },
+            {
+              badge: 'Step 3 of 4 • O (OLL)',
+              title: 'Orient Last Layer (57 Cases)',
+              desc: 'Make the entire top face solid Yellow in a single algorithm using 2-Look corners first, then mastering all 57 top-layer patterns.'
+            },
+            {
+              badge: 'Step 4 of 4 • P (PLL)',
+              title: 'Permute Last Layer (25 Algs)',
+              desc: 'Swap the final top-layer corners and edges into place using 2-side headlight & block recognition to complete the solve.'
+            }
+          ];
+          const slide = ONBOARDING_SLIDES[onboardingSlide] || ONBOARDING_SLIDES[0];
+
+          return (
+            <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+                <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {slide.badge}
+                </span>
+                <h3 className="text-xl font-black text-white">{slide.title}</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">{slide.desc}</p>
+
+                <div className="flex items-center justify-center gap-1.5 pt-1">
+                  {ONBOARDING_SLIDES.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`h-1.5 rounded-full transition-all ${
+                        onboardingSlide === idx ? 'w-5 bg-orange-500' : 'w-1.5 bg-white/20'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(620);
+                      if (onboardingSlide + 1 < ONBOARDING_SLIDES.length) {
+                        setOnboardingSlide((s) => s + 1);
+                      } else {
+                        setActiveModal(null);
+                      }
+                    }}
+                    className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
+                  >
+                    {onboardingSlide + 1 < ONBOARDING_SLIDES.length ? 'Next →' : 'Start Training'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 10. CUSTOM CHUNK CURRICULUM BUILDER MODAL */}
+        {activeModal === 'curriculum' && (
+          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl max-h-[88dvh] flex flex-col">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                    {builderPhase.toUpperCase()} Curriculum Builder
+                  </span>
+                  <h3 className="text-lg font-black text-white">Custom Learning Chunks</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-0.5">
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                    Active Schedule Chunks ({builderChunks.length})
+                  </span>
+                  {builderChunks.map((chk, idx) => (
+                    <div
+                      key={chk.id}
+                      className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-white truncate">{chk.title}</p>
+                        <p className="text-[10px] text-slate-400">{chk.ids.length} cases</p>
+                      </div>
+                      {builderChunks.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setBuilderChunks((prev) => prev.filter((_, i) => i !== idx))}
+                          className="px-2 py-1 rounded-lg bg-red-500/15 text-red-300 text-[10px] font-black cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
                 <div className="bg-slate-950 border border-white/10 rounded-2xl p-3 space-y-2">
                   <input
                     type="text"
