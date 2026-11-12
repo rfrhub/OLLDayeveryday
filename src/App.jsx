@@ -1,18 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import {
-  getAuth,
-  signInWithCustomToken,
-  signInAnonymously,
-  onAuthStateChanged
-} from 'firebase/auth';
-import {
-  getFirestore,
-  collection,
-  doc,
-  setDoc,
-  onSnapshot
-} from 'firebase/firestore';
 
 // Resolve Firebase config from sandbox globals or Vercel Vite environment variables
 function resolveFirebaseConfig() {
@@ -51,13 +37,35 @@ function resolveFirebaseConfig() {
 }
 
 const resolvedFirebaseConfig = resolveFirebaseConfig();
-const firebaseApp = resolvedFirebaseConfig
-  ? getApps().length > 0
-    ? getApp()
-    : initializeApp(resolvedFirebaseConfig)
-  : null;
-const auth = firebaseApp ? getAuth(firebaseApp) : null;
-const db = firebaseApp ? getFirestore(firebaseApp) : null;
+let firebaseSdkPromise = null;
+
+async function getFirebaseServices() {
+  if (!resolvedFirebaseConfig) return null;
+  if (!firebaseSdkPromise) {
+    firebaseSdkPromise = (async () => {
+      try {
+        const [appMod, authMod, fsMod] = await Promise.all([
+          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js'),
+          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'),
+          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js')
+        ]);
+        const appInstance =
+          appMod.getApps().length > 0
+            ? appMod.getApp()
+            : appMod.initializeApp(resolvedFirebaseConfig);
+        return {
+          auth: authMod.getAuth(appInstance),
+          db: fsMod.getFirestore(appInstance),
+          authMod,
+          fsMod
+        };
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return firebaseSdkPromise;
+}
 
 const appId =
   (typeof globalThis !== 'undefined' &&
@@ -1332,7 +1340,7 @@ function OLLDaySuite() {
 
   // 1. Authenticate Cloud Session First
   useEffect(() => {
-    if (!auth) {
+    if (!resolvedFirebaseConfig) {
       setCloudSyncStatus('offline');
       return;
     }
@@ -1341,15 +1349,21 @@ function OLLDaySuite() {
 
     const initAuth = async () => {
       try {
-        unsubscribe = onAuthStateChanged(auth, (u) => {
+        const svc = await getFirebaseServices();
+        if (!svc || !active) {
+          if (active) setCloudSyncStatus('offline');
+          return;
+        }
+        const { auth, authMod } = svc;
+        unsubscribe = authMod.onAuthStateChanged(auth, (u) => {
           if (active && u) setCloudAuthUser(u);
         });
         const initialToken =
           typeof globalThis !== 'undefined' ? globalThis.__initial_auth_token : null;
         if (initialToken) {
-          await signInWithCustomToken(auth, initialToken);
+          await authMod.signInWithCustomToken(auth, initialToken);
         } else if (!auth.currentUser) {
-          await signInAnonymously(auth);
+          await authMod.signInAnonymously(auth);
         }
       } catch {
         if (active) setCloudSyncStatus('offline');
@@ -1444,68 +1458,79 @@ function OLLDaySuite() {
 
   // 2. Real-Time Cloud Sync for Solver Profiles, PINs, Admin Settings & Progress
   useEffect(() => {
-    if (!db || !cloudAuthUser) return;
+    if (!resolvedFirebaseConfig || !cloudAuthUser) return;
+    let active = true;
     let unsubProfiles = () => {};
     let unsubConfig = () => {};
-    try {
-      const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
-      const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global');
 
-      unsubProfiles = onSnapshot(
-        profilesCol,
-        (snapshot) => {
-          setCloudSyncStatus('synced');
-          if (snapshot.empty) {
-            // Seed current profiles to cloud on first ever boot
-            Object.entries(usersRef.current || DEFAULT_USERS).forEach(([uKey, uVal]) => {
-              const cleanVal = sanitizeUserRecord(uVal);
-              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
-                ...cleanVal,
-                name: uKey
-              }).catch(() => {});
-            });
-            return;
-          }
-          setUsers((prev) => {
-            const merged = { ...prev };
-            snapshot.forEach((docSnap) => {
-              const id = String(docSnap.id);
-              const data = docSnap.data();
-              if (data && typeof data === 'object' && !data.$$typeof) {
-                if (data._deleted) {
-                  delete merged[id];
-                } else {
-                  merged[id] = sanitizeUserRecord(data);
-                }
-              }
-            });
-            return Object.keys(merged).length > 0 ? merged : prev;
-          });
-        },
-        () => {
-          setCloudSyncStatus('offline');
+    const subscribeCloud = async () => {
+      try {
+        const svc = await getFirebaseServices();
+        if (!svc || !active) {
+          if (active) setCloudSyncStatus('offline');
+          return;
         }
-      );
+        const { db, fsMod } = svc;
+        const profilesCol = fsMod.collection(db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+        const configDoc = fsMod.doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global');
 
-      unsubConfig = onSnapshot(
-        configDoc,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const cfg = docSnap.data();
-            if (cfg?.adminMasterPin && typeof cfg.adminMasterPin === 'string' && cfg.adminMasterPin !== '0000') {
-              setAdminMasterPin(cfg.adminMasterPin);
+        unsubProfiles = fsMod.onSnapshot(
+          profilesCol,
+          (snapshot) => {
+            setCloudSyncStatus('synced');
+            if (snapshot.empty) {
+              Object.entries(usersRef.current || DEFAULT_USERS).forEach(([uKey, uVal]) => {
+                const cleanVal = sanitizeUserRecord(uVal);
+                fsMod.setDoc(fsMod.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
+                  ...cleanVal,
+                  name: uKey
+                }).catch(() => {});
+              });
+              return;
             }
-          } else {
-            setDoc(configDoc, { adminMasterPin: '1678' }, { merge: true }).catch(() => {});
+            setUsers((prev) => {
+              const merged = { ...prev };
+              snapshot.forEach((docSnap) => {
+                const id = String(docSnap.id);
+                const data = docSnap.data();
+                if (data && typeof data === 'object' && !data.$$typeof) {
+                  if (data._deleted) {
+                    delete merged[id];
+                  } else {
+                    merged[id] = sanitizeUserRecord(data);
+                  }
+                }
+              });
+              return Object.keys(merged).length > 0 ? merged : prev;
+            });
+          },
+          () => {
+            setCloudSyncStatus('offline');
           }
-        },
-        () => {}
-      );
-    } catch {
-      setCloudSyncStatus('offline');
-    }
+        );
 
+        unsubConfig = fsMod.onSnapshot(
+          configDoc,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const cfg = docSnap.data();
+              if (cfg?.adminMasterPin && typeof cfg.adminMasterPin === 'string' && cfg.adminMasterPin !== '0000') {
+                setAdminMasterPin(cfg.adminMasterPin);
+              }
+            } else {
+              fsMod.setDoc(configDoc, { adminMasterPin: '1678' }, { merge: true }).catch(() => {});
+            }
+          },
+          () => {}
+        );
+      } catch {
+        if (active) setCloudSyncStatus('offline');
+      }
+    };
+
+    subscribeCloud();
     return () => {
+      active = false;
       try {
         unsubProfiles();
         unsubConfig();
@@ -1516,7 +1541,7 @@ function OLLDaySuite() {
   }, [cloudAuthUser]);
 
   // Helper to push individual user updates to Cloud + Local Cache
-  const saveUserToCloud = (uKey, uData) => {
+  const saveUserToCloud = async (uKey, uData) => {
     if (typeof uKey !== 'string') return;
     const cleanData = sanitizeUserRecord(uData);
     const nextUsers = { ...usersRef.current, [uKey]: cleanData };
@@ -1528,9 +1553,11 @@ function OLLDaySuite() {
     } catch {
       // Ignore storage errors
     }
-    if (!db || !cloudAuthUser) return;
-    setDoc(
-      doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
+    if (!resolvedFirebaseConfig || !cloudAuthUser) return;
+    const svc = await getFirebaseServices();
+    if (!svc) return;
+    svc.fsMod.setDoc(
+      svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
       { ...cleanData, name: String(uKey), updatedAt: Date.now() },
       { merge: true }
     ).catch(() => {});
@@ -2361,18 +2388,21 @@ function OLLDaySuite() {
                   />
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const el = document.getElementById('adminMasterPinField');
                       const val = (el?.value || '').replace(/\D/g, '').slice(0, 4);
                       if (val.length === 4) {
                         emitBeep(760);
                         setAdminMasterPin(val);
-                        if (db && cloudAuthUser) {
-                          setDoc(
-                            doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global'),
-                            { adminMasterPin: val, updatedAt: Date.now() },
-                            { merge: true }
-                          ).catch(() => {});
+                        if (resolvedFirebaseConfig && cloudAuthUser) {
+                          const svc = await getFirebaseServices();
+                          if (svc) {
+                            svc.fsMod.setDoc(
+                              svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global'),
+                              { adminMasterPin: val, updatedAt: Date.now() },
+                              { merge: true }
+                            ).catch(() => {});
+                          }
                         }
                         if (el) el.value = '';
                         setAdminStatusMsg('Master PIN synced to cloud');
@@ -2472,19 +2502,22 @@ function OLLDaySuite() {
                           {safeKey !== 'Me' && safeKey !== activeUserKey && (
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 emitBeep(380);
                                 setUsers((prev) => {
                                   const copy = { ...prev };
                                   delete copy[safeKey];
                                   return copy;
                                 });
-                                if (db && cloudAuthUser) {
-                                  setDoc(
-                                    doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', safeKey),
-                                    { _deleted: true, updatedAt: Date.now() },
-                                    { merge: true }
-                                  ).catch(() => {});
+                                if (resolvedFirebaseConfig && cloudAuthUser) {
+                                  const svc = await getFirebaseServices();
+                                  if (svc) {
+                                    svc.fsMod.setDoc(
+                                      svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', safeKey),
+                                      { _deleted: true, updatedAt: Date.now() },
+                                      { merge: true }
+                                    ).catch(() => {});
+                                  }
                                 }
                                 setAdminStatusMsg(`Removed "${safeKey}"`);
                               }}
