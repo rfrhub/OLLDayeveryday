@@ -1032,7 +1032,9 @@ const DEFAULT_USERS = {
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
-    crossClears: 0
+    crossClears: 0,
+    pin: '',
+    isAdmin: true
   },
   Dad: {
     day: 1,
@@ -1044,7 +1046,9 @@ const DEFAULT_USERS = {
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
-    crossClears: 0
+    crossClears: 0,
+    pin: '',
+    isAdmin: false
   },
   Ephraim: {
     day: 1,
@@ -1056,7 +1060,9 @@ const DEFAULT_USERS = {
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
-    crossClears: 0
+    crossClears: 0,
+    pin: '',
+    isAdmin: false
   },
   Victor: {
     day: 1,
@@ -1068,7 +1074,9 @@ const DEFAULT_USERS = {
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
-    crossClears: 0
+    crossClears: 0,
+    pin: '',
+    isAdmin: false
   }
 };
 
@@ -1161,6 +1169,38 @@ export default function App() {
   const [builderChunks, setBuilderChunks] = useState([]);
   const [newChunkName, setNewChunkName] = useState('');
   const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
+
+  // PIN Code & Admin Panel State
+  const [pendingUserSwitch, setPendingUserSwitch] = useState(null);
+  const [startupPinLocked, setStartupPinLocked] = useState(() => {
+    try {
+      const savedUsersRaw = localStorage.getItem('ollday_users_v3');
+      const savedActive = localStorage.getItem('ollday_active_user') || 'Me';
+      if (!savedUsersRaw) return false;
+      const parsed = JSON.parse(savedUsersRaw);
+      return Boolean(parsed?.[savedActive]?.pin);
+    } catch {
+      return false;
+    }
+  });
+  const [pinEntryInput, setPinEntryInput] = useState('');
+  const [pinErrorMsg, setPinErrorMsg] = useState('');
+  const [myPinDraft, setMyPinDraft] = useState('');
+  const [adminMasterPin, setAdminMasterPin] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ollday_admin_pin');
+      return saved && saved !== '0000' ? saved : '1678';
+    } catch {
+      return '1678';
+    }
+  });
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminGateInput, setAdminGateInput] = useState('');
+  const [adminGateError, setAdminGateError] = useState('');
+  const [adminNewUserName, setAdminNewUserName] = useState('');
+  const [adminNewUserPin, setAdminNewUserPin] = useState('');
+  const [adminStatusMsg, setAdminStatusMsg] = useState('');
+
   // Session & Drill Runners (F2L, OLL & PLL)
   const [f2lSession, setF2lSession] = useState(null); // { dayObj, index, queue }
   const [f2lDrillCase, setF2lDrillCase] = useState(null);
@@ -1180,10 +1220,11 @@ export default function App() {
     try {
       localStorage.setItem('ollday_users_v3', JSON.stringify(users));
       localStorage.setItem('ollday_active_user', activeUserKey);
+      localStorage.setItem('ollday_admin_pin', adminMasterPin);
     } catch {
       // Ignore storage quota errors
     }
-  }, [users, activeUserKey]);
+  }, [users, activeUserKey, adminMasterPin]);
 
   const currentUser = users[activeUserKey] || DEFAULT_USERS.Me;
   const f2lChunks = currentUser.f2lCustomChunks || F2L_DEFAULT_CHUNKS;
@@ -1523,15 +1564,15 @@ export default function App() {
     if (Math.abs(dx) > 36 || Math.abs(dy) > 36) {
       emitBeep(520, 'sine', 0.05);
       if (dx < -36 || dy < -36) {
-        setSettingsDeckIdx((p) => (p + 1) % 4);
+        setSettingsDeckIdx((p) => (p + 1) % 5);
       } else {
-        setSettingsDeckIdx((p) => (p + 3) % 4);
+        setSettingsDeckIdx((p) => (p + 4) % 5);
       }
     }
   };
 
   const getDeckCardClass = (cardIdx) => {
-    const rel = (cardIdx - settingsDeckIdx + 4) % 4;
+    const rel = (cardIdx - settingsDeckIdx + 5) % 5;
     if (rel === 0) return 'deck-card-1';
     if (rel === 1) return 'deck-card-2';
     return 'deck-card-3';
@@ -1546,7 +1587,7 @@ export default function App() {
           <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3].map((idx) => (
+          {[0, 1, 2, 3, 4].map((idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -1565,14 +1606,14 @@ export default function App() {
       <div
         onTouchStart={handleDeckTouchStart}
         onTouchEnd={handleDeckTouchEnd}
-        className="relative h-[440px] w-full mt-2"
+        className="relative h-[455px] w-full mt-2"
       >
         {/* Card 1: Hardware & Training Preferences */}
         <div
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 4 • Preferences</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 5 • Preferences</span>
             <button
               onClick={() => {
                 emitBeep(520);
@@ -1661,7 +1702,7 @@ export default function App() {
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 2 of 4 • Reference
+              Card 2 of 5 • Reference
             </span>
             <button
               onClick={() => {
@@ -1716,7 +1757,7 @@ export default function App() {
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 3 of 4 • Mechanics Codex
+              Card 3 of 5 • Mechanics Codex
             </span>
             <button
               onClick={() => {
@@ -1730,7 +1771,6 @@ export default function App() {
           </div>
           <h3 className="text-lg font-black text-white mb-2">Fingertricks Dossier</h3>
 
-          {/* Category Filter Pills */}
           <div data-scrollable="true" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-1 flex-shrink-0">
             {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
               <button
@@ -1751,41 +1791,95 @@ export default function App() {
           </div>
 
           <div data-scrollable="true" className="h-[295px] overflow-y-auto no-scrollbar space-y-2 pr-1">
-            {FINGERTRICK_CODEX.filter((ft) => dossierFilter === 'All' || ft.category === dossierFilter).map((ft) => (
-              <div key={ft.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
+            {FINGERTRICK_CODEX.filter((entry) => dossierFilter === 'All' || entry.category === dossierFilter).map((entry) => (
+              <div key={entry.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${ft.badgeClass}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${ft.dotClass}`} />
-                    {ft.name}
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${entry.badgeClass}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${entry.dotClass}`} />
+                    {entry.name}
                   </span>
-                  <span className="font-mono text-[11px] font-black text-white">{ft.notation}</span>
+                  <span className="font-mono text-[11px] font-black text-amber-300">{entry.notation}</span>
                 </div>
-                <div className="text-[10px] text-slate-400">
-                  <strong className="text-slate-200">Finger:</strong> {ft.finger} • <strong className="text-slate-200">Grip:</strong> {ft.grip}
-                </div>
-                <p className="text-[11px] text-slate-300 leading-snug">{ft.execution}</p>
+                <p className="text-[10px] font-bold text-slate-400">
+                  <strong className="text-slate-200">Finger:</strong> {entry.finger} &nbsp;•&nbsp; <strong className="text-slate-200">Grip:</strong> {entry.grip}
+                </p>
+                <p className="text-[11px] text-slate-300 leading-relaxed">{entry.execution}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Card 4: Guides, Curriculum & Reset */}
+        {/* Card 4: Guides, PIN Security & Reset */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 4 • Roadmap & Data</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 5 • Roadmap &amp; PIN</span>
             <button
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(0);
+                setSettingsDeckIdx(4);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              Back to Card 1 →
+              Admin Panel →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white">Guides & Curriculum</h3>
+          <h3 className="text-lg font-black text-white">Guides, PIN &amp; Data</h3>
+
+          {/* Personal 4-Digit Profile PIN Setter */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-white">Profile PIN Lock ({activeUserKey})</span>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                currentUser.pin ? 'bg-green-500/15 text-green-300 border border-green-500/30' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {currentUser.pin ? 'PIN Active' : 'Unlocked'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={myPinDraft}
+                onChange={(e) => setMyPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder={currentUser.pin ? 'New 4-digit PIN' : 'Set 4-digit PIN'}
+                className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (myPinDraft.length !== 4) return;
+                  emitBeep(760);
+                  setUsers((prev) => ({
+                    ...prev,
+                    [activeUserKey]: { ...currentUser, pin: myPinDraft }
+                  }));
+                  setMyPinDraft('');
+                }}
+                className="px-3 py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
+              >
+                Save
+              </button>
+              {currentUser.pin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(420);
+                    setUsers((prev) => ({
+                      ...prev,
+                      [activeUserKey]: { ...currentUser, pin: '' }
+                    }));
+                    setMyPinDraft('');
+                  }}
+                  className="px-2.5 py-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 font-black text-[11px] cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
 
           <button
             onClick={() => {
@@ -1793,7 +1887,7 @@ export default function App() {
               setOnboardingSlide(0);
               setActiveModal('onboarding');
             }}
-            className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600/20 to-amber-500/20 border border-orange-500/35 text-left flex items-center justify-between hover:bg-orange-500/25 cursor-pointer"
+            className="w-full p-3 rounded-2xl bg-gradient-to-r from-orange-600/20 to-amber-500/20 border border-orange-500/35 text-left flex items-center justify-between hover:bg-orange-500/25 cursor-pointer"
           >
             <div>
               <p className="text-xs font-black text-orange-300">New to CFOP? Beginner&apos;s Guide</p>
@@ -1807,7 +1901,7 @@ export default function App() {
               emitBeep(600);
               openCurriculumBuilder(activePhase === 'oll' ? 'oll' : activePhase === 'pll' ? 'pll' : 'f2l');
             }}
-            className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left flex items-center justify-between cursor-pointer"
+            className="w-full p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left flex items-center justify-between cursor-pointer"
           >
             <div>
               <p className="text-xs font-black text-white">Custom Chunk Curriculum Builder</p>
@@ -1821,7 +1915,7 @@ export default function App() {
               emitBeep(400);
               setActiveModal('reset');
             }}
-            className="w-full p-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
+            className="w-full p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
           >
             <div>
               <p className="text-xs font-black text-red-300">Reset Progress ({activeUserKey})</p>
@@ -1829,6 +1923,271 @@ export default function App() {
             </div>
             <span className="text-red-400 font-black text-sm">↺</span>
           </button>
+        </div>
+
+        {/* Card 5: Admin Panel (User PINs, Profiles & Day Overrides) */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(4)}`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+              Card 5 of 5 • System Control
+            </span>
+            <button
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(0);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Back to Card 1 →
+            </button>
+          </div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-black text-white">Admin Panel</h3>
+            {adminUnlocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  emitBeep(440);
+                  setAdminUnlocked(false);
+                  setAdminGateInput('');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+              >
+                Lock Admin
+              </button>
+            )}
+          </div>
+
+          {!adminUnlocked ? (
+            <div className="flex-1 flex flex-col justify-center space-y-3">
+              <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-4 space-y-3 text-center">
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest text-orange-400">
+                  Restricted Access
+                </span>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Enter the 4-digit <strong className="text-white">Admin Master PIN</strong> to manage family profiles, reset user PIN codes, or adjust phase days.
+                </p>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={adminGateInput}
+                  onChange={(e) => {
+                    setAdminGateError('');
+                    setAdminGateInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                  }}
+                  placeholder="••••"
+                  className="w-36 mx-auto block text-center tracking-[0.5em] font-mono text-lg font-black bg-white/5 border border-white/15 rounded-xl py-2.5 text-white placeholder-slate-600"
+                />
+                {adminGateError && (
+                  <p className="text-[11px] font-bold text-red-400">{adminGateError}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (adminGateInput === adminMasterPin) {
+                      emitBeep(880, 'sine', 0.1);
+                      setAdminUnlocked(true);
+                      setAdminGateInput('');
+                      setAdminGateError('');
+                    } else {
+                      emitBeep(260, 'sawtooth', 0.14);
+                      setAdminGateError('Incorrect Admin Master PIN');
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                >
+                  Unlock Admin Panel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div data-scrollable="true" className="h-[345px] overflow-y-auto no-scrollbar space-y-3 pr-1">
+              {adminStatusMsg && (
+                <div className="bg-green-500/15 border border-green-500/35 rounded-xl px-3 py-1.5 text-[11px] font-bold text-green-300 text-center">
+                  {adminStatusMsg}
+                </div>
+              )}
+
+              {/* Master Admin PIN Config */}
+              <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+                    Admin Master PIN
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-400">••••</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="New 4-digit Master PIN"
+                    id="adminMasterPinField"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-mono text-white placeholder-slate-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('adminMasterPinField');
+                      const val = (el?.value || '').replace(/\D/g, '').slice(0, 4);
+                      if (val.length === 4) {
+                        emitBeep(760);
+                        setAdminMasterPin(val);
+                        if (el) el.value = '';
+                        setAdminStatusMsg('Master PIN updated');
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-[10px] uppercase cursor-pointer"
+                  >
+                    Update
+                  </button>
+                </div>
+              </div>
+
+              {/* Add New Solver Profile */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                  Add Solver Profile
+                </span>
+                <div className="grid grid-cols-5 gap-1.5">
+                  <input
+                    type="text"
+                    value={adminNewUserName}
+                    onChange={(e) => setAdminNewUserName(e.target.value)}
+                    placeholder="Name"
+                    className="col-span-3 bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500"
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={adminNewUserPin}
+                    onChange={(e) => setAdminNewUserPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="PIN (opt)"
+                    className="col-span-2 bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono text-white placeholder-slate-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cleanName = adminNewUserName.trim();
+                    if (!cleanName || users[cleanName]) return;
+                    emitBeep(780);
+                    setUsers((prev) => ({
+                      ...prev,
+                      [cleanName]: {
+                        ...DEFAULT_USERS.Me,
+                        isAdmin: false,
+                        pin: adminNewUserPin.length === 4 ? adminNewUserPin : ''
+                      }
+                    }));
+                    setAdminNewUserName('');
+                    setAdminNewUserPin('');
+                    setAdminStatusMsg(`Added profile "${cleanName}"`);
+                  }}
+                  className="w-full py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
+                >
+                  + Create Profile
+                </button>
+              </div>
+
+              {/* Manage All Users & PIN Codes */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                  Solver Accounts &amp; PIN Codes ({Object.keys(users).length})
+                </span>
+                {Object.keys(users).map((uKey) => {
+                  const uData = users[uKey] || DEFAULT_USERS.Me;
+                  return (
+                    <div key={uKey} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-black text-white">{uKey}</span>
+                          <span className="text-[10px] text-slate-400 block">
+                            F2L D{uData.f2lDay || 1} • OLL D{uData.day || 1} • PLL D{uData.pllDay || 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-black ${
+                            uData.pin ? 'bg-orange-500/20 text-orange-300 border border-orange-500/35' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {uData.pin ? `PIN: ${uData.pin}` : 'No PIN'}
+                          </span>
+                          {uKey !== 'Me' && uKey !== activeUserKey && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                emitBeep(380);
+                                setUsers((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[uKey];
+                                  return copy;
+                                });
+                                setAdminStatusMsg(`Removed "${uKey}"`);
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-300 text-[10px] font-black cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick PIN Assign / Reset Row */}
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          id={`admin-pin-${uKey}`}
+                          placeholder="Set 4-digit PIN"
+                          className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1 text-[11px] font-mono text-white placeholder-slate-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const inputEl = document.getElementById(`admin-pin-${uKey}`);
+                            const digits = (inputEl?.value || '').replace(/\D/g, '').slice(0, 4);
+                            if (digits.length === 4) {
+                              emitBeep(720);
+                              setUsers((prev) => ({
+                                ...prev,
+                                [uKey]: { ...uData, pin: digits }
+                              }));
+                              if (inputEl) inputEl.value = '';
+                              setAdminStatusMsg(`PIN set for ${uKey}`);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-black text-amber-300 cursor-pointer"
+                        >
+                          Set PIN
+                        </button>
+                        {uData.pin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              emitBeep(440);
+                              setUsers((prev) => ({
+                                ...prev,
+                                [uKey]: { ...uData, pin: '' }
+                              }));
+                              setAdminStatusMsg(`Cleared PIN for ${uKey}`);
+                            }}
+                            className="px-2 py-1 rounded-lg bg-red-500/15 text-[10px] font-black text-red-300 cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -4585,162 +4944,299 @@ export default function App() {
 
         {/* 6. FINGERTRICK DOSSIER MODAL */}
         {activeModal === 'fingertrick' && ftCase && (() => {
-          const ftBreakdown = buildFingertrickBreakdown(ftCase);
+          const breakdown = buildFingertrickBreakdown(ftCase);
           return (
-            <div className="fixed inset-0 z-[275] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full max-h-[88dvh] overflow-y-auto no-scrollbar space-y-3 shadow-2xl">
-                <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-4 flex items-center gap-4">
-                  <div
-                    className={`w-20 h-20 flex-shrink-0 flex items-center justify-center ${
-                      ftPhaseContext === 'f2l' ? '' : 'bg-slate-200 rounded-2xl p-1.5'
-                    }`}
+            <div
+              onClick={() => setActiveModal(null)}
+              className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[88dvh] overflow-y-auto no-scrollbar"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                    Fingertrick Dossier • {ftPhaseContext.toUpperCase()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
                   >
-                    <img
-                      src={
-                        ftPhaseContext === 'f2l'
-                          ? getF2LImageUrl(ftCase.alg)
-                          : ftPhaseContext === 'pll'
-                          ? getPLLImageUrl(ftCase.alg)
-                          : getOLLImageUrl(ftCase.alg)
-                      }
-                      alt={ftCase.name}
-                      className={`w-full h-full object-contain ${ftPhaseContext === 'f2l' ? 'f2l-cube-satin' : ''}`}
-                    />
-                  </div>
+                    ✕
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 bg-[#050811] border border-white/10 rounded-2xl p-3">
+                  <img
+                    src={
+                      ftPhaseContext === 'f2l'
+                        ? getF2LImageUrl(ftCase.alg)
+                        : ftPhaseContext === 'pll'
+                        ? getPLLImageUrl(ftCase.alg)
+                        : getOLLImageUrl(ftCase.alg)
+                    }
+                    alt={ftCase.name}
+                    className={
+                      ftPhaseContext === 'f2l'
+                        ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0'
+                        : 'w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0'
+                    }
+                  />
                   <div className="min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                      Fingertrick Guide
-                    </span>
-                    <h3 className="text-lg font-black text-white truncate">{ftCase.name}</h3>
-                    <p className="font-mono text-xs font-bold text-amber-300 mt-1">{ftCase.alg}</p>
+                    <h3 className="text-base font-black text-white truncate">{ftCase.name}</h3>
+                    <p className="font-mono text-xs font-bold text-amber-300 break-words">{ftCase.alg}</p>
                   </div>
                 </div>
 
-                {/* 0. Recognition & Alignment (when present, e.g., PLL) */}
-                {ftBreakdown.recognition && (
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-sky-300 block">
-                      Recognition &amp; Alignment
+                <div className="space-y-2 text-left">
+                  {breakdown.recognition && (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                        Recognition &amp; Alignment
+                      </span>
+                      <p className="text-xs text-slate-300 leading-relaxed">{breakdown.recognition}</p>
+                    </div>
+                  )}
+
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                      1. Starting Grip
                     </span>
-                    <p className="text-xs text-slate-200 leading-relaxed">{ftBreakdown.recognition}</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">{breakdown.grip}</p>
                   </div>
-                )}
 
-                {/* 1. Starting Grip */}
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-                    1. Starting Grip
-                  </span>
-                  <p className="text-xs text-slate-200 leading-relaxed">{ftBreakdown.grip}</p>
-                </div>
-
-                {/* 2. Trigger-by-Trigger Breakdown & Execution */}
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
-                    2. Color-Coded Trigger Breakdown
-                  </span>
-                  {ftBreakdown.segments.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {ftBreakdown.segments.map((seg, idx) => {
-                        const style = classifySegmentStyle(seg.moves);
-                        return (
-                          <div key={idx} className="bg-slate-950/80 border border-white/10 rounded-xl p-2.5 space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className={`px-2 py-0.5 rounded-md border font-mono text-xs font-black ${style.badgeClass}`}>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                      2. Execution Sequence
+                    </span>
+                    <p className="text-xs text-slate-300 leading-relaxed">{breakdown.cue}</p>
+                    {breakdown.triggers.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {breakdown.triggers.map((t) => (
+                          <span
+                            key={t.detail}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.codex.badgeClass}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${t.codex.dotClass}`} />
+                            {t.codex.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {breakdown.segments.length > 0 && (
+                      <div className="pt-1.5 border-t border-white/10 space-y-1.5">
+                        {breakdown.segments.map((seg, idx) => {
+                          const style = classifySegmentStyle(seg.moves);
+                          return (
+                            <div key={idx} className="flex items-start gap-2 text-[10.5px]">
+                              <span className={`px-2 py-0.5 rounded-md border font-mono font-black flex-shrink-0 ${style.badgeClass}`}>
                                 {seg.moves}
                               </span>
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                                {style.name}
-                              </span>
+                              <span className="text-slate-300 pt-0.5">— {seg.cue}</span>
                             </div>
-                            <p className="text-[11px] text-slate-200 leading-snug">{seg.cue}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-200 leading-relaxed">{ftBreakdown.cue}</p>
-                  )}
-                  {ftBreakdown.triggers.length > 0 && (
-                    <div className="pt-1.5 border-t border-white/10 space-y-1.5">
-                      {ftBreakdown.triggers.map((trig) => (
-                        <div key={trig.detail} className="flex items-start gap-2">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9.5px] font-black flex-shrink-0 ${trig.codex.badgeClass}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${trig.codex.dotClass}`} />
-                            {trig.codex.name}
-                          </span>
-                          <p className="text-[11px] text-slate-200 leading-snug">{trig.detail}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
-                {/* 3. Flow & Regrip Tip */}
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
-                    3. Regrip &amp; Flow Tip
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">{ftBreakdown.flow}</p>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
+                      3. Regrip &amp; Flow Tip
+                    </span>
+                    <p className="text-xs text-slate-300 leading-relaxed">{breakdown.flow}</p>
+                  </div>
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => setActiveModal(null)}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
                 >
-                  Done
+                  Close Guide
                 </button>
               </div>
             </div>
           );
         })()}
 
-        {/* 7. FAMILY PROFILE SWITCHER MODAL */}
-        {activeModal === 'profile' && (
+        {/* 7. FAMILY PROFILE SWITCHER MODAL (WITH PIN CODE VERIFICATION) */}
+        {(activeModal === 'profile' || startupPinLocked) && (() => {
+          const targetLockUser = startupPinLocked && !pendingUserSwitch ? activeUserKey : pendingUserSwitch;
+          return (
           <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3 shadow-2xl">
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Active Solver</span>
-                <h3 className="text-xl font-black text-white">Switch Profile</h3>
-              </div>
-              <div className="space-y-2">
-                {Object.keys(users).map((uKey) => {
-                  const uData = users[uKey] || DEFAULT_USERS.Me;
-                  const isCurrent = uKey === activeUserKey;
-                  return (
+              {!targetLockUser ? (
+                <>
+                  <div className="text-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Active Solver</span>
+                    <h3 className="text-xl font-black text-white">Switch Profile</h3>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
+                    {Object.keys(users).map((uKey) => {
+                      const uData = users[uKey] || DEFAULT_USERS.Me;
+                      const isCurrent = uKey === activeUserKey && !startupPinLocked;
+                      const hasPin = Boolean(uData.pin);
+                      return (
+                        <button
+                          key={uKey}
+                          onClick={() => {
+                            if (isCurrent) {
+                              setActiveModal(null);
+                              return;
+                            }
+                            if (hasPin) {
+                              emitBeep(540);
+                              setPendingUserSwitch(uKey);
+                              setPinEntryInput('');
+                              setPinErrorMsg('');
+                            } else {
+                              emitBeep(620);
+                              setActiveUserKey(uKey);
+                              setStartupPinLocked(false);
+                              setPendingUserSwitch(null);
+                              setActiveModal(null);
+                            }
+                          }}
+                          className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
+                            isCurrent
+                              ? 'bg-orange-500/15 border-orange-500/40 text-white'
+                              : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="text-left">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-black">{uKey}</span>
+                              {hasPin && (
+                                <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] font-black text-amber-300">
+                                  PIN
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400">
+                              F2L D{uData.f2lDay || 1} • OLL D{uData.day || 1} • PLL D{uData.pllDay || 1}
+                            </span>
+                          </div>
+                          {isCurrent ? (
+                            <span className="text-xs font-black text-orange-400">Active ✓</span>
+                          ) : hasPin ? (
+                            <span className="text-[11px] font-bold text-slate-400">Unlock →</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!startupPinLocked && (
                     <button
-                      key={uKey}
                       onClick={() => {
-                        emitBeep(620);
-                        setActiveUserKey(uKey);
+                        setPendingUserSwitch(null);
                         setActiveModal(null);
                       }}
-                      className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
-                        isCurrent
-                          ? 'bg-orange-500/15 border-orange-500/40 text-white'
-                          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                      }`}
+                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
                     >
-                      <div className="text-left">
-                        <span className="text-sm font-black block">{uKey}</span>
-                        <span className="text-[10px] text-slate-400">
-                          F2L D{uData.f2lDay || 1} • OLL D{uData.day || 1} • PLL D{uData.pllDay || 1}
-                        </span>
-                      </div>
-                      {isCurrent && <span className="text-xs font-black text-orange-400">Active ✓</span>}
+                      Close
                     </button>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
-              >
-                Close
-              </button>
+                  )}
+                </>
+              ) : (
+                /* 4-Digit PIN Keypad / Verification Prompt */
+                <div className="space-y-3.5 text-center">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                      Protected Profile
+                    </span>
+                    <h3 className="text-xl font-black text-white">Enter PIN for {targetLockUser}</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Enter 4-digit profile PIN or Admin Master PIN
+                    </p>
+                  </div>
+
+                  {/* 4 PIN Dot Indicators */}
+                  <div className="flex items-center justify-center gap-3 py-1">
+                    {[0, 1, 2, 3].map((idx) => (
+                      <span
+                        key={idx}
+                        className={`w-3.5 h-3.5 rounded-full border transition-all ${
+                          pinEntryInput.length > idx
+                            ? 'bg-orange-500 border-orange-400 scale-110'
+                            : 'bg-slate-950 border-white/20'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {pinErrorMsg && (
+                    <p className="text-[11px] font-bold text-red-400">{pinErrorMsg}</p>
+                  )}
+
+                  {/* Tactile Numeric Keypad */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', '⌫'].map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setPinErrorMsg('');
+                          if (key === 'Clear') {
+                            emitBeep(420);
+                            setPinEntryInput('');
+                            return;
+                          }
+                          if (key === '⌫') {
+                            emitBeep(460);
+                            setPinEntryInput((p) => p.slice(0, -1));
+                            return;
+                          }
+                          if (pinEntryInput.length >= 4) return;
+                          const nextVal = pinEntryInput + key;
+                          setPinEntryInput(nextVal);
+                          if (nextVal.length === 4) {
+                            const targetPin = users[targetLockUser]?.pin || '';
+                            if (nextVal === targetPin || nextVal === adminMasterPin) {
+                              emitBeep(880, 'sine', 0.1);
+                              setActiveUserKey(targetLockUser);
+                              setStartupPinLocked(false);
+                              setPendingUserSwitch(null);
+                              setPinEntryInput('');
+                              setActiveModal(null);
+                            } else {
+                              emitBeep(260, 'sawtooth', 0.14);
+                              setPinErrorMsg('Incorrect PIN — try again');
+                              setPinEntryInput('');
+                            }
+                          } else {
+                            emitBeep(600, 'sine', 0.04);
+                          }
+                        }}
+                        className="py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 font-mono text-sm font-black text-white active:scale-95 transition-all cursor-pointer"
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (startupPinLocked) {
+                        setStartupPinLocked(false);
+                        setActiveModal('profile');
+                      }
+                      setPendingUserSwitch(null);
+                      setPinEntryInput('');
+                      setPinErrorMsg('');
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
+                  >
+                    ← Back to Profiles
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* 8. COLOR ORBIT COMPASS MODAL */}
         {activeModal === 'compass' && (() => {
