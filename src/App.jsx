@@ -3030,6 +3030,31 @@ function OLLDaySuite() {
           filter: contrast(0.92) saturate(0.86) brightness(0.96) drop-shadow(0 12px 18px rgba(0, 0, 0, 0.52));
           transition: transform 0.25s ease, filter 0.25s ease;
         }
+        @keyframes iosShake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-8px); }
+          40%, 80% { transform: translateX(8px); }
+        }
+        .ios-pin-shake {
+          animation: iosShake 0.34s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+        .ios-glass-key {
+          background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06) 70%);
+          backdrop-filter: blur(28px) saturate(165%);
+          -webkit-backdrop-filter: blur(28px) saturate(165%);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 20px rgba(0, 0, 0, 0.35);
+          transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .ios-glass-key:hover {
+          background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.11) 70%);
+          border-color: rgba(255, 255, 255, 0.28);
+        }
+        .ios-glass-key:active {
+          transform: scale(0.91);
+          background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.24) 85%);
+          box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 24px rgba(255, 255, 255, 0.18);
+        }
       `}</style>
 
       <div className="min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden">
@@ -6553,123 +6578,183 @@ function OLLDaySuite() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => executeGranularReset('both')}
-                className="w-full py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/35 text-xs font-black text-red-300 cursor-pointer"
-              >
-                Reset All Phases (Keep PIN)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
-              >
-                Cancel
-              </button>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeGranularReset('both')}
+                  className="py-3 rounded-2xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-black text-red-300 cursor-pointer"
+                >
+                  Reset Everything
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* 7. LOCK SCREEN PIN KEYPAD GATE (NO USER LIST VISIBLE ANYWHERE OUTSIDE ADMIN PANEL) */}
-        {startupPinLocked && (
-          <div className="fixed inset-0 z-[255] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3 shadow-2xl">
-              <div className="space-y-3.5 text-center">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+        {/* 7. LOCK SCREEN PIN KEYPAD GATE (iOS GLASSMORPHIC LOCK SCREEN) */}
+        {startupPinLocked && (() => {
+          const IOS_KEYS = [
+            { num: '1', sub: '\u00A0' },
+            { num: '2', sub: 'ABC' },
+            { num: '3', sub: 'DEF' },
+            { num: '4', sub: 'GHI' },
+            { num: '5', sub: 'JKL' },
+            { num: '6', sub: 'MNO' },
+            { num: '7', sub: 'PQRS' },
+            { num: '8', sub: 'TUV' },
+            { num: '9', sub: 'WXYZ' },
+            { num: 'Clear', sub: '' },
+            { num: '0', sub: '' },
+            { num: '⌫', sub: '' }
+          ];
+
+          return (
+            <div className="fixed inset-0 z-[255] bg-slate-950/65 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-hidden">
+              {/* Ambient iOS Wallpaper Depth Orbs */}
+              <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
+              <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-sky-500/15 blur-[110px]" />
+
+              <div className="relative z-10 w-full max-w-[290px] flex flex-col items-center space-y-6">
+                {/* Lock Icon & Prompt Header */}
+                <div className="flex flex-col items-center text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
+                    <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2.5" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">
                     OLLDay Everyday
                   </span>
-                  <h3 className="text-xl font-black text-white">Enter PIN</h3>
+                  <h3 className="text-xl font-semibold tracking-tight text-white">
+                    Enter Passcode
+                  </h3>
                 </div>
 
-                {/* 4 PIN Dot Indicators */}
-                <div className="flex items-center justify-center gap-3 py-1">
+                {/* 4 iOS Passcode Dots */}
+                <div className={`flex items-center justify-center gap-4 py-1 ${pinErrorMsg ? 'ios-pin-shake' : ''}`}>
                   {[0, 1, 2, 3].map((idx) => (
                     <span
                       key={idx}
-                      className={`w-3.5 h-3.5 rounded-full border transition-all ${
+                      className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 ${
                         pinEntryInput.length > idx
-                          ? 'bg-orange-500 border-orange-400 scale-110'
-                          : 'bg-slate-950 border-white/20'
+                          ? 'bg-white border-white scale-110 shadow-[0_0_12px_rgba(255,255,255,0.75)]'
+                          : 'bg-transparent border-white/50'
                       }`}
                     />
                   ))}
                 </div>
 
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  {cloudSyncStatus === 'synced' ? '● Cloud Accounts Ready' : '○ Local & Cloud Ready'}
-                </p>
+                {/* Status / Error Pill */}
+                <div className="h-4 flex items-center justify-center">
+                  {pinErrorMsg ? (
+                    <p className="text-xs font-semibold text-rose-300 tracking-wide">
+                      {String(pinErrorMsg)}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '○ Ready'}
+                    </p>
+                  )}
+                </div>
 
-                {pinErrorMsg && (
-                  <p className="text-[11px] font-bold text-red-400">{String(pinErrorMsg)}</p>
-                )}
-
-                {/* Tactile Numeric Keypad */}
-                <div className="grid grid-cols-3 gap-2">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', '⌫'].map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        setPinErrorMsg('');
-                        if (key === 'Clear') {
-                          emitBeep(420);
-                          setPinEntryInput('');
-                          return;
-                        }
-                        if (key === '⌫') {
-                          emitBeep(460);
-                          setPinEntryInput((p) => p.slice(0, -1));
-                          return;
-                        }
-                        if (pinEntryInput.length >= 4) return;
-                        const nextVal = pinEntryInput + key;
-                        setPinEntryInput(nextVal);
-                        if (nextVal.length === 4) {
-                          const latestUsers = mergeDefaultUsersWithStored(usersRef.current || users);
-                          if (nextVal === adminMasterPin) {
-                            emitBeep(880, 'sine', 0.1);
-                            setActiveUserKey('Me');
-                            setIsAdminSession(true);
-                            setStartupPinLocked(false);
-                            setPendingUserSwitch(null);
+                {/* Circular iOS Frosted-Glass Keypad */}
+                <div className="grid grid-cols-3 gap-x-5 gap-y-4 place-items-center pt-1">
+                  {IOS_KEYS.map(({ num, sub }) => {
+                    const isAction = num === 'Clear' || num === '⌫';
+                    return (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => {
+                          setPinErrorMsg('');
+                          if (num === 'Clear') {
+                            emitBeep(420);
                             setPinEntryInput('');
-                            setActiveModal(null);
                             return;
                           }
-                          const matchedUser = Object.keys(latestUsers).find((uKey) => {
-                            const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
-                            return storedPin.length === 4 && storedPin === nextVal;
-                          });
-                          if (matchedUser) {
-                            emitBeep(880, 'sine', 0.1);
-                            setActiveUserKey(matchedUser);
-                            setIsAdminSession(matchedUser === 'Me');
-                            setStartupPinLocked(false);
-                            setPendingUserSwitch(null);
-                            setPinEntryInput('');
-                            setActiveModal(null);
-                          } else {
-                            emitBeep(260, 'sawtooth', 0.14);
-                            setPinErrorMsg('Invalid PIN');
-                            setPinEntryInput('');
+                          if (num === '⌫') {
+                            emitBeep(460);
+                            setPinEntryInput((p) => p.slice(0, -1));
+                            return;
                           }
-                        } else {
-                          emitBeep(600, 'sine', 0.04);
+                          if (pinEntryInput.length >= 4) return;
+                          const nextVal = pinEntryInput + num;
+                          setPinEntryInput(nextVal);
+                          if (nextVal.length === 4) {
+                            const latestUsers = mergeDefaultUsersWithStored(usersRef.current || users);
+                            if (nextVal === adminMasterPin) {
+                              emitBeep(880, 'sine', 0.1);
+                              setActiveUserKey('Me');
+                              setIsAdminSession(true);
+                              setStartupPinLocked(false);
+                              setPendingUserSwitch(null);
+                              setPinEntryInput('');
+                              setActiveModal(null);
+                              return;
+                            }
+                            const matchedUser = Object.keys(latestUsers).find((uKey) => {
+                              const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
+                              return storedPin.length === 4 && storedPin === nextVal;
+                            });
+                            if (matchedUser) {
+                              emitBeep(880, 'sine', 0.1);
+                              setActiveUserKey(matchedUser);
+                              setIsAdminSession(matchedUser === 'Me');
+                              setStartupPinLocked(false);
+                              setPendingUserSwitch(null);
+                              setPinEntryInput('');
+                              setActiveModal(null);
+                            } else {
+                              emitBeep(260, 'sawtooth', 0.14);
+                              setPinErrorMsg('Incorrect Passcode');
+                              setPinEntryInput('');
+                            }
+                          } else {
+                            emitBeep(600, 'sine', 0.04);
+                          }
+                        }}
+                        className={
+                          isAction
+                            ? 'w-[72px] h-[72px] rounded-full flex items-center justify-center text-xs font-semibold tracking-wide text-white/75 hover:text-white active:scale-90 transition-all cursor-pointer'
+                            : 'ios-glass-key w-[72px] h-[72px] rounded-full flex flex-col items-center justify-center text-white cursor-pointer'
                         }
-                      }}
-                      className="py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 font-mono text-sm font-black text-white active:scale-95 transition-all cursor-pointer"
-                    >
-                      {key}
-                    </button>
-                  ))}
+                      >
+                        {num === '⌫' ? (
+                          <svg className="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+                            <line x1="18" y1="9" x2="12" y2="15" />
+                            <line x1="12" y1="9" x2="18" y2="15" />
+                          </svg>
+                        ) : isAction ? (
+                          <span>{num}</span>
+                        ) : (
+                          <>
+                            <span className="text-[28px] font-light leading-none tracking-tight">
+                              {num}
+                            </span>
+                            {sub && (
+                              <span className="text-[8.5px] font-bold tracking-[0.2em] text-white/65 mt-1 leading-none">
+                                {sub}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 12. FLOATING TURN-COUNT FEEDBACK MODAL */}
         {efficiencyFeedback && (
