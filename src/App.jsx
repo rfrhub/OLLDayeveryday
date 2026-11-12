@@ -1,52 +1,70 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getAuth,
+  signInWithCustomToken,
+  signInAnonymously,
+  onAuthStateChanged
+} from 'firebase/auth';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  onSnapshot
+} from 'firebase/firestore';
 
-// Cloud Sync Service Refs (loaded dynamically so Vercel Vite builds never require local firebase npm pkg)
-let firebaseApp = null;
-let auth = null;
-let db = null;
-let fsOps = null;
-
-async function initCloudServices() {
-  if (fsOps && auth && db) return { auth, db, fsOps };
+// Resolve Firebase config from sandbox globals or Vercel Vite environment variables
+function resolveFirebaseConfig() {
   try {
+    const g = typeof globalThis !== 'undefined' ? globalThis : {};
+    const p = typeof process !== 'undefined' && process.env ? process.env : {};
     const rawConfig =
-      (typeof globalThis !== 'undefined' && (globalThis.__firebase_config || globalThis.VITE_FIREBASE_CONFIG)) ||
-      (typeof process !== 'undefined' && process.env && (process.env.VITE_FIREBASE_CONFIG || process.env.REACT_APP_FIREBASE_CONFIG)) ||
+      g.__firebase_config ||
+      g.VITE_FIREBASE_CONFIG ||
+      p.VITE_FIREBASE_CONFIG ||
+      p.REACT_APP_FIREBASE_CONFIG ||
       null;
-    const firebaseConfig =
-      rawConfig && typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
-    if (!firebaseConfig || typeof firebaseConfig !== 'object' || !firebaseConfig.apiKey) {
-      return null;
+
+    if (rawConfig) {
+      const parsed = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
+      if (parsed && typeof parsed === 'object' && parsed.apiKey) return parsed;
     }
 
-    const [appMod, authMod, storeMod] = await Promise.all([
-      import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js'),
-      import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'),
-      import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js')
-    ]);
-
-    firebaseApp = appMod.initializeApp(firebaseConfig);
-    auth = authMod.getAuth(firebaseApp);
-    db = storeMod.getFirestore(firebaseApp);
-    fsOps = {
-      signInWithCustomToken: authMod.signInWithCustomToken,
-      signInAnonymously: authMod.signInAnonymously,
-      onAuthStateChanged: authMod.onAuthStateChanged,
-      collection: storeMod.collection,
-      doc: storeMod.doc,
-      setDoc: storeMod.setDoc,
-      onSnapshot: storeMod.onSnapshot
-    };
-    return { auth, db, fsOps };
+    // Also support individual VITE_FIREBASE_* environment variables
+    const apiKey = g.VITE_FIREBASE_API_KEY || p.VITE_FIREBASE_API_KEY;
+    const projectId = g.VITE_FIREBASE_PROJECT_ID || p.VITE_FIREBASE_PROJECT_ID;
+    if (apiKey && projectId) {
+      return {
+        apiKey,
+        authDomain: g.VITE_FIREBASE_AUTH_DOMAIN || p.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+        projectId,
+        storageBucket: g.VITE_FIREBASE_STORAGE_BUCKET || p.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
+        messagingSenderId: g.VITE_FIREBASE_MESSAGING_SENDER_ID || p.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: g.VITE_FIREBASE_APP_ID || p.VITE_FIREBASE_APP_ID || ''
+      };
+    }
   } catch {
-    return null;
+    // Fall through to null if config JSON is invalid
   }
+  return null;
 }
 
+const resolvedFirebaseConfig = resolveFirebaseConfig();
+const firebaseApp = resolvedFirebaseConfig
+  ? getApps().length > 0
+    ? getApp()
+    : initializeApp(resolvedFirebaseConfig)
+  : null;
+const auth = firebaseApp ? getAuth(firebaseApp) : null;
+const db = firebaseApp ? getFirestore(firebaseApp) : null;
+
 const appId =
-  (typeof globalThis !== 'undefined' && globalThis.__app_id && String(globalThis.__app_id)) ||
+  (typeof globalThis !== 'undefined' &&
+    (globalThis.__app_id || globalThis.VITE_APP_ID) &&
+    String(globalThis.__app_id || globalThis.VITE_APP_ID)) ||
   (typeof process !== 'undefined' && process.env && (process.env.VITE_APP_ID || process.env.REACT_APP_APP_ID)) ||
-  'default-app-id';
+  'ollday-everyday';
 
 const STORAGE_KEYS = {
   users: `ollday_users_${appId}`,
@@ -1312,29 +1330,27 @@ function OLLDaySuite() {
   const [swElapsedMs, setSwElapsedMs] = useState(0);
   const swStartRef = useRef(0);
 
-  // 1. Authenticate Cloud Session First (RULE 3)
+  // 1. Authenticate Cloud Session First
   useEffect(() => {
+    if (!auth) {
+      setCloudSyncStatus('offline');
+      return;
+    }
     let active = true;
     let unsubscribe = () => {};
 
     const initAuth = async () => {
-      const cloud = await initCloudServices();
-      if (!active) return;
-      if (!cloud) {
-        setCloudSyncStatus('offline');
-        return;
-      }
       try {
+        unsubscribe = onAuthStateChanged(auth, (u) => {
+          if (active && u) setCloudAuthUser(u);
+        });
         const initialToken =
           typeof globalThis !== 'undefined' ? globalThis.__initial_auth_token : null;
         if (initialToken) {
-          await cloud.fsOps.signInWithCustomToken(cloud.auth, initialToken);
-        } else {
-          await cloud.fsOps.signInAnonymously(cloud.auth);
+          await signInWithCustomToken(auth, initialToken);
+        } else if (!auth.currentUser) {
+          await signInAnonymously(auth);
         }
-        unsubscribe = cloud.fsOps.onAuthStateChanged(cloud.auth, (u) => {
-          if (active) setCloudAuthUser(u);
-        });
       } catch {
         if (active) setCloudSyncStatus('offline');
       }
@@ -1428,14 +1444,14 @@ function OLLDaySuite() {
 
   // 2. Real-Time Cloud Sync for Solver Profiles, PINs, Admin Settings & Progress
   useEffect(() => {
-    if (!db || !fsOps || !cloudAuthUser) return;
+    if (!db || !cloudAuthUser) return;
     let unsubProfiles = () => {};
     let unsubConfig = () => {};
     try {
-      const profilesCol = fsOps.collection(db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
-      const configDoc = fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global');
+      const profilesCol = collection(db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+      const configDoc = doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global');
 
-      unsubProfiles = fsOps.onSnapshot(
+      unsubProfiles = onSnapshot(
         profilesCol,
         (snapshot) => {
           setCloudSyncStatus('synced');
@@ -1443,7 +1459,7 @@ function OLLDaySuite() {
             // Seed current profiles to cloud on first ever boot
             Object.entries(usersRef.current || DEFAULT_USERS).forEach(([uKey, uVal]) => {
               const cleanVal = sanitizeUserRecord(uVal);
-              fsOps.setDoc(fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
+              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
                 ...cleanVal,
                 name: uKey
               }).catch(() => {});
@@ -1471,7 +1487,7 @@ function OLLDaySuite() {
         }
       );
 
-      unsubConfig = fsOps.onSnapshot(
+      unsubConfig = onSnapshot(
         configDoc,
         (docSnap) => {
           if (docSnap.exists()) {
@@ -1480,7 +1496,7 @@ function OLLDaySuite() {
               setAdminMasterPin(cfg.adminMasterPin);
             }
           } else {
-            fsOps.setDoc(configDoc, { adminMasterPin: '1678' }, { merge: true }).catch(() => {});
+            setDoc(configDoc, { adminMasterPin: '1678' }, { merge: true }).catch(() => {});
           }
         },
         () => {}
@@ -1512,9 +1528,9 @@ function OLLDaySuite() {
     } catch {
       // Ignore storage errors
     }
-    if (!db || !fsOps || !cloudAuthUser) return;
-    fsOps.setDoc(
-      fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
+    if (!db || !cloudAuthUser) return;
+    setDoc(
+      doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
       { ...cleanData, name: String(uKey), updatedAt: Date.now() },
       { merge: true }
     ).catch(() => {});
@@ -2351,9 +2367,9 @@ function OLLDaySuite() {
                       if (val.length === 4) {
                         emitBeep(760);
                         setAdminMasterPin(val);
-                        if (db && fsOps && cloudAuthUser) {
-                          fsOps.setDoc(
-                            fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global'),
+                        if (db && cloudAuthUser) {
+                          setDoc(
+                            doc(db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global'),
                             { adminMasterPin: val, updatedAt: Date.now() },
                             { merge: true }
                           ).catch(() => {});
@@ -2463,9 +2479,9 @@ function OLLDaySuite() {
                                   delete copy[safeKey];
                                   return copy;
                                 });
-                                if (db && fsOps && cloudAuthUser) {
-                                  fsOps.setDoc(
-                                    fsOps.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', safeKey),
+                                if (db && cloudAuthUser) {
+                                  setDoc(
+                                    doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', safeKey),
                                     { _deleted: true, updatedAt: Date.now() },
                                     { merge: true }
                                   ).catch(() => {});
