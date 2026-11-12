@@ -2327,10 +2327,48 @@ export default function App() {
             {activePhase === 'cross' ? (
               <div className="grid grid-cols-4 gap-1 w-full">
                 {[
-                  { id: 'ladder', label: 'Ladder' },
-                  { id: 'blind', label: 'Blind Run' },
-                  { id: 'mechanics', label: 'Mechanics' },
-                  { id: 'settings', label: 'Settings' }
+                  {
+                    id: 'ladder',
+                    label: 'Ladder',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 3v18M16 3v18M8 7h8M8 12h8M8 17h8" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: 'blind',
+                    label: 'Blind Run',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                        <line x1="2" x2="22" y1="2" y2="22" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: 'mechanics',
+                    label: 'Mechanics',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                        <path d="M2 17l10 5 10-5" />
+                        <path d="M2 12l10 5 10-5" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: 'settings',
+                    label: 'Settings',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                      </svg>
+                    )
+                  }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -2338,23 +2376,62 @@ export default function App() {
                       emitBeep(460);
                       setCrossTab(tab.id);
                     }}
-                    className={`py-2 px-1 rounded-xl text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
+                    className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
                       crossTab === tab.id
                         ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
+                        : 'text-slate-400 hover:text-slate-200 border border-transparent'
                     }`}
                   >
-                    {tab.label}
+                    {tab.icon}
+                    <span>{tab.label}</span>
                   </button>
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-4 gap-1 w-full">
                 {[
-                  { id: 'grind', label: 'The Grind' },
-                  { id: 'algorithms', label: 'Algorithms' },
-                  { id: 'stats', label: 'Statistics' },
-                  { id: 'settings', label: 'Settings' }
+                  {
+                    id: 'grind',
+                    label: 'The Grind',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: 'algorithms',
+                    label: 'Algorithms',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: 'stats',
+                    label: 'Statistics',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10" />
+                        <line x1="12" y1="20" x2="12" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="14" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: 'settings',
+                    label: 'Settings',
+                    icon: (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                      </svg>
+                    )
+                  }
                 ].map((tab) => {
                   const currentTab = activePhase === 'f2l' ? f2lTab : ollTab;
                   const setTab = activePhase === 'f2l' ? setF2lTab : setOllTab;
@@ -2365,13 +2442,14 @@ export default function App() {
                         emitBeep(460);
                         setTab(tab.id);
                       }}
-                      className={`py-2 px-1 rounded-xl text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
+                      className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
                         currentTab === tab.id
                           ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
-                          : 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-400 hover:text-slate-200 border border-transparent'
                       }`}
                     >
-                      {tab.label}
+                      {tab.icon}
+                      <span>{tab.label}</span>
                     </button>
                   );
                 })}
