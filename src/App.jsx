@@ -1517,6 +1517,8 @@ function OLLDaySuite() {
   const [blindState, setBlindState] = useState('idle');
   const [inspectionLeft, setInspectionLeft] = useState(15.0);
   const [blindLogs, setBlindLogs] = useState([]);
+  const [leftPadHeld, setLeftPadHeld] = useState(false);
+  const [rightPadHeld, setRightPadHeld] = useState(false);
 
   // Color Orbit Flash Card Game State
   const [orbitQuizIdx, setOrbitQuizIdx] = useState(0);
@@ -2087,23 +2089,50 @@ function OLLDaySuite() {
     return () => clearInterval(interval);
   }, [blindState]);
 
-  const handleBlindPadDown = () => {
-    if (blindState !== 'inspecting') return;
-    setBlindState('readying');
-    padHoldTimeoutRef.current = setTimeout(() => {
-      emitBeep(1020, 'sine', 0.08);
-      setBlindState('armed');
-    }, 350);
+  // Multi-touch dual-thumb arming lifecycle (handles simultaneous left + right thumb holds on mobile)
+  useEffect(() => {
+    if (blindState === 'idle' || blindState === 'visor' || blindState === 'done') {
+      if (padHoldTimeoutRef.current) clearTimeout(padHoldTimeoutRef.current);
+      if (leftPadHeld) setLeftPadHeld(false);
+      if (rightPadHeld) setRightPadHeld(false);
+      return;
+    }
+
+    const bothHeld = leftPadHeld && rightPadHeld;
+
+    if (bothHeld && blindState === 'inspecting') {
+      setBlindState('readying');
+      if (padHoldTimeoutRef.current) clearTimeout(padHoldTimeoutRef.current);
+      padHoldTimeoutRef.current = setTimeout(() => {
+        emitBeep(1020, 'sine', 0.08);
+        setBlindState('armed');
+      }, 350);
+    } else if (!bothHeld) {
+      if (padHoldTimeoutRef.current) clearTimeout(padHoldTimeoutRef.current);
+      if (blindState === 'armed') {
+        setLeftPadHeld(false);
+        setRightPadHeld(false);
+        emitBeep(1240, 'triangle', 0.1);
+        setBlindState('visor');
+      } else if (blindState === 'readying') {
+        setBlindState('inspecting');
+      }
+    }
+  }, [leftPadHeld, rightPadHeld, blindState]);
+
+  const handleSingleMousePadDown = (side) => {
+    if (blindState !== 'inspecting' && blindState !== 'readying' && blindState !== 'armed') return;
+    // Allow single-click desktop mouse testing to engage both pads seamlessly
+    setLeftPadHeld(true);
+    setRightPadHeld(true);
+    if (side === 'left' || side === 'right') {
+      emitBeep(520, 'sine', 0.04, 0.06);
+    }
   };
 
-  const handleBlindPadUp = () => {
-    if (padHoldTimeoutRef.current) clearTimeout(padHoldTimeoutRef.current);
-    if (blindState === 'armed') {
-      emitBeep(1240, 'triangle', 0.1);
-      setBlindState('visor');
-    } else if (blindState === 'readying') {
-      setBlindState('inspecting');
-    }
+  const handleSingleMousePadUp = () => {
+    setLeftPadHeld(false);
+    setRightPadHeld(false);
   };
 
   // Non-passive mobile touch scroll lock during active lineup drag-and-drop
@@ -3658,39 +3687,69 @@ function OLLDaySuite() {
                     )}
 
                     <div
-                      onMouseDown={handleBlindPadDown}
-                      onMouseUp={handleBlindPadUp}
-                      onTouchStart={handleBlindPadDown}
-                      onTouchEnd={handleBlindPadUp}
-                      className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner transition-opacity ${
-                        blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100 cursor-pointer'
+                      onContextMenu={(e) => e.preventDefault()}
+                      style={{ touchAction: 'none' }}
+                      className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${
+                        blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'
                       }`}
                     >
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">
-                        Speedstack Touch Pads (Hold &amp; Release)
+                        Speedstack Touch Pads (Hold Both Thumbs &amp; Release)
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         <div
-                          className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all ${
+                          onMouseDown={() => handleSingleMousePadDown('left')}
+                          onMouseUp={handleSingleMousePadUp}
+                          onMouseLeave={handleSingleMousePadUp}
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
+                            setLeftPadHeld(true);
+                          }}
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            setLeftPadHeld(false);
+                          }}
+                          onTouchCancel={() => setLeftPadHeld(false)}
+                          className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                             blindState === 'armed'
-                              ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-[1.02]'
-                              : blindState === 'readying'
-                              ? 'bg-orange-500/20 border-orange-400 text-orange-300'
-                              : 'bg-white/5 border-white/10 text-slate-500'
+                              ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
+                              : leftPadHeld
+                              ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
+                              : 'bg-white/5 border-white/10 text-slate-400'
                           }`}
                         >
                           <span>LEFT THUMB</span>
+                          <span className="text-[9px] font-bold opacity-80">
+                            {blindState === 'armed' ? 'READY ✓' : leftPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                          </span>
                         </div>
                         <div
-                          className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all ${
+                          onMouseDown={() => handleSingleMousePadDown('right')}
+                          onMouseUp={handleSingleMousePadUp}
+                          onMouseLeave={handleSingleMousePadUp}
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
+                            setRightPadHeld(true);
+                          }}
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            setRightPadHeld(false);
+                          }}
+                          onTouchCancel={() => setRightPadHeld(false)}
+                          className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                             blindState === 'armed'
-                              ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_20px_rgba(34,197,94,0.25)] scale-[1.02]'
-                              : blindState === 'readying'
-                              ? 'bg-orange-500/20 border-orange-400 text-orange-300'
-                              : 'bg-white/5 border-white/10 text-slate-500'
+                              ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
+                              : rightPadHeld
+                              ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
+                              : 'bg-white/5 border-white/10 text-slate-400'
                           }`}
                         >
                           <span>RIGHT THUMB</span>
+                          <span className="text-[9px] font-bold opacity-80">
+                            {blindState === 'armed' ? 'READY ✓' : rightPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                          </span>
                         </div>
                       </div>
                     </div>
