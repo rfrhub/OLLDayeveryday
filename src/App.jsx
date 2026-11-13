@@ -1581,12 +1581,13 @@ function OLLDaySuite() {
   const [ollDrillCase, setOllDrillCase] = useState(null);
   const [pllSession, setPllSession] = useState(null);
   const [pllDrillCase, setPllDrillCase] = useState(null);
-
-  // Stopwatch State inside Session / Drill
+  // Stopwatch State inside Session / Drill (DOM ref avoids 120fps React tree re-renders while ticking)
   const [swRunning, setSwRunning] = useState(false);
   const [swElapsedMs, setSwElapsedMs] = useState(0);
   const [swLastResult, setSwLastResult] = useState(null); // { phase, caseId, timeSec, isNewPb, prevPb }
   const swStartRef = useRef(0);
+  const swDisplayRef = useRef(null);
+  const fullTimerDisplayRef = useRef(null);
 
   // 1. Authenticate Cloud Session First
   useEffect(() => {
@@ -1959,12 +1960,10 @@ function OLLDaySuite() {
   const emitBeep = (freq = 540, type = 'sine', duration = 0.07, vol = 0.14) => {
     if (!audioEnabled) return;
     try {
-      if (!audioCtxRef.current) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) audioCtxRef.current = new AudioCtx();
-      }
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioCtx();
       const ctx = audioCtxRef.current;
-      if (!ctx) return;
       if (ctx.state === 'suspended') ctx.resume();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -1977,33 +1976,57 @@ function OLLDaySuite() {
       osc.start();
       osc.stop(ctx.currentTime + duration);
     } catch {
-      // Ignore audio block
+      // Ignore audio errors on restricted devices
     }
   };
 
-  // Stopwatch Ticker
+  // Stopwatch Ticker (Updates DOM textContent directly at 60-120fps without re-rendering the app)
   useEffect(() => {
     if (!swRunning) return;
     let raf;
     const tick = () => {
-      setSwElapsedMs(performance.now() - swStartRef.current);
+      const elapsedSec = ((performance.now() - swStartRef.current) / 1000).toFixed(2);
+      if (swDisplayRef.current) {
+        swDisplayRef.current.textContent = `${elapsedSec}s — Stop`;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [swRunning]);
 
-  // Full-Screen 3x3x3 CFOP Timer Ticker
+  // Full-Screen 3x3x3 CFOP Timer Ticker (Updates DOM textContent directly to keep phone cool)
   useEffect(() => {
     if (fullTimerState !== 'running') return;
     let raf;
     const tick = () => {
-      setFullElapsedMs(performance.now() - fullStartRef.current);
+      const elapsedSec = ((performance.now() - fullStartRef.current) / 1000).toFixed(2);
+      if (fullTimerDisplayRef.current) {
+        fullTimerDisplayRef.current.textContent = elapsedSec;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [fullTimerState]);
+
+  // Background Power-Save Lifecycle: suspend AudioContext & pause active clocks when app goes to background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
+          audioCtxRef.current.suspend().catch(() => {});
+        }
+        setSwRunning(false);
+        setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
+        setBlindState((prev) =>
+          prev === 'inspecting' || prev === 'readying' || prev === 'armed' ? 'idle' : prev
+        );
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   const handleFullTimerScreenTap = () => {
     if (fullTimerState === 'running') {
@@ -2076,6 +2099,7 @@ function OLLDaySuite() {
     } else {
       emitBeep(960, 'triangle', 0.09);
       const finalSec = Number(((performance.now() - swStartRef.current) / 1000).toFixed(3));
+      setSwElapsedMs(finalSec * 1000);
       setSwRunning(false);
       if (onStopRecord && finalSec > 0.15) {
         onStopRecord(finalSec);
@@ -4161,6 +4185,8 @@ function OLLDaySuite() {
                                     <img
                                       src={getF2LImageUrl(item.alg)}
                                       alt={item.name}
+                                      loading="lazy"
+                                      decoding="async"
                                       className="w-full h-full object-contain f2l-cube-satin"
                                     />
                                   </div>
@@ -4249,6 +4275,8 @@ function OLLDaySuite() {
                                 <img
                                   src={getF2LImageUrl(item.alg)}
                                   alt={item.name}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-contain f2l-cube-satin"
                                 />
                               </div>
@@ -4599,6 +4627,8 @@ function OLLDaySuite() {
                                     <img
                                       src={getOLLImageUrl(item.alg)}
                                       alt={item.name}
+                                      loading="lazy"
+                                      decoding="async"
                                       className="w-full h-full object-contain"
                                     />
                                   </div>
@@ -4687,6 +4717,8 @@ function OLLDaySuite() {
                                 <img
                                   src={getOLLImageUrl(item.alg)}
                                   alt={item.name}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-contain"
                                 />
                               </div>
@@ -5038,6 +5070,8 @@ function OLLDaySuite() {
                                     <img
                                       src={getPLLImageUrl(item.alg)}
                                       alt={item.name}
+                                      loading="lazy"
+                                      decoding="async"
                                       className="w-full h-full object-contain"
                                     />
                                   </div>
@@ -5127,6 +5161,8 @@ function OLLDaySuite() {
                                 <img
                                   src={getPLLImageUrl(item.alg)}
                                   alt={item.name}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-contain"
                                 />
                               </div>
@@ -5371,6 +5407,7 @@ function OLLDaySuite() {
 
             <div className="relative z-10 flex flex-col items-center justify-center my-auto text-center">
               <div
+                ref={fullTimerDisplayRef}
                 className={`text-7xl sm:text-8xl font-mono font-black tracking-tight transition-colors ${
                   fullTimerState === 'running' ? 'text-green-400' : 'text-white'
                 }`}
@@ -5814,11 +5851,13 @@ function OLLDaySuite() {
                       : 'bg-slate-950 border-white/10 text-slate-200 hover:border-orange-500/40'
                   }`}
                 >
-                  {swRunning
-                    ? `${(swElapsedMs / 1000).toFixed(2)}s — Tap to Stop`
-                    : swElapsedMs > 0
-                    ? `Last: ${(swElapsedMs / 1000).toFixed(2)}s — Tap to Retry`
-                    : 'Tap to Time Execution'}
+                  {swRunning ? (
+                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                  ) : swElapsedMs > 0 ? (
+                    `Last: ${(swElapsedMs / 1000).toFixed(2)}s — Tap to Retry`
+                  ) : (
+                    'Tap to Time Execution'
+                  )}
                 </button>
               )}
             </div>
@@ -5975,7 +6014,11 @@ function OLLDaySuite() {
                       : 'bg-slate-950 border-white/10 text-slate-200'
                   }`}
                 >
-                  {swRunning ? `${(swElapsedMs / 1000).toFixed(2)}s — Stop` : 'Tap to Time Case'}
+                  {swRunning ? (
+                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                  ) : (
+                    'Tap to Time Case'
+                  )}
                 </button>
               )}
             </div>
@@ -6069,7 +6112,7 @@ function OLLDaySuite() {
                       }`}
                     >
                       {swRunning ? (
-                        <span className="text-lg font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                        <span ref={swDisplayRef} className="text-lg font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
                       ) : lastResultForThis ? (
                         <>
                           <div className="flex items-center gap-2">
@@ -6223,7 +6266,7 @@ function OLLDaySuite() {
                       }`}
                     >
                       {swRunning ? (
-                        <span className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
                       ) : lastResultForThis ? (
                         <>
                           <div className="flex items-center gap-2">
@@ -6392,7 +6435,7 @@ function OLLDaySuite() {
                       }`}
                     >
                       {swRunning ? (
-                        <span className="text-lg font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                        <span ref={swDisplayRef} className="text-lg font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
                       ) : lastResultForThis ? (
                         <>
                           <div className="flex items-center gap-2">
@@ -6552,7 +6595,7 @@ function OLLDaySuite() {
                       }`}
                     >
                       {swRunning ? (
-                        <span className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
                       ) : lastResultForThis ? (
                         <>
                           <div className="flex items-center gap-2">
