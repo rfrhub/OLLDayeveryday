@@ -17,7 +17,6 @@ function resolveFirebaseConfig() {
       if (parsed && typeof parsed === 'object' && parsed.apiKey) return parsed;
     }
 
-    // Also support individual VITE_FIREBASE_* environment variables
     const apiKey = g.VITE_FIREBASE_API_KEY || p.VITE_FIREBASE_API_KEY;
     const projectId = g.VITE_FIREBASE_PROJECT_ID || p.VITE_FIREBASE_PROJECT_ID;
     if (apiKey && projectId) {
@@ -82,7 +81,7 @@ const STORAGE_KEYS = {
 };
 
 // =========================================================================
-// 1. COMPLETE DATASETS (CROSS, F2L 41 CASES, OLL 57 CASES)
+// 1. COMPLETE DATASETS (CROSS, F2L 41 CASES, OLL 57 CASES, PLL 25 ALGS)
 // =========================================================================
 
 const CROSS_TIERS = [
@@ -155,29 +154,22 @@ const CROSS_MECHANICS = [
 ];
 
 const F2L_DATA = [
-  // Group 1: Basic Inserts (1-4)
   { id: 1, name: 'F2L 1', group: 'Basic Inserts', alg: "U (R U' R')", step1: 'Position paired corner-edge over FR slot', step2: 'Insert with right-hand sexy inverse (R U\' R\')', fingertrick: 'Right index U push, wrist R, index U\', R\'' },
   { id: 2, name: 'F2L 2', group: 'Basic Inserts', alg: "U' (F' U F)", step1: 'Align connected pair over the front-right slot', step2: 'Insert into FR cleanly using F\' U F', fingertrick: 'Left index U\', left index F\', right index U, thumb F' },
   { id: 3, name: 'F2L 3', group: 'Basic Inserts', alg: "(F' U' F)", step1: 'Connected pair sits above the front-right slot', step2: 'Drop straight into FR slot with F\' U\' F', fingertrick: 'Left index F\', left index U\', thumb F' },
   { id: 4, name: 'F2L 4', group: 'Basic Inserts', alg: "(R U R')", step1: 'Connected pair is already aligned above FR', step2: 'Direct 3-move insert (R U R\')', fingertrick: 'Regripless R U R\' trigger' },
-
-  // Group 2: Top Layer — Same Color (5-10)
   { id: 5, name: 'F2L 5', group: 'Top Layer: Same Color', alg: "(U' R U R') U2 (R U' R')", step1: 'Hide corner in back-right while separating edge', step2: 'Re-align pair over FR and insert', fingertrick: 'Left index U\', R U R\', double-flick U2, R U\' R\'' },
   { id: 6, name: 'F2L 6', group: 'Top Layer: Same Color', alg: "(U F' U' F) U2' (F' U F)", step1: 'Hide corner with U F\' U\' F while moving edge across', step2: 'U2\' to pair up and insert into FR with F\' U F', fingertrick: 'Index U, F\' U\' F, left double-flick U2\', F\' U F' },
   { id: 7, name: 'F2L 7', group: 'Top Layer: Same Color', alg: "(U' R U2' R') U2 (R U' R')", step1: 'Swing edge to back with U2\' while corner hides', step2: 'Bring pair over FR and insert', fingertrick: 'U\' R, left U2\' double-flick, R\', U2, R U\' R\'' },
   { id: 8, name: 'F2L 8', group: 'Top Layer: Same Color', alg: "(U F' U2 F) U2' (F' U F)", step1: 'Separate adjacent matching stickers with U F\' U2 F', step2: 'Pair with U2\' and insert into FR via F\' U F', fingertrick: 'U F\' U2 F, left U2\' double-flick, F\' U F' },
   { id: 9, name: 'F2L 9', group: 'Top Layer: Same Color', alg: "U' R U' R' U F' U' F", step1: 'Break apart bad connection in U layer', step2: 'Insert formed pair directly into FR with F\' U\' F', fingertrick: 'U\' R U\' R\' U, left index F\', U\' F' },
   { id: 10, name: 'F2L 10', group: 'Top Layer: Same Color', alg: "U' R U R' U R U R'", step1: 'Lift and separate matching top stickers', step2: 'Connect over FR and insert with R U R\'', fingertrick: 'Regripless right-hand flow throughout' },
-
-  // Group 3: Top Layer — Opposite Colors (11-16)
   { id: 11, name: 'F2L 11', group: 'Top Layer: Opposite Colors', alg: "U' R U2' R' U F' U' F", step1: 'Hide corner and kick edge across top layer', step2: 'Catch the pair and insert with F\' U\' F', fingertrick: 'U\' R U2\' R\' U, left index F\', U\' F' },
   { id: 12, name: 'F2L 12', group: 'Top Layer: Opposite Colors', alg: "R' U2 R2 U R2' U R", step1: 'Use wide R2 swing to pair without cube rotation', step2: 'Complete rotationless insert into FR', fingertrick: 'Thumb-down R\', U2, R2 U R2\' U R' },
   { id: 13, name: 'F2L 13', group: 'Top Layer: Opposite Colors', alg: "U F' U F U' F' U' F", step1: 'Setup opposite-top edge using U F\' U F', step2: 'Pair and insert cleanly with U\' F\' U\' F', fingertrick: 'Index U, F\' U F, left U\', F\' U\' F' },
   { id: 14, name: 'F2L 14', group: 'Top Layer: Opposite Colors', alg: "U' R U' R' U R U R'", step1: 'Create 3-move setup with U\' R U\' R\'', step2: 'Align with U and insert via R U R\'', fingertrick: 'Fast index pushes on U\' and U' },
   { id: 15, name: 'F2L 15', group: 'Top Layer: Opposite Colors', alg: "R U R' U2 R U' R' U R U' R'", step1: 'Split connected opposite pair with R U R\' U2', step2: 'Pair and insert cleanly into FR', fingertrick: 'Continuous right-wrist rhythm' },
   { id: 16, name: 'F2L 16', group: 'Top Layer: Opposite Colors', alg: "R U' R' U2 F' U' F", step1: 'Separate pair over FR with R U\' R\' U2', step2: 'Drop connected pair into FR using F\' U\' F', fingertrick: 'R U\' R\' U2, left index F\', U\' F' },
-
-  // Group 4: Top Layer — White Facing Up (17-24)
   { id: 17, name: 'F2L 17', group: 'Top Layer: White Up', alg: "R U2 R' U' R U R'", step1: 'Align edge with matching center, hide corner with R U2 R\'', step2: 'Bring corner back over edge and insert', fingertrick: 'R, U2 double-flick, R\' U\' R U R\'' },
   { id: 18, name: 'F2L 18', group: 'Top Layer: White Up', alg: "F' U2 F U F' U' F", step1: 'Swing white-up corner over matching edge with F\' U2 F', step2: 'Pair with U and insert via F\' U\' F', fingertrick: 'Left index F\', U2, thumb F, U F\' U\' F' },
   { id: 19, name: 'F2L 19', group: 'Top Layer: White Up', alg: "U R U2 R' U R U' R'", step1: 'Position white-up corner at FR, swing with U R U2 R\'', step2: 'Pair and insert with U R U\' R\'', fingertrick: 'Index U, R U2 R\', U R U\' R\'' },
@@ -186,16 +178,12 @@ const F2L_DATA = [
   { id: 22, name: 'F2L 22', group: 'Top Layer: White Up', alg: "U2 F' U' F U' F' U F", step1: 'U2 sets up front-edge alignment', step2: 'Pair with F\' U\' F and insert via U\' F\' U F', fingertrick: 'U2 double-flick, F\' U\' F U\' F\' U F' },
   { id: 23, name: 'F2L 23', group: 'Top Layer: White Up', alg: "U R U' R' U' R U' R' U R U' R'", step1: 'Extract and orient white-up corner with U R U\' R\'', step2: 'Pair and insert in two smooth triggers', fingertrick: 'Rhythm: (U R U\' R\') U\' (R U\' R\') U (R U\' R\')' },
   { id: 24, name: 'F2L 24', group: 'Top Layer: White Up', alg: "F U R U' R' F' R U' R'", step1: 'Sledge-style F setup pairs corner and edge in U', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'Right thumb F, U R U\' R\', thumb F\', R U\' R\'' },
-
-  // Group 5: Corner in Bottom Slot (25-30)
   { id: 25, name: 'F2L 25', group: 'Corner in Bottom', alg: "U' R' F R F' R U R'", step1: 'Use sledgehammer (R\' F R F\') to twist trapped corner', step2: 'Insert paired block with R U R\'', fingertrick: 'U\', R\' F R F\', R U R\'' },
   { id: 26, name: 'F2L 26', group: 'Corner in Bottom', alg: "U R U' R' F R' F' R", step1: 'Pair edge with corner using U R U\' R\'', step2: 'Insert cleanly with sledgehammer (F R\' F\' R)', fingertrick: 'U R U\' R\', index F, R\' F\' R' },
   { id: 27, name: 'F2L 27', group: 'Corner in Bottom', alg: "R U' R' U R U' R'", step1: 'Pop trapped corner out to U layer with R U\' R\'', step2: 'Align with U and re-insert via R U\' R\'', fingertrick: 'Double sexy-inverse trigger' },
   { id: 28, name: 'F2L 28', group: 'Corner in Bottom', alg: "R U R' U' F R' F' R", step1: 'Lift corner with sexy move (R U R\' U\')', step2: 'Sledgehammer inserts without cube rotation', fingertrick: 'R U R\' U\' into F R\' F\' R' },
   { id: 29, name: 'F2L 29', group: 'Corner in Bottom', alg: "R' F R F' R' F R F'", step1: 'Double sledgehammer twists corner while preserving edge', step2: 'Second sledge drops pair directly into FR', fingertrick: 'Two crisp R\' F R F\' triggers' },
   { id: 30, name: 'F2L 30', group: 'Corner in Bottom', alg: "R U R' U' R U R'", step1: 'Pop white-right corner up with R U R\' U\'', step2: 'Direct insert with R U R\'', fingertrick: 'Fast regripless right-hand burst' },
-
-  // Group 6: Edge in Middle / Both in Bottom (31-41)
   { id: 31, name: 'F2L 31', group: 'Edge in Middle / Both Bottom', alg: "U' R' F R F' R U' R'", step1: 'Sledgehammer flips trapped middle-layer edge', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'U\' R\' F R F\' R U\' R\'' },
   { id: 32, name: 'F2L 32', group: 'Edge in Middle / Both Bottom', alg: "R U R' U' R U R' U' R U R'", step1: 'Triple sexy move cycles trapped edge and corner', step2: 'Third trigger locks pair into FR', fingertrick: '3x (R U R\' U\') without final U\'' },
   { id: 33, name: 'F2L 33', group: 'Edge in Middle / Both Bottom', alg: "U' R U' R' U2 R U' R'", step1: 'Extract trapped edge while setting corner in U', step2: 'U2 pairs them for R U\' R\' insert', fingertrick: 'U\' R U\' R\', U2 double-flick, R U\' R\'' },
@@ -239,49 +227,38 @@ const OLL_DATA = [
   { id: 23, name: 'OLL 23 (Headlights)', group: 'All Edges Oriented', alg: "R2 D R' U2 R D' R' U2 R'", fingertrick: 'Left ring finger D, right ring finger D\'' },
   { id: 24, name: 'OLL 24 (Chameleon)', group: 'All Edges Oriented', alg: "r U R' U' r' F R F'", fingertrick: 'Wide r with right hand, thumb F, index F\'' },
   { id: 25, name: 'OLL 25 (Bowtie)', group: 'All Edges Oriented', alg: "F' r U R' U' r' F R", fingertrick: 'Left index F\', wide r, right thumb F' },
-
   { id: 45, name: 'OLL 45 (T-Shape)', group: 'T-Shapes', alg: "F (R U R' U') F'", fingertrick: 'Right thumb F, sexy move, right index F\'' },
   { id: 33, name: 'OLL 33 (Key T)', group: 'T-Shapes', alg: "(R U R' U') (R' F R F')", fingertrick: 'Sexy move directly into sledgehammer' },
-
   { id: 31, name: 'OLL 31 (Couch)', group: 'P-Shapes', alg: "R' U' F U R U' R' F' R", fingertrick: 'Thumb-down R\', left index U\', thumb F' },
   { id: 32, name: 'OLL 32 (Anti-Couch)', group: 'P-Shapes', alg: "S R U R' U' R' F R f'", fingertrick: 'Index S push, sexy move, wide f\'' },
   { id: 43, name: 'OLL 43 (P-Shape L)', group: 'P-Shapes', alg: "f' (L' U' L U) f", fingertrick: 'Left-hand wide f\' into left sexy move' },
   { id: 44, name: 'OLL 44 (P-Shape R)', group: 'P-Shapes', alg: "f (R U R' U') f'", fingertrick: 'Wide f with thumb, sexy move, index f\'' },
-
   { id: 36, name: 'OLL 36 (W-Shape L)', group: 'W-Shapes', alg: "L' U' L U' L' U L U L F' L' F", fingertrick: 'Left-hand flow ending with left thumb F\'' },
   { id: 38, name: 'OLL 38 (W-Shape R)', group: 'W-Shapes', alg: "R U R' U R U' R' U' R' F R F'", fingertrick: 'Right-hand flow ending with sledgehammer' },
-
   { id: 5, name: 'OLL 5 (Square L)', group: 'Squares', alg: "r' U2 R U R' U r", fingertrick: 'Wide r\' down, U2 double-flick, wide r up' },
   { id: 6, name: 'OLL 6 (Square R)', group: 'Squares', alg: "r U2 R' U' R U' r'", fingertrick: 'Wide r up, U2 double-flick, wide r\' down' },
-
   { id: 34, name: 'OLL 34 (City C)', group: 'C-Shapes', alg: "R U R2 U' R' F R U R U' F'", fingertrick: 'Roll R2 cleanly into thumb F' },
   { id: 46, name: 'OLL 46 (Seein\' Headlights)', group: 'C-Shapes', alg: "R' U' R' F R F' U R", fingertrick: 'Thumb-down R\', sledgehammer, U R' },
-
   { id: 7, name: 'OLL 7 (Lightning L)', group: 'Lightning Bolts', alg: "r U R' U R U2 r'", fingertrick: 'Wide Sune variant' },
   { id: 8, name: 'OLL 8 (Lightning R)', group: 'Lightning Bolts', alg: "r' U' R U' R' U2 r", fingertrick: 'Left-thumb wide Antisune variant' },
   { id: 11, name: 'OLL 11 (Downstairs)', group: 'Lightning Bolts', alg: "r U R' U R' F R F' R U2 r'", fingertrick: 'Combine wide setup with sledgehammer' },
   { id: 12, name: 'OLL 12 (Upstairs)', group: 'Lightning Bolts', alg: "M' R' U' R U' R' U2 R U' R r'", fingertrick: 'Ring-finger M\' slice into Antisune' },
   { id: 39, name: 'OLL 39 (Big Lightning L)', group: 'Lightning Bolts', alg: "L F' L' U' L U F U' L'", fingertrick: 'Left-hand F\' push, U\' L U, thumb F' },
   { id: 40, name: 'OLL 40 (Big Lightning R)', group: 'Lightning Bolts', alg: "R' F R U R' U' F' U R", fingertrick: 'Right-hand F push, U R\' U\', index F\'' },
-
   { id: 9, name: 'OLL 9 (Kite)', group: 'Fish Shapes', alg: "R U R' U' R' F R2 U R' U' F'", fingertrick: 'Sexy move into R\' F R2 flow' },
   { id: 10, name: 'OLL 10 (Anti-Kite)', group: 'Fish Shapes', alg: "R U R' U R' F R F' R U2 R'", fingertrick: 'Sune interrupted by sledgehammer' },
   { id: 35, name: 'OLL 35 (Fish Salad)', group: 'Fish Shapes', alg: "R U2 R2 F R F' R U2 R'", fingertrick: 'R U2 R2 into sledgehammer and U2 R\'' },
   { id: 37, name: 'OLL 37 (Mounted Fish)', group: 'Fish Shapes', alg: "F R' F' R U R U' R'", fingertrick: 'Sledgehammer directly into inverse sexy' },
-
   { id: 28, name: 'OLL 28 (Stealth)', group: 'Corners Oriented', alg: "r U R' U' r' R U R U' R'", fingertrick: 'Wide sexy into M-slice sexy' },
   { id: 57, name: 'OLL 57 (H-Corners)', group: 'Corners Oriented', alg: "R U R' U' M' U R U' r'", fingertrick: 'Sexy move, ring-finger M\', finish with r\'' },
-
   { id: 13, name: 'OLL 13 (Gun L)', group: 'Knight Move', alg: "F U R U' R2 F' R U R U' R'", fingertrick: 'Thumb F, U R U\', roll R2' },
   { id: 14, name: 'OLL 14 (Gun R)', group: 'Knight Move', alg: "R' F R U R' F' R F U' F'", fingertrick: 'Sledgehammer variation with F U\' F\'' },
   { id: 15, name: 'OLL 15 (Squeegee L)', group: 'Knight Move', alg: "l' U' l L' U' L U l' U l", fingertrick: 'Left-hand wide triggers' },
   { id: 16, name: 'OLL 16 (Squeegee R)', group: 'Knight Move', alg: "r U r' R U R' U' r U' r'", fingertrick: 'Right-hand wide triggers' },
-
   { id: 29, name: 'OLL 29 (Spotted Chameleon)', group: 'Awkward Shapes', alg: "R U R' U' R U' R' F' U' F R U R'", fingertrick: 'Keep right hand regripless through F\' U\' F' },
   { id: 30, name: 'OLL 30 (Anti-Spotted)', group: 'Awkward Shapes', alg: "F R' F R2 U' R' U' R U R' F2", fingertrick: 'Thumb F, R\' F, roll R2' },
   { id: 41, name: 'OLL 41 (Awkward L)', group: 'Awkward Shapes', alg: "R U R' U R U2 R' F R U R' U' F'", fingertrick: 'Sune directly into F-sexy-F\'' },
   { id: 42, name: 'OLL 42 (Awkward R)', group: 'Awkward Shapes', alg: "R' U' R U' R' U2 R F R U R' U' F'", fingertrick: 'Back-Antisune directly into F-sexy-F\'' },
-
   { id: 47, name: 'OLL 47 (Anti-Breakneck)', group: 'L-Shapes', alg: "R' U' R' F R F' R' F R F' U R", fingertrick: 'Double sledgehammer framed by R\' U\' and U R' },
   { id: 48, name: 'OLL 48 (Breakneck)', group: 'L-Shapes', alg: "F (R U R' U') (R U R' U') F'", fingertrick: 'Thumb F, double sexy move, index F\'' },
   { id: 49, name: 'OLL 49 (Right Back Squeezy)', group: 'L-Shapes', alg: "r U' r2 U r2 U r2 U' r", fingertrick: 'Continuous wide r2 rolling' },
@@ -290,10 +267,8 @@ const OLL_DATA = [
   { id: 52, name: 'OLL 52 (Rice Cooker)', group: 'L-Shapes', alg: "R U R' U R U' B U' B' R'", fingertrick: 'Finish B turns with right ring/pinky' },
   { id: 53, name: 'OLL 53 (Frying Pan L)', group: 'L-Shapes', alg: "l' U2 L U L' U' L U L' U l", fingertrick: 'Wide l\' setup into double left-trigger' },
   { id: 54, name: 'OLL 54 (Frying Pan R)', group: 'L-Shapes', alg: "r U2 R' U' R U R' U' R U' r'", fingertrick: 'Wide r setup into double right-trigger' },
-
   { id: 55, name: 'OLL 55 (Highway)', group: 'I-Shapes', alg: "R' F R U R U' R2 F' R2 U' R' U R U R'", fingertrick: 'Flowing R2 transitions without regrip' },
   { id: 56, name: 'OLL 56 (Streetlights)', group: 'I-Shapes', alg: "r' U' r U' R' U R U' R' U R r' U r", fingertrick: 'Wide r\' framing two alternating triggers' },
-
   { id: 1, name: 'OLL 1 (Runway)', group: 'Dot Cases', alg: "R U2 R2 F R F' U2 R' F R F'", fingertrick: 'Two sledgehammers separated by U2' },
   { id: 2, name: 'OLL 2 (Zamboni)', group: 'Dot Cases', alg: "F (R U R' U') F' f (R U R' U') f'", fingertrick: 'F-sexy-F\' followed immediately by wide f-sexy-f\'' },
   { id: 3, name: 'OLL 3 (Anti-Nazi L)', group: 'Dot Cases', alg: "f (R U R' U') f' U' F (R U R' U') F'", fingertrick: 'Wide f trigger, U\', standard F trigger' },
@@ -707,27 +682,22 @@ const PLL_DEFAULT_CHUNKS = [
 ];
 
 const WCA_NOTATION_GUIDE = [
-  // Outer Faces
   { section: 'Outer Faces', move: "R / R'", desc: 'Right face clockwise / counter-clockwise' },
   { section: 'Outer Faces', move: "U / U'", desc: 'Top (Up) face clockwise / counter-clockwise' },
   { section: 'Outer Faces', move: "F / F'", desc: 'Front face clockwise / counter-clockwise' },
   { section: 'Outer Faces', move: "L / L'", desc: 'Left face clockwise / counter-clockwise' },
   { section: 'Outer Faces', move: "D / D'", desc: 'Bottom (Down) face clockwise / counter-clockwise' },
   { section: 'Outer Faces', move: "B / B'", desc: 'Back face clockwise / counter-clockwise' },
-  // Wide Turns
   { section: 'Wide Turns', move: "r / r'", desc: 'Wide Right double-layer turn (R + M\')' },
   { section: 'Wide Turns', move: "u / u'", desc: 'Wide Top double-layer turn (U + E\')' },
   { section: 'Wide Turns', move: "f / f'", desc: 'Wide Front double-layer turn (F + S)' },
   { section: 'Wide Turns', move: "l / l'", desc: 'Wide Left double-layer turn (L + M)' },
-  // Slice Moves
   { section: 'Slice Moves', move: "M / M'", desc: 'Middle slice between L & R (follows L direction)' },
   { section: 'Slice Moves', move: "S / S'", desc: 'Standing slice between F & B (follows F direction)' },
   { section: 'Slice Moves', move: "E / E'", desc: 'Equatorial slice between U & D (follows D direction)' },
-  // Rotations
   { section: 'Rotations', move: "x / x'", desc: 'Rotate entire cube on R axis (upward / downward)' },
   { section: 'Rotations', move: "y / y'", desc: 'Rotate entire cube on U axis (left / right)' },
   { section: 'Rotations', move: "z / z'", desc: 'Rotate entire cube on F axis (clockwise / counter)' },
-  // Modifiers
   { section: 'Modifiers', move: 'X2', desc: '180° half-turn on any face, slice, or axis (U2, R2, M2)' },
   { section: 'Modifiers', move: '( ... )', desc: 'Fingertrick trigger grouping (e.g., Sexy Move, Sledgehammer)' }
 ];
@@ -843,7 +813,6 @@ function buildFingertrickBreakdown(item) {
   const segments = item?.segments || [];
   const firstToken = alg.replace(/[()]/g, '').trim().split(/\s+/)[0] || '';
 
-  // 1. Determine Starting Grip from opening move
   let grip = 'Home Grip — right thumb on Front-Right, left thumb on Front-Left.';
   if (/^R'/.test(firstToken)) {
     grip = 'Thumb-Up Grip — place right thumb on Top-Right (UR) so R\' pulls down effortlessly.';
@@ -865,7 +834,6 @@ function buildFingertrickBreakdown(item) {
     grip = 'Rotate entire cube on U axis first, then lock straight into Home Grip.';
   }
 
-  // 2. Detect Named Speedcube Triggers & Key Finger Mechanics
   const triggers = [];
   const normalized = alg.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
   if (normalized.includes("R U R' U'")) triggers.push({ codex: FINGERTRICK_CODEX[0], detail: "Sexy Move (R U R' U') — right wrist + index push/pull" });
@@ -877,7 +845,6 @@ function buildFingertrickBreakdown(item) {
   if (/D2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[5], detail: 'D2 Double-Flick — left ring + middle finger back-bottom tap' });
   if (/M2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[6], detail: 'M2 Double-Flick — left ring followed immediately by middle finger' });
 
-  // 3. Flow / Regrip Cue
   const hasRegripWarning =
     triggers.length === 0
       ? 'Keep both thumbs anchored on the front face; avoid letting go with your left hand.'
@@ -941,9 +908,6 @@ const getPLLImageUrl = (alg, setupScramble = null) => {
     : `${baseUrl}&case=${encodeURIComponent(alg)}`;
 };
 
-const getCrossImageUrl = (scramble) =>
-  `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=cross&bg=t&cc=080b12&co=100&fc=yyyyyyyyyooooooooogggggggggwwwwwwwwwrrrrrrrrrbbbbbbbbb&r=y-35x25&alg=${encodeURIComponent(scramble)}`;
-
 function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
   if (variationSeed === 0) return inverseAlg;
   const aufOptions = ['', 'U', "U'", 'U2'];
@@ -953,10 +917,50 @@ function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
 }
 
 // =========================================================================
+// 2A. 3x3x3 FULL-SOLVE SCRAMBLE & WCA AO5 / AO12 TELEMETRY HELPERS
+// =========================================================================
+function generate3x3Scramble(length = 20) {
+  const faces = ['U', 'D', 'L', 'R', 'F', 'B'];
+  const axis = { U: 'UD', D: 'UD', L: 'LR', R: 'LR', F: 'FB', B: 'FB' };
+  const mods = ['', "'", '2'];
+  const seq = [];
+  let prevFace = '';
+  let prevAxis = '';
+  while (seq.length < length) {
+    const f = faces[Math.floor(Math.random() * faces.length)];
+    if (f === prevFace) continue;
+    if (axis[f] === prevAxis && seq.length >= 2 && axis[seq[seq.length - 2][0]] === axis[f]) continue;
+    const m = mods[Math.floor(Math.random() * mods.length)];
+    seq.push(`${f}${m}`);
+    prevAxis = axis[f];
+    prevFace = f;
+  }
+  return seq.join(' ');
+}
+
+function computeWcaAverage(history, windowSize) {
+  if (!Array.isArray(history) || history.length < windowSize) return null;
+  const recent = history.slice(0, windowSize);
+  const dnfCount = recent.filter((s) => s.penalty === 'DNF').length;
+  if (dnfCount >= 2) return 'DNF';
+  const values = recent.map((s) =>
+    s.penalty === 'DNF' ? Infinity : Number(s.ms) + (s.penalty === '+2' ? 2000 : 0)
+  );
+  values.sort((a, b) => a - b);
+  const trimmed = values.slice(1, windowSize - 1);
+  if (trimmed.some((v) => !Number.isFinite(v))) return 'DNF';
+  return trimmed.reduce((acc, v) => acc + v, 0) / trimmed.length;
+}
+
+function formatMsTime(ms, decimals = 2) {
+  if (ms == null || !Number.isFinite(Number(ms))) return '—';
+  return `${(Number(ms) / 1000).toFixed(decimals)}s`;
+}
+
+// =========================================================================
 // 2B. LIVE 3x3 CUBE SIMULATOR FOR CROSS 180° BOTTOM-VIEW SVG DIAGRAM
 // =========================================================================
 function simulateCrossCubeState(scramble = '') {
-  // Faces: U(0..8 Yellow), R(9..17 Orange), F(18..26 Green), D(27..35 White), L(36..44 Red), B(45..53 Blue)
   const s = [
     ...Array(9).fill('Y'),
     ...Array(9).fill('O'),
@@ -1039,7 +1043,6 @@ const STICKER_HEX = {
 // 2C. TRUE 3D SPATIAL F2L CUBE SIMULATOR & VOLUMETRIC 3D RENDERER
 // =========================================================================
 function simulateF2LCubeState(setupScramble = '') {
-  // Standard orientation: U=Yellow(0..8), R=Orange(9..17), F=Green(18..26), D=White(27..35), L=Red(36..44), B=Blue(45..53)
   const s = [
     ...Array(9).fill('Y'),
     ...Array(9).fill('O'),
@@ -1106,7 +1109,6 @@ function simulateF2LCubeState(setupScramble = '') {
     for (let i = 0; i < reps; i++) {
       if (face === 'r') {
         turnOnce('R');
-        // M' slice
         cycle4(1, 49, 28, 19);
         cycle4(4, 46, 31, 22);
         cycle4(7, 43, 34, 25);
@@ -1121,9 +1123,8 @@ function simulateF2LCubeState(setupScramble = '') {
 
 function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
   const stickers = simulateF2LCubeState(setupScramble);
-  const half = 48; // 96px true volumetric cube in 3D perspective space
+  const half = 48;
 
-  // Dim non-F2L top-layer stickers slightly to highlight the F2L pair while keeping full 6-sided 3D cube realism
   const renderFace = (offset, transform, shadeOpacity) => (
     <div
       style={{
@@ -1175,10 +1176,6 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
     </div>
   );
 
-  // Convert VisualCube yaw/pitch convention into true 3D CSS world space
-  const rotX = pitch;
-  const rotY = yaw;
-
   return (
     <div
       style={{
@@ -1192,7 +1189,6 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
       }}
       className="pointer-events-none"
     >
-      {/* Ambient 3D Stage Floor Shadow */}
       <div
         style={{
           position: 'absolute',
@@ -1206,28 +1202,21 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
         }}
       />
 
-      {/* True 6-Faced Volumetric 3D Cube */}
       <div
         style={{
           width: `${half * 2}px`,
           height: `${half * 2}px`,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: `translateZ(-12px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${isDragging ? 1.05 : 1})`,
+          transform: `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${isDragging ? 1.05 : 1})`,
           transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
       >
-        {/* Front (Green) */}
         {renderFace(18, `rotateY(0deg) translateZ(${half}px)`, 0.04)}
-        {/* Back (Blue) */}
         {renderFace(45, `rotateY(180deg) translateZ(${half}px)`, 0.14)}
-        {/* Right (Orange) */}
         {renderFace(9, `rotateY(90deg) translateZ(${half}px)`, 0.12)}
-        {/* Left (Red) */}
         {renderFace(36, `rotateY(-90deg) translateZ(${half}px)`, 0.12)}
-        {/* Top (Yellow) */}
         {renderFace(0, `rotateX(90deg) translateZ(${half}px)`, 0)}
-        {/* Bottom (White) */}
         {renderFace(27, `rotateX(-90deg) translateZ(${half}px)`, 0.22)}
       </div>
     </div>
@@ -1257,7 +1246,6 @@ function generateF2LSetupScramble(alg, mode = 'beginner', variationSeed = 0) {
     return `${aufPrefix}${baseInverse}`.trim();
   }
 
-  // Realistic mid-solve background triggers that preserve White Cross and FR slot
   const realisticTriggers = [
     "L' U' L U",
     "B U B' U'",
@@ -1321,6 +1309,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1335,6 +1324,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1349,6 +1339,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1363,6 +1354,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1377,6 +1369,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1391,6 +1384,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1405,6 +1399,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1419,6 +1414,7 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
+    fullSolveHistory: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1428,7 +1424,6 @@ const DEFAULT_USERS = {
   }
 };
 
-// Apply default user records & default PINs when a default user has no PIN stored yet
 function mergeDefaultUsersWithStored(storedMap) {
   const result = {};
   Object.entries(DEFAULT_USERS).forEach(([k, defVal]) => {
@@ -1441,6 +1436,7 @@ function mergeDefaultUsersWithStored(storedMap) {
       result[k] = {
         ...defVal,
         ...existing,
+        fullSolveHistory: Array.isArray(existing.fullSolveHistory) ? existing.fullSolveHistory : [],
         pin: cleanPin.length === 4 ? cleanPin : defVal.pin
       };
     } else {
@@ -1450,7 +1446,10 @@ function mergeDefaultUsersWithStored(storedMap) {
   if (storedMap && typeof storedMap === 'object') {
     Object.entries(storedMap).forEach(([k, val]) => {
       if (!result[k] && val && typeof val === 'object' && !val.$$typeof && !val._deleted) {
-        result[k] = val;
+        result[k] = {
+          ...val,
+          fullSolveHistory: Array.isArray(val.fullSolveHistory) ? val.fullSolveHistory : []
+        };
       }
     });
   }
@@ -1504,9 +1503,9 @@ class AppErrorBoundary extends React.Component {
 function OLLDaySuite() {
   // Cloud Auth & Sync State
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
-  const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting'); // 'connecting' | 'synced' | 'offline'
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
 
-  // Persistent User & App Settings (Local Storage Cache + Cloud Firestore Sync)
+  // Persistent User & App Settings
   const [users, setUsers] = useState(() => {
     try {
       const saved = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.users) : null;
@@ -1517,45 +1516,54 @@ function OLLDaySuite() {
         }
       }
     } catch {
-      // Fallback to defaults if storage unavailable
+      // Fallback to defaults
     }
     return { ...DEFAULT_USERS };
   });
   const [activeUserKey, setActiveUserKey] = useState('Me');
-  const [activePhase, setActivePhase] = useState('f2l'); // 'cross' | 'f2l' | 'oll' | 'pll'
+  const [activePhase, setActivePhase] = useState('f2l');
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
   // Sub-tabs per phase
-  const [crossTab, setCrossTab] = useState('ladder'); // 'ladder' | 'blind' | 'mechanics' | 'settings'
-  const [f2lTab, setF2lTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
-  const [ollTab, setOllTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
-  const [pllTab, setPllTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
+  const [crossTab, setCrossTab] = useState('ladder');
+  const [f2lTab, setF2lTab] = useState('grind');
+  const [ollTab, setOllTab] = useState('grind');
+  const [pllTab, setPllTab] = useState('grind');
 
   // Global Preferences
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [stopwatchEnabled, setStopwatchEnabled] = useState(true);
   const [fingertricksEnabled, setFingertricksEnabled] = useState(true);
   const [targetGoalSec, setTargetGoalSec] = useState(2.5);
-  const [f2lSetupMode, setF2lSetupMode] = useState('beginner'); // 'beginner' | 'realistic'
+  const [targetPbInput, setTargetPbInput] = useState('2.500');
+  const [f2lSetupMode, setF2lSetupMode] = useState('beginner');
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
-  // Settings 3D Card Deck State
+
+  // Settings 3D Card Deck State (6 Cards)
   const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
   const deckTouchStartRef = useRef(null);
 
+  // Full-Screen Glassmorphic 3x3x3 CFOP Timer State (Ao5 & Ao12)
+  const [fullTimerOpen, setFullTimerOpen] = useState(false);
+  const [fullScramble, setFullScramble] = useState(() => generate3x3Scramble(20));
+  const [fullTimerState, setFullTimerState] = useState('idle'); // 'idle' | 'running' | 'stopped'
+  const [fullElapsedMs, setFullElapsedMs] = useState(0);
+  const fullStartRef = useRef(0);
+
   // Cross Phase State
   const [crossTier, setCrossTier] = useState(1);
   const [crossScrambleIdx, setCrossScrambleIdx] = useState(0);
-  const [crossLadderMode, setCrossLadderMode] = useState('efficiency'); // 'efficiency' | 'blind'
+  const [crossLadderMode, setCrossLadderMode] = useState('efficiency');
   const [crossBottomView, setCrossBottomView] = useState(true);
   const [crossUserMoves, setCrossUserMoves] = useState(2);
   const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
   const [activeMechanicId, setActiveMechanicId] = useState(1);
 
   // Blind Inspection Trainer State
-  const [blindState, setBlindState] = useState('idle'); // 'idle' | 'inspecting' | 'readying' | 'armed' | 'visor' | 'done'
+  const [blindState, setBlindState] = useState('idle');
   const [inspectionLeft, setInspectionLeft] = useState(15.0);
   const [blindLogs, setBlindLogs] = useState([]);
 
@@ -1564,19 +1572,19 @@ function OLLDaySuite() {
   const [orbitQuizActive, setOrbitQuizActive] = useState(false);
   const [orbitShuffledColors, setOrbitShuffledColors] = useState(['Green', 'Red', 'Orange', 'Blue']);
   const [orbitStreak, setOrbitStreak] = useState(0);
-  const [orbitFeedback, setOrbitFeedback] = useState(null); // { correct: boolean, chosen: string }
+  const [orbitFeedback, setOrbitFeedback] = useState(null);
   const padHoldTimeoutRef = useRef(null);
 
-  // F2L & OLL Library / Lineup State
-  const [f2lLibMode, setF2lLibMode] = useState('groups'); // 'groups' | 'chunks'
+  // F2L, OLL & PLL Library / Lineup State
+  const [f2lLibMode, setF2lLibMode] = useState('groups');
   const [f2lSelectedCategory, setF2lSelectedCategory] = useState(null);
   const [f2lLineupOrder, setF2lLineupOrder] = useState([]);
 
-  const [ollLibMode, setOllLibMode] = useState('groups'); // 'groups' | 'chunks'
+  const [ollLibMode, setOllLibMode] = useState('groups');
   const [ollSelectedCategory, setOllSelectedCategory] = useState(null);
   const [ollLineupOrder, setOllLineupOrder] = useState([]);
 
-  const [pllLibMode, setPllLibMode] = useState('groups'); // 'groups' | 'chunks'
+  const [pllLibMode, setPllLibMode] = useState('groups');
   const [pllSelectedCategory, setPllSelectedCategory] = useState(null);
   const [pllLineupOrder, setPllLineupOrder] = useState([]);
 
@@ -1586,7 +1594,7 @@ function OLLDaySuite() {
   const preHoldStartYRef = useRef(null);
 
   // Active Modals & Session Runners
-  const [activeModal, setActiveModal] = useState(null); // 'profile' | 'compass' | 'onboarding' | 'reset' | 'curriculum' | 'fingertrick' | 'preview'
+  const [activeModal, setActiveModal] = useState(null);
   const [onboardingSlide, setOnboardingSlide] = useState(0);
   const [ftCase, setFtCase] = useState(null);
   const [ftPhaseContext, setFtPhaseContext] = useState('f2l');
@@ -1596,10 +1604,7 @@ function OLLDaySuite() {
   const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
 
   // PIN Code & Admin Panel State
-  const [pendingUserSwitch, setPendingUserSwitch] = useState(null);
   const [startupPinLocked, setStartupPinLocked] = useState(true);
-  const [isAdminSession, setIsAdminSession] = useState(false);
-  const [creatingPinForUser, setCreatingPinForUser] = useState(null);
   const [pinEntryInput, setPinEntryInput] = useState('');
   const [pinErrorMsg, setPinErrorMsg] = useState('');
   const [myPinDraft, setMyPinDraft] = useState('');
@@ -1622,14 +1627,12 @@ function OLLDaySuite() {
   const [adminStatusMsg, setAdminStatusMsg] = useState('');
 
   // Session & Drill Runners (F2L, OLL & PLL)
-  const [f2lSession, setF2lSession] = useState(null); // { dayObj, index, queue }
+  const [f2lSession, setF2lSession] = useState(null);
   const [f2lDrillCase, setF2lDrillCase] = useState(null);
   const [f2lViewIdx, setF2lViewIdx] = useState(0);
   const [f2lDragRot, setF2lDragRot] = useState({ yaw: -35, pitch: -25 });
-  const [f2lCommittedRot, setF2lCommittedRot] = useState({ yaw: -35, pitch: -25 });
   const [f2lIsDragging, setF2lIsDragging] = useState(false);
   const f2lDragStartRef = useRef(null);
-  const f2lLastFetchTimeRef = useRef(0);
   const [ollSession, setOllSession] = useState(null);
   const [ollDrillCase, setOllDrillCase] = useState(null);
   const [pllSession, setPllSession] = useState(null);
@@ -1692,6 +1695,7 @@ function OLLDaySuite() {
       stats: {},
       f2lStats: {},
       pllStats: {},
+      fullSolveHistory: [],
       customChunks: null,
       f2lCustomChunks: null,
       pllCustomChunks: null,
@@ -1721,6 +1725,9 @@ function OLLDaySuite() {
       stats: cleanStatMap(raw.stats),
       f2lStats: cleanStatMap(raw.f2lStats),
       pllStats: cleanStatMap(raw.pllStats),
+      fullSolveHistory: Array.isArray(raw.fullSolveHistory)
+        ? raw.fullSolveHistory.filter((s) => s && typeof s.ms === 'number')
+        : [],
       customChunks: Array.isArray(raw.customChunks)
         ? raw.customChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
         : null,
@@ -1791,17 +1798,14 @@ function OLLDaySuite() {
               return;
             }
             const remoteRaw = {};
-            const remoteIds = new Set();
             snapshot.forEach((docSnap) => {
               const id = String(docSnap.id);
-              remoteIds.add(id);
               const data = docSnap.data();
               if (data && typeof data === 'object' && !data.$$typeof) {
                 remoteRaw[id] = data;
               }
             });
 
-            // Backfill any missing default profiles or missing default PINs to cloud
             Object.entries(DEFAULT_USERS).forEach(([defKey, defVal]) => {
               const rem = remoteRaw[defKey];
               if (!rem) {
@@ -1871,7 +1875,6 @@ function OLLDaySuite() {
     };
   }, [cloudAuthUser]);
 
-  // Helper to push individual user updates to Cloud + Local Cache
   const saveUserToCloud = async (uKey, uData) => {
     if (typeof uKey !== 'string') return;
     const cleanData = sanitizeUserRecord(uData);
@@ -1911,23 +1914,16 @@ function OLLDaySuite() {
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || ollSchedule[0];
   const currentPllDayObj = pllSchedule[safePllDay - 1] || pllSchedule[0];
 
-  // Keep daily lineup arrays synced with current day cases
   useEffect(() => {
-    if (currentF2lDayObj?.cases) {
-      setF2lLineupOrder(currentF2lDayObj.cases);
-    }
+    if (currentF2lDayObj?.cases) setF2lLineupOrder(currentF2lDayObj.cases);
   }, [safeF2lDay, activeUserKey, currentUser.f2lCustomChunks]);
 
   useEffect(() => {
-    if (currentOllDayObj?.cases) {
-      setOllLineupOrder(currentOllDayObj.cases);
-    }
+    if (currentOllDayObj?.cases) setOllLineupOrder(currentOllDayObj.cases);
   }, [safeOllDay, activeUserKey, currentUser.customChunks]);
 
   useEffect(() => {
-    if (currentPllDayObj?.cases) {
-      setPllLineupOrder(currentPllDayObj.cases);
-    }
+    if (currentPllDayObj?.cases) setPllLineupOrder(currentPllDayObj.cases);
   }, [safePllDay, activeUserKey, currentUser.pllCustomChunks]);
 
   // Audio Synthesizer
@@ -1969,6 +1965,80 @@ function OLLDaySuite() {
     return () => cancelAnimationFrame(raf);
   }, [swRunning]);
 
+  // Full-Screen 3x3x3 CFOP Timer Ticker
+  useEffect(() => {
+    if (fullTimerState !== 'running') return;
+    let raf;
+    const tick = () => {
+      setFullElapsedMs(performance.now() - fullStartRef.current);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [fullTimerState]);
+
+  const handleFullTimerScreenTap = () => {
+    if (fullTimerState === 'running') {
+      emitBeep(960, 'triangle', 0.09);
+      const finalMs = Math.max(10, Math.round(performance.now() - fullStartRef.current));
+      setFullElapsedMs(finalMs);
+      setFullTimerState('stopped');
+      const newSolve = {
+        id: `cfop-${Date.now()}`,
+        ms: finalMs,
+        scramble: fullScramble,
+        penalty: null,
+        timestamp: Date.now()
+      };
+      const updatedUser = {
+        ...currentUser,
+        fullSolveHistory: [newSolve, ...(currentUser.fullSolveHistory || [])].slice(0, 100)
+      };
+      setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
+      saveUserToCloud(activeUserKey, updatedUser);
+      setFullScramble(generate3x3Scramble(20));
+    } else {
+      emitBeep(720, 'sine', 0.06);
+      fullStartRef.current = performance.now();
+      setFullElapsedMs(0);
+      setFullTimerState('running');
+    }
+  };
+
+  const toggleFullSolvePenalty = (penaltyType) => {
+    const hist = [...(currentUser.fullSolveHistory || [])];
+    if (!hist.length) return;
+    emitBeep(560);
+    hist[0] = {
+      ...hist[0],
+      penalty: hist[0].penalty === penaltyType ? null : penaltyType
+    };
+    const updatedUser = { ...currentUser, fullSolveHistory: hist };
+    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
+    saveUserToCloud(activeUserKey, updatedUser);
+  };
+
+  const deleteLastFullSolve = () => {
+    const hist = [...(currentUser.fullSolveHistory || [])];
+    if (!hist.length) return;
+    emitBeep(400);
+    hist.shift();
+    const updatedUser = { ...currentUser, fullSolveHistory: hist };
+    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
+    saveUserToCloud(activeUserKey, updatedUser);
+    setFullElapsedMs(0);
+    setFullTimerState('idle');
+  };
+
+  const ao5Full = computeWcaAverage(currentUser.fullSolveHistory, 5);
+  const ao12Full = computeWcaAverage(currentUser.fullSolveHistory, 12);
+  const bestFullPbMs = (() => {
+    const valid = (currentUser.fullSolveHistory || [])
+      .filter((s) => s.penalty !== 'DNF')
+      .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0));
+    return valid.length ? Math.min(...valid) : null;
+  })();
+
   const toggleStopwatch = (onStopRecord) => {
     if (!swRunning) {
       emitBeep(720, 'sine', 0.06);
@@ -1977,7 +2047,7 @@ function OLLDaySuite() {
       setSwRunning(true);
     } else {
       emitBeep(960, 'triangle', 0.09);
-      const finalSec = Number(((performance.now() - swStartRef.current) / 1000).toFixed(2));
+      const finalSec = Number(((performance.now() - swStartRef.current) / 1000).toFixed(3));
       setSwRunning(false);
       if (onStopRecord && finalSec > 0.15) {
         onStopRecord(finalSec);
@@ -2157,6 +2227,9 @@ function OLLDaySuite() {
         u.pllStats = {};
         u.pllCustomChunks = null;
       }
+      if (scope === 'full-timer') {
+        u.fullSolveHistory = [];
+      }
       if (scope === 'both') {
         const fresh = { ...DEFAULT_USERS.Me, isAdmin: Boolean(u.isAdmin), pin: u.pin || '' };
         saveUserToCloud(activeUserKey, fresh);
@@ -2227,7 +2300,6 @@ function OLLDaySuite() {
     const preset = F2L_VIEW_ANGLES[nextIdx % F2L_VIEW_ANGLES.length];
     setF2lViewIdx(nextIdx % F2L_VIEW_ANGLES.length);
     setF2lDragRot({ yaw: preset.yaw, pitch: preset.pitch });
-    setF2lCommittedRot({ yaw: preset.yaw, pitch: preset.pitch });
   };
 
   const handleF2LCubePointerDown = (e) => {
@@ -2256,7 +2328,6 @@ function OLLDaySuite() {
       f2lDragStartRef.current.moved = true;
     }
 
-    // Track exact finger velocity & displacement frame-by-frame in real time
     setF2lDragRot((prev) => {
       const nextYaw = Math.round(prev.yaw + deltaX * 1.15);
       const nextPitch = Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)));
@@ -2272,12 +2343,11 @@ function OLLDaySuite() {
     if (wasTap) {
       emitBeep(620);
       setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
-    } else {
-      setF2lCommittedRot(f2lDragRot);
     }
   };
 
-  // Settings Deck Touch Swipe Handlers
+  // Settings Deck Touch Swipe Handlers (6 Cards)
+  const totalDeckCards = 6;
   const handleDeckTouchStart = (e) => {
     if (e.target.closest('[data-scrollable="true"]')) return;
     const t = e.touches[0];
@@ -2293,21 +2363,99 @@ function OLLDaySuite() {
     if (Math.abs(dx) > 36 || Math.abs(dy) > 36) {
       emitBeep(520, 'sine', 0.05);
       if (dx < -36 || dy < -36) {
-        setSettingsDeckIdx((p) => (p + 1) % 5);
+        setSettingsDeckIdx((p) => (p + 1) % totalDeckCards);
       } else {
-        setSettingsDeckIdx((p) => (p + 4) % 5);
+        setSettingsDeckIdx((p) => (p + totalDeckCards - 1) % totalDeckCards);
       }
     }
   };
 
   const getDeckCardClass = (cardIdx) => {
-    const rel = (cardIdx - settingsDeckIdx + 5) % 5;
+    const rel = (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards;
     if (rel === 0) return 'deck-card-1';
     if (rel === 1) return 'deck-card-2';
     return 'deck-card-3';
   };
 
-  // Reusable Settings Deck Renderer
+  // Shared 3x3x3 CFOP Full-Solve Telemetry Section (Shown inside Statistics across all phases)
+  const renderFullSolveStatsBlock = () => (
+    <div className="bg-slate-900/75 border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+            Full 3x3x3 CFOP Session
+          </span>
+          <h3 className="text-sm font-black text-white">Ao5 &amp; Ao12 Telemetry</h3>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            emitBeep(620);
+            setFullTimerState('idle');
+            setFullElapsedMs(0);
+            setFullTimerOpen(true);
+          }}
+          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider cursor-pointer active:scale-95"
+        >
+          Open Timer
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
+          <span className="text-[9px] font-bold uppercase text-slate-400 block">Ao5</span>
+          <span className="font-mono text-base font-black text-green-400">
+            {ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}
+          </span>
+        </div>
+        <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
+          <span className="text-[9px] font-bold uppercase text-slate-400 block">Ao12</span>
+          <span className="font-mono text-base font-black text-sky-400">
+            {ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}
+          </span>
+        </div>
+        <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
+          <span className="text-[9px] font-bold uppercase text-slate-400 block">Best PB</span>
+          <span className="font-mono text-base font-black text-amber-300">
+            {formatMsTime(bestFullPbMs, 2)}
+          </span>
+        </div>
+      </div>
+
+      {currentUser.fullSolveHistory?.length > 0 ? (
+        <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
+          {currentUser.fullSolveHistory.slice(0, 12).map((s, idx) => {
+            const adj =
+              s.penalty === 'DNF'
+                ? 'DNF'
+                : formatMsTime(Number(s.ms) + (s.penalty === '+2' ? 2000 : 0), 2);
+            return (
+              <div
+                key={s.id}
+                className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl px-3 py-1.5 text-[11px]"
+              >
+                <span className="font-mono text-slate-400">
+                  #{currentUser.fullSolveHistory.length - idx}
+                </span>
+                <span className="font-mono font-black text-white">
+                  {adj} {s.penalty === '+2' ? '(+2)' : ''}
+                </span>
+                <span className="font-mono text-[9.5px] text-slate-500 truncate max-w-[140px]">
+                  {s.scramble}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-400 text-center py-1">
+          No 3x3x3 full solves logged yet. Launch the Full-Screen Timer to track Ao5 &amp; Ao12.
+        </p>
+      )}
+    </div>
+  );
+
+  // Reusable Settings 6-Card Deck Renderer
   const renderSettingsDeck = () => (
     <div className="p-5 pb-10 space-y-4">
       <div className="flex items-center justify-between">
@@ -2316,7 +2464,7 @@ function OLLDaySuite() {
           <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3, 4].map((idx) => (
+          {[0, 1, 2, 3, 4, 5].map((idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -2335,14 +2483,14 @@ function OLLDaySuite() {
       <div
         onTouchStart={handleDeckTouchStart}
         onTouchEnd={handleDeckTouchEnd}
-        className="relative h-[455px] w-full mt-2"
+        className="relative h-[475px] w-full mt-2"
       >
-        {/* Card 1: Hardware & Training Preferences */}
+        {/* Card 1: Hardware & Millisecond Target PB Preferences */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${getDeckCardClass(0)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 5 • Preferences</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 6 • Preferences</span>
             <button
               onClick={() => {
                 emitBeep(520);
@@ -2350,16 +2498,16 @@ function OLLDaySuite() {
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              Next Card →
+              3x3 Timer →
             </button>
           </div>
           <h3 className="text-lg font-black text-white">Speedcubing Suite</h3>
 
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5">
               <div>
                 <p className="text-xs font-bold text-white">Speedcube Stopwatch</p>
-                <p className="text-[10px] text-slate-400">Record solve times & track case PRs</p>
+                <p className="text-[10px] text-slate-400">Record solve times &amp; track case PBs</p>
               </div>
               <button
                 onClick={() => {
@@ -2374,7 +2522,7 @@ function OLLDaySuite() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-3">
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5">
               <div>
                 <p className="text-xs font-bold text-white">Fingertrick Execution Dossiers</p>
                 <p className="text-[10px] text-slate-400">Show color-coded grip cues on every card</p>
@@ -2392,10 +2540,10 @@ function OLLDaySuite() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-3">
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5">
               <div>
                 <p className="text-xs font-bold text-white">Synthesized Sound Cues</p>
-                <p className="text-[10px] text-slate-400">Inspection warnings & timer chimes</p>
+                <p className="text-[10px] text-slate-400">Inspection warnings &amp; timer chimes</p>
               </div>
               <button
                 onClick={() => setAudioEnabled((v) => !v)}
@@ -2407,36 +2555,141 @@ function OLLDaySuite() {
               </button>
             </div>
 
+            {/* Millisecond-Precision Target PB (Personal Best) */}
             <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">Target PR Goal</span>
-                <span className="font-mono text-xs font-black text-orange-400">{targetGoalSec.toFixed(1)}s</span>
+                <span className="text-xs font-bold text-white">Target PB (Personal Best)</span>
+                <span className="font-mono text-xs font-black text-orange-400">{targetGoalSec.toFixed(3)}s</span>
               </div>
               <input
                 type="range"
-                min="1.0"
-                max="5.0"
-                step="0.1"
+                min="0.250"
+                max="8.000"
+                step="0.001"
                 value={targetGoalSec}
-                onChange={(e) => setTargetGoalSec(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setTargetGoalSec(val);
+                  setTargetPbInput(val.toFixed(3));
+                }}
                 className="w-full accent-orange-500 cursor-pointer"
               />
+              <div className="grid grid-cols-5 gap-1">
+                {[
+                  { label: '-10ms', delta: -0.01 },
+                  { label: '-1ms', delta: -0.001 },
+                  { label: '+1ms', delta: 0.001 },
+                  { label: '+10ms', delta: 0.01 }
+                ].map((btn) => (
+                  <button
+                    key={btn.label}
+                    type="button"
+                    onClick={() => {
+                      emitBeep(540);
+                      const next = Math.min(10, Math.max(0.1, Number((targetGoalSec + btn.delta).toFixed(3))));
+                      setTargetGoalSec(next);
+                      setTargetPbInput(next.toFixed(3));
+                    }}
+                    className="py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0.100"
+                  max="10.000"
+                  value={targetPbInput}
+                  onChange={(e) => setTargetPbInput(e.target.value)}
+                  onBlur={() => {
+                    const p = parseFloat(targetPbInput);
+                    if (Number.isFinite(p)) {
+                      const clamped = Math.min(10, Math.max(0.1, Number(p.toFixed(3))));
+                      setTargetGoalSec(clamped);
+                      setTargetPbInput(clamped.toFixed(3));
+                    } else {
+                      setTargetPbInput(targetGoalSec.toFixed(3));
+                    }
+                  }}
+                  className="rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-amber-300"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Notation Key */}
+        {/* Card 2: Full-Screen 3x3x3 CFOP Timer (Ao5 & Ao12) */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(1)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${getDeckCardClass(1)}`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 2 of 5 • Reference
-            </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 6 • Full 3x3x3</span>
             <button
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(2);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Notation →
+            </button>
+          </div>
+          <h3 className="text-lg font-black text-white">3x3x3 CFOP Full Timer</h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Full-screen glassmorphic 3x3x3 timer with random competition scrambles, tap-anywhere start/stop, and live Ao5 &amp; Ao12 tracking.
+          </p>
+
+          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+              Next 3x3x3 Scramble
+            </span>
+            <p className="font-mono text-xs font-bold text-amber-300 leading-relaxed">
+              {fullScramble}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+              <span className="text-[9px] font-bold uppercase text-slate-400 block">Current Ao5</span>
+              <span className="font-mono text-lg font-black text-green-400">
+                {ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}
+              </span>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
+              <span className="text-[9px] font-bold uppercase text-slate-400 block">Current Ao12</span>
+              <span className="font-mono text-lg font-black text-sky-400">
+                {ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              emitBeep(720);
+              setFullTimerState('idle');
+              setFullElapsedMs(0);
+              setFullTimerOpen(true);
+            }}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+          >
+            Launch Full-Screen Timer
+          </button>
+        </div>
+
+        {/* Card 3: Notation Key */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(2)}`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+              Card 3 of 6 • Reference
+            </span>
+            <button
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(3);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2445,7 +2698,6 @@ function OLLDaySuite() {
           </div>
           <h3 className="text-lg font-black text-white mb-2">Notation Key</h3>
 
-          {/* Section Filter Pills */}
           <div data-scrollable="true" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-1 flex-shrink-0">
             {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations', 'Modifiers'].map((sec) => (
               <button
@@ -2465,7 +2717,7 @@ function OLLDaySuite() {
             ))}
           </div>
 
-          <div data-scrollable="true" className="h-[295px] overflow-y-auto no-scrollbar space-y-1.5 pr-1">
+          <div data-scrollable="true" className="h-[310px] overflow-y-auto no-scrollbar space-y-1.5 pr-1">
             {WCA_NOTATION_GUIDE.filter((item) => notationFilter === 'All' || item.section === notationFilter).map((item) => (
               <div key={item.move} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-2">
                 <div className="flex flex-col flex-shrink-0">
@@ -2480,18 +2732,18 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 3: All-Inclusive Color-Coded Fingertricks Dossier */}
+        {/* Card 4: All-Inclusive Color-Coded Fingertricks Dossier */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(2)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 3 of 5 • Mechanics Codex
+              Card 4 of 6 • Mechanics Codex
             </span>
             <button
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(3);
+                setSettingsDeckIdx(4);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2519,7 +2771,7 @@ function OLLDaySuite() {
             ))}
           </div>
 
-          <div data-scrollable="true" className="h-[295px] overflow-y-auto no-scrollbar space-y-2 pr-1">
+          <div data-scrollable="true" className="h-[310px] overflow-y-auto no-scrollbar space-y-2 pr-1">
             {FINGERTRICK_CODEX.filter((entry) => dossierFilter === 'All' || entry.category === dossierFilter).map((entry) => (
               <div key={entry.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
@@ -2538,16 +2790,16 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 4: Guides, PIN Security & Reset */}
+        {/* Card 5: Guides, Personal PIN & Reset */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 5 • Roadmap &amp; PIN</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 6 • Roadmap &amp; PIN</span>
             <button
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(4);
+                setSettingsDeckIdx(5);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2556,126 +2808,12 @@ function OLLDaySuite() {
           </div>
           <h3 className="text-lg font-black text-white">Guides, PIN &amp; Data</h3>
 
-          {/* Personal 4-Digit Profile PIN Setter */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-white">Profile PIN Lock ({activeUserKey})</span>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                currentUser.pin ? 'bg-green-500/15 text-green-300 border border-green-500/30' : 'bg-slate-800 text-slate-400'
-              }`}>
-                {currentUser.pin ? 'PIN Active' : 'Unlocked'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={myPinDraft}
-                onChange={(e) => setMyPinDraft(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder={currentUser.pin ? 'New 4-digit PIN' : 'Set 4-digit PIN'}
-                className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const cleanPin = myPinDraft.replace(/\D/g, '').slice(0, 4);
-                  if (cleanPin.length !== 4) return;
-                  emitBeep(760);
-                  const updated = { ...currentUser, pin: cleanPin };
-                  setUsers((prev) => ({
-                    ...prev,
-                    [activeUserKey]: updated
-                  }));
-                  saveUserToCloud(activeUserKey, updated);
-                  setMyPinDraft('');
-                }}
-                className="px-3 py-2 rounded-xl bg-orange-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
-              >
-                Save
-              </button>
-              {currentUser.pin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    emitBeep(420);
-                    const updated = { ...currentUser, pin: '' };
-                    setUsers((prev) => ({
-                      ...prev,
-                      [activeUserKey]: updated
-                    }));
-                    saveUserToCloud(activeUserKey, updated);
-                    setMyPinDraft('');
-                  }}
-                  className="px-2.5 py-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 font-black text-[11px] cursor-pointer"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              emitBeep(600);
-              setOnboardingSlide(0);
-              setActiveModal('onboarding');
-            }}
-            className="w-full p-3 rounded-2xl bg-gradient-to-r from-orange-600/20 to-amber-500/20 border border-orange-500/35 text-left flex items-center justify-between hover:bg-orange-500/25 cursor-pointer"
-          >
-            <div>
-              <p className="text-xs font-black text-orange-300">New to CFOP? Beginner&apos;s Guide</p>
-              <p className="text-[10px] text-slate-300 mt-0.5">Interactive walkthrough of C → F → O → P</p>
-            </div>
-            <span className="text-orange-400 font-black text-sm">→</span>
-          </button>
-
-          <button
-            onClick={() => {
-              emitBeep(420);
-              setActiveModal('reset');
-            }}
-            className="w-full p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
-          >
-            <div>
-              <p className="text-xs font-black text-red-300">Granular Reset Progress</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Reset F2L, OLL, or PLL stats &amp; days</p>
-            </div>
-            <span className="text-red-400 font-black text-sm">↺</span>
-          </button>
-        </div>
-
-        {/* Card 5: Admin Panel */}
-        <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(4)}`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 5 of 5 • Admin Controls
-            </span>
-            <button
-              onClick={() => {
-                emitBeep(520);
-                setSettingsDeckIdx(0);
-              }}
-              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
-            >
-              Preferences →
-            </button>
-          </div>
-          <h3 className="text-lg font-black text-white mb-2">Admin Panel</h3>
-
-          {/* Personal 4-Digit Profile PIN Setter (User can view & change ONLY their own PIN) */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2 mb-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-white">My PIN ({String(activeUserKey)})</span>
               <div className="flex items-center gap-1.5">
                 <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-black bg-orange-500/15 text-orange-300 border border-orange-500/30">
-                  {currentUser.pin
-                    ? showOwnPin
-                      ? String(currentUser.pin)
-                      : '••••'
-                    : 'Not Set'}
+                  {currentUser.pin ? (showOwnPin ? String(currentUser.pin) : '••••') : 'Not Set'}
                 </span>
                 {currentUser.pin && (
                   <button
@@ -2740,6 +2878,56 @@ function OLLDaySuite() {
             )}
           </div>
 
+          <button
+            onClick={() => {
+              emitBeep(600);
+              setOnboardingSlide(0);
+              setActiveModal('onboarding');
+            }}
+            className="w-full p-3 rounded-2xl bg-gradient-to-r from-orange-600/20 to-amber-500/20 border border-orange-500/35 text-left flex items-center justify-between hover:bg-orange-500/25 cursor-pointer"
+          >
+            <div>
+              <p className="text-xs font-black text-orange-300">New to CFOP? Beginner&apos;s Guide</p>
+              <p className="text-[10px] text-slate-300 mt-0.5">Interactive walkthrough of C → F → O → P</p>
+            </div>
+            <span className="text-orange-400 font-black text-sm">→</span>
+          </button>
+
+          <button
+            onClick={() => {
+              emitBeep(420);
+              setActiveModal('reset');
+            }}
+            className="w-full p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
+          >
+            <div>
+              <p className="text-xs font-black text-red-300">Granular Reset Progress</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Reset F2L, OLL, PLL, or 3x3 Timer stats</p>
+            </div>
+            <span className="text-red-400 font-black text-sm">↺</span>
+          </button>
+        </div>
+
+        {/* Card 6: Admin Panel (Exclusive User Directory, PIN Assignment & Deletion) */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(5)}`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+              Card 6 of 6 • Admin Controls
+            </span>
+            <button
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(0);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Preferences →
+            </button>
+          </div>
+          <h3 className="text-lg font-black text-white mb-2">Admin Panel</h3>
+
           {!adminUnlocked ? (
             <div className="flex-1 flex flex-col justify-center space-y-3">
               <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-4 space-y-3 text-center">
@@ -2747,7 +2935,7 @@ function OLLDaySuite() {
                   Restricted Access
                 </span>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Enter the 4-digit <strong className="text-white">Admin Master PIN</strong> to manage family profiles, reset user PIN codes, or adjust phase days.
+                  Enter the 4-digit <strong className="text-white">Admin Master PIN</strong> to view solver accounts, change PIN codes, or delete profiles.
                 </p>
                 <input
                   type="password"
@@ -2784,58 +2972,12 @@ function OLLDaySuite() {
               </div>
             </div>
           ) : (
-            <div data-scrollable="true" className="h-[345px] overflow-y-auto no-scrollbar space-y-3 pr-1">
+            <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-3 pr-1">
               {adminStatusMsg && (
                 <div className="bg-green-500/15 border border-green-500/35 rounded-xl px-3 py-1.5 text-[11px] font-bold text-green-300 text-center">
                   {adminStatusMsg}
                 </div>
               )}
-
-              {/* Master Admin PIN Config */}
-              <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-                    Admin Master PIN
-                  </span>
-                  <span className="font-mono text-[10px] text-slate-400">••••</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="New 4-digit Master PIN"
-                    id="adminMasterPinField"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-mono text-white placeholder-slate-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const el = document.getElementById('adminMasterPinField');
-                      const val = (el?.value || '').replace(/\D/g, '').slice(0, 4);
-                      if (val.length === 4) {
-                        emitBeep(760);
-                        setAdminMasterPin(val);
-                        if (resolvedFirebaseConfig && cloudAuthUser) {
-                          const svc = await getFirebaseServices();
-                          if (svc) {
-                            svc.fsMod.setDoc(
-                              svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'suite_config', 'global'),
-                              { adminMasterPin: val, updatedAt: Date.now() },
-                              { merge: true }
-                            ).catch(() => {});
-                          }
-                        }
-                        if (el) el.value = '';
-                        setAdminStatusMsg('Master PIN synced to cloud');
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-[10px] uppercase cursor-pointer"
-                  >
-                    Update
-                  </button>
-                </div>
-              </div>
 
               {/* Add New Solver Profile */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
@@ -2856,7 +2998,7 @@ function OLLDaySuite() {
                     maxLength={4}
                     value={adminNewUserPin}
                     onChange={(e) => setAdminNewUserPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="PIN (req)"
+                    placeholder="4-digit PIN"
                     className="col-span-2 bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-mono text-white placeholder-slate-500"
                   />
                 </div>
@@ -2874,7 +3016,7 @@ function OLLDaySuite() {
                       return;
                     }
                     if (cleanPin.length !== 4) {
-                      setAdminStatusMsg('Enter a 4-digit PIN so user can sign in');
+                      setAdminStatusMsg('Enter a 4-digit PIN');
                       return;
                     }
                     emitBeep(780);
@@ -2951,7 +3093,6 @@ function OLLDaySuite() {
                         </div>
                       </div>
 
-                      {/* Quick PIN Assign / Reset Row */}
                       <div className="flex items-center gap-1.5">
                         <input
                           type="text"
@@ -2982,24 +3123,6 @@ function OLLDaySuite() {
                         >
                           Set PIN
                         </button>
-                        {uData.pin && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              emitBeep(440);
-                              const updated = { ...uData, pin: '' };
-                              setUsers((prev) => ({
-                                ...prev,
-                                [safeKey]: updated
-                              }));
-                              saveUserToCloud(safeKey, updated);
-                              setAdminStatusMsg(`Cleared PIN for ${safeKey}`);
-                            }}
-                            className="px-2 py-1 rounded-lg bg-red-500/15 text-[10px] font-black text-red-300 cursor-pointer"
-                          >
-                            Clear
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
@@ -3058,11 +3181,9 @@ function OLLDaySuite() {
       `}</style>
 
       <div className="min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden">
-        {/* Ambient Background Glows */}
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[40vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
         <div className="fixed bottom-0 right-0 w-3/4 h-[35vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
 
-        {/* Mobile App Viewport Shell */}
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
           <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/90 backdrop-blur-xl flex-shrink-0 z-40">
@@ -3108,8 +3229,6 @@ function OLLDaySuite() {
                   emitBeep(520);
                   setPinEntryInput('');
                   setPinErrorMsg('');
-                  setPendingUserSwitch(null);
-                  setIsAdminSession(false);
                   setAdminUnlocked(false);
                   setShowOwnPin(false);
                   setStartupPinLocked(true);
@@ -3191,7 +3310,6 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    {/* Tier Selector */}
                     <div className="grid grid-cols-5 gap-1.5">
                       {CROSS_TIERS.map((t) => (
                         <button
@@ -3213,7 +3331,6 @@ function OLLDaySuite() {
                       ))}
                     </div>
 
-                    {/* Mode Toggle */}
                     <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
                       <button
                         onClick={() => {
@@ -3243,7 +3360,6 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    {/* Scramble Card */}
                     <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
@@ -3273,11 +3389,8 @@ function OLLDaySuite() {
                         </div>
                       </div>
 
-                      {/* 180° Bottom Verification Diagram (Interactive SVG) */}
                       {(() => {
                         const cube = simulateCrossCubeState(activeCrossScramble);
-                        // Bottom D-face (tilted 180° so White D is facing viewer, Green F is Top/Front, Orange R is Right, Red L is Left, Blue B is Bottom)
-                        // D indices: 27(DF-L), 28(DF), 29(DF-R), 30(DL), 31(D center), 32(DR), 33(DB-L), 34(DB), 35(DB-R)
                         const dGrid = [
                           [cube[27], cube[28], cube[29]],
                           [cube[30], cube[31], cube[32]],
@@ -3289,7 +3402,6 @@ function OLLDaySuite() {
                           [cube[6], cube[7], cube[8]]
                         ];
                         const grid = crossBottomView ? dGrid : uGrid;
-                        // Surrounding side-layer edge/corner strips for Bottom View vs Top View
                         const topStrip = crossBottomView ? [cube[24], cube[25], cube[26]] : [cube[47], cube[46], cube[45]];
                         const bottomStrip = crossBottomView ? [cube[51], cube[52], cube[53]] : [cube[18], cube[19], cube[20]];
                         const leftStrip = crossBottomView ? [cube[42], cube[43], cube[44]] : [cube[36], cube[37], cube[38]];
@@ -3314,78 +3426,22 @@ function OLLDaySuite() {
                             </div>
 
                             <svg viewBox="0 0 180 180" className="w-36 h-36 drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]">
-                              {/* Top Edge Strip (Green F in Bottom View / Blue B in Top View) */}
                               {topStrip.map((c, idx) => (
-                                <rect
-                                  key={`t-${idx}`}
-                                  x={45 + idx * 31}
-                                  y={16}
-                                  width={27}
-                                  height={11}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
+                                <rect key={`t-${idx}`} x={45 + idx * 31} y={16} width={27} height={11} rx={3} fill={STICKER_HEX[c] || '#334155'} stroke="#090e1c" strokeWidth="1.5" />
                               ))}
-                              {/* Bottom Edge Strip (Blue B in Bottom View / Green F in Top View) */}
                               {bottomStrip.map((c, idx) => (
-                                <rect
-                                  key={`b-${idx}`}
-                                  x={45 + idx * 31}
-                                  y={153}
-                                  width={27}
-                                  height={11}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
+                                <rect key={`b-${idx}`} x={45 + idx * 31} y={153} width={27} height={11} rx={3} fill={STICKER_HEX[c] || '#334155'} stroke="#090e1c" strokeWidth="1.5" />
                               ))}
-                              {/* Left Edge Strip (Red L) */}
                               {leftStrip.map((c, idx) => (
-                                <rect
-                                  key={`l-${idx}`}
-                                  x={16}
-                                  y={45 + idx * 31}
-                                  width={11}
-                                  height={27}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
+                                <rect key={`l-${idx}`} x={16} y={45 + idx * 31} width={11} height={27} rx={3} fill={STICKER_HEX[c] || '#334155'} stroke="#090e1c" strokeWidth="1.5" />
                               ))}
-                              {/* Right Edge Strip (Orange R) */}
                               {rightStrip.map((c, idx) => (
-                                <rect
-                                  key={`r-${idx}`}
-                                  x={153}
-                                  y={45 + idx * 31}
-                                  width={11}
-                                  height={27}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
+                                <rect key={`r-${idx}`} x={153} y={45 + idx * 31} width={11} height={27} rx={3} fill={STICKER_HEX[c] || '#334155'} stroke="#090e1c" strokeWidth="1.5" />
                               ))}
-
-                              {/* Center 3x3 Face */}
                               <rect x="38" y="38" width="104" height="104" rx="12" fill="#090a14" stroke="#1e293b" strokeWidth="2" />
                               {grid.map((row, rIdx) =>
                                 row.map((c, cIdx) => (
-                                  <rect
-                                    key={`cell-${rIdx}-${cIdx}`}
-                                    x={45 + cIdx * 31}
-                                    y={45 + rIdx * 31}
-                                    width={27}
-                                    height={27}
-                                    rx={5}
-                                    fill={STICKER_HEX[c] || '#334155'}
-                                    stroke="#090a14"
-                                    strokeWidth="1.5"
-                                  />
+                                  <rect key={`cell-${rIdx}-${cIdx}`} x={45 + cIdx * 31} y={45 + rIdx * 31} width={27} height={27} rx={5} fill={STICKER_HEX[c] || '#334155'} stroke="#090a14" strokeWidth="1.5" />
                                 ))
                               )}
                             </svg>
@@ -3482,7 +3538,6 @@ function OLLDaySuite() {
                               setActiveModal('blindPracticeHelp');
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer"
-                            title="How Blind Practice Works"
                           >
                             <span className="w-3.5 h-3.5 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black">?</span>
                             <span>How It Works</span>
@@ -3503,6 +3558,9 @@ function OLLDaySuite() {
                         </button>
                       </div>
                     )}
+
+                    {/* Shared Full 3x3x3 CFOP Ao5 & Ao12 Section */}
+                    {renderFullSolveStatsBlock()}
                   </div>
                 )}
 
@@ -3520,7 +3578,6 @@ function OLLDaySuite() {
                           setActiveModal('blindHelp');
                         }}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer"
-                        title="How Blind Inspection Works"
                       >
                         <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
                         <span>How It Works</span>
@@ -3552,7 +3609,6 @@ function OLLDaySuite() {
                       </button>
                     )}
 
-                    {/* Dual Speedstack Touch Pads */}
                     <div
                       onMouseDown={handleBlindPadDown}
                       onMouseUp={handleBlindPadUp}
@@ -3575,17 +3631,6 @@ function OLLDaySuite() {
                               : 'bg-white/5 border-white/10 text-slate-500'
                           }`}
                         >
-                          <svg className="w-8 h-8 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
-                            <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
-                            <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
-                            <path d="M2 12a10 10 0 0 1 18-6" />
-                            <path d="M2 16h.01" />
-                            <path d="M21.8 16c.2-2 .131-5.354 0-6" />
-                            <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
-                            <path d="M8.65 22c.21-.66.45-1.32.57-2" />
-                            <path d="M9 6.8a6 6 0 0 1 9 5.2v2" />
-                          </svg>
                           <span>LEFT THUMB</span>
                         </div>
                         <div
@@ -3597,17 +3642,6 @@ function OLLDaySuite() {
                               : 'bg-white/5 border-white/10 text-slate-500'
                           }`}
                         >
-                          <svg className="w-8 h-8 opacity-90 -scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
-                            <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
-                            <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
-                            <path d="M2 12a10 10 0 0 1 18-6" />
-                            <path d="M2 16h.01" />
-                            <path d="M21.8 16c.2-2 .131-5.354 0-6" />
-                            <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
-                            <path d="M8.65 22c.21-.66.45-1.32.57-2" />
-                            <path d="M9 6.8a6 6 0 0 1 9 5.2v2" />
-                          </svg>
                           <span>RIGHT THUMB</span>
                         </div>
                       </div>
@@ -3702,7 +3736,6 @@ function OLLDaySuite() {
               <>
                 {f2lTab === 'grind' && (
                   <div className="p-5 pb-10 space-y-4">
-                    {/* Hero Day Banner */}
                     <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
                       <div className="flex items-center justify-between">
                         <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
@@ -3720,7 +3753,6 @@ function OLLDaySuite() {
                         </p>
                       </div>
 
-                      {/* Beginner vs. Realistic Setup Scramble Toggle + Starting-State Help Text */}
                       <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -3797,7 +3829,6 @@ function OLLDaySuite() {
                       </div>
                     </div>
 
-                    {/* Hold-to-Reorder Today's F2L Lineup */}
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-between px-1">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -3881,7 +3912,6 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    {/* View Toggle: 6 Pair Groups vs Curriculum Chunks */}
                     <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
                       <button
                         onClick={() => {
@@ -4053,7 +4083,7 @@ function OLLDaySuite() {
                 {f2lTab === 'stats' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">F2L Statistics</h2>
                     </div>
 
@@ -4067,10 +4097,12 @@ function OLLDaySuite() {
                         <span className="font-mono text-xl font-black text-orange-400">{safeF2lDay}</span>
                       </div>
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
-                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(3)}s</span>
                       </div>
                     </div>
+
+                    {renderFullSolveStatsBlock()}
 
                     <div className="space-y-2">
                       {F2L_DATA.map((item) => {
@@ -4107,7 +4139,7 @@ function OLLDaySuite() {
                                       stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
                                     }`}
                                   >
-                                    PR: {stat.best.toFixed(2)}s
+                                    PB: {stat.best.toFixed(3)}s
                                   </span>
                                   <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
                                 </>
@@ -4146,7 +4178,7 @@ function OLLDaySuite() {
                       <div>
                         <h2 className="text-xl font-black text-white leading-tight">{currentOllDayObj.chunkTitle}</h2>
                         <p className="text-xs text-slate-400 mt-1">
-                          Yellow Top Recognition • Execute cleanly under {targetGoalSec.toFixed(1)}s
+                          Yellow Top Recognition • Execute cleanly under {targetGoalSec.toFixed(3)}s
                         </p>
                       </div>
 
@@ -4432,7 +4464,7 @@ function OLLDaySuite() {
                 {ollTab === 'stats' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">OLL Statistics</h2>
                     </div>
 
@@ -4446,10 +4478,12 @@ function OLLDaySuite() {
                         <span className="font-mono text-xl font-black text-orange-400">{safeOllDay}</span>
                       </div>
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
-                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(3)}s</span>
                       </div>
                     </div>
+
+                    {renderFullSolveStatsBlock()}
 
                     <div className="space-y-2">
                       {OLL_DATA.map((item) => {
@@ -4486,7 +4520,7 @@ function OLLDaySuite() {
                                       stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
                                     }`}
                                   >
-                                    PR: {stat.best.toFixed(2)}s
+                                    PB: {stat.best.toFixed(3)}s
                                   </span>
                                   <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
                                 </>
@@ -4525,7 +4559,7 @@ function OLLDaySuite() {
                       <div>
                         <h2 className="text-xl font-black text-white leading-tight">{currentPllDayObj.chunkTitle}</h2>
                         <p className="text-xs text-slate-400 mt-1">
-                          2-Side Headlight &amp; Block Recognition • Execute under {targetGoalSec.toFixed(1)}s
+                          2-Side Headlight &amp; Block Recognition • Execute under {targetGoalSec.toFixed(3)}s
                         </p>
                       </div>
 
@@ -4813,7 +4847,7 @@ function OLLDaySuite() {
                 {pllTab === 'stats' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">PLL Statistics</h2>
                     </div>
 
@@ -4827,10 +4861,12 @@ function OLLDaySuite() {
                         <span className="font-mono text-xl font-black text-orange-400">{safePllDay}</span>
                       </div>
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
-                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(3)}s</span>
                       </div>
                     </div>
+
+                    {renderFullSolveStatsBlock()}
 
                     <div className="space-y-2">
                       {PLL_DATA.map((item) => {
@@ -4867,7 +4903,7 @@ function OLLDaySuite() {
                                       stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
                                     }`}
                                   >
-                                    PR: {stat.best.toFixed(2)}s
+                                    PB: {stat.best.toFixed(3)}s
                                   </span>
                                   <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
                                 </>
@@ -5027,6 +5063,125 @@ function OLLDaySuite() {
         {/* MODALS & FULLSCREEN RUNNERS */}
         {/* ========================================================= */}
 
+        {/* FULL-SCREEN GLASSMORPHIC 3x3x3 CFOP TIMER MODAL (TAP ANYWHERE) */}
+        {fullTimerOpen && (
+          <div
+            onClick={handleFullTimerScreenTap}
+            className="fixed inset-0 z-[290] bg-slate-950/80 backdrop-blur-3xl flex flex-col justify-between p-6 select-none cursor-pointer"
+          >
+            <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
+            <div className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-sky-500/15 blur-[110px]" />
+
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 max-w-md w-full mx-auto space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  OLLDay Everyday • 3x3x3 CFOP Timer
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(440);
+                    setFullTimerState('idle');
+                    setFullTimerOpen(false);
+                  }}
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {fullTimerState !== 'running' && (
+                <div className="rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 p-3.5 text-center shadow-lg">
+                  <p className="font-mono text-xs sm:text-sm font-bold text-white leading-relaxed">
+                    {fullScramble}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(540);
+                      setFullScramble(generate3x3Scramble(20));
+                    }}
+                    className="mt-1.5 text-[10px] font-black uppercase tracking-wider text-orange-300 hover:text-white cursor-pointer"
+                  >
+                    New Scramble ↻
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center justify-center my-auto text-center">
+              <div
+                className={`text-7xl sm:text-8xl font-mono font-black tracking-tight transition-colors ${
+                  fullTimerState === 'running' ? 'text-green-400' : 'text-white'
+                }`}
+              >
+                {(fullElapsedMs / 1000).toFixed(2)}
+              </div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/55 mt-4">
+                {fullTimerState === 'running' ? 'Tap anywhere to stop' : 'Tap anywhere to start'}
+              </p>
+
+              {fullTimerState === 'stopped' && currentUser.fullSolveHistory?.length > 0 && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-2.5 mt-6"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleFullSolvePenalty('+2')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black border cursor-pointer ${
+                      currentUser.fullSolveHistory[0]?.penalty === '+2'
+                        ? 'bg-amber-400 text-slate-950 border-amber-300'
+                        : 'bg-white/10 text-white border-white/20'
+                    }`}
+                  >
+                    +2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleFullSolvePenalty('DNF')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black border cursor-pointer ${
+                      currentUser.fullSolveHistory[0]?.penalty === 'DNF'
+                        ? 'bg-red-500 text-white border-red-400'
+                        : 'bg-white/10 text-white border-white/20'
+                    }`}
+                  >
+                    DNF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteLastFullSolve}
+                    className="px-4 py-2 rounded-xl text-xs font-black bg-white/10 hover:bg-red-500/30 border border-white/20 text-red-200 cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 max-w-md w-full mx-auto grid grid-cols-2 gap-3"
+            >
+              <div className="rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 p-3.5 text-center">
+                <div className="text-[10px] font-black uppercase tracking-widest text-white/60">Average of 5</div>
+                <div className="text-xl font-mono font-black text-green-300 mt-0.5">
+                  {ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 p-3.5 text-center">
+                <div className="text-[10px] font-black uppercase tracking-widest text-white/60">Average of 12</div>
+                <div className="text-xl font-mono font-black text-sky-300 mt-0.5">
+                  {ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 1. BLINDFOLD VISOR OVERLAY */}
         {blindState === 'visor' && (
           <div
@@ -5108,7 +5263,6 @@ function OLLDaySuite() {
                 onTouchStart={handleF2LCubePointerDown}
                 onTouchMove={handleF2LCubePointerMove}
                 onTouchEnd={handleF2LCubePointerUp}
-                title="Drag in any direction to spin the 3D cube in real time"
                 style={{ touchAction: 'none' }}
                 className="w-44 h-44 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none relative"
               >
@@ -5130,7 +5284,6 @@ function OLLDaySuite() {
                 <h3 className="text-2xl font-black text-white">{activeF2LSessionCase.name}</h3>
               </div>
 
-              {/* Setup Scramble Box */}
               <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -5149,28 +5302,13 @@ function OLLDaySuite() {
                 <p className="font-mono text-sm font-black text-amber-300 select-all">
                   {generateF2LSetupScramble(activeF2LSessionCase.alg, f2lSetupMode, f2lSetupSeed)}
                 </p>
-                <p className="text-[9px] text-slate-500">Start from solved cube (White bottom • Green front)</p>
               </div>
 
-              {/* Solution & Intuitive Steps */}
               <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5 text-center">
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
                   Solution (Target: Front-Right Slot)
                 </span>
                 <p className="font-mono text-base font-black text-white">{activeF2LSessionCase.alg}</p>
-                {getAlgorithmTriggerTags(activeF2LSessionCase.alg).length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-                    {getAlgorithmTriggerTags(activeF2LSessionCase.alg).map((t) => (
-                      <span
-                        key={t.label}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
-                        {t.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 {f2lSession.dayObj.mode === 'Learn' && (
                   <div className="text-[11px] text-slate-300 pt-1 border-t border-white/10 space-y-0.5 text-left">
                     <p>• <strong className="text-orange-300">Step 1:</strong> {activeF2LSessionCase.step1}</p>
@@ -5179,7 +5317,6 @@ function OLLDaySuite() {
                 )}
               </div>
 
-              {/* Stopwatch */}
               {stopwatchEnabled && (
                 <button
                   onClick={() =>
@@ -5194,7 +5331,7 @@ function OLLDaySuite() {
                   {swRunning
                     ? `${(swElapsedMs / 1000).toFixed(2)}s — Tap to Stop`
                     : swElapsedMs > 0
-                    ? `Last: ${(swElapsedMs / 1000).toFixed(2)}s — Tap to Retry`
+                    ? `Last: ${(swElapsedMs / 1000).toFixed(3)}s — Tap to Retry`
                     : 'Tap to Time Execution'}
                 </button>
               )}
@@ -5296,7 +5433,6 @@ function OLLDaySuite() {
                 onTouchStart={handleF2LCubePointerDown}
                 onTouchMove={handleF2LCubePointerMove}
                 onTouchEnd={handleF2LCubePointerUp}
-                title="Drag in any direction to spin the 3D cube in real time"
                 style={{ touchAction: 'none' }}
                 className="w-44 h-44 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none relative"
               >
@@ -5338,19 +5474,6 @@ function OLLDaySuite() {
                   Solution (Front-Right Slot)
                 </span>
                 <p className="font-mono text-base font-black text-white">{f2lDrillCase.alg}</p>
-                {getAlgorithmTriggerTags(f2lDrillCase.alg).length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-                    {getAlgorithmTriggerTags(f2lDrillCase.alg).map((t) => (
-                      <span
-                        key={t.label}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
-                        {t.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 <p className="text-[11px] text-slate-300 text-left pt-1">
                   • <strong>Step 1:</strong> {f2lDrillCase.step1}
                   <br />• <strong>Step 2:</strong> {f2lDrillCase.step2}
@@ -5428,19 +5551,6 @@ function OLLDaySuite() {
                   )}
                 </div>
                 <p className="font-mono text-base font-black text-amber-300">{activeOLLSessionCase.alg}</p>
-                {getAlgorithmTriggerTags(activeOLLSessionCase.alg).length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    {getAlgorithmTriggerTags(activeOLLSessionCase.alg).map((t) => (
-                      <span
-                        key={t.label}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
-                        {t.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 {fingertricksEnabled && (
                   <p className="text-[11px] text-slate-400">{activeOLLSessionCase.fingertrick}</p>
                 )}
@@ -5528,39 +5638,7 @@ function OLLDaySuite() {
               </div>
               <h3 className="text-xl font-black text-white text-center">{ollDrillCase.name}</h3>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    Execution Algorithm
-                  </span>
-                  {fingertricksEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(540);
-                        setFtPhaseContext('oll');
-                        setFtCase(ollDrillCase);
-                        setActiveModal('fingertrick');
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
-                    >
-                      Grip Guide →
-                    </button>
-                  )}
-                </div>
                 <p className="font-mono text-base font-black text-amber-300">{ollDrillCase.alg}</p>
-                {getAlgorithmTriggerTags(ollDrillCase.alg).length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    {getAlgorithmTriggerTags(ollDrillCase.alg).map((t) => (
-                      <span
-                        key={t.label}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
-                        {t.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 <p className="text-[11px] text-slate-400 mt-1">{ollDrillCase.fingertrick}</p>
               </div>
               {stopwatchEnabled && (
@@ -5656,19 +5734,6 @@ function OLLDaySuite() {
                   Execution Algorithm
                 </span>
                 <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
-                {getAlgorithmTriggerTags(activePLLSessionCase.alg).length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
-                    {getAlgorithmTriggerTags(activePLLSessionCase.alg).map((t) => (
-                      <span
-                        key={t.label}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
-                        {t.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 {fingertricksEnabled && (
                   <p className="text-[11px] text-slate-400 mt-1.5">{activePLLSessionCase.fingertrick}</p>
                 )}
@@ -5761,55 +5826,8 @@ function OLLDaySuite() {
                 <h3 className="text-xl font-black text-white">{pllDrillCase.name}</h3>
                 <p className="text-[11px] text-slate-300 mt-0.5">{pllDrillCase.recognition}</p>
               </div>
-              <div className="bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    {pllSetupSeed === 0 ? 'Standard Setup' : 'AUF Varied Setup'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {pllSetupSeed > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(460);
-                          setPllSetupSeed(0);
-                        }}
-                        className="text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
-                      >
-                        Reset
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(540);
-                        setPllSetupSeed((s) => s + 1);
-                      }}
-                      className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
-                    >
-                      New Scramble ↻
-                    </button>
-                  </div>
-                </div>
-                <p className="font-mono text-xs font-bold text-slate-300 select-all">
-                  {generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed)}
-                </p>
-              </div>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
                 <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
-                {getAlgorithmTriggerTags(pllDrillCase.alg).length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
-                    {getAlgorithmTriggerTags(pllDrillCase.alg).map((t) => (
-                      <span
-                        key={t.label}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.badgeClass}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.dotClass}`} />
-                        {t.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 <p className="text-[11px] text-slate-400 mt-1">{pllDrillCase.fingertrick}</p>
               </div>
               {stopwatchEnabled && (
@@ -5876,57 +5894,18 @@ function OLLDaySuite() {
                 </div>
 
                 <div className="space-y-2 text-left">
-                  {breakdown.recognition && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
-                        Recognition &amp; Alignment
-                      </span>
-                      <p className="text-xs text-slate-300 leading-relaxed">{breakdown.recognition}</p>
-                    </div>
-                  )}
-
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
                       1. Starting Grip
                     </span>
                     <p className="text-xs text-slate-300 leading-relaxed">{breakdown.grip}</p>
                   </div>
-
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
                       2. Execution Sequence
                     </span>
                     <p className="text-xs text-slate-300 leading-relaxed">{breakdown.cue}</p>
-                    {breakdown.triggers.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {breakdown.triggers.map((t) => (
-                          <span
-                            key={t.detail}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${t.codex.badgeClass}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${t.codex.dotClass}`} />
-                            {t.codex.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {breakdown.segments.length > 0 && (
-                      <div className="pt-1.5 border-t border-white/10 space-y-1.5">
-                        {breakdown.segments.map((seg, idx) => {
-                          const style = classifySegmentStyle(seg.moves);
-                          return (
-                            <div key={idx} className="flex items-start gap-2 text-[10.5px]">
-                              <span className={`px-2 py-0.5 rounded-md border font-mono font-black flex-shrink-0 ${style.badgeClass}`}>
-                                {seg.moves}
-                              </span>
-                              <span className="text-slate-300 pt-0.5">— {seg.cue}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
-
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
                     <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
                       3. Flow &amp; Regrip Tip
@@ -5946,225 +5925,153 @@ function OLLDaySuite() {
             </div>
           );
         })()}
-        {/* 7. FAMILY PROFILE SWITCHER MODAL ("Me" ONLY + DIRECT KEYPAD LANDING GATE) */}
-        {((activeModal === 'profile' && activeUserKey === 'Me') || startupPinLocked) && (() => {
-          const targetLockUser = pendingUserSwitch;
-          const showKeypad = startupPinLocked || Boolean(targetLockUser);
+
+        {/* 7. LOCK SCREEN PIN KEYPAD GATE (iOS GLASSMORPHIC LOCK SCREEN) */}
+        {startupPinLocked && (() => {
+          const IOS_KEYS = [
+            { num: '1', sub: '\u00A0' },
+            { num: '2', sub: 'ABC' },
+            { num: '3', sub: 'DEF' },
+            { num: '4', sub: 'GHI' },
+            { num: '5', sub: 'JKL' },
+            { num: '6', sub: 'MNO' },
+            { num: '7', sub: 'PQRS' },
+            { num: '8', sub: 'TUV' },
+            { num: '9', sub: 'WXYZ' },
+            { num: 'Clear', sub: '' },
+            { num: '0', sub: '' },
+            { num: '⌫', sub: '' }
+          ];
+
           return (
-          <div className="fixed inset-0 z-[255] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-3 shadow-2xl">
-              {!showKeypad ? (
-                <>
-                  <div className="text-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                      Me • Profile Switcher
-                    </span>
-                    <h3 className="text-xl font-black text-white">Switch Profile</h3>
-                  </div>
-                  <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
-                    {Object.keys(users).map((uKey) => {
-                      const safeKey = String(uKey);
-                      const uData = sanitizeUserRecord(users[uKey]);
-                      const isCurrent = safeKey === activeUserKey;
-                      const hasPin = Boolean(uData.pin);
-                      return (
-                        <button
-                          key={safeKey}
-                          onClick={() => {
-                            if (isCurrent) {
-                              setActiveModal(null);
-                              return;
-                            }
-                            emitBeep(540);
-                            setActiveUserKey(safeKey);
-                            setIsAdminSession(safeKey === 'Me');
-                            setActiveModal(null);
-                          }}
-                          className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
-                            isCurrent
-                              ? 'bg-orange-500/15 border-orange-500/40 text-white'
-                              : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                          }`}
-                        >
-                          <div className="text-left">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-black">{safeKey}</span>
-                              {hasPin && (
-                                <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                  PIN
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-slate-400">
-                              F2L D{Number(uData.f2lDay) || 1} • OLL D{Number(uData.day) || 1} • PLL D{Number(uData.pllDay) || 1}
-                            </span>
-                          </div>
-                          {isCurrent ? (
-                            <span className="text-xs font-black text-orange-400">Active ✓</span>
-                          ) : (
-                            <span className="text-[11px] font-bold text-slate-400">
-                              Switch →
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setPendingUserSwitch(null);
-                      setCreatingPinForUser(null);
-                      setActiveModal(null);
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      emitBeep(420);
-                      setIsAdminSession(false);
-                      setAdminUnlocked(false);
-                      setPinEntryInput('');
-                      setActiveModal(null);
-                      setStartupPinLocked(true);
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-xs font-black text-red-300 cursor-pointer"
-                  >
-                    Lock &amp; Sign Out
-                  </button>
-                </>
-              ) : (
-                /* Direct 4-Digit PIN Keypad Gate */
-                <div className="space-y-3.5 text-center">
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                      {startupPinLocked ? 'OLLDay Everyday' : 'Protected Profile'}
-                    </span>
-                    <h3 className="text-xl font-black text-white">
-                      {startupPinLocked ? 'Enter PIN' : `Enter PIN for ${targetLockUser}`}
-                    </h3>
-                  </div>
+            <div className="fixed inset-0 z-[255] bg-slate-950/65 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-hidden">
+              <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
+              <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-sky-500/15 blur-[110px]" />
 
-                  {/* 4 PIN Dot Indicators */}
-                  <div className="flex items-center justify-center gap-3 py-1">
-                    {[0, 1, 2, 3].map((idx) => (
-                      <span
-                        key={idx}
-                        className={`w-3.5 h-3.5 rounded-full border transition-all ${
-                          pinEntryInput.length > idx
-                            ? 'bg-orange-500 border-orange-400 scale-110'
-                            : 'bg-slate-950 border-white/20'
-                        }`}
-                      />
-                    ))}
+              <div className="relative z-10 w-full max-w-[290px] flex flex-col items-center space-y-6">
+                <div className="flex flex-col items-center text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
+                    <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2.5" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
                   </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">
+                    OLLDay Everyday
+                  </span>
+                  <h3 className="text-xl font-semibold tracking-tight text-white">
+                    Enter Passcode
+                  </h3>
+                </div>
 
-                  {startupPinLocked && (
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      {cloudSyncStatus === 'synced' ? '● Cloud Accounts Ready' : '○ Connecting Cloud...'}
+                <div className={`flex items-center justify-center gap-4 py-1 ${pinErrorMsg ? 'ios-pin-shake' : ''}`}>
+                  {[0, 1, 2, 3].map((idx) => (
+                    <span
+                      key={idx}
+                      className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 ${
+                        pinEntryInput.length > idx
+                          ? 'bg-white border-white scale-110 shadow-[0_0_12px_rgba(255,255,255,0.75)]'
+                          : 'bg-transparent border-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="h-4 flex items-center justify-center">
+                  {pinErrorMsg ? (
+                    <p className="text-xs font-semibold text-rose-300 tracking-wide">
+                      {String(pinErrorMsg)}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '○ Ready'}
                     </p>
                   )}
+                </div>
 
-                  {pinErrorMsg && (
-                    <p className="text-[11px] font-bold text-red-400">{String(pinErrorMsg)}</p>
-                  )}
-
-                  {/* Tactile Numeric Keypad */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', '⌫'].map((key) => (
+                <div className="grid grid-cols-3 gap-x-5 gap-y-4 place-items-center pt-1">
+                  {IOS_KEYS.map(({ num, sub }) => {
+                    const isAction = num === 'Clear' || num === '⌫';
+                    return (
                       <button
-                        key={key}
+                        key={num}
                         type="button"
                         onClick={() => {
                           setPinErrorMsg('');
-                          if (key === 'Clear') {
+                          if (num === 'Clear') {
                             emitBeep(420);
                             setPinEntryInput('');
                             return;
                           }
-                          if (key === '⌫') {
+                          if (num === '⌫') {
                             emitBeep(460);
                             setPinEntryInput((p) => p.slice(0, -1));
                             return;
                           }
                           if (pinEntryInput.length >= 4) return;
-                          const nextVal = pinEntryInput + key;
+                          const nextVal = pinEntryInput + num;
                           setPinEntryInput(nextVal);
                           if (nextVal.length === 4) {
-                            const latestUsers = usersRef.current || users;
-                            if (startupPinLocked) {
-                              if (nextVal === adminMasterPin) {
-                                emitBeep(880, 'sine', 0.1);
-                                setActiveUserKey('Me');
-                                setIsAdminSession(true);
-                                setStartupPinLocked(false);
-                                setPendingUserSwitch(null);
-                                setPinEntryInput('');
-                                setActiveModal(null);
-                                return;
-                              }
-                              const matchedUser = Object.keys(latestUsers).find((uKey) => {
-                                const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
-                                return storedPin.length === 4 && storedPin === nextVal;
-                              });
-                              if (matchedUser) {
-                                emitBeep(880, 'sine', 0.1);
-                                setActiveUserKey(matchedUser);
-                                setIsAdminSession(matchedUser === 'Me');
-                                setStartupPinLocked(false);
-                                setPendingUserSwitch(null);
-                                setPinEntryInput('');
-                                setActiveModal(null);
-                              } else {
-                                emitBeep(260, 'sawtooth', 0.14);
-                                setPinErrorMsg('Invalid PIN');
-                                setPinEntryInput('');
-                              }
+                            const latestUsers = mergeDefaultUsersWithStored(usersRef.current || users);
+                            if (nextVal === adminMasterPin) {
+                              emitBeep(880, 'sine', 0.1);
+                              setActiveUserKey('Me');
+                              setStartupPinLocked(false);
+                              setPinEntryInput('');
+                              setActiveModal(null);
+                              return;
+                            }
+                            const matchedUser = Object.keys(latestUsers).find((uKey) => {
+                              const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
+                              return storedPin.length === 4 && storedPin === nextVal;
+                            });
+                            if (matchedUser) {
+                              emitBeep(880, 'sine', 0.1);
+                              setActiveUserKey(matchedUser);
+                              setStartupPinLocked(false);
+                              setPinEntryInput('');
+                              setActiveModal(null);
                             } else {
-                              const targetPin = String(latestUsers[targetLockUser]?.pin || '').replace(/\D/g, '');
-                              if ((targetPin.length === 4 && nextVal === targetPin) || nextVal === adminMasterPin) {
-                                emitBeep(880, 'sine', 0.1);
-                                setActiveUserKey(targetLockUser);
-                                setIsAdminSession(targetLockUser === 'Me');
-                                setPendingUserSwitch(null);
-                                setPinEntryInput('');
-                                setActiveModal(null);
-                              } else {
-                                emitBeep(260, 'sawtooth', 0.14);
-                                setPinErrorMsg('Incorrect PIN — try again');
-                                setPinEntryInput('');
-                              }
+                              emitBeep(260, 'sawtooth', 0.14);
+                              setPinErrorMsg('Incorrect Passcode');
+                              setPinEntryInput('');
                             }
                           } else {
                             emitBeep(600, 'sine', 0.04);
                           }
                         }}
-                        className="py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 font-mono text-sm font-black text-white active:scale-95 transition-all cursor-pointer"
+                        className={
+                          isAction
+                            ? 'w-[72px] h-[72px] rounded-full flex items-center justify-center text-xs font-semibold tracking-wide text-white/75 hover:text-white active:scale-90 transition-all cursor-pointer'
+                            : 'ios-glass-key w-[72px] h-[72px] rounded-full flex flex-col items-center justify-center text-white cursor-pointer'
+                        }
                       >
-                        {key}
+                        {num === '⌫' ? (
+                          <svg className="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+                            <line x1="18" y1="9" x2="12" y2="15" />
+                            <line x1="12" y1="9" x2="18" y2="15" />
+                          </svg>
+                        ) : isAction ? (
+                          <span>{num}</span>
+                        ) : (
+                          <>
+                            <span className="text-[28px] font-light leading-none tracking-tight">
+                              {num}
+                            </span>
+                            {sub && (
+                              <span className="text-[8.5px] font-bold tracking-[0.2em] text-white/65 mt-1 leading-none">
+                                {sub}
+                              </span>
+                            )}
+                          </>
+                        )}
                       </button>
-                    ))}
-                  </div>
-
-                  {!startupPinLocked && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPendingUserSwitch(null);
-                        setCreatingPinForUser(null);
-                        setPinEntryInput('');
-                        setPinErrorMsg('');
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 cursor-pointer"
-                    >
-                      ← Back to Profiles
-                    </button>
-                  )}
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
           );
         })()}
 
@@ -6174,36 +6081,13 @@ function OLLDaySuite() {
             { prompt: 'White bottom, Blue is front — what color is to the right?', answer: 'Red' },
             { prompt: 'White bottom, Green is front — what color is to the right?', answer: 'Orange' },
             { prompt: 'White bottom, Orange is front — what color is to the right?', answer: 'Blue' },
-            { prompt: 'White bottom, Red is front — what color is to the right?', answer: 'Green' },
-            { prompt: 'White bottom, Blue is front — what color is to the left?', answer: 'Orange' },
-            { prompt: 'White bottom, Green is front — what color is to the left?', answer: 'Red' },
-            { prompt: 'White bottom, Orange is front — what color is opposite?', answer: 'Red' },
-            { prompt: 'White bottom, Green is front — what color is opposite?', answer: 'Blue' }
+            { prompt: 'White bottom, Red is front — what color is to the right?', answer: 'Green' }
           ];
-          const COLOR_STYLES = {
-            Green: 'text-green-400 border-green-500/30 hover:bg-green-500/15',
-            Red: 'text-red-400 border-red-500/30 hover:bg-red-500/15',
-            Orange: 'text-orange-400 border-orange-500/30 hover:bg-orange-500/15',
-            Blue: 'text-blue-400 border-blue-500/30 hover:bg-blue-500/15'
-          };
           const currentQ = ORBIT_QUESTIONS[orbitQuizIdx % ORBIT_QUESTIONS.length];
-
-          const triggerHitMe = () => {
-            emitBeep(620);
-            const shuffled = ['Green', 'Red', 'Orange', 'Blue']
-              .map((val) => ({ val, sort: Math.random() }))
-              .sort((a, b) => a.sort - b.sort)
-              .map(({ val }) => val);
-            setOrbitShuffledColors(shuffled);
-            setOrbitFeedback(null);
-            setOrbitQuizActive(true);
-            setOrbitQuizIdx((i) => i + 1 + Math.floor(Math.random() * (ORBIT_QUESTIONS.length - 1)));
-          };
 
           return (
             <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
               <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-4 shadow-2xl">
-                {/* Top Header with Hit Me in Top Right */}
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
@@ -6217,72 +6101,50 @@ function OLLDaySuite() {
                   </div>
                   <button
                     type="button"
-                    onClick={triggerHitMe}
-                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
+                    onClick={() => {
+                      emitBeep(620);
+                      setOrbitFeedback(null);
+                      setOrbitQuizActive(true);
+                      setOrbitQuizIdx((i) => i + 1);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer"
                   >
                     Hit Me
                   </button>
                 </div>
 
-                {/* Orientation Reference Text (Hidden once Hit Me is pressed) */}
                 {!orbitQuizActive ? (
                   <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 space-y-2.5 text-center shadow-inner">
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Hold <strong className="text-white">White</strong> on the bottom (<strong className="text-white">D</strong>). Going clockwise around the sides:
+                      Hold <strong className="text-white">White</strong> on the bottom (<strong className="text-white">D</strong>). Clockwise:
                     </p>
                     <p className="font-mono text-sm font-black tracking-wide">
-                      <span className="text-green-400">Green</span>
-                      <span className="text-slate-500"> → </span>
-                      <span className="text-orange-400">Orange</span>
-                      <span className="text-slate-500"> → </span>
-                      <span className="text-blue-400">Blue</span>
-                      <span className="text-slate-500"> → </span>
-                      <span className="text-red-400">Red</span>
-                    </p>
-                    <p className="text-[11px] text-slate-400 leading-relaxed pt-1 border-t border-white/10">
-                      Opposites: <span className="text-green-400 font-bold">Green</span> ↔ <span className="text-blue-400 font-bold">Blue</span> &nbsp;•&nbsp; <span className="text-orange-400 font-bold">Orange</span> ↔ <span className="text-red-400 font-bold">Red</span>
+                      <span className="text-green-400">Green</span> → <span className="text-orange-400">Orange</span> → <span className="text-blue-400">Blue</span> → <span className="text-red-400">Red</span>
                     </p>
                   </div>
                 ) : (
-                  /* Center Drill Question + Randomly Shuffled Color Buttons */
                   <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 space-y-3.5 text-center shadow-inner">
-                    <p className="text-sm font-bold text-white leading-snug min-h-[2.75rem] flex items-center justify-center">
-                      {currentQ.prompt}
-                    </p>
-
+                    <p className="text-sm font-bold text-white">{currentQ.prompt}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {orbitShuffledColors.map((colorName) => {
-                        const isPicked = orbitFeedback?.chosen === colorName;
-                        const isRight = colorName === currentQ.answer;
-                        let btnStyle = `bg-slate-900/90 ${COLOR_STYLES[colorName]}`;
-                        if (orbitFeedback) {
-                          if (isRight) btnStyle = 'bg-green-500/20 border-green-400 text-green-300';
-                          else if (isPicked) btnStyle = 'bg-red-500/20 border-red-400 text-red-300';
-                        }
-                        return (
-                          <button
-                            key={colorName}
-                            type="button"
-                            onClick={() => {
-                              if (orbitFeedback) return;
-                              const correct = colorName === currentQ.answer;
-                              emitBeep(correct ? 880 : 320, 'sine', 0.1);
-                              setOrbitStreak((s) => (correct ? s + 1 : 0));
-                              setOrbitFeedback({ correct, chosen: colorName });
-                            }}
-                            className={`py-2.5 px-3 rounded-xl border text-xs font-black transition-all cursor-pointer ${btnStyle}`}
-                          >
-                            {colorName}
-                          </button>
-                        );
-                      })}
+                      {orbitShuffledColors.map((colorName) => (
+                        <button
+                          key={colorName}
+                          type="button"
+                          onClick={() => {
+                            const correct = colorName === currentQ.answer;
+                            emitBeep(correct ? 880 : 320);
+                            setOrbitStreak((s) => (correct ? s + 1 : 0));
+                            setOrbitFeedback({ correct, chosen: colorName });
+                          }}
+                          className="py-2.5 px-3 rounded-xl border border-white/15 bg-slate-900 text-xs font-black text-white cursor-pointer"
+                        >
+                          {colorName}
+                        </button>
+                      ))}
                     </div>
-
                     {orbitFeedback && (
                       <p className={`text-[11px] font-black ${orbitFeedback.correct ? 'text-green-400' : 'text-red-400'}`}>
-                        {orbitFeedback.correct
-                          ? 'Correct!'
-                          : `Answer: ${currentQ.answer}`}
+                        {orbitFeedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}
                       </p>
                     )}
                   </div>
@@ -6310,22 +6172,22 @@ function OLLDaySuite() {
             {
               badge: 'Step 1 of 4 • C (Cross)',
               title: 'Solve the White Cross on Bottom',
-              desc: 'Hold White on the bottom (D) and Green in front (F). Use the Cross in X Ladder to solve all 4 white edges in 6 moves or fewer while matching side center colors.'
+              desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6 moves or fewer.'
             },
             {
               badge: 'Step 2 of 4 • F (F2L)',
               title: 'First Two Layers (41 Pairs)',
-              desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—cutting your move count in half.'
+              desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot.'
             },
             {
               badge: 'Step 3 of 4 • O (OLL)',
               title: 'Orient Last Layer (57 Cases)',
-              desc: 'Make the entire top face solid Yellow in a single algorithm using 2-Look corners first, then mastering all 57 top-layer patterns.'
+              desc: 'Make the entire top face solid Yellow in a single algorithm.'
             },
             {
               badge: 'Step 4 of 4 • P (PLL)',
               title: 'Permute Last Layer (25 Algs)',
-              desc: 'Swap the final top-layer corners and edges into place using 2-side headlight & block recognition to complete the solve.'
+              desc: 'Swap the final top-layer corners and edges into place to complete the solve.'
             }
           ];
           const slide = ONBOARDING_SLIDES[onboardingSlide] || ONBOARDING_SLIDES[0];
@@ -6338,18 +6200,6 @@ function OLLDaySuite() {
                 </span>
                 <h3 className="text-xl font-black text-white">{slide.title}</h3>
                 <p className="text-xs text-slate-300 leading-relaxed">{slide.desc}</p>
-
-                <div className="flex items-center justify-center gap-1.5 pt-1">
-                  {ONBOARDING_SLIDES.map((_, idx) => (
-                    <span
-                      key={idx}
-                      className={`h-1.5 rounded-full transition-all ${
-                        onboardingSlide === idx ? 'w-5 bg-orange-500' : 'w-1.5 bg-white/20'
-                      }`}
-                    />
-                  ))}
-                </div>
-
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
@@ -6400,9 +6250,6 @@ function OLLDaySuite() {
 
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-0.5">
                 <div className="space-y-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
-                    Active Schedule Chunks ({builderChunks.length})
-                  </span>
                   {builderChunks.map((chk, idx) => (
                     <div
                       key={chk.id}
@@ -6430,7 +6277,7 @@ function OLLDaySuite() {
                     type="text"
                     value={newChunkName}
                     onChange={(e) => setNewChunkName(e.target.value)}
-                    placeholder="New Chunk Title (e.g., My Favorites)"
+                    placeholder="New Chunk Title"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                   />
                   <div className="max-h-36 overflow-y-auto no-scrollbar space-y-1">
@@ -6448,24 +6295,7 @@ function OLLDaySuite() {
                             selected ? 'bg-orange-500/20 border border-orange-500/40' : 'bg-white/5'
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <img
-                              src={
-                                builderPhase === 'f2l'
-                                  ? getF2LImageUrl(item.alg)
-                                  : builderPhase === 'pll'
-                                  ? getPLLImageUrl(item.alg)
-                                  : getOLLImageUrl(item.alg)
-                              }
-                              alt={item.name}
-                              className={
-                                builderPhase === 'f2l'
-                                  ? 'w-10 h-10 object-contain f2l-cube-satin'
-                                  : 'w-8 h-8 bg-slate-200 rounded-lg p-0.5'
-                              }
-                            />
-                            <span className="text-xs font-bold text-white truncate">{item.name}</span>
-                          </div>
+                          <span className="text-xs font-bold text-white truncate">{item.name}</span>
                           <span className="text-xs font-black text-orange-400">{selected ? '✓' : '+'}</span>
                         </button>
                       );
@@ -6509,7 +6339,6 @@ function OLLDaySuite() {
                 <h3 className="text-xl font-black text-white">Reset {String(activeUserKey)}&apos;s Progress</h3>
               </div>
 
-              {/* Phase F (F2L) Reset Card */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
                   Phase F • F2L (41 Pairs)
@@ -6527,12 +6356,11 @@ function OLLDaySuite() {
                     onClick={() => executeGranularReset('f2l-stats')}
                     className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Clear F2L PRs
+                    Clear F2L PBs
                   </button>
                 </div>
               </div>
 
-              {/* Phase O (OLL) Reset Card */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
                   Phase O • OLL (57 Cases)
@@ -6550,12 +6378,11 @@ function OLLDaySuite() {
                     onClick={() => executeGranularReset('oll-stats')}
                     className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Clear OLL PRs
+                    Clear OLL PBs
                   </button>
                 </div>
               </div>
 
-              {/* Phase P (PLL) Reset Card */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
                   Phase P • PLL (25 Algs)
@@ -6573,10 +6400,18 @@ function OLLDaySuite() {
                     onClick={() => executeGranularReset('pll-stats')}
                     className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Clear PLL PRs
+                    Clear PLL PBs
                   </button>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => executeGranularReset('full-timer')}
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
+              >
+                Clear 3x3x3 CFOP Timer (Ao5 / Ao12)
+              </button>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
@@ -6598,164 +6433,6 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 7. LOCK SCREEN PIN KEYPAD GATE (iOS GLASSMORPHIC LOCK SCREEN) */}
-        {startupPinLocked && (() => {
-          const IOS_KEYS = [
-            { num: '1', sub: '\u00A0' },
-            { num: '2', sub: 'ABC' },
-            { num: '3', sub: 'DEF' },
-            { num: '4', sub: 'GHI' },
-            { num: '5', sub: 'JKL' },
-            { num: '6', sub: 'MNO' },
-            { num: '7', sub: 'PQRS' },
-            { num: '8', sub: 'TUV' },
-            { num: '9', sub: 'WXYZ' },
-            { num: 'Clear', sub: '' },
-            { num: '0', sub: '' },
-            { num: '⌫', sub: '' }
-          ];
-
-          return (
-            <div className="fixed inset-0 z-[255] bg-slate-950/65 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-hidden">
-              {/* Ambient iOS Wallpaper Depth Orbs */}
-              <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
-              <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-sky-500/15 blur-[110px]" />
-
-              <div className="relative z-10 w-full max-w-[290px] flex flex-col items-center space-y-6">
-                {/* Lock Icon & Prompt Header */}
-                <div className="flex flex-col items-center text-center space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">
-                    <svg className="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2.5" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">
-                    OLLDay Everyday
-                  </span>
-                  <h3 className="text-xl font-semibold tracking-tight text-white">
-                    Enter Passcode
-                  </h3>
-                </div>
-
-                {/* 4 iOS Passcode Dots */}
-                <div className={`flex items-center justify-center gap-4 py-1 ${pinErrorMsg ? 'ios-pin-shake' : ''}`}>
-                  {[0, 1, 2, 3].map((idx) => (
-                    <span
-                      key={idx}
-                      className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 ${
-                        pinEntryInput.length > idx
-                          ? 'bg-white border-white scale-110 shadow-[0_0_12px_rgba(255,255,255,0.75)]'
-                          : 'bg-transparent border-white/50'
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {/* Status / Error Pill */}
-                <div className="h-4 flex items-center justify-center">
-                  {pinErrorMsg ? (
-                    <p className="text-xs font-semibold text-rose-300 tracking-wide">
-                      {String(pinErrorMsg)}
-                    </p>
-                  ) : (
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-                      {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '○ Ready'}
-                    </p>
-                  )}
-                </div>
-
-                {/* Circular iOS Frosted-Glass Keypad */}
-                <div className="grid grid-cols-3 gap-x-5 gap-y-4 place-items-center pt-1">
-                  {IOS_KEYS.map(({ num, sub }) => {
-                    const isAction = num === 'Clear' || num === '⌫';
-                    return (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => {
-                          setPinErrorMsg('');
-                          if (num === 'Clear') {
-                            emitBeep(420);
-                            setPinEntryInput('');
-                            return;
-                          }
-                          if (num === '⌫') {
-                            emitBeep(460);
-                            setPinEntryInput((p) => p.slice(0, -1));
-                            return;
-                          }
-                          if (pinEntryInput.length >= 4) return;
-                          const nextVal = pinEntryInput + num;
-                          setPinEntryInput(nextVal);
-                          if (nextVal.length === 4) {
-                            const latestUsers = mergeDefaultUsersWithStored(usersRef.current || users);
-                            if (nextVal === adminMasterPin) {
-                              emitBeep(880, 'sine', 0.1);
-                              setActiveUserKey('Me');
-                              setIsAdminSession(true);
-                              setStartupPinLocked(false);
-                              setPendingUserSwitch(null);
-                              setPinEntryInput('');
-                              setActiveModal(null);
-                              return;
-                            }
-                            const matchedUser = Object.keys(latestUsers).find((uKey) => {
-                              const storedPin = String(latestUsers[uKey]?.pin || '').replace(/\D/g, '');
-                              return storedPin.length === 4 && storedPin === nextVal;
-                            });
-                            if (matchedUser) {
-                              emitBeep(880, 'sine', 0.1);
-                              setActiveUserKey(matchedUser);
-                              setIsAdminSession(matchedUser === 'Me');
-                              setStartupPinLocked(false);
-                              setPendingUserSwitch(null);
-                              setPinEntryInput('');
-                              setActiveModal(null);
-                            } else {
-                              emitBeep(260, 'sawtooth', 0.14);
-                              setPinErrorMsg('Incorrect Passcode');
-                              setPinEntryInput('');
-                            }
-                          } else {
-                            emitBeep(600, 'sine', 0.04);
-                          }
-                        }}
-                        className={
-                          isAction
-                            ? 'w-[72px] h-[72px] rounded-full flex items-center justify-center text-xs font-semibold tracking-wide text-white/75 hover:text-white active:scale-90 transition-all cursor-pointer'
-                            : 'ios-glass-key w-[72px] h-[72px] rounded-full flex flex-col items-center justify-center text-white cursor-pointer'
-                        }
-                      >
-                        {num === '⌫' ? (
-                          <svg className="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
-                            <line x1="18" y1="9" x2="12" y2="15" />
-                            <line x1="12" y1="9" x2="18" y2="15" />
-                          </svg>
-                        ) : isAction ? (
-                          <span>{num}</span>
-                        ) : (
-                          <>
-                            <span className="text-[28px] font-light leading-none tracking-tight">
-                              {num}
-                            </span>
-                            {sub && (
-                              <span className="text-[8.5px] font-bold tracking-[0.2em] text-white/65 mt-1 leading-none">
-                                {sub}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
         {/* 12. FLOATING TURN-COUNT FEEDBACK MODAL */}
         {efficiencyFeedback && (
           <div
@@ -6770,35 +6447,15 @@ function OLLDaySuite() {
                   : 'bg-slate-900/95 border-amber-500/40 shadow-amber-500/15'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                    efficiencyFeedback.optimal
-                      ? 'bg-green-500/15 border border-green-500/35 text-green-300'
-                      : 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
-                  }`}
-                >
-                  {efficiencyFeedback.optimal ? 'Optimal Cross' : 'Move Review'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setEfficiencyFeedback(null)}
-                  className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs flex items-center justify-center cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
               <h3 className={`text-lg font-black ${efficiencyFeedback.optimal ? 'text-green-300' : 'text-amber-300'}`}>
                 {efficiencyFeedback.title}
               </h3>
               <p className="text-xs text-slate-200 leading-relaxed">{efficiencyFeedback.detail}</p>
-
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setEfficiencyFeedback(null)}
-                  className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs cursor-pointer active:scale-95 transition-all"
+                  className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs cursor-pointer"
                 >
                   Retry Scramble
                 </button>
@@ -6809,7 +6466,7 @@ function OLLDaySuite() {
                     setCrossScrambleIdx((p) => p + 1);
                     setEfficiencyFeedback(null);
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer active:scale-95 transition-all"
+                  className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer"
                 >
                   Next Scramble →
                 </button>
@@ -6818,28 +6475,7 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 13. PLL ROADMAP MODAL */}
-        {activeModal === 'preview' && (
-          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                CFOP Final Step
-              </span>
-              <h3 className="text-xl font-black text-white">Permute Last Layer (PLL)</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                All 21 PLL algorithms (T-Perm, J-Perm, U-Perm, A-Perm, and G-Perms) are queued for Phase 4 right after you master Cross, F2L, and OLL.
-              </p>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 14. BLIND INSPECTION HELP MODAL */}
+        {/* 13. BLIND INSPECTION HELP MODAL */}
         {activeModal === 'blindHelp' && (
           <div
             onClick={() => setActiveModal(null)}
@@ -6849,62 +6485,14 @@ function OLLDaySuite() {
               onClick={(e) => e.stopPropagation()}
               className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl"
             >
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  WCA Protocol Guide
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveModal(null)}
-                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-black text-white">How Blind Inspection Works</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Train sub-15 cross planning so you can track your first F2L pair during inspection.
-                </p>
-              </div>
-
-              <div className="space-y-2 text-left">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-                    1. 15-Second WCA Countdown
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Scramble your cube (White bottom • Green front) and tap <strong>Start 15s Countdown</strong>. Audio chimes warn you at <strong>8s</strong> and <strong>12s</strong> elapsed (7.0s &amp; 3.0s left). Going over 15s logs an automatic <strong>DNF</strong>.
-                  </p>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
-                    2. Arm Speedstack Touch Pads
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Once all 4 cross moves are planned in your head, press and hold the <strong>Touch Pads</strong> for <strong>0.35s</strong> until both pads turn <strong>Green (ARMED)</strong>.
-                  </p>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
-                    3. Close Eyes &amp; Execute
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Release the pads to launch the fullscreen <strong>Eyes Closed Visor</strong>, execute your entire cross blindfolded, tap anywhere when done, and log <strong>Clean</strong>, <strong>+2</strong>, or <strong>DNF</strong>.
-                  </p>
-                </div>
-              </div>
-
+              <h3 className="text-xl font-black text-white">How Blind Inspection Works</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Scramble your cube (White bottom • Green front) and tap <strong>Start 15s Countdown</strong>. Hold both touch pads for 0.35s until green, then release to close the visor and execute your cross blindfolded.
+              </p>
               <button
                 type="button"
-                onClick={() => {
-                  emitBeep(620);
-                  setActiveModal(null);
-                }}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                onClick={() => setActiveModal(null)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
               >
                 Got It
               </button>
@@ -6912,7 +6500,7 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 15. BLIND PRACTICE HELP MODAL */}
+        {/* 14. BLIND PRACTICE HELP MODAL */}
         {activeModal === 'blindPracticeHelp' && (
           <div
             onClick={() => setActiveModal(null)}
@@ -6922,62 +6510,14 @@ function OLLDaySuite() {
               onClick={(e) => e.stopPropagation()}
               className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl"
             >
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  Ladder Drill Guide
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveModal(null)}
-                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-black text-white">How Blind Practice Works</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Build muscle memory by visualizing short cross solutions before turning a single layer.
-                </p>
-              </div>
-
-              <div className="space-y-2 text-left">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-                    1. Pick Your Ladder Level (L1–L5)
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Start at <strong>L1 (2 moves)</strong> and work up to <strong>L5 (6 moves)</strong>. Apply the scramble with <strong>White on Bottom</strong> and <strong>Green in Front</strong>.
-                  </p>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
-                    2. Trace Every Edge Mentally
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Without turning the cube, trace where each white edge moves and confirm the exact {activeTierObj.moves}-move sequence in your head.
-                  </p>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
-                    3. Launch the Timer Mat
-                  </span>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Tap <strong>Open Blindfold Timer Mat</strong> to practice executing that planned cross under a 15-second WCA inspection clock with eyes closed.
-                  </p>
-                </div>
-              </div>
-
+              <h3 className="text-xl font-black text-white">How Blind Practice Works</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Trace every white edge mentally during inspection, then launch the Blindfold Timer Mat to execute all {activeTierObj.moves} cross turns without looking.
+              </p>
               <button
                 type="button"
-                onClick={() => {
-                  emitBeep(620);
-                  setActiveModal(null);
-                }}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                onClick={() => setActiveModal(null)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
               >
                 Got It
               </button>
