@@ -2694,7 +2694,7 @@ function OLLDaySuite() {
             <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-3">
               <div>
                 <p className="text-xs font-bold text-white">Speedcube Stopwatch</p>
-                <p className="text-[10px] text-slate-400">Record solve times &amp; track case PBs</p>
+                <p className="text-[10px] text-slate-400">Record solve times & track case PRs</p>
               </div>
               <button
                 onClick={() => {
@@ -2744,57 +2744,18 @@ function OLLDaySuite() {
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">Target PB Goal (Personal Best)</span>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min="0.100"
-                    max="15.000"
-                    step="0.001"
-                    value={targetGoalSec.toFixed(3)}
-                    onChange={(e) => {
-                      const parsed = parseFloat(e.target.value);
-                      if (!Number.isNaN(parsed)) {
-                        const clamped = Math.min(15, Math.max(0.1, Math.round(parsed * 1000) / 1000));
-                        setTargetGoalSec(clamped);
-                      }
-                    }}
-                    className="w-20 bg-slate-950 border border-white/15 rounded-lg px-2 py-0.5 text-right font-mono text-xs font-black text-orange-400"
-                  />
-                  <span className="font-mono text-xs font-black text-orange-400">s</span>
-                </div>
+                <span className="text-xs font-bold text-white">Target PR Goal</span>
+                <span className="font-mono text-xs font-black text-orange-400">{targetGoalSec.toFixed(1)}s</span>
               </div>
               <input
                 type="range"
-                min="0.500"
-                max="5.000"
-                step="0.001"
-                value={Math.min(5, Math.max(0.5, targetGoalSec))}
-                onChange={(e) => setTargetGoalSec(Math.round(Number(e.target.value) * 1000) / 1000)}
+                min="1.0"
+                max="5.0"
+                step="0.1"
+                value={targetGoalSec}
+                onChange={(e) => setTargetGoalSec(Number(e.target.value))}
                 className="w-full accent-orange-500 cursor-pointer"
               />
-              <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                {[
-                  { label: '-10ms', delta: -0.01 },
-                  { label: '-1ms', delta: -0.001 },
-                  { label: '+1ms', delta: 0.001 },
-                  { label: '+10ms', delta: 0.01 }
-                ].map((adj) => (
-                  <button
-                    key={adj.label}
-                    type="button"
-                    onClick={() => {
-                      emitBeep(540, 'sine', 0.04);
-                      setTargetGoalSec((prev) =>
-                        Math.min(15, Math.max(0.1, Math.round((prev + adj.delta) * 1000) / 1000))
-                      );
-                    }}
-                    className="py-1 rounded-lg bg-slate-950 hover:bg-white/10 border border-white/10 font-mono text-[10px] font-black text-slate-300 cursor-pointer"
-                  >
-                    {adj.label}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -4133,7 +4094,7 @@ function OLLDaySuite() {
                 {crossTab === 'stats' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">Cross Statistics</h2>
                     </div>
 
@@ -4514,7 +4475,7 @@ function OLLDaySuite() {
                 {f2lTab === 'stats' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">F2L Statistics</h2>
                     </div>
 
@@ -4530,8 +4491,8 @@ function OLLDaySuite() {
                         <span className="font-mono text-xl font-black text-orange-400">{safeF2lDay}</span>
                       </div>
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
-                        <span className="font-mono text-lg font-black text-amber-300">{targetGoalSec.toFixed(3)}s</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
                       </div>
                     </div>
 
@@ -4570,7 +4531,7 @@ function OLLDaySuite() {
                                       stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
                                     }`}
                                   >
-                                    PB: {stat.best.toFixed(3)}s
+                                    PR: {stat.best.toFixed(2)}s
                                   </span>
                                   <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
                                 </>
@@ -4609,7 +4570,7 @@ function OLLDaySuite() {
                       <div>
                         <h2 className="text-xl font-black text-white leading-tight">{currentOllDayObj.chunkTitle}</h2>
                         <p className="text-xs text-slate-400 mt-1">
-                          Yellow Top Recognition • Execute cleanly under {targetGoalSec.toFixed(3)}s
+                          Yellow Top Recognition • Execute cleanly under {targetGoalSec.toFixed(1)}s
                         </p>
                       </div>
 
@@ -4895,7 +4856,7 @@ function OLLDaySuite() {
                 {ollTab === 'stats' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">OLL Statistics</h2>
                     </div>
 
@@ -4911,8 +4872,8 @@ function OLLDaySuite() {
                         <span className="font-mono text-xl font-black text-orange-400">{safeOllDay}</span>
                       </div>
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
-                        <span className="font-mono text-lg font-black text-amber-300">{targetGoalSec.toFixed(3)}s</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
                       </div>
                     </div>
 
@@ -4951,7 +4912,7 @@ function OLLDaySuite() {
                                       stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
                                     }`}
                                   >
-                                    PB: {stat.best.toFixed(3)}s
+                                    PR: {stat.best.toFixed(2)}s
                                   </span>
                                   <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
                                 </>
@@ -6622,53 +6583,7 @@ function OLLDaySuite() {
                     onClick={() => executeGranularReset('f2l-stats')}
                     className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
                   >
-                    Clear F2L PBs
-                  </button>
-                </div>
-              </div>
-
-              {/* Phase O (OLL) Reset Card */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-                  Phase O • OLL (57 Cases)
-                </span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => executeGranularReset('oll-day')}
-                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Reset Day to 1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => executeGranularReset('oll-stats')}
-                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Clear OLL PBs
-                  </button>
-                </div>
-              </div>
-
-              {/* Phase P (PLL) Reset Card */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-                  Phase P • PLL (25 Algs)
-                </span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => executeGranularReset('pll-day')}
-                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Reset Day to 1
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => executeGranularReset('pll-stats')}
-                    className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer"
-                  >
-                    Clear PLL PBs
+                    Clear F2L PRs
                   </button>
                 </div>
               </div>
