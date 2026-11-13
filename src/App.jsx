@@ -4177,23 +4177,6 @@ function OLLDaySuite() {
                                           {stat.best.toFixed(2)}s
                                         </span>
                                       )}
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          emitBeep(560);
-                                          setEditingCaseTarget({
-                                            phase: 'f2l',
-                                            caseId: item.id,
-                                            name: item.name,
-                                            draft: getEffectiveCaseTargetPb('f2l', item.id).toFixed(3)
-                                          });
-                                        }}
-                                        className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[9.5px] font-mono font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                                        title="Set Case Target PB"
-                                      >
-                                        Goal {getEffectiveCaseTargetPb('f2l', item.id).toFixed(2)}s
-                                      </button>
                                     </div>
                                     <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
                                     <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.step1}</p>
@@ -4272,7 +4255,23 @@ function OLLDaySuite() {
                               <div className="min-w-0">
                                 <span className="text-xs font-black text-white block">{item.name}</span>
                                 <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                                <span className="font-mono text-[9.5px] text-slate-400 block">Goal: {caseGoal.toFixed(3)}s</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    emitBeep(560);
+                                    setEditingCaseTarget({
+                                      phase: 'f2l',
+                                      caseId: item.id,
+                                      name: item.name,
+                                      draft: caseGoal.toFixed(3)
+                                    });
+                                  }}
+                                  className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                                  title="Set Case Target PB"
+                                >
+                                  Goal: {caseGoal.toFixed(3)}s ✎
+                                </button>
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -4616,23 +4615,6 @@ function OLLDaySuite() {
                                           {stat.best.toFixed(2)}s
                                         </span>
                                       )}
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          emitBeep(560);
-                                          setEditingCaseTarget({
-                                            phase: 'oll',
-                                            caseId: item.id,
-                                            name: item.name,
-                                            draft: getEffectiveCaseTargetPb('oll', item.id).toFixed(3)
-                                          });
-                                        }}
-                                        className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[9.5px] font-mono font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                                        title="Set Case Target PB"
-                                      >
-                                        Goal {getEffectiveCaseTargetPb('oll', item.id).toFixed(2)}s
-                                      </button>
                                     </div>
                                     <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
                                   </div>
@@ -4711,7 +4693,23 @@ function OLLDaySuite() {
                               <div className="min-w-0">
                                 <span className="text-xs font-black text-white block truncate">{item.name}</span>
                                 <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                                <span className="font-mono text-[9.5px] text-slate-400 block">Goal: {caseGoal.toFixed(3)}s</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    emitBeep(560);
+                                    setEditingCaseTarget({
+                                      phase: 'oll',
+                                      caseId: item.id,
+                                      name: item.name,
+                                      draft: caseGoal.toFixed(3)
+                                    });
+                                  }}
+                                  className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                                  title="Set Case Target PB"
+                                >
+                                  Goal: {caseGoal.toFixed(3)}s ✎
+                                </button>
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -5056,23 +5054,6 @@ function OLLDaySuite() {
                                           {stat.best.toFixed(2)}s
                                         </span>
                                       )}
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          emitBeep(560);
-                                          setEditingCaseTarget({
-                                            phase: 'pll',
-                                            caseId: item.id,
-                                            name: item.name,
-                                            draft: getEffectiveCaseTargetPb('pll', item.id).toFixed(3)
-                                          });
-                                        }}
-                                        className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-[9.5px] font-mono font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                                        title="Set Case Target PB"
-                                      >
-                                        Goal {getEffectiveCaseTargetPb('pll', item.id).toFixed(2)}s
-                                      </button>
                                     </div>
                                     <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
                                     <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>
@@ -5152,7 +5133,23 @@ function OLLDaySuite() {
                               <div className="min-w-0">
                                 <span className="text-xs font-black text-white block truncate">{item.name}</span>
                                 <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                                <span className="font-mono text-[9.5px] text-slate-400 block">Goal: {caseGoal.toFixed(3)}s</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    emitBeep(560);
+                                    setEditingCaseTarget({
+                                      phase: 'pll',
+                                      caseId: item.id,
+                                      name: item.name,
+                                      draft: caseGoal.toFixed(3)
+                                    });
+                                  }}
+                                  className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                                  title="Set Case Target PB"
+                                >
+                                  Goal: {caseGoal.toFixed(3)}s ✎
+                                </button>
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -7145,7 +7142,7 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 15. PER-CASE TARGET PB EDITOR MODAL (FROM ALGORITHM LIBRARIES) */}
+        {/* 15. PER-CASE TARGET PB EDITOR MODAL (FROM STATISTICS) */}
         {editingCaseTarget && (() => {
           const { phase, caseId, name, draft } = editingCaseTarget;
           const phaseDefault = getPhaseTargetPb(phase);
