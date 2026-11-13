@@ -953,96 +953,6 @@ function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
 }
 
 // =========================================================================
-// 2A. 3x3x3 FULL-SOLVE WCA SCRAMBLE GENERATOR & AO5 / AO12 TELEMETRY
-// =========================================================================
-function generate3x3Scramble(length = 20) {
-  const faces = ['U', 'D', 'L', 'R', 'F', 'B'];
-  const axisMap = { U: 0, D: 0, L: 1, R: 1, F: 2, B: 2 };
-  const mods = ['', "'", '2'];
-  const moves = [];
-  let lastFace = '';
-  let secondLastFace = '';
-
-  while (moves.length < length) {
-    const face = faces[Math.floor(Math.random() * faces.length)];
-    if (face === lastFace) continue;
-    if (
-      secondLastFace &&
-      axisMap[face] === axisMap[lastFace] &&
-      axisMap[face] === axisMap[secondLastFace]
-    ) {
-      continue;
-    }
-    const mod = mods[Math.floor(Math.random() * mods.length)];
-    moves.push(`${face}${mod}`);
-    secondLastFace = lastFace;
-    lastFace = face;
-  }
-  return moves.join(' ');
-}
-
-function formatTimerMs(ms) {
-  if (ms === null || ms === undefined || Number.isNaN(ms)) return '--.--';
-  if (ms === Infinity) return 'DNF';
-  const totalSec = ms / 1000;
-  if (totalSec < 60) return totalSec.toFixed(2);
-  const mins = Math.floor(totalSec / 60);
-  const remSec = (totalSec % 60).toFixed(2).padStart(5, '0');
-  return `${mins}:${remSec}`;
-}
-
-function getEffectiveSolveMs(solve) {
-  if (!solve || solve.penalty === 'DNF') return Infinity;
-  return Number(solve.ms || 0) + (solve.penalty === '+2' ? 2000 : 0);
-}
-
-// WCA Trimmed Average (drops fastest & slowest 1 solve for Ao5 / Ao12)
-function computeWcaAverage(solvesSlice) {
-  if (!Array.isArray(solvesSlice) || solvesSlice.length === 0) return null;
-  const times = solvesSlice.map(getEffectiveSolveMs);
-  const dnfCount = times.filter((t) => t === Infinity).length;
-  if (dnfCount >= 2) return Infinity;
-  const sorted = [...times].sort((a, b) => a - b);
-  const trimmed = sorted.slice(1, sorted.length - 1);
-  if (!trimmed.length) return null;
-  const sum = trimmed.reduce((acc, v) => acc + v, 0);
-  return sum / trimmed.length;
-}
-
-function computeFullSolveStats(solves = []) {
-  const list = Array.isArray(solves) ? solves : [];
-  const validTimes = list.map(getEffectiveSolveMs).filter((t) => t !== Infinity);
-  const bestSingle = validTimes.length ? Math.min(...validTimes) : null;
-  const currentAo5 = list.length >= 5 ? computeWcaAverage(list.slice(-5)) : null;
-  const currentAo12 = list.length >= 12 ? computeWcaAverage(list.slice(-12)) : null;
-
-  let bestAo5 = null;
-  for (let i = 0; i <= list.length - 5; i++) {
-    const avg = computeWcaAverage(list.slice(i, i + 5));
-    if (avg !== null && avg !== Infinity && (bestAo5 === null || avg < bestAo5)) {
-      bestAo5 = avg;
-    }
-  }
-
-  let bestAo12 = null;
-  for (let i = 0; i <= list.length - 12; i++) {
-    const avg = computeWcaAverage(list.slice(i, i + 12));
-    if (avg !== null && avg !== Infinity && (bestAo12 === null || avg < bestAo12)) {
-      bestAo12 = avg;
-    }
-  }
-
-  return {
-    count: list.length,
-    bestSingle,
-    currentAo5,
-    bestAo5,
-    currentAo12,
-    bestAo12
-  };
-}
-
-// =========================================================================
 // 2B. LIVE 3x3 CUBE SIMULATOR FOR CROSS 180° BOTTOM-VIEW SVG DIAGRAM
 // =========================================================================
 function simulateCrossCubeState(scramble = '') {
@@ -1411,7 +1321,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1426,7 +1335,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1441,7 +1349,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1456,7 +1363,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1471,7 +1377,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1486,7 +1391,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1501,7 +1405,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1516,7 +1419,6 @@ const DEFAULT_USERS = {
     stats: {},
     f2lStats: {},
     pllStats: {},
-    fullSolves: [],
     customChunks: null,
     f2lCustomChunks: null,
     pllCustomChunks: null,
@@ -1624,7 +1526,7 @@ function OLLDaySuite() {
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
   // Sub-tabs per phase
-  const [crossTab, setCrossTab] = useState('ladder'); // 'ladder' | 'blind' | 'mechanics' | 'stats' | 'settings'
+  const [crossTab, setCrossTab] = useState('ladder'); // 'ladder' | 'blind' | 'mechanics' | 'settings'
   const [f2lTab, setF2lTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
   const [ollTab, setOllTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
   const [pllTab, setPllTab] = useState('grind'); // 'grind' | 'algorithms' | 'stats' | 'settings'
@@ -1738,15 +1640,6 @@ function OLLDaySuite() {
   const [swElapsedMs, setSwElapsedMs] = useState(0);
   const swStartRef = useRef(0);
 
-  // Full-Screen 3x3x3 CFOP Timer Modal State
-  const [fullTimerOpen, setFullTimerOpen] = useState(false);
-  const [fullScramble, setFullScramble] = useState(() => generate3x3Scramble(20));
-  const [fullTimerState, setFullTimerState] = useState('idle'); // 'idle' | 'holding' | 'running' | 'stopped'
-  const [fullElapsedMs, setFullElapsedMs] = useState(0);
-  const fullStartRef = useRef(0);
-  const fullHoldTimeoutRef = useRef(null);
-  const fullIgnoreTapRef = useRef(false);
-
   // 1. Authenticate Cloud Session First
   useEffect(() => {
     if (!resolvedFirebaseConfig) {
@@ -1799,7 +1692,6 @@ function OLLDaySuite() {
       stats: {},
       f2lStats: {},
       pllStats: {},
-      fullSolves: [],
       customChunks: null,
       f2lCustomChunks: null,
       pllCustomChunks: null,
@@ -1829,17 +1721,6 @@ function OLLDaySuite() {
       stats: cleanStatMap(raw.stats),
       f2lStats: cleanStatMap(raw.f2lStats),
       pllStats: cleanStatMap(raw.pllStats),
-      fullSolves: Array.isArray(raw.fullSolves)
-        ? raw.fullSolves
-            .filter((s) => s && typeof s === 'object' && typeof s.ms === 'number')
-            .map((s) => ({
-              id: typeof s.id === 'number' || typeof s.id === 'string' ? s.id : Date.now(),
-              ms: s.ms,
-              scramble: typeof s.scramble === 'string' ? s.scramble : '',
-              penalty: s.penalty === '+2' || s.penalty === 'DNF' ? s.penalty : null,
-              createdAt: typeof s.createdAt === 'number' ? s.createdAt : Date.now()
-            }))
-        : [],
       customChunks: Array.isArray(raw.customChunks)
         ? raw.customChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
         : null,
@@ -2088,107 +1969,19 @@ function OLLDaySuite() {
     return () => cancelAnimationFrame(raf);
   }, [swRunning]);
 
-  // Full-Screen 3x3x3 Timer Ticker
-  useEffect(() => {
-    if (fullTimerState !== 'running') return;
-    let raf;
-    const tick = () => {
-      setFullElapsedMs(performance.now() - fullStartRef.current);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [fullTimerState]);
-
-  const recordFullSolve = (ms, scrambleStr) => {
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[activeUserKey] || DEFAULT_USERS.Me);
-      const nextSolves = [
-        ...(u.fullSolves || []),
-        {
-          id: Date.now(),
-          ms: Math.round(ms),
-          scramble: scrambleStr,
-          penalty: null,
-          createdAt: Date.now()
-        }
-      ].slice(-100);
-      const updatedUser = { ...u, fullSolves: nextSolves };
-      saveUserToCloud(activeUserKey, updatedUser);
-      return { ...prev, [activeUserKey]: updatedUser };
-    });
-  };
-
-  const applyFullSolvePenalty = (solveId, penaltyType) => {
-    emitBeep(560);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[activeUserKey] || DEFAULT_USERS.Me);
-      const nextSolves = (u.fullSolves || []).map((s) =>
-        s.id === solveId
-          ? { ...s, penalty: s.penalty === penaltyType ? null : penaltyType }
-          : s
-      );
-      const updatedUser = { ...u, fullSolves: nextSolves };
-      saveUserToCloud(activeUserKey, updatedUser);
-      return { ...prev, [activeUserKey]: updatedUser };
-    });
-  };
-
-  const deleteFullSolve = (solveId) => {
-    emitBeep(380);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[activeUserKey] || DEFAULT_USERS.Me);
-      const nextSolves = (u.fullSolves || []).filter((s) => s.id !== solveId);
-      const updatedUser = { ...u, fullSolves: nextSolves };
-      saveUserToCloud(activeUserKey, updatedUser);
-      return { ...prev, [activeUserKey]: updatedUser };
-    });
-  };
-
-  const clearAllFullSolves = () => {
-    emitBeep(360, 'triangle', 0.12);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[activeUserKey] || DEFAULT_USERS.Me);
-      const updatedUser = { ...u, fullSolves: [] };
-      saveUserToCloud(activeUserKey, updatedUser);
-      return { ...prev, [activeUserKey]: updatedUser };
-    });
-    setFullElapsedMs(0);
-    setFullTimerState('idle');
-  };
-
-  const handleFullScreenTimerTouchStart = (e) => {
-    if (e.target.closest('[data-timer-control="true"]')) {
-      fullIgnoreTapRef.current = true;
-      return;
-    }
-    fullIgnoreTapRef.current = false;
-
-    if (fullTimerState === 'running') {
-      const finalMs = performance.now() - fullStartRef.current;
-      setFullElapsedMs(finalMs);
-      setFullTimerState('stopped');
+  const toggleStopwatch = (onStopRecord) => {
+    if (!swRunning) {
+      emitBeep(720, 'sine', 0.06);
+      swStartRef.current = performance.now();
+      setSwElapsedMs(0);
+      setSwRunning(true);
+    } else {
       emitBeep(960, 'triangle', 0.09);
-      recordFullSolve(finalMs, fullScramble);
-      setFullScramble(generate3x3Scramble(20));
-      fullIgnoreTapRef.current = true;
-      return;
-    }
-
-    setFullTimerState('holding');
-    emitBeep(620, 'sine', 0.04);
-  };
-
-  const handleFullScreenTimerTouchEnd = (e) => {
-    if (fullIgnoreTapRef.current || e.target.closest('[data-timer-control="true"]')) {
-      fullIgnoreTapRef.current = false;
-      return;
-    }
-    if (fullTimerState === 'holding') {
-      fullStartRef.current = performance.now();
-      setFullElapsedMs(0);
-      setFullTimerState('running');
-      emitBeep(820, 'sine', 0.06);
+      const finalSec = Number(((performance.now() - swStartRef.current) / 1000).toFixed(2));
+      setSwRunning(false);
+      if (onStopRecord && finalSec > 0.15) {
+        onStopRecord(finalSec);
+      }
     }
   };
 
@@ -2425,7 +2218,7 @@ function OLLDaySuite() {
   const pllMasteredCount = Object.values(currentUser.pllStats || {}).filter(
     (s) => s.best !== null && s.best <= targetGoalSec
   ).length;
-  const fullSolveTelemetry = computeFullSolveStats(currentUser.fullSolves || []);
+
   const activeF2LSessionCase = f2lSession?.queue?.[f2lSession.index] || null;
   const activeOLLSessionCase = ollSession?.queue?.[ollSession.index] || null;
   const activePLLSessionCase = pllSession?.queue?.[pllSession.index] || null;
@@ -2500,146 +2293,18 @@ function OLLDaySuite() {
     if (Math.abs(dx) > 36 || Math.abs(dy) > 36) {
       emitBeep(520, 'sine', 0.05);
       if (dx < -36 || dy < -36) {
-        setSettingsDeckIdx((p) => (p + 1) % 6);
+        setSettingsDeckIdx((p) => (p + 1) % 5);
       } else {
-        setSettingsDeckIdx((p) => (p + 5) % 6);
+        setSettingsDeckIdx((p) => (p + 4) % 5);
       }
     }
   };
 
   const getDeckCardClass = (cardIdx) => {
-    const rel = (cardIdx - settingsDeckIdx + 6) % 6;
+    const rel = (cardIdx - settingsDeckIdx + 5) % 5;
     if (rel === 0) return 'deck-card-1';
     if (rel === 1) return 'deck-card-2';
     return 'deck-card-3';
-  };
-
-  // Shared 3x3x3 Full-Solve CFOP Telemetry Section (Identical across all 4 phases)
-  const renderFullSolveStatsSection = () => {
-    const solvesList = Array.isArray(currentUser.fullSolves) ? currentUser.fullSolves : [];
-    const recentSolves = [...solvesList].reverse().slice(0, 12);
-    return (
-      <div className="bg-slate-900/75 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-              Full 3x3x3 CFOP Telemetry
-            </span>
-            <h3 className="text-base font-black text-white">Ao5 &amp; Ao12 Session Log</h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              emitBeep(680, 'sine', 0.07);
-              setFullTimerState('idle');
-              setFullElapsedMs(0);
-              setFullScramble(generate3x3Scramble(20));
-              setFullTimerOpen(true);
-            }}
-            className="px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md active:scale-95 cursor-pointer"
-          >
-            Open 3x3 Timer
-          </button>
-        </div>
-
-        {/* Ao5 & Ao12 Summary Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
-            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Current Ao5</span>
-            <span className="font-mono text-base font-black text-amber-300">
-              {formatTimerMs(fullSolveTelemetry.currentAo5)}
-            </span>
-            <span className="text-[9px] text-slate-500 block font-mono">
-              Best: {formatTimerMs(fullSolveTelemetry.bestAo5)}
-            </span>
-          </div>
-          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
-            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Current Ao12</span>
-            <span className="font-mono text-base font-black text-orange-400">
-              {formatTimerMs(fullSolveTelemetry.currentAo12)}
-            </span>
-            <span className="text-[9px] text-slate-500 block font-mono">
-              Best: {formatTimerMs(fullSolveTelemetry.bestAo12)}
-            </span>
-          </div>
-          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
-            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Best Single</span>
-            <span className="font-mono text-base font-black text-green-400">
-              {formatTimerMs(fullSolveTelemetry.bestSingle)}
-            </span>
-            <span className="text-[9px] text-slate-500 block font-mono">
-              {fullSolveTelemetry.count} Solves
-            </span>
-          </div>
-        </div>
-
-        {/* Recent 3x3 Solves List */}
-        {recentSolves.length === 0 ? (
-          <div className="bg-white/5 border border-white/5 rounded-2xl p-3 text-center">
-            <p className="text-[11px] text-slate-400">
-              No 3x3x3 full solves logged yet. Launch the 3x3 Timer from Settings or above to start tracking Ao5 &amp; Ao12.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar pr-0.5">
-            {recentSolves.map((solve, idx) => {
-              const solveNum = solvesList.length - idx;
-              const effMs = getEffectiveSolveMs(solve);
-              return (
-                <div
-                  key={solve.id}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-500 font-mono">#{solveNum}</span>
-                      <span className="font-mono text-xs font-black text-white">
-                        {formatTimerMs(effMs)}
-                        {solve.penalty === '+2' ? '+' : ''}
-                      </span>
-                    </div>
-                    {solve.scramble && (
-                      <p className="font-mono text-[9.5px] text-slate-400 truncate mt-0.5">{solve.scramble}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => applyFullSolvePenalty(solve.id, '+2')}
-                      className={`px-1.5 py-0.5 rounded text-[9px] font-black cursor-pointer ${
-                        solve.penalty === '+2'
-                          ? 'bg-amber-500 text-slate-950'
-                          : 'bg-white/5 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      +2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFullSolvePenalty(solve.id, 'DNF')}
-                      className={`px-1.5 py-0.5 rounded text-[9px] font-black cursor-pointer ${
-                        solve.penalty === 'DNF'
-                          ? 'bg-red-500 text-white'
-                          : 'bg-white/5 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      DNF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteFullSolve(solve.id)}
-                      className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-red-500/20 text-[9px] font-black text-slate-400 hover:text-red-300 cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
   };
 
   // Reusable Settings Deck Renderer
@@ -2651,7 +2316,7 @@ function OLLDaySuite() {
           <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3, 4, 5].map((idx) => (
+          {[0, 1, 2, 3, 4].map((idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -2677,7 +2342,7 @@ function OLLDaySuite() {
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 6 • Preferences</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 5 • Preferences</span>
             <button
               onClick={() => {
                 emitBeep(520);
@@ -2685,7 +2350,7 @@ function OLLDaySuite() {
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              3x3 Timer →
+              Next Card →
             </button>
           </div>
           <h3 className="text-lg font-black text-white">Speedcubing Suite</h3>
@@ -2760,83 +2425,18 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 2: 3x3x3 Full-Solve CFOP Timer Launcher */}
+        {/* Card 2: Notation Key */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col justify-between ${getDeckCardClass(1)}`}
-        >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                Card 2 of 6 • Full Solve
-              </span>
-              <button
-                onClick={() => {
-                  emitBeep(520);
-                  setSettingsDeckIdx(2);
-                }}
-                className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
-              >
-                Notation →
-              </button>
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-white">3x3x3 CFOP Timer</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Full 20-move WCA scrambles for complete C → F → O → P practice with live Ao5 &amp; Ao12 tracking.
-              </p>
-            </div>
-
-            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
-                Ready Scramble
-              </span>
-              <p className="font-mono text-xs font-black text-amber-300 leading-relaxed">
-                {fullScramble}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Current Ao5</span>
-                <span className="font-mono text-lg font-black text-amber-300">
-                  {formatTimerMs(fullSolveTelemetry.currentAo5)}
-                </span>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Current Ao12</span>
-                <span className="font-mono text-lg font-black text-orange-400">
-                  {formatTimerMs(fullSolveTelemetry.currentAo12)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              emitBeep(720, 'sine', 0.08);
-              setFullTimerState('idle');
-              setFullElapsedMs(0);
-              setFullTimerOpen(true);
-            }}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-          >
-            Launch Full-Screen Timer
-          </button>
-        </div>
-
-        {/* Card 3: Notation Key */}
-        <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(2)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(1)}`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 3 of 6 • Reference
+              Card 2 of 5 • Reference
             </span>
             <button
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(3);
+                setSettingsDeckIdx(2);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2880,18 +2480,18 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 4: All-Inclusive Color-Coded Fingertricks Dossier */}
+        {/* Card 3: All-Inclusive Color-Coded Fingertricks Dossier */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(2)}`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 4 of 6 • Mechanics Codex
+              Card 3 of 5 • Mechanics Codex
             </span>
             <button
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(4);
+                setSettingsDeckIdx(3);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2938,16 +2538,16 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 5: Guides, PIN Security & Reset */}
+        {/* Card 4: Guides, PIN Security & Reset */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 6 • Roadmap &amp; PIN</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 5 • Roadmap &amp; PIN</span>
             <button
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(5);
+                setSettingsDeckIdx(4);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -3045,13 +2645,13 @@ function OLLDaySuite() {
           </button>
         </div>
 
-        {/* Card 6: Admin Panel */}
+        {/* Card 5: Admin Panel */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(5)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 6 of 6 • Admin Controls
+              Card 5 of 5 • Admin Controls
             </span>
             <button
               onClick={() => {
@@ -4091,28 +3691,6 @@ function OLLDaySuite() {
                   </div>
                 )}
 
-                {crossTab === 'stats' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
-                      <h2 className="text-2xl font-black tracking-tight text-white">Cross Statistics</h2>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Optimal Cross Clears</span>
-                        <span className="font-mono text-xl font-black text-green-400">{Number(currentUser.crossClears) || 0}</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Blind Runs Logged</span>
-                        <span className="font-mono text-xl font-black text-orange-400">{blindLogs.length}</span>
-                      </div>
-                    </div>
-
-                    {renderFullSolveStatsSection()}
-                  </div>
-                )}
-
                 {crossTab === 'settings' && renderSettingsDeck()}
               </>
             )}
@@ -4478,8 +4056,6 @@ function OLLDaySuite() {
                       <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
                       <h2 className="text-2xl font-black tracking-tight text-white">F2L Statistics</h2>
                     </div>
-
-                    {renderFullSolveStatsSection()}
 
                     <div className="grid grid-cols-3 gap-2.5">
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
@@ -4860,8 +4436,6 @@ function OLLDaySuite() {
                       <h2 className="text-2xl font-black tracking-tight text-white">OLL Statistics</h2>
                     </div>
 
-                    {renderFullSolveStatsSection()}
-
                     <div className="grid grid-cols-3 gap-2.5">
                       <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
                         <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
@@ -4927,15 +4501,396 @@ function OLLDaySuite() {
                   </div>
                 )}
 
+                {ollTab === 'settings' && renderSettingsDeck()}
+              </>
+            )}
+
+            {/* ===================================================== */}
+            {/* PHASE 4: PLL (PERMUTE LAST LAYER — 25 ALGORITHMS) */}
+            {/* ===================================================== */}
+            {activePhase === 'pll' && (
+              <>
+                {pllTab === 'grind' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                          Day {safePllDay} • {currentPllDayObj.mode} Mode
+                        </span>
+                        <span className="text-xs font-black text-slate-300 font-mono">
+                          {pllMasteredCount}/{PLL_DATA.length} Mastered
+                        </span>
+                      </div>
+
+                      <div>
+                        <h2 className="text-xl font-black text-white leading-tight">{currentPllDayObj.chunkTitle}</h2>
+                        <p className="text-xs text-slate-400 mt-1">
+                          2-Side Headlight &amp; Block Recognition • Execute under {targetGoalSec.toFixed(1)}s
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            emitBeep(720, 'sine', 0.08);
+                            setSwRunning(false);
+                            setSwElapsedMs(0);
+                            setPllSession({
+                              dayObj: currentPllDayObj,
+                              index: 0,
+                              queue: [...pllLineupOrder]
+                            });
+                          }}
+                          className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                        >
+                          Start Day {safePllDay} PLL Grind ({pllLineupOrder.length} Cases)
+                        </button>
+                        <button
+                          onClick={() => {
+                            emitBeep(480);
+                            const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
+                            const updated = { ...currentUser, pllDay: nextDay };
+                            setUsers((prev) => ({
+                              ...prev,
+                              [activeUserKey]: updated
+                            }));
+                            saveUserToCloud(activeUserKey, updated);
+                          }}
+                          className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Today&apos;s PLL Lineup (Hold &amp; Drag to Reorder)
+                        </span>
+                        <span className="text-[10px] font-bold text-orange-400">{pllLineupOrder.length} Cases</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {pllLineupOrder.map((item, idx) => {
+                          const stat = currentUser.pllStats?.[item.id];
+                          return (
+                            <div
+                              key={item.id}
+                              data-lineup-idx={idx}
+                              onContextMenu={(e) => e.preventDefault()}
+                              onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
+                              onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
+                              onTouchEnd={cancelLineupHold}
+                              onClick={() => {
+                                if (draggedLineupIdx !== null) return;
+                                emitBeep(600);
+                                setSwRunning(false);
+                                setSwElapsedMs(0);
+                                setPllDrillCase(item);
+                              }}
+                              className={`bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                                draggedLineupIdx === idx
+                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
+                                  : 'border-white/10 hover:bg-slate-800/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 flex items-center justify-center pointer-events-none">
+                                  <img
+                                    src={getPLLImageUrl(item.alg)}
+                                    alt={item.name}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                                  <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
+                                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.recognition}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {stat?.best && (
+                                  <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
+                                    {stat.best.toFixed(2)}s
+                                  </span>
+                                )}
+                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {pllTab === 'algorithms' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">21 Standard + 4 Bonus Algs</p>
+                        <h2 className="text-2xl font-black tracking-tight text-white">PLL Library</h2>
+                      </div>
+                      <button
+                        onClick={() => {
+                          emitBeep(560);
+                          openCurriculumBuilder('pll');
+                        }}
+                        className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
+                      >
+                        + Edit Chunks
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
+                      <button
+                        onClick={() => {
+                          emitBeep(480);
+                          setPllLibMode('groups');
+                          setPllSelectedCategory(null);
+                        }}
+                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                          pllLibMode === 'groups' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        5 Perm Groups
+                      </button>
+                      <button
+                        onClick={() => {
+                          emitBeep(480);
+                          setPllLibMode('chunks');
+                          setPllSelectedCategory(null);
+                        }}
+                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                          pllLibMode === 'chunks' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Curriculum Chunks
+                      </button>
+                    </div>
+
+                    {!pllSelectedCategory ? (
+                      pllLibMode === 'groups' ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {PLL_GROUPS.map((group) => {
+                            const groupCases = PLL_DATA.filter((c) => c.group === group);
+                            const sampleCase = groupCases[0];
+                            return (
+                              <button
+                                key={group}
+                                onClick={() => {
+                                  emitBeep(520);
+                                  setPllSelectedCategory({ type: 'group', name: group });
+                                }}
+                                className="bg-slate-900/60 border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                              >
+                                <div className="w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center">
+                                  <img
+                                    src={getPLLImageUrl(sampleCase.alg)}
+                                    alt={group}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div>
+                                  <h3 className="text-xs font-black text-white leading-snug">{group}</h3>
+                                  <span className="text-[10px] font-bold text-orange-400">{groupCases.length} Algs</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {pllChunks.map((chk) => {
+                            const sampleCase = PLL_DATA.find((c) => c.id === chk.ids[0]) || PLL_DATA[0];
+                            return (
+                              <button
+                                key={chk.id}
+                                onClick={() => {
+                                  emitBeep(520);
+                                  setPllSelectedCategory({ type: 'chunk', chunk: chk });
+                                }}
+                                className="w-full bg-slate-900/60 border border-white/10 rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer"
+                              >
+                                <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center">
+                                  <img
+                                    src={getPLLImageUrl(sampleCase.alg)}
+                                    alt={chk.title}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                  <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} PLL Cases</p>
+                                </div>
+                                <span className="text-orange-400 font-black text-sm">→</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : (
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => {
+                            emitBeep(460);
+                            setPllSelectedCategory(null);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 cursor-pointer"
+                        >
+                          ← Back to All {pllLibMode === 'groups' ? 'Groups' : 'Chunks'}
+                        </button>
+                        <h3 className="text-lg font-black text-white">
+                          {pllSelectedCategory.type === 'group'
+                            ? pllSelectedCategory.name
+                            : pllSelectedCategory.chunk.title}
+                        </h3>
+                        <div className="space-y-2.5">
+                          {(pllSelectedCategory.type === 'group'
+                            ? PLL_DATA.filter((c) => c.group === pllSelectedCategory.name)
+                            : pllSelectedCategory.chunk.ids
+                                .map((id) => PLL_DATA.find((c) => c.id === id))
+                                .filter(Boolean)
+                          ).map((item) => {
+                            const stat = currentUser.pllStats?.[item.id];
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => {
+                                  emitBeep(600);
+                                  setSwRunning(false);
+                                  setSwElapsedMs(0);
+                                  setPllDrillCase(item);
+                                }}
+                                className="bg-slate-900/70 border border-white/10 rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0">
+                                    <img
+                                      src={getPLLImageUrl(item.alg)}
+                                      alt={item.name}
+                                      className="w-full h-full object-contain"
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-sm font-black text-white truncate">{item.name}</span>
+                                      {stat?.best && (
+                                        <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
+                                          {stat.best.toFixed(2)}s
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
+                                    <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>
+                                  </div>
+                                </div>
+                                {fingertricksEnabled && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      emitBeep(540);
+                                      setFtPhaseContext('pll');
+                                      setFtCase(item);
+                                      setActiveModal('fingertrick');
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
+                                  >
+                                    Grip
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {pllTab === 'stats' && (
+                  <div className="p-5 pb-10 space-y-4">
+                    <div>
+                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PRs</p>
+                      <h2 className="text-2xl font-black tracking-tight text-white">PLL Statistics</h2>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
+                        <span className="font-mono text-xl font-black text-green-400">{pllMasteredCount}/{PLL_DATA.length}</span>
+                      </div>
+                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Day</span>
+                        <span className="font-mono text-xl font-black text-orange-400">{safePllDay}</span>
+                      </div>
+                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target Goal</span>
+                        <span className="font-mono text-xl font-black text-amber-300">{targetGoalSec.toFixed(1)}s</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {PLL_DATA.map((item) => {
+                        const stat = currentUser.pllStats?.[item.id];
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              emitBeep(580);
+                              setSwRunning(false);
+                              setSwElapsedMs(0);
+                              setPllDrillCase(item);
+                            }}
+                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-11 h-11 rounded-xl bg-slate-200 p-1 flex-shrink-0">
+                                <img
+                                  src={getPLLImageUrl(item.alg)}
+                                  alt={item.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-xs font-black text-white block truncate">{item.name}</span>
+                                <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              {stat?.best ? (
+                                <>
+                                  <span
+                                    className={`font-mono text-xs font-black block ${
+                                      stat.best <= targetGoalSec ? 'text-green-400' : 'text-amber-300'
+                                    }`}
+                                  >
+                                    PR: {stat.best.toFixed(2)}s
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
+                                </>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-500">Unlogged</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {pllTab === 'settings' && renderSettingsDeck()}
               </>
             )}
           </main>
 
-          {/* SYMMETRICAL BOTTOM NAVIGATION BAR */}
+          {/* SYMMETRICAL 4-COLUMN BOTTOM NAVIGATION BAR */}
           <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-3 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
             {activePhase === 'cross' ? (
-              <div className="grid grid-cols-5 gap-1 w-full">
+              <div className="grid grid-cols-4 gap-1 w-full">
                 {[
                   {
                     id: 'ladder',
@@ -4970,17 +4925,6 @@ function OLLDaySuite() {
                     )
                   },
                   {
-                    id: 'stats',
-                    label: 'Statistics',
-                    icon: (
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10" />
-                        <line x1="12" y1="20" x2="12" y2="4" />
-                        <line x1="6" y1="20" x2="6" y2="14" />
-                      </svg>
-                    )
-                  },
-                  {
                     id: 'settings',
                     label: 'Settings',
                     icon: (
@@ -4997,7 +4941,7 @@ function OLLDaySuite() {
                       emitBeep(460);
                       setCrossTab(tab.id);
                     }}
-                    className={`py-2 px-0.5 rounded-xl flex flex-col items-center justify-center gap-1 text-[9px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
+                    className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
                       crossTab === tab.id
                         ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
                         : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -6968,182 +6912,78 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 16. FULL-SCREEN GLASSMORPHIC 3x3x3 CFOP TIMER MODAL */}
-        {fullTimerOpen && (() => {
-          const solvesList = Array.isArray(currentUser.fullSolves) ? currentUser.fullSolves : [];
-          const latestSolve = solvesList[solvesList.length - 1] || null;
-          return (
+        {/* 15. BLIND PRACTICE HELP MODAL */}
+        {activeModal === 'blindPracticeHelp' && (
+          <div
+            onClick={() => setActiveModal(null)}
+            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+          >
             <div
-              onTouchStart={handleFullScreenTimerTouchStart}
-              onTouchEnd={handleFullScreenTimerTouchEnd}
-              onMouseDown={handleFullScreenTimerTouchStart}
-              onMouseUp={handleFullScreenTimerTouchEnd}
-              className="fixed inset-0 z-[290] bg-slate-950/75 backdrop-blur-3xl flex flex-col justify-between p-6 select-none cursor-pointer overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl"
             >
-              {/* Ambient Glassmorphic Depth Orbs */}
-              <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-orange-500/20 blur-[120px]" />
-              <div className="pointer-events-none absolute -bottom-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-sky-500/15 blur-[120px]" />
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  Ladder Drill Guide
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
 
-              {/* Top Bar: Scramble & Controls */}
-              <div className="relative z-10 max-w-md w-full mx-auto space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 text-[10px] font-black uppercase tracking-widest text-orange-300">
-                    3x3x3 CFOP Timer • {String(activeUserKey)}
+              <div>
+                <h3 className="text-xl font-black text-white">How Blind Practice Works</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Build muscle memory by visualizing short cross solutions before turning a single layer.
+                </p>
+              </div>
+
+              <div className="space-y-2 text-left">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    1. Pick Your Ladder Level (L1–L5)
                   </span>
-                  <div data-timer-control="true" className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(540);
-                        setFullScramble(generate3x3Scramble(20));
-                      }}
-                      className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/15 text-[10px] font-black uppercase tracking-wider text-white cursor-pointer"
-                    >
-                      New Scramble ↻
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFullTimerState('idle');
-                        setFullTimerOpen(false);
-                      }}
-                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/15 text-white font-bold flex items-center justify-center cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Start at <strong>L1 (2 moves)</strong> and work up to <strong>L5 (6 moves)</strong>. Apply the scramble with <strong>White on Bottom</strong> and <strong>Green in Front</strong>.
+                  </p>
                 </div>
 
-                {/* Glassmorphic Scramble Pill */}
-                <div
-                  data-timer-control="true"
-                  className="bg-white/[0.07] backdrop-blur-2xl border border-white/15 rounded-3xl p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
-                >
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50 block mb-1">
-                    White Bottom (D) • Green Front (F)
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                    2. Trace Every Edge Mentally
                   </span>
-                  <p className="font-mono text-base sm:text-lg font-black text-amber-300 tracking-wide leading-snug select-all">
-                    {fullScramble}
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Without turning the cube, trace where each white edge moves and confirm the exact {activeTierObj.moves}-move sequence in your head.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-green-400 block">
+                    3. Launch the Timer Mat
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Tap <strong>Open Blindfold Timer Mat</strong> to practice executing that planned cross under a 15-second WCA inspection clock with eyes closed.
                   </p>
                 </div>
               </div>
 
-              {/* Center: Tap-Anywhere Giant Stopwatch Display */}
-              <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto space-y-3">
-                <div
-                  className={`font-mono text-6xl sm:text-7xl font-black tracking-tight transition-colors duration-150 ${
-                    fullTimerState === 'holding'
-                      ? 'text-emerald-400 drop-shadow-[0_0_25px_rgba(52,211,153,0.5)]'
-                      : fullTimerState === 'running'
-                      ? 'text-white'
-                      : 'text-white/95'
-                  }`}
-                >
-                  {formatTimerMs(fullElapsedMs)}
-                </div>
-
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60">
-                  {fullTimerState === 'holding' && 'Release Anywhere to Start'}
-                  {fullTimerState === 'running' && 'Tap Anywhere to Stop'}
-                  {(fullTimerState === 'idle' || fullTimerState === 'stopped') && 'Tap & Release Anywhere to Start'}
-                </p>
-
-                {/* Quick +2 / DNF / Delete Actions for the Just-Completed Solve */}
-                {fullTimerState === 'stopped' && latestSolve && (
-                  <div
-                    data-timer-control="true"
-                    className="flex items-center gap-2 pt-2"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => applyFullSolvePenalty(latestSolve.id, '+2')}
-                      className={`px-3.5 py-1.5 rounded-full border text-xs font-black cursor-pointer transition-all ${
-                        latestSolve.penalty === '+2'
-                          ? 'bg-amber-500 border-amber-400 text-slate-950'
-                          : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
-                      }`}
-                    >
-                      +2
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFullSolvePenalty(latestSolve.id, 'DNF')}
-                      className={`px-3.5 py-1.5 rounded-full border text-xs font-black cursor-pointer transition-all ${
-                        latestSolve.penalty === 'DNF'
-                          ? 'bg-rose-500 border-rose-400 text-white'
-                          : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
-                      }`}
-                    >
-                      DNF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteFullSolve(latestSolve.id);
-                        setFullElapsedMs(0);
-                        setFullTimerState('idle');
-                      }}
-                      className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-rose-500/25 border border-white/15 text-xs font-black text-rose-300 cursor-pointer"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom: Live Ao5 & Ao12 Glassmorphic Telemetry Dock */}
-              <div
-                data-timer-control="true"
-                className="relative z-10 max-w-md w-full mx-auto bg-white/[0.07] backdrop-blur-2xl border border-white/15 rounded-3xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] space-y-2.5"
+              <button
+                type="button"
+                onClick={() => {
+                  emitBeep(620);
+                  setActiveModal(null);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
               >
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/50 block">Ao5</span>
-                    <span className="font-mono text-lg font-black text-amber-300">
-                      {formatTimerMs(fullSolveTelemetry.currentAo5)}
-                    </span>
-                    <span className="text-[9px] text-white/45 font-mono block">
-                      Best {formatTimerMs(fullSolveTelemetry.bestAo5)}
-                    </span>
-                  </div>
-                  <div className="border-x border-white/10">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/50 block">Ao12</span>
-                    <span className="font-mono text-lg font-black text-orange-400">
-                      {formatTimerMs(fullSolveTelemetry.currentAo12)}
-                    </span>
-                    <span className="text-[9px] text-white/45 font-mono block">
-                      Best {formatTimerMs(fullSolveTelemetry.bestAo12)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/50 block">Best</span>
-                    <span className="font-mono text-lg font-black text-emerald-300">
-                      {formatTimerMs(fullSolveTelemetry.bestSingle)}
-                    </span>
-                    <span className="text-[9px] text-white/45 font-mono block">
-                      {fullSolveTelemetry.count} Solves
-                    </span>
-                  </div>
-                </div>
-
-                {fullSolveTelemetry.count > 0 && (
-                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px]">
-                    <span className="text-white/55 font-semibold">
-                      Saved automatically to Statistics
-                    </span>
-                    <button
-                      type="button"
-                      onClick={clearAllFullSolves}
-                      className="text-rose-300 hover:text-rose-200 font-black uppercase tracking-wider cursor-pointer"
-                    >
-                      Clear Session
-                    </button>
-                  </div>
-                )}
-              </div>
+                Got It
+              </button>
             </div>
-          );
-        })()}
+          </div>
+        )}
       </div>
     </>
   );
