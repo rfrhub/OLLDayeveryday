@@ -78,7 +78,8 @@ const appId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, '_');
 const STORAGE_KEYS = {
   users: `ollday_users_${appId}`,
   activeAccount: `ollday_active_account_${appId}`,
-  pinnedHomePhase: `ollday_pinned_home_phase_${appId}`
+  pinnedHomePhase: `ollday_pinned_home_phase_${appId}`,
+  deviceAccounts: `ollday_device_accounts_${appId}`
 };
 
 // Free Starter vs. Lifetime Pro ($3.99) Tier Helpers
@@ -1566,172 +1567,131 @@ function OLLDaySuite() {
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
+  const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.deviceAccounts) : null;
+      const savedActive = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
+      const parsed = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
+      if (savedActive && !list.includes(savedActive)) list.push(savedActive);
+      return list;
+    } catch {
+      return [];
+    }
+  });
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
 
-  // Session & Drill Runners (F2L, OLL & PLL)
-  const [f2lSession, setF2lSession] = useState(null);
-  const [f2lDrillCase, setF2lDrillCase] = useState(null);
-  const [f2lViewIdx, setF2lViewIdx] = useState(0);
-  const [f2lDragRot, setF2lDragRot] = useState({ yaw: -35, pitch: -25 });
-  const [f2lIsDragging, setF2lIsDragging] = useState(false);
-  const f2lDragStartRef = useRef(null);
-  const [ollSession, setOllSession] = useState(null);
-  const [ollDrillCase, setOllDrillCase] = useState(null);
-  const [pllSession, setPllSession] = useState(null);
-  const [pllDrillCase, setPllDrillCase] = useState(null);
-  // Stopwatch State inside Session / Drill (DOM ref avoids 120fps React tree re-renders while ticking)
+  const registerDeviceAccount = (uKey) => {
+    if (!uKey || typeof uKey !== 'string') return;
+    setDeviceAccountKeys((prev) => {
+      const next = prev.includes(uKey) ? prev : [...prev, uKey];
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_KEYS.deviceAccounts, JSON.stringify(next));
+        }
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  };
+
+  // Case Stopwatch & Drill Runner State
   const [swRunning, setSwRunning] = useState(false);
   const [swElapsedMs, setSwElapsedMs] = useState(0);
-  const [swLastResult, setSwLastResult] = useState(null); // { phase, caseId, timeSec, isNewPb, prevPb }
+  const [swLastResult, setSwLastResult] = useState(null);
   const swStartRef = useRef(0);
   const swDisplayRef = useRef(null);
   const fullTimerDisplayRef = useRef(null);
 
-  // 1. Authenticate Cloud Session First
-  useEffect(() => {
-    if (!resolvedFirebaseConfig) {
-      setCloudSyncStatus('offline');
-      return;
+  const [f2lSession, setF2lSession] = useState(null);
+  const [f2lDrillCase, setF2lDrillCase] = useState(null);
+  const [ollSession, setOllSession] = useState(null);
+  const [ollDrillCase, setOllDrillCase] = useState(null);
+  const [pllSession, setPllSession] = useState(null);
+  const [pllDrillCase, setPllDrillCase] = useState(null);
+
+  // Interactive 3D F2L Cube Orbit State
+  const [f2lViewIdx, setF2lViewIdx] = useState(0);
+  const [f2lDragRot, setF2lDragRot] = useState({ yaw: -35, pitch: -25 });
+  const [f2lIsDragging, setF2lIsDragging] = useState(false);
+  const f2lDragStartRef = useRef(null);
+
+  // Web Audio Acoustic Synthesizer
+  const audioCtxRef = useRef(null);
+  const emitBeep = (freq = 640, type = 'sine', duration = 0.07, vol = 0.12) => {
+    if (!audioEnabled || typeof window === 'undefined') return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {
+      // Ignore audio restrictions
     }
-    let active = true;
-    let unsubscribe = () => {};
+  };
 
-    const initAuth = async () => {
-      try {
-        const svc = await getFirebaseServices();
-        if (!svc || !active) {
-          if (active) setCloudSyncStatus('offline');
-          return;
-        }
-        const { auth, authMod } = svc;
-        unsubscribe = authMod.onAuthStateChanged(auth, (u) => {
-          if (active && u) setCloudAuthUser(u);
-        });
-        const initialToken =
-          typeof globalThis !== 'undefined' ? globalThis.__initial_auth_token : null;
-        if (initialToken) {
-          await authMod.signInWithCustomToken(auth, initialToken);
-        } else if (!auth.currentUser) {
-          await authMod.signInAnonymously(auth);
-        }
-      } catch {
-        if (active) setCloudSyncStatus('offline');
-      }
-    };
-
-    initAuth();
-    return () => {
-      active = false;
-      try {
-        unsubscribe();
-      } catch {
-        // Ignore cleanup errors
-      }
-    };
-  }, []);
-
-  // Sanitize user records so corrupted/non-primitive fields never crash React rendering
+  // Sanitize User Profile Record
   const sanitizeUserRecord = (raw) => {
-    const base = {
-      day: 1,
-      f2lDay: 1,
-      pllDay: 1,
-      stats: {},
-      f2lStats: {},
-      pllStats: {},
-      fullSolveHistory: [],
-      customChunks: null,
-      f2lCustomChunks: null,
-      pllCustomChunks: null,
-      crossClears: 0,
-      isPro: false,
-      email: '',
-      fullSolveTargetPb: 15.0,
-      phaseTargetPbs: { cross: 2.0, f2l: 2.5, oll: 2.0, pll: 2.0 },
-      caseTargetPbs: { f2l: {}, oll: {}, pll: {} }
-    };
-    if (!raw || typeof raw !== 'object' || raw.$$typeof) return base;
-    const cleanStatMap = (m) => {
-      if (!m || typeof m !== 'object' || m.$$typeof) return {};
-      const out = {};
-      Object.entries(m).forEach(([k, v]) => {
-        if (v && typeof v === 'object' && !v.$$typeof) {
-          out[k] = {
-            attempts: typeof v.attempts === 'number' ? v.attempts : 0,
-            best: typeof v.best === 'number' ? v.best : null,
-            last: typeof v.last === 'number' ? v.last : null,
-            history: Array.isArray(v.history)
-              ? v.history.map((n) => Number(n)).filter((n) => Number.isFinite(n)).slice(0, 60)
-              : typeof v.last === 'number'
-              ? [v.last]
-              : []
-          };
-        }
-      });
-      return out;
-    };
-    const cleanNumMap = (m) => {
-      if (!m || typeof m !== 'object' || m.$$typeof) return {};
-      const out = {};
-      Object.entries(m).forEach(([k, v]) => {
-        const num = Number(v);
-        if (Number.isFinite(num) && num > 0) out[k] = Number(num.toFixed(3));
-      });
-      return out;
-    };
-    const rawPhases = raw.phaseTargetPbs && typeof raw.phaseTargetPbs === 'object' ? raw.phaseTargetPbs : {};
-    const rawCases = raw.caseTargetPbs && typeof raw.caseTargetPbs === 'object' ? raw.caseTargetPbs : {};
+    const base = raw && typeof raw === 'object' ? raw : {};
     return {
-      day: typeof raw.day === 'number' ? raw.day : 1,
-      f2lDay: typeof raw.f2lDay === 'number' ? raw.f2lDay : 1,
-      pllDay: typeof raw.pllDay === 'number' ? raw.pllDay : 1,
-      stats: cleanStatMap(raw.stats),
-      f2lStats: cleanStatMap(raw.f2lStats),
-      pllStats: cleanStatMap(raw.pllStats),
-      fullSolveHistory: Array.isArray(raw.fullSolveHistory)
-        ? raw.fullSolveHistory.filter((s) => s && typeof s.ms === 'number')
-        : [],
-      customChunks: Array.isArray(raw.customChunks)
-        ? raw.customChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
-        : null,
-      f2lCustomChunks: Array.isArray(raw.f2lCustomChunks)
-        ? raw.f2lCustomChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
-        : null,
-      pllCustomChunks: Array.isArray(raw.pllCustomChunks)
-        ? raw.pllCustomChunks.filter((c) => c && typeof c.title === 'string' && Array.isArray(c.ids))
-        : null,
-      crossClears: typeof raw.crossClears === 'number' ? raw.crossClears : 0,
-      isPro: Boolean(raw.isPro),
-      email: typeof raw.email === 'string' ? raw.email : '',
+      day: Number.isFinite(Number(base.day)) && Number(base.day) >= 1 ? Number(base.day) : 1,
+      f2lDay: Number.isFinite(Number(base.f2lDay)) && Number(base.f2lDay) >= 1 ? Number(base.f2lDay) : 1,
+      pllDay: Number.isFinite(Number(base.pllDay)) && Number(base.pllDay) >= 1 ? Number(base.pllDay) : 1,
+      stats: base.stats && typeof base.stats === 'object' ? base.stats : {},
+      f2lStats: base.f2lStats && typeof base.f2lStats === 'object' ? base.f2lStats : {},
+      pllStats: base.pllStats && typeof base.pllStats === 'object' ? base.pllStats : {},
+      fullSolveHistory: Array.isArray(base.fullSolveHistory) ? base.fullSolveHistory : [],
+      customChunks: Array.isArray(base.customChunks) ? base.customChunks : null,
+      f2lCustomChunks: Array.isArray(base.f2lCustomChunks) ? base.f2lCustomChunks : null,
+      pllCustomChunks: Array.isArray(base.pllCustomChunks) ? base.pllCustomChunks : null,
+      crossClears: Number.isFinite(Number(base.crossClears)) ? Number(base.crossClears) : 0,
+      isPro: Boolean(base.isPro),
+      email: typeof base.email === 'string' ? base.email : '',
       fullSolveTargetPb:
-        typeof raw.fullSolveTargetPb === 'number' && Number.isFinite(raw.fullSolveTargetPb)
-          ? Number(raw.fullSolveTargetPb.toFixed(3))
+        Number.isFinite(Number(base.fullSolveTargetPb)) && Number(base.fullSolveTargetPb) > 0
+          ? Number(base.fullSolveTargetPb)
           : 15.0,
       phaseTargetPbs: {
-        cross: Number.isFinite(Number(rawPhases.cross)) ? Number(Number(rawPhases.cross).toFixed(3)) : 2.0,
-        f2l: Number.isFinite(Number(rawPhases.f2l)) ? Number(Number(rawPhases.f2l).toFixed(3)) : 2.5,
-        oll: Number.isFinite(Number(rawPhases.oll)) ? Number(Number(rawPhases.oll).toFixed(3)) : 2.0,
-        pll: Number.isFinite(Number(rawPhases.pll)) ? Number(Number(rawPhases.pll).toFixed(3)) : 2.0
+        cross: 2.0,
+        f2l: 2.5,
+        oll: 2.0,
+        pll: 2.0,
+        ...(base.phaseTargetPbs && typeof base.phaseTargetPbs === 'object' ? base.phaseTargetPbs : {})
       },
       caseTargetPbs: {
-        f2l: cleanNumMap(rawCases.f2l),
-        oll: cleanNumMap(rawCases.oll),
-        pll: cleanNumMap(rawCases.pll)
+        f2l: base.caseTargetPbs?.f2l && typeof base.caseTargetPbs.f2l === 'object' ? base.caseTargetPbs.f2l : {},
+        oll: base.caseTargetPbs?.oll && typeof base.caseTargetPbs.oll === 'object' ? base.caseTargetPbs.oll : {},
+        pll: base.caseTargetPbs?.pll && typeof base.caseTargetPbs.pll === 'object' ? base.caseTargetPbs.pll : {}
       }
     };
   };
 
-  const usersRef = useRef(users);
+  // Persist Users & Active Account to localStorage
   useEffect(() => {
-    usersRef.current = users;
     try {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
       }
     } catch {
-      // Ignore quota/private-mode storage errors
+      // Ignore storage quota errors
     }
   }, [users]);
 
@@ -1749,269 +1709,90 @@ function OLLDaySuite() {
     }
   }, [activeUserKey]);
 
-  // 2. Real-Time Cloud Sync for Solver Accounts & Progress
-  useEffect(() => {
-    if (!resolvedFirebaseConfig || !cloudAuthUser) return;
-    let active = true;
-    let unsubProfiles = () => {};
+  // Cloud Firestore Sync
+  const saveUserToCloud = async (uKey, record) => {
+    if (!uKey || !resolvedFirebaseConfig || !cloudAuthUser) return;
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) return;
+      await svc.fsMod.setDoc(
+        svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
+        { ...sanitizeUserRecord(record), updatedAt: Date.now() },
+        { merge: true }
+      );
+      setCloudSyncStatus('synced');
+    } catch {
+      setCloudSyncStatus('local');
+    }
+  };
 
-    const subscribeCloud = async () => {
+  useEffect(() => {
+    let unsubAuth = null;
+    let unsubSnapshot = null;
+    let cancelled = false;
+
+    (async () => {
+      if (!resolvedFirebaseConfig) {
+        setCloudSyncStatus('local');
+        return;
+      }
+      const svc = await getFirebaseServices();
+      if (!svc || cancelled) {
+        setCloudSyncStatus('local');
+        return;
+      }
       try {
-        const svc = await getFirebaseServices();
-        if (!svc || !active) {
-          if (active) setCloudSyncStatus('offline');
+        const g = typeof globalThis !== 'undefined' ? globalThis : {};
+        if (g.__initial_auth_token) {
+          await svc.authMod.signInWithCustomToken(svc.auth, g.__initial_auth_token);
+        } else {
+          await svc.authMod.signInAnonymously(svc.auth);
+        }
+      } catch {
+        setCloudSyncStatus('local');
+      }
+
+      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
+        if (cancelled) return;
+        setCloudAuthUser(fbUser || null);
+        if (!fbUser) {
+          setCloudSyncStatus('local');
           return;
         }
-        const { db, fsMod } = svc;
-        const profilesCol = fsMod.collection(db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
-
-        unsubProfiles = fsMod.onSnapshot(
-          profilesCol,
-          (snapshot) => {
-            setCloudSyncStatus('synced');
-            if (snapshot.empty) {
-              Object.entries(usersRef.current || DEFAULT_USERS).forEach(([uKey, uVal]) => {
-                const cleanVal = sanitizeUserRecord(uVal);
-                fsMod.setDoc(fsMod.doc(db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey), {
-                  ...cleanVal,
-                  name: uKey
-                }).catch(() => {});
-              });
-              return;
-            }
-            const remoteRaw = {};
-            snapshot.forEach((docSnap) => {
-              const id = String(docSnap.id);
-              const data = docSnap.data();
-              if (data && typeof data === 'object' && !data.$$typeof) {
-                remoteRaw[id] = data;
-              }
-            });
-
+        setCloudSyncStatus('synced');
+        const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+        unsubSnapshot = svc.fsMod.onSnapshot(
+          colRef,
+          (snap) => {
+            if (cancelled) return;
             setUsers((prev) => {
-              const merged = mergeDefaultUsersWithStored(prev);
-              Object.entries(remoteRaw).forEach(([id, data]) => {
-                if (data._deleted) {
-                  delete merged[id];
-                } else {
-                  merged[id] = sanitizeUserRecord(data);
+              const merged = { ...prev };
+              snap.forEach((docSnap) => {
+                const data = docSnap.data();
+                if (data && data._deleted) {
+                  delete merged[docSnap.id];
+                } else if (data && typeof data === 'object') {
+                  merged[docSnap.id] = sanitizeUserRecord({ ...(merged[docSnap.id] || {}), ...data });
                 }
               });
-              return Object.keys(merged).length > 0 ? merged : prev;
+              return Object.keys(merged).length > 0 ? merged : { ...DEFAULT_USERS };
             });
           },
-          () => {
-            setCloudSyncStatus('offline');
-          }
+          () => setCloudSyncStatus('local')
         );
-      } catch {
-        if (active) setCloudSyncStatus('offline');
-      }
-    };
+      });
+    })();
 
-    subscribeCloud();
     return () => {
-      active = false;
-      try {
-        unsubProfiles();
-      } catch {
-        // Ignore cleanup errors
-      }
+      cancelled = true;
+      if (typeof unsubAuth === 'function') unsubAuth();
+      if (typeof unsubSnapshot === 'function') unsubSnapshot();
     };
-  }, [cloudAuthUser]);
+  }, []);
 
-  const saveUserToCloud = async (uKey, uData) => {
-    if (typeof uKey !== 'string') return;
-    const cleanData = sanitizeUserRecord(uData);
-    const nextUsers = { ...usersRef.current, [uKey]: cleanData };
-    usersRef.current = nextUsers;
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(nextUsers));
-      }
-    } catch {
-      // Ignore storage errors
-    }
-    if (!resolvedFirebaseConfig || !cloudAuthUser) return;
-    const svc = await getFirebaseServices();
-    if (!svc) return;
-    svc.fsMod.setDoc(
-      svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
-      { ...cleanData, name: String(uKey), updatedAt: Date.now() },
-      { merge: true }
-    ).catch(() => {});
-  };
-
-  const currentUser = sanitizeUserRecord(users[activeUserKey] || DEFAULT_USERS.Demo);
-  const isProUnlocked = Boolean(currentUser.isPro);
-
-  // Sync Target PB controls with active solver account
-  const fullSolveTargetSec = currentUser.fullSolveTargetPb ?? targetGoalSec;
-  const getPhaseTargetPb = (phase) =>
-    currentUser.phaseTargetPbs?.[phase] ?? (phase === 'f2l' ? 2.5 : 2.0);
-  const getEffectiveCaseTargetPb = (phase, caseId) => {
-    const custom = currentUser.caseTargetPbs?.[phase]?.[caseId];
-    return typeof custom === 'number' && Number.isFinite(custom) ? custom : getPhaseTargetPb(phase);
-  };
-
+  // Background Power-Save Lifecycle (visibilitychange)
   useEffect(() => {
-    setTargetGoalSec(fullSolveTargetSec);
-    setTargetPbInput(fullSolveTargetSec.toFixed(3));
-  }, [activeUserKey, fullSolveTargetSec]);
-
-  useEffect(() => {
-    const pVal = getPhaseTargetPb(selectedTargetPhase);
-    setPhaseTargetInput(pVal.toFixed(3));
-  }, [activeUserKey, selectedTargetPhase, currentUser.phaseTargetPbs]);
-
-  const updateFullSolveTargetPb = (nextSec) => {
-    const clamped = Math.min(120, Math.max(1.0, Number(nextSec.toFixed(3))));
-    setTargetGoalSec(clamped);
-    setTargetPbInput(clamped.toFixed(3));
-    const updatedUser = { ...currentUser, fullSolveTargetPb: clamped };
-    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-    saveUserToCloud(activeUserKey, updatedUser);
-  };
-
-  const updatePhaseTargetPb = (phase, nextSec) => {
-    const clamped = Math.min(30, Math.max(0.1, Number(nextSec.toFixed(3))));
-    if (phase === selectedTargetPhase) {
-      setPhaseTargetInput(clamped.toFixed(3));
-    }
-    const updatedUser = {
-      ...currentUser,
-      phaseTargetPbs: {
-        ...currentUser.phaseTargetPbs,
-        [phase]: clamped
-      }
-    };
-    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-    saveUserToCloud(activeUserKey, updatedUser);
-  };
-
-  const updateCaseTargetPb = (phase, caseId, nextSecOrNull) => {
-    const nextPhaseMap = { ...(currentUser.caseTargetPbs?.[phase] || {}) };
-    if (nextSecOrNull === null || nextSecOrNull === undefined || nextSecOrNull === '') {
-      delete nextPhaseMap[caseId];
-    } else {
-      const clamped = Math.min(30, Math.max(0.1, Number(Number(nextSecOrNull).toFixed(3))));
-      nextPhaseMap[caseId] = clamped;
-    }
-    const updatedUser = {
-      ...currentUser,
-      caseTargetPbs: {
-        ...currentUser.caseTargetPbs,
-        [phase]: nextPhaseMap
-      }
-    };
-    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-    saveUserToCloud(activeUserKey, updatedUser);
-  };
-
-  const openProPaywall = (featureLabel = 'Full CFOP Curriculum') => {
-    emitBeep(460);
-    setProPurchaseToast('');
-    setProPaywallFeature(featureLabel);
-    setActiveModal('proPaywall');
-  };
-
-  const unlockLifetimePro = () => {
-    emitBeep(880, 'sine', 0.12);
-    const updatedUser = { ...currentUser, isPro: true };
-    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-    saveUserToCloud(activeUserKey, updatedUser);
-    setProPurchaseToast('Lifetime Pro Unlocked! All 123 CFOP cases & tools are active.');
-    setTimeout(() => {
-      setActiveModal(null);
-      setProPurchaseToast('');
-    }, 900);
-  };
-
-  const f2lChunks = currentUser.f2lCustomChunks || F2L_DEFAULT_CHUNKS;
-  const ollChunks = currentUser.customChunks || OLL_DEFAULT_CHUNKS;
-  const pllChunks = currentUser.pllCustomChunks || PLL_DEFAULT_CHUNKS;
-
-  const f2lSchedule = buildSchedule(f2lChunks, F2L_DATA);
-  const ollSchedule = buildSchedule(ollChunks, OLL_DATA);
-  const pllSchedule = buildSchedule(pllChunks, PLL_DATA);
-
-  const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay || 1), f2lSchedule.length || 1);
-  const safeOllDay = Math.min(Math.max(1, currentUser.day || 1), ollSchedule.length || 1);
-  const safePllDay = Math.min(Math.max(1, currentUser.pllDay || 1), pllSchedule.length || 1);
-
-  const currentF2lDayObj = f2lSchedule[safeF2lDay - 1] || f2lSchedule[0];
-  const currentOllDayObj = ollSchedule[safeOllDay - 1] || ollSchedule[0];
-  const currentPllDayObj = pllSchedule[safePllDay - 1] || pllSchedule[0];
-
-  useEffect(() => {
-    if (currentF2lDayObj?.cases) setF2lLineupOrder(currentF2lDayObj.cases);
-  }, [safeF2lDay, activeUserKey, currentUser.f2lCustomChunks]);
-
-  useEffect(() => {
-    if (currentOllDayObj?.cases) setOllLineupOrder(currentOllDayObj.cases);
-  }, [safeOllDay, activeUserKey, currentUser.customChunks]);
-
-  useEffect(() => {
-    if (currentPllDayObj?.cases) setPllLineupOrder(currentPllDayObj.cases);
-  }, [safePllDay, activeUserKey, currentUser.pllCustomChunks]);
-
-  // Audio Synthesizer
-  const audioCtxRef = useRef(null);
-  const emitBeep = (freq = 540, type = 'sine', duration = 0.07, vol = 0.14) => {
-    if (!audioEnabled) return;
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!audioCtxRef.current) audioCtxRef.current = new AudioCtx();
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(vol, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
-    } catch {
-      // Ignore audio errors on restricted devices
-    }
-  };
-
-  // Stopwatch Ticker (Updates DOM textContent directly at 60-120fps without re-rendering the app)
-  useEffect(() => {
-    if (!swRunning) return;
-    let raf;
-    const tick = () => {
-      const elapsedSec = ((performance.now() - swStartRef.current) / 1000).toFixed(2);
-      if (swDisplayRef.current) {
-        swDisplayRef.current.textContent = `${elapsedSec}s — Stop`;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [swRunning]);
-
-  // Full-Screen 3x3x3 CFOP Timer Ticker (Updates DOM textContent directly to keep phone cool)
-  useEffect(() => {
-    if (fullTimerState !== 'running') return;
-    let raf;
-    const tick = () => {
-      const elapsedSec = ((performance.now() - fullStartRef.current) / 1000).toFixed(2);
-      if (fullTimerDisplayRef.current) {
-        fullTimerDisplayRef.current.textContent = elapsedSec;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [fullTimerState]);
-
-  // Background Power-Save Lifecycle: suspend AudioContext & pause active clocks when app goes to background
-  useEffect(() => {
+    if (typeof document === 'undefined') return;
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
@@ -2019,132 +1800,271 @@ function OLLDaySuite() {
         }
         setSwRunning(false);
         setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
-        setBlindState((prev) =>
-          prev === 'inspecting' || prev === 'readying' || prev === 'armed' ? 'idle' : prev
-        );
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  const handleFullTimerScreenTap = () => {
-    if (fullTimerState === 'running') {
-      emitBeep(960, 'triangle', 0.09);
-      const finalMs = Math.max(10, Math.round(performance.now() - fullStartRef.current));
-      setFullElapsedMs(finalMs);
-      setFullTimerState('stopped');
-      const newSolve = {
-        id: `cfop-${Date.now()}`,
-        ms: finalMs,
-        scramble: fullScramble,
-        penalty: null,
-        timestamp: Date.now()
-      };
-      const updatedUser = {
-        ...currentUser,
-        fullSolveHistory: [newSolve, ...(currentUser.fullSolveHistory || [])].slice(0, 100)
-      };
-      setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-      saveUserToCloud(activeUserKey, updatedUser);
-      setFullScramble(generate3x3Scramble(20));
-    } else {
-      emitBeep(720, 'sine', 0.06);
-      fullStartRef.current = performance.now();
-      setFullElapsedMs(0);
-      setFullTimerState('running');
-    }
-  };
-
-  const toggleFullSolvePenalty = (penaltyType) => {
-    const hist = [...(currentUser.fullSolveHistory || [])];
-    if (!hist.length) return;
-    emitBeep(560);
-    hist[0] = {
-      ...hist[0],
-      penalty: hist[0].penalty === penaltyType ? null : penaltyType
+  // Zero-Re-Render Case Stopwatch Loop (DOM ref updates)
+  useEffect(() => {
+    if (!swRunning) return;
+    let rafId = 0;
+    const tick = () => {
+      const elapsed = performance.now() - swStartRef.current;
+      if (swDisplayRef.current) {
+        swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
+      }
+      rafId = requestAnimationFrame(tick);
     };
-    const updatedUser = { ...currentUser, fullSolveHistory: hist };
-    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-    saveUserToCloud(activeUserKey, updatedUser);
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [swRunning]);
+
+  // Zero-Re-Render Full-Screen 3x3x3 Timer Loop (DOM ref updates)
+  useEffect(() => {
+    if (fullTimerState !== 'running') return;
+    let rafId = 0;
+    const tick = () => {
+      const elapsed = performance.now() - fullStartRef.current;
+      if (fullTimerDisplayRef.current) {
+        fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [fullTimerState]);
+
+  // Derived Current User & Curriculum Schedules
+  const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
+  const currentUser = sanitizeUserRecord(users[resolvedUserKey] || DEFAULT_USERS.Demo);
+  const isProUnlocked = Boolean(currentUser.isPro);
+
+  const f2lChunks = currentUser.f2lCustomChunks?.length ? currentUser.f2lCustomChunks : F2L_DEFAULT_CHUNKS;
+  const ollChunks = currentUser.customChunks?.length ? currentUser.customChunks : OLL_DEFAULT_CHUNKS;
+  const pllChunks = currentUser.pllCustomChunks?.length ? currentUser.pllCustomChunks : PLL_DEFAULT_CHUNKS;
+
+  const f2lSchedule = buildSchedule(f2lChunks, F2L_DATA);
+  const ollSchedule = buildSchedule(ollChunks, OLL_DATA);
+  const pllSchedule = buildSchedule(pllChunks, PLL_DATA);
+
+  const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay), Math.max(1, f2lSchedule.length));
+  const safeOllDay = Math.min(Math.max(1, currentUser.day), Math.max(1, ollSchedule.length));
+  const safePllDay = Math.min(Math.max(1, currentUser.pllDay), Math.max(1, pllSchedule.length));
+
+  const currentF2lDayObj = f2lSchedule[safeF2lDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: F2L_DATA.slice(0, 4) };
+  const currentOllDayObj = ollSchedule[safeOllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: OLL_DATA.slice(0, 4) };
+  const currentPllDayObj = pllSchedule[safePllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: PLL_DATA.slice(0, 4) };
+
+  useEffect(() => {
+    setF2lLineupOrder([...currentF2lDayObj.cases]);
+  }, [safeF2lDay, currentUser.f2lCustomChunks]);
+
+  useEffect(() => {
+    setOllLineupOrder([...currentOllDayObj.cases]);
+  }, [safeOllDay, currentUser.customChunks]);
+
+  useEffect(() => {
+    setPllLineupOrder([...currentPllDayObj.cases]);
+  }, [safePllDay, currentUser.pllCustomChunks]);
+
+  // Target PB Getters & Updaters
+  const fullSolveTargetSec = Number.isFinite(Number(currentUser.fullSolveTargetPb))
+    ? Number(currentUser.fullSolveTargetPb)
+    : targetGoalSec;
+
+  useEffect(() => {
+    setTargetPbInput(fullSolveTargetSec.toFixed(3));
+  }, [fullSolveTargetSec]);
+
+  const getPhaseTargetPb = (phase) => {
+    const val = currentUser.phaseTargetPbs?.[phase];
+    return Number.isFinite(Number(val)) && Number(val) > 0 ? Number(val) : 2.0;
   };
 
-  const deleteLastFullSolve = () => {
-    const hist = [...(currentUser.fullSolveHistory || [])];
-    if (!hist.length) return;
-    emitBeep(400);
-    hist.shift();
-    const updatedUser = { ...currentUser, fullSolveHistory: hist };
-    setUsers((prev) => ({ ...prev, [activeUserKey]: updatedUser }));
-    saveUserToCloud(activeUserKey, updatedUser);
-    setFullElapsedMs(0);
-    setFullTimerState('idle');
+  useEffect(() => {
+    setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3));
+  }, [selectedTargetPhase, currentUser.phaseTargetPbs]);
+
+  const getEffectiveCaseTargetPb = (phase, caseId) => {
+    const custom = currentUser.caseTargetPbs?.[phase]?.[caseId];
+    if (Number.isFinite(Number(custom)) && Number(custom) > 0) return Number(custom);
+    return getPhaseTargetPb(phase);
   };
 
-  const ao5Full = computeWcaAverage(currentUser.fullSolveHistory, 5);
-  const ao12Full = computeWcaAverage(currentUser.fullSolveHistory, 12);
-  const bestFullPbMs = (() => {
-    const valid = (currentUser.fullSolveHistory || [])
-      .filter((s) => s.penalty !== 'DNF')
-      .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0));
-    return valid.length ? Math.min(...valid) : null;
-  })();
+  const updateFullSolveTargetPb = (sec) => {
+    const clamped = Math.min(120, Math.max(1.0, Number(Number(sec).toFixed(3))));
+    setTargetGoalSec(clamped);
+    setTargetPbInput(clamped.toFixed(3));
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const updated = { ...u, fullSolveTargetPb: clamped };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+  };
 
-  const toggleStopwatch = (onStopRecord) => {
+  const updatePhaseTargetPb = (phase, sec) => {
+    const clamped = Math.min(30, Math.max(0.1, Number(Number(sec).toFixed(3))));
+    setPhaseTargetInput(clamped.toFixed(3));
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const updated = {
+        ...u,
+        phaseTargetPbs: { ...u.phaseTargetPbs, [phase]: clamped }
+      };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+  };
+
+  const updateCaseTargetPb = (phase, caseId, secOrNull) => {
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const phaseMap = { ...(u.caseTargetPbs?.[phase] || {}) };
+      if (secOrNull === null) {
+        delete phaseMap[caseId];
+      } else {
+        phaseMap[caseId] = Math.min(30, Math.max(0.1, Number(Number(secOrNull).toFixed(3))));
+      }
+      const updated = {
+        ...u,
+        caseTargetPbs: { ...u.caseTargetPbs, [phase]: phaseMap }
+      };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+  };
+
+  // Stopwatch & Full-Timer Action Helpers
+  const toggleStopwatch = (onCompleteSec) => {
     if (!swRunning) {
-      emitBeep(720, 'sine', 0.06);
+      emitBeep(820, 'sine', 0.06);
       swStartRef.current = performance.now();
       setSwElapsedMs(0);
       setSwRunning(true);
     } else {
-      emitBeep(960, 'triangle', 0.09);
-      const finalSec = Number(((performance.now() - swStartRef.current) / 1000).toFixed(3));
-      setSwElapsedMs(finalSec * 1000);
+      const finalMs = performance.now() - swStartRef.current;
       setSwRunning(false);
-      if (onStopRecord && finalSec > 0.15) {
-        onStopRecord(finalSec);
-      }
+      setSwElapsedMs(finalMs);
+      const sec = Number((finalMs / 1000).toFixed(3));
+      emitBeep(960, 'sine', 0.09);
+      if (typeof onCompleteSec === 'function') onCompleteSec(sec);
     }
   };
 
   const recordCaseTime = (phase, caseId, timeSec) => {
-    const uSnapshot = usersRef.current[activeUserKey] || DEFAULT_USERS.Demo;
-    const statFieldSnapshot = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
-    const existingSnapshot = uSnapshot[statFieldSnapshot]?.[caseId] || { attempts: 0, best: null, last: null, history: [] };
-    const isNewPb = existingSnapshot.best === null || timeSec < existingSnapshot.best;
-    setSwLastResult({
-      phase,
-      caseId,
-      timeSec,
-      isNewPb,
-      prevPb: existingSnapshot.best
-    });
-
+    const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
+    let isNewPb = false;
     setUsers((prev) => {
-      const u = prev[activeUserKey] || DEFAULT_USERS.Demo;
-      const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
-      const existing = u[statField]?.[caseId] || { attempts: 0, best: null, last: null, history: [] };
-      const best = existing.best === null ? timeSec : Math.min(existing.best, timeSec);
-      const nextHistory = [timeSec, ...(Array.isArray(existing.history) ? existing.history : [])].slice(0, 60);
-      const updatedUser = {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const existing = u[statField]?.[caseId] || {};
+      const prevBest = typeof existing.best === 'number' ? existing.best : null;
+      isNewPb = prevBest === null || timeSec < prevBest;
+      const nextBest = isNewPb ? timeSec : prevBest;
+      const nextHistory = [timeSec, ...(Array.isArray(existing.history) ? existing.history : [])].slice(0, 50);
+      const updated = {
         ...u,
         [statField]: {
-          ...(u[statField] || {}),
+          ...u[statField],
           [caseId]: {
-            attempts: existing.attempts + 1,
-            best,
-            last: timeSec,
+            best: nextBest,
+            attempts: (existing.attempts || 0) + 1,
             history: nextHistory
           }
         }
       };
-      saveUserToCloud(activeUserKey, updatedUser);
-      return {
-        ...prev,
-        [activeUserKey]: updatedUser
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+    setSwLastResult({ phase, caseId, timeSec, isNewPb });
+  };
+
+  const handleFullTimerScreenTap = () => {
+    if (fullTimerState !== 'running') {
+      emitBeep(820, 'sine', 0.07);
+      fullStartRef.current = performance.now();
+      setFullElapsedMs(0);
+      setFullTimerState('running');
+    } else {
+      const finalMs = Math.round(performance.now() - fullStartRef.current);
+      setFullElapsedMs(finalMs);
+      setFullTimerState('stopped');
+      emitBeep(980, 'sine', 0.1);
+      const newEntry = {
+        id: Date.now(),
+        ms: finalMs,
+        penalty: null,
+        scramble: fullScramble
       };
+      setUsers((prev) => {
+        const u = sanitizeUserRecord(prev[resolvedUserKey]);
+        const updated = {
+          ...u,
+          fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100)
+        };
+        saveUserToCloud(resolvedUserKey, updated);
+        return { ...prev, [resolvedUserKey]: updated };
+      });
+      setFullScramble(generate3x3Scramble(20));
+    }
+  };
+
+  const toggleFullSolvePenalty = (pen) => {
+    emitBeep(560);
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      if (!u.fullSolveHistory?.length) return prev;
+      const [first, ...rest] = u.fullSolveHistory;
+      const updatedFirst = { ...first, penalty: first.penalty === pen ? null : pen };
+      const updated = { ...u, fullSolveHistory: [updatedFirst, ...rest] };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
     });
   };
+
+  const deleteLastFullSolve = () => {
+    emitBeep(400);
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const updated = { ...u, fullSolveHistory: (u.fullSolveHistory || []).slice(1) };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+    setFullTimerState('idle');
+    setFullElapsedMs(0);
+  };
+
+  const openProPaywall = (featureLabel) => {
+    emitBeep(460);
+    setProPaywallFeature(featureLabel || '');
+    setProPurchaseToast('');
+    setActiveModal('proPaywall');
+  };
+
+  const unlockLifetimePro = () => {
+    emitBeep(920, 'sine', 0.12);
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const updated = { ...u, isPro: true };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+    setProPurchaseToast('OLLDay Pro Unlocked! All 123 cases active.');
+    setTimeout(() => {
+      setActiveModal(null);
+      setProPurchaseToast('');
+    }, 900);
+  };
+
+  const ao5Full = computeWcaAverage(currentUser.fullSolveHistory, 5);
+  const ao12Full = computeWcaAverage(currentUser.fullSolveHistory, 12);
+  const validFullMs = (currentUser.fullSolveHistory || [])
+    .filter((s) => s.penalty !== 'DNF')
+    .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0))
+    .filter((n) => Number.isFinite(n));
+  const bestFullPbMs = validFullMs.length ? Math.min(...validFullMs) : null;
 
   // WCA Blind Inspection Countdown Effect
   useEffect(() => {
@@ -2335,6 +2255,17 @@ function OLLDaySuite() {
     }
     setDeleteAccountConfirm(false);
     setActiveModal(null);
+    setDeviceAccountKeys((prev) => {
+      const next = prev.filter((k) => k !== keyToRemove);
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_KEYS.deviceAccounts, JSON.stringify(next));
+        }
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
     setActiveUserKey('');
     setAuthNameInput('');
     setAuthEmailInput('');
@@ -5555,37 +5486,98 @@ function OLLDaySuite() {
 
               {authMode === 'signin' ? (
                 <div className="space-y-3">
-                  <div className="space-y-1.5 max-h-52 overflow-y-auto no-scrollbar">
-                    {Object.keys(users).map((uKey) => {
-                      const uData = sanitizeUserRecord(users[uKey]);
-                      return (
-                        <button
-                          key={uKey}
-                          type="button"
-                          onClick={() => {
-                            emitBeep(720, 'sine', 0.08);
-                            setActiveUserKey(uKey);
-                            setAuthScreenOpen(false);
-                          }}
-                          className="w-full p-3.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
-                        >
-                          <div className="text-left">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-black text-white">{String(uKey)}</span>
-                              {uData.isPro && (
-                                <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-500/40 text-[9px] font-black text-orange-300">
-                                  PRO
+                  {/* Private Device-Only Saved Accounts + Demo */}
+                  {(() => {
+                    const visibleAccounts = Array.from(
+                      new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])
+                    ).filter((k) => Boolean(users[k]));
+                    return (
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                        {visibleAccounts.map((uKey) => {
+                          const uData = sanitizeUserRecord(users[uKey]);
+                          return (
+                            <button
+                              key={uKey}
+                              type="button"
+                              onClick={() => {
+                                emitBeep(720, 'sine', 0.08);
+                                registerDeviceAccount(uKey);
+                                setActiveUserKey(uKey);
+                                setAuthNameInput('');
+                                setAuthErrorMsg('');
+                                setAuthScreenOpen(false);
+                              }}
+                              className="w-full p-3.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
+                            >
+                              <div className="text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-black text-white">{String(uKey)}</span>
+                                  {uData.isPro && (
+                                    <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-500/40 text-[9px] font-black text-orange-300">
+                                      PRO
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-white/55">
+                                  F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}
                                 </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-white/55">
-                              F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}
-                            </span>
-                          </div>
-                          <span className="text-xs font-black text-orange-300">Continue →</span>
-                        </button>
-                      );
-                    })}
+                              </div>
+                              <span className="text-xs font-black text-orange-300">Continue →</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Sign in to an existing cloud account from another device without listing others */}
+                  <div className="pt-2 border-t border-white/10 space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block">
+                      Sign In From Another Device
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={authNameInput}
+                        onChange={(e) => {
+                          setAuthErrorMsg('');
+                          setAuthNameInput(e.target.value);
+                        }}
+                        placeholder="Enter your Solver Name or Email"
+                        className="flex-1 rounded-2xl bg-black/35 border border-white/15 px-3.5 py-2.5 text-xs font-bold text-white placeholder-white/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const query = authNameInput.trim();
+                          if (!query) {
+                            setAuthErrorMsg('Enter your solver name or email');
+                            return;
+                          }
+                          const matchedKey = Object.keys(users).find((k) => {
+                            if (k.toLowerCase() === query.toLowerCase()) return true;
+                            const em = users[k]?.email;
+                            return typeof em === 'string' && em.trim() !== '' && em.toLowerCase() === query.toLowerCase();
+                          });
+                          if (!matchedKey) {
+                            setAuthErrorMsg('Account not found — check spelling or Create Account');
+                            return;
+                          }
+                          emitBeep(720, 'sine', 0.08);
+                          registerDeviceAccount(matchedKey);
+                          setActiveUserKey(matchedKey);
+                          setAuthNameInput('');
+                          setAuthErrorMsg('');
+                          setAuthScreenOpen(false);
+                        }}
+                        className="px-4 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 text-xs font-black text-white cursor-pointer"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                    {authErrorMsg && (
+                      <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -5620,8 +5612,11 @@ function OLLDaySuite() {
                         setAuthErrorMsg('Enter a solver name to create your account');
                         return;
                       }
-                      if (users[cleanName]) {
-                        setAuthErrorMsg('That solver name already exists — switch to Sign In');
+                      const exists = Object.keys(users).some(
+                        (k) => k.toLowerCase() === cleanName.toLowerCase()
+                      );
+                      if (exists) {
+                        setAuthErrorMsg('That solver name is taken — choose another or Sign In');
                         return;
                       }
                       emitBeep(820, 'sine', 0.1);
@@ -5631,6 +5626,7 @@ function OLLDaySuite() {
                       });
                       setUsers((prev) => ({ ...prev, [cleanName]: created }));
                       saveUserToCloud(cleanName, created);
+                      registerDeviceAccount(cleanName);
                       setActiveUserKey(cleanName);
                       setAuthNameInput('');
                       setAuthEmailInput('');
