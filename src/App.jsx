@@ -137,6 +137,69 @@ const CROSS_TIERS = [
   }
 ];
 
+const CROSS_ADVANCED_TIERS = [
+  {
+    tier: 1,
+    moves: 5,
+    title: 'Full Scramble • 5-Move Cross',
+    scrambles: [
+      "R U R' U' F2 L2 D' B2 U R2 D' L2 U' F2 R2 U2 B2 L2 F2 U",
+      "F' U' F U R2 B2 D' L2 U F2 D' R2 U' B2 L2 U2 F2 R2 B2 U'",
+      "L' U' L U B2 R2 D' F2 U L2 D' B2 U' R2 F2 U2 L2 B2 R2 U",
+      "B U B' U' L2 F2 D' R2 U B2 D' L2 U' F2 R2 U2 B2 L2 F2 U'"
+    ],
+    hint: 'Ignore F2L corners—spot the 1–2 white edges already near D, drop them in, and finish the remaining edges in ≤5 moves.'
+  },
+  {
+    tier: 2,
+    moves: 6,
+    title: 'Full Scramble • 6-Move Standard',
+    scrambles: [
+      "U2 R2 F2 L2 D' B2 R2 U' F2 D L2 B2 U R' F R D' F2 U2 L",
+      "D2 L2 B2 R2 U' F2 L2 D' B2 U R2 F2 D L' B L U' B2 D2 R",
+      "F2 U2 R2 D' L2 B2 U F2 R2 D' B2 L2 U' F' R' F D R2 U2 B",
+      "B2 D2 L2 U' R2 F2 D B2 L2 U' F2 R2 D' B' L' B U L2 D2 F"
+    ],
+    hint: 'Trace all 4 white edges amidst the full scramble; insert opposite edges together before aligning D.'
+  },
+  {
+    tier: 3,
+    moves: 7,
+    title: 'Full Scramble • Keyhole D-Shift',
+    scrambles: [
+      "R2 D' F2 U L2 B2 D R2 U' F2 L2 D' B2 U2 R' F' D' R U' F2",
+      "L2 D' B2 U R2 F2 D L2 U' B2 R2 D' F2 U2 L' B' D' L U' B2",
+      "F2 D' L2 U B2 R2 D F2 U' L2 B2 D' R2 U2 F' R' D' F U' R2",
+      "B2 D' R2 U F2 L2 D B2 U' R2 F2 D' L2 U2 B' L' D' B U' L2"
+    ],
+    hint: 'Use D / D\' shifts to position open slots underneath flipped middle-layer white edges without breaking solved ones.'
+  },
+  {
+    tier: 4,
+    moves: 7,
+    title: 'Full Scramble • Multi-Edge Flow',
+    scrambles: [
+      "U R2 F' D2 B2 L2 U' R2 D F2 L2 B2 U2 R F' L' D2 R' U F2",
+      "U' L2 B' D2 F2 R2 U L2 D' B2 R2 F2 U2 L B' R' D2 L' U' B2",
+      "D F2 R' U2 L2 B2 D' F2 U R2 B2 L2 D2 F R' B' U2 F' D R2",
+      "D' B2 L' U2 R2 F2 D B2 U' L2 F2 R2 D2 B L' F' U2 B' D' L2"
+    ],
+    hint: 'Look for chained insertions where turning R or F simultaneously kicks another white edge into its U-layer setup.'
+  },
+  {
+    tier: 5,
+    moves: 8,
+    title: 'WCA Full Scramble • Sub-8 Master',
+    scrambles: [
+      "R' U2 F2 D' L2 B2 U R2 F2 D' B2 L2 U2 F R' D' B L' U' R2",
+      "L' U2 B2 D' R2 F2 U L2 B2 D' F2 R2 U2 B L' D' F R' U' L2",
+      "F' U2 L2 D' B2 R2 U F2 L2 D' R2 B2 U2 L F' D' R B' U' F2",
+      "B' U2 R2 D' F2 L2 U B2 R2 D' L2 F2 U2 R B' D' L F' U' B2"
+    ],
+    hint: 'Full WCA-style 20-move scramble. Plan the entire 8-move cross + first corner track before starting your timer.'
+  }
+];
+
 const CROSS_MECHANICS = [
   {
     id: 1,
@@ -1020,16 +1083,6 @@ function simulateCrossCubeState(scramble = '') {
       cycle4(24, 15, 51, 42);
       cycle4(25, 16, 52, 43);
       cycle4(26, 17, 53, 44);
-    } else if (face === 'R') {
-      rotCW(9);
-      cycle4(2, 51, 29, 20);
-      cycle4(5, 48, 32, 23);
-      cycle4(8, 45, 35, 26);
-    } else if (face === 'L') {
-      rotCW(36);
-      cycle4(0, 18, 27, 53);
-      cycle4(3, 21, 30, 50);
-      cycle4(6, 24, 33, 47);
     } else if (face === 'F') {
       rotCW(18);
       cycle4(6, 9, 29, 44);
@@ -1040,109 +1093,167 @@ function simulateCrossCubeState(scramble = '') {
       cycle4(2, 36, 33, 17);
       cycle4(1, 39, 34, 14);
       cycle4(0, 42, 35, 11);
+    } else if (face === 'R') {
+      rotCW(9);
+      cycle4(8, 45, 35, 26);
+      cycle4(5, 48, 32, 23);
+      cycle4(2, 51, 29, 20);
+    } else if (face === 'L') {
+      rotCW(36);
+      cycle4(0, 18, 27, 53);
+      cycle4(3, 21, 30, 50);
+      cycle4(6, 24, 33, 47);
     }
   };
 
-  const tokens = scramble.trim().split(/\s+/).filter(Boolean);
+  const tokens = (scramble || '').replace(/[()]/g, '').trim().split(/\s+/).filter(Boolean);
   tokens.forEach((tok) => {
     const face = tok[0];
-    const mod = tok.slice(1);
-    const reps = mod === '2' ? 2 : mod === "'" ? 3 : 1;
-    for (let i = 0; i < reps; i++) turnOnce(face);
+    if (!'UDFBRL'.includes(face)) return;
+    const count = tok.endsWith('2') ? 2 : tok.endsWith("'") ? 3 : 1;
+    for (let i = 0; i < count; i++) turnOnce(face);
   });
 
   return s;
 }
 
 const STICKER_HEX = {
-  W: '#f8fafc',
   Y: '#facc15',
+  W: '#f8fafc',
   G: '#22c55e',
   B: '#3b82f6',
   O: '#f97316',
   R: '#ef4444'
 };
 
-// =========================================================================
-// 2C. TRUE 3D SPATIAL F2L CUBE SIMULATOR & VOLUMETRIC 3D RENDERER
-// =========================================================================
 function simulateF2LCubeState(setupScramble = '') {
-  const s = [
-    ...Array(9).fill('Y'),
-    ...Array(9).fill('O'),
-    ...Array(9).fill('G'),
-    ...Array(9).fill('W'),
-    ...Array(9).fill('R'),
-    ...Array(9).fill('B')
-  ];
+  return simulateCrossCubeState(setupScramble);
+}
 
-  const rotCW = (o) => {
-    const t = [s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8]];
-    s[o] = t[6]; s[o + 1] = t[3]; s[o + 2] = t[0];
-    s[o + 3] = t[7]; s[o + 4] = t[4]; s[o + 5] = t[1];
-    s[o + 6] = t[8]; s[o + 7] = t[5]; s[o + 8] = t[2];
+function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
+  const stickers = simulateCrossCubeState(scramble);
+  const half = 48;
+
+  // Cross-relevant sticker indices: centers (4,13,22,31,40,49) and all 12 edge positions
+  const isCrossRelevant = (offset, idx) => {
+    if (idx === 4) return true; // Center sticker
+    const isEdge = idx === 1 || idx === 3 || idx === 5 || idx === 7;
+    if (!isEdge) return false;
+    const code = stickers[offset + idx];
+    if (code === 'W') return true;
+    // Also highlight the paired side sticker of any white edge
+    const edgePairs = {
+      '0_1': 46, '45_1': 1,
+      '0_3': 37, '36_1': 3,
+      '0_5': 10, '9_1': 5,
+      '0_7': 19, '18_1': 7,
+      '27_1': 25, '18_7': 28,
+      '27_3': 43, '36_7': 30,
+      '27_5': 16, '9_7': 32,
+      '27_7': 52, '45_7': 34,
+      '18_3': 41, '36_5': 21,
+      '18_5': 12, '9_3': 23,
+      '45_3': 14, '9_5': 48,
+      '45_5': 39, '36_3': 41
+    };
+    const partner = edgePairs[`${offset}_${idx}`];
+    return partner !== undefined && stickers[partner] === 'W';
   };
 
-  const cycle4 = (a, b, c, d) => {
-    const tmp = s[d];
-    s[d] = s[c];
-    s[c] = s[b];
-    s[b] = s[a];
-    s[a] = tmp;
-  };
+  const renderFace = (offset, transform, shadeOpacity) => (
+    <div
+      style={{
+        position: 'absolute',
+        width: `${half * 2}px`,
+        height: `${half * 2}px`,
+        transform,
+        backfaceVisibility: 'hidden',
+        backgroundColor: '#070a12',
+        borderRadius: '10px',
+        padding: '4px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gridTemplateRows: 'repeat(3, 1fr)',
+        gap: '3.5px',
+        boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.08)'
+      }}
+    >
+      {Array.from({ length: 9 }).map((_, idx) => {
+        const code = stickers[offset + idx];
+        const active = isCrossRelevant(offset, idx);
+        return (
+          <div
+            key={idx}
+            style={{
+              backgroundColor: active ? STICKER_HEX[code] || '#334155' : '#1e293b',
+              borderRadius: '4.5px',
+              boxShadow: !active
+                ? 'inset 0 1px 1px rgba(255,255,255,0.05)'
+                : 'inset 0 1.5px 2px rgba(255,255,255,0.45), inset 0 -1.5px 2px rgba(0,0,0,0.28)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            {shadeOpacity > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: `rgba(2, 6, 23, ${shadeOpacity})`
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 
-  const turnOnce = (face) => {
-    if (face === 'U') {
-      rotCW(0);
-      cycle4(18, 36, 45, 9);
-      cycle4(19, 37, 46, 10);
-      cycle4(20, 38, 47, 11);
-    } else if (face === 'D') {
-      rotCW(27);
-      cycle4(24, 15, 51, 42);
-      cycle4(25, 16, 52, 43);
-      cycle4(26, 17, 53, 44);
-    } else if (face === 'R') {
-      rotCW(9);
-      cycle4(2, 51, 29, 20);
-      cycle4(5, 48, 32, 23);
-      cycle4(8, 45, 35, 26);
-    } else if (face === 'L') {
-      rotCW(36);
-      cycle4(0, 18, 27, 53);
-      cycle4(3, 21, 30, 50);
-      cycle4(6, 24, 33, 47);
-    } else if (face === 'F') {
-      rotCW(18);
-      cycle4(6, 9, 29, 44);
-      cycle4(7, 12, 28, 41);
-      cycle4(8, 15, 27, 38);
-    } else if (face === 'B') {
-      rotCW(45);
-      cycle4(2, 36, 33, 17);
-      cycle4(1, 39, 34, 14);
-      cycle4(0, 42, 35, 11);
-    }
-  };
+  return (
+    <div
+      style={{
+        width: '154px',
+        height: '154px',
+        perspective: '520px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative'
+      }}
+      className="pointer-events-none"
+    >
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '8px',
+          width: '92px',
+          height: '20px',
+          borderRadius: '9999px',
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 72%)',
+          transform: `scale(${isDragging ? 1.08 : 1})`,
+          transition: isDragging ? 'none' : 'transform 0.2s ease'
+        }}
+      />
 
-  const tokens = setupScramble.replace(/[()]/g, '').trim().split(/\s+/).filter(Boolean);
-  tokens.forEach((tok) => {
-    const face = tok[0];
-    const mod = tok.slice(1);
-    const reps = mod === '2' ? 2 : mod === "'" ? 3 : 1;
-    for (let i = 0; i < reps; i++) {
-      if (face === 'r') {
-        turnOnce('R');
-        cycle4(1, 49, 28, 19);
-        cycle4(4, 46, 31, 22);
-        cycle4(7, 43, 34, 25);
-      } else {
-        turnOnce(face);
-      }
-    }
-  });
-
-  return s;
+      <div
+        style={{
+          width: `${half * 2}px`,
+          height: `${half * 2}px`,
+          position: 'relative',
+          transformStyle: 'preserve-3d',
+          transform: `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${isDragging ? 1.05 : 1})`,
+          transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
+        }}
+      >
+        {renderFace(18, `rotateY(0deg) translateZ(${half}px)`, 0.04)}
+        {renderFace(45, `rotateY(180deg) translateZ(${half}px)`, 0.14)}
+        {renderFace(9, `rotateY(90deg) translateZ(${half}px)`, 0.12)}
+        {renderFace(36, `rotateY(-90deg) translateZ(${half}px)`, 0.12)}
+        {renderFace(0, `rotateX(90deg) translateZ(${half}px)`, 0)}
+        {renderFace(27, `rotateX(-90deg) translateZ(${half}px)`, 0.22)}
+      </div>
+    </div>
+  );
 }
 
 function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
@@ -1491,7 +1602,7 @@ function OLLDaySuite() {
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
-  // Settings 3D Card Deck State (6 Cards)
+  // Settings 3D Card Deck State (7 Cards)
   const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
@@ -1505,10 +1616,13 @@ function OLLDaySuite() {
   const fullStartRef = useRef(0);
 
   // Cross Phase State
+  const [crossDifficulty, setCrossDifficulty] = useState('standard'); // 'standard' | 'advanced'
   const [crossTier, setCrossTier] = useState(1);
   const [crossScrambleIdx, setCrossScrambleIdx] = useState(0);
   const [crossLadderMode, setCrossLadderMode] = useState('efficiency');
-  const [crossBottomView, setCrossBottomView] = useState(true);
+  const [crossDragRot, setCrossDragRot] = useState({ yaw: -35, pitch: 38 });
+  const [crossIsDragging, setCrossIsDragging] = useState(false);
+  const crossDragStartRef = useRef(null);
   const [crossUserMoves, setCrossUserMoves] = useState(2);
   const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
   const [activeMechanicId, setActiveMechanicId] = useState(1);
@@ -1850,6 +1964,16 @@ function OLLDaySuite() {
   const f2lSchedule = buildSchedule(f2lChunks, F2L_DATA);
   const ollSchedule = buildSchedule(ollChunks, OLL_DATA);
   const pllSchedule = buildSchedule(pllChunks, PLL_DATA);
+
+  const f2lMasteredCount = F2L_DATA.filter(
+    (c) => typeof currentUser.f2lStats?.[c.id]?.best === 'number' && currentUser.f2lStats[c.id].best <= getEffectiveCaseTargetPb('f2l', c.id)
+  ).length;
+  const ollMasteredCount = OLL_DATA.filter(
+    (c) => typeof currentUser.stats?.[c.id]?.best === 'number' && currentUser.stats[c.id].best <= getEffectiveCaseTargetPb('oll', c.id)
+  ).length;
+  const pllMasteredCount = PLL_DATA.filter(
+    (c) => typeof currentUser.pllStats?.[c.id]?.best === 'number' && currentUser.pllStats[c.id].best <= getEffectiveCaseTargetPb('pll', c.id)
+  ).length;
 
   const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay), Math.max(1, f2lSchedule.length));
   const safeOllDay = Math.min(Math.max(1, currentUser.day), Math.max(1, ollSchedule.length));
@@ -2336,31 +2460,52 @@ function OLLDaySuite() {
   };
 
   // Current Cross Tier Data
-  const activeTierObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
+  const activeCrossTierList = crossDifficulty === 'advanced' ? CROSS_ADVANCED_TIERS : CROSS_TIERS;
+  const activeTierObj = activeCrossTierList.find((t) => t.tier === crossTier) || activeCrossTierList[0];
   const activeCrossScramble = activeTierObj.scrambles[crossScrambleIdx % activeTierObj.scrambles.length];
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
-  // Progress Metrics (Evaluated against each case's effective Target PB)
-  const f2lMasteredCount = F2L_DATA.filter((item) => {
-    const best = currentUser.f2lStats?.[item.id]?.best;
-    return best !== null && best !== undefined && best <= getEffectiveCaseTargetPb('f2l', item.id);
-  }).length;
-  const ollMasteredCount = OLL_DATA.filter((item) => {
-    const best = currentUser.stats?.[item.id]?.best;
-    return best !== null && best !== undefined && best <= getEffectiveCaseTargetPb('oll', item.id);
-  }).length;
-  const pllMasteredCount = PLL_DATA.filter((item) => {
-    const best = currentUser.pllStats?.[item.id]?.best;
-    return best !== null && best !== undefined && best <= getEffectiveCaseTargetPb('pll', item.id);
-  }).length;
+  const handleCrossCubePointerDown = (e) => {
+    e.stopPropagation();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    crossDragStartRef.current = { lastX: clientX, lastY: clientY, moved: false };
+    setCrossIsDragging(true);
+  };
 
-  const activeF2LSessionCase = f2lSession?.queue?.[f2lSession.index] || null;
-  const activeOLLSessionCase = ollSession?.queue?.[ollSession.index] || null;
-  const activePLLSessionCase = pllSession?.queue?.[pllSession.index] || null;
+  const handleCrossCubePointerMove = (e) => {
+    if (!crossDragStartRef.current) return;
+    if (e.cancelable) e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const deltaX = clientX - crossDragStartRef.current.lastX;
+    const deltaY = clientY - crossDragStartRef.current.lastY;
+    crossDragStartRef.current.lastX = clientX;
+    crossDragStartRef.current.lastY = clientY;
+    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+      crossDragStartRef.current.moved = true;
+    }
+    setCrossDragRot((prev) => ({
+      yaw: Math.round(prev.yaw + deltaX * 1.15),
+      pitch: Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)))
+    }));
+  };
 
-  const setF2LPresetAngle = (nextIdx) => {
-    const preset = F2L_VIEW_ANGLES[nextIdx % F2L_VIEW_ANGLES.length];
-    setF2lViewIdx(nextIdx % F2L_VIEW_ANGLES.length);
+  const handleCrossCubePointerUp = () => {
+    if (!crossDragStartRef.current) return;
+    const wasTap = !crossDragStartRef.current.moved;
+    crossDragStartRef.current = null;
+    setCrossIsDragging(false);
+    if (wasTap) {
+      emitBeep(620);
+      setCrossDragRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch }));
+    }
+  };
+
+  // Interactive 3D F2L Cube Orbit Handlers
+  const setF2LPresetAngle = (idx) => {
+    const preset = F2L_VIEW_ANGLES[idx % F2L_VIEW_ANGLES.length];
+    setF2lViewIdx(idx % F2L_VIEW_ANGLES.length);
     setF2lDragRot({ yaw: preset.yaw, pitch: preset.pitch });
   };
 
@@ -2368,11 +2513,7 @@ function OLLDaySuite() {
     e.stopPropagation();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    f2lDragStartRef.current = {
-      lastX: clientX,
-      lastY: clientY,
-      moved: false
-    };
+    f2lDragStartRef.current = { lastX: clientX, lastY: clientY, moved: false };
     setF2lIsDragging(true);
   };
 
@@ -2385,16 +2526,13 @@ function OLLDaySuite() {
     const deltaY = clientY - f2lDragStartRef.current.lastY;
     f2lDragStartRef.current.lastX = clientX;
     f2lDragStartRef.current.lastY = clientY;
-
     if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
       f2lDragStartRef.current.moved = true;
     }
-
-    setF2lDragRot((prev) => {
-      const nextYaw = Math.round(prev.yaw + deltaX * 1.15);
-      const nextPitch = Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)));
-      return { yaw: nextYaw, pitch: nextPitch };
-    });
+    setF2lDragRot((prev) => ({
+      yaw: Math.round(prev.yaw + deltaX * 1.15),
+      pitch: Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)))
+    }));
   };
 
   const handleF2LCubePointerUp = () => {
@@ -2408,8 +2546,12 @@ function OLLDaySuite() {
     }
   };
 
-  // Settings Deck Touch Swipe Handlers (6 Cards)
-  const totalDeckCards = 6;
+  const activeF2LSessionCase = f2lSession ? f2lSession.queue[f2lSession.index] : null;
+  const activeOLLSessionCase = ollSession ? ollSession.queue[ollSession.index] : null;
+  const activePLLSessionCase = pllSession ? pllSession.queue[pllSession.index] : null;
+
+  // Settings Deck Touch Swipe Handlers (7 Cards)
+  const totalDeckCards = 7;
   const handleDeckTouchStart = (e) => {
     if (e.target.closest('[data-scrollable="true"]')) return;
     const t = e.touches[0];
@@ -2452,12 +2594,12 @@ function OLLDaySuite() {
         <button
           type="button"
           onClick={() => {
-            emitBeep(620);
+            emitBeep(680);
             setFullTimerState('idle');
             setFullElapsedMs(0);
             setFullTimerOpen(true);
           }}
-          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider cursor-pointer active:scale-95"
+          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
         >
           Open Timer
         </button>
@@ -2466,64 +2608,27 @@ function OLLDaySuite() {
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
           <span className="text-[9px] font-bold uppercase text-slate-400 block">Ao5</span>
-          <span className="font-mono text-base font-black text-green-400">
+          <span className="font-mono text-sm font-black text-green-400">
             {ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}
           </span>
         </div>
         <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
           <span className="text-[9px] font-bold uppercase text-slate-400 block">Ao12</span>
-          <span className="font-mono text-base font-black text-sky-400">
+          <span className="font-mono text-sm font-black text-sky-400">
             {ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}
           </span>
         </div>
         <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
           <span className="text-[9px] font-bold uppercase text-slate-400 block">Best PB</span>
-          <span
-            className={`font-mono text-base font-black ${
-              bestFullPbMs !== null && bestFullPbMs / 1000 <= fullSolveTargetSec
-                ? 'text-green-400'
-                : 'text-amber-300'
-            }`}
-          >
+          <span className="font-mono text-sm font-black text-amber-300">
             {formatMsTime(bestFullPbMs, 2)}
           </span>
         </div>
       </div>
-
-      {currentUser.fullSolveHistory?.length > 0 ? (
-        <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
-          {currentUser.fullSolveHistory.slice(0, 12).map((s, idx) => {
-            const adj =
-              s.penalty === 'DNF'
-                ? 'DNF'
-                : formatMsTime(Number(s.ms) + (s.penalty === '+2' ? 2000 : 0), 2);
-            return (
-              <div
-                key={s.id}
-                className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl px-3 py-1.5 text-[11px]"
-              >
-                <span className="font-mono text-slate-400">
-                  #{currentUser.fullSolveHistory.length - idx}
-                </span>
-                <span className="font-mono font-black text-white">
-                  {adj} {s.penalty === '+2' ? '(+2)' : ''}
-                </span>
-                <span className="font-mono text-[9.5px] text-slate-500 truncate max-w-[140px]">
-                  {s.scramble}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-[11px] text-slate-400 text-center py-1">
-          No 3x3x3 full solves logged yet. Launch the Full-Screen Timer to track Ao5 &amp; Ao12.
-        </p>
-      )}
     </div>
   );
 
-  // Reusable Settings 6-Card Deck Renderer
+  // Reusable Settings 7-Card Deck Renderer
   const renderSettingsDeck = () => (
     <div className="p-5 pb-10 space-y-4">
       <div className="flex items-center justify-between">
@@ -2532,7 +2637,7 @@ function OLLDaySuite() {
           <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3, 4, 5].map((idx) => (
+          {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -2558,8 +2663,9 @@ function OLLDaySuite() {
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 6 • Preferences</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 7 • Preferences</span>
             <button
+              type="button"
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(1);
@@ -2591,59 +2697,45 @@ function OLLDaySuite() {
               </button>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5">
               <div>
-                <p className="text-xs font-bold text-white">Pinned Home Phase</p>
-                <p className="text-[10px] text-slate-400">Default phase on launch (defaults to C)</p>
+                <p className="text-xs font-bold text-white">Inline Fingertrick Highlights</p>
+                <p className="text-[10px] text-slate-400">Show color-coded triggers &amp; grip cues on cases</p>
               </div>
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10">
-                {[
-                  { key: 'cross', label: 'C' },
-                  { key: 'f2l', label: 'F' },
-                  { key: 'oll', label: 'O' },
-                  { key: 'pll', label: 'P' }
-                ].map((ph) => {
-                  const isActiveHome = (pinnedHomePhase || 'cross') === ph.key;
-                  return (
-                    <button
-                      key={ph.key}
-                      type="button"
-                      onClick={() => {
-                        emitBeep(620);
-                        const nextPin = ph.key === 'cross' ? '' : ph.key;
-                        setPinnedHomePhase(nextPin);
-                        try {
-                          if (typeof window !== 'undefined') {
-                            if (nextPin) {
-                              window.localStorage.setItem(STORAGE_KEYS.pinnedHomePhase, nextPin);
-                            } else {
-                              window.localStorage.removeItem(STORAGE_KEYS.pinnedHomePhase);
-                            }
-                          }
-                        } catch {
-                          // Ignore storage errors
-                        }
-                      }}
-                      className={`w-7 h-7 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
-                        isActiveHome
-                          ? 'bg-orange-500 text-slate-950 shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {ph.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  emitBeep(620);
+                  setFingertricksEnabled((v) => !v);
+                }}
+                className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${
+                  fingertricksEnabled ? 'bg-orange-500' : 'bg-slate-700'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${fingertricksEnabled ? 'translate-x-5' : ''}`} />
+              </button>
             </div>
 
-            {/* 3x3x3 Full Solve Target PB (Millisecond Precision) */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5">
+              <div>
+                <p className="text-xs font-bold text-white">Acoustic Audio &amp; Beeps</p>
+                <p className="text-[10px] text-slate-400">Inspection warnings &amp; tactile feedback</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAudioEnabled((v) => !v)}
+                className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${
+                  audioEnabled ? 'bg-orange-500' : 'bg-slate-700'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${audioEnabled ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+
+            {/* 3x3x3 Full-Solve Target PB */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 space-y-1.5">
               <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-white block">3x3x3 Full Solve Target PB</span>
-                  <span className="text-[9.5px] text-slate-400">Full CFOP solve goal</span>
-                </div>
+                <span className="text-[11px] font-bold text-white">3x3x3 Full-Solve Target PB</span>
                 <span className="font-mono text-xs font-black text-orange-400">{fullSolveTargetSec.toFixed(3)}s</span>
               </div>
               <input
@@ -2652,15 +2744,15 @@ function OLLDaySuite() {
                 max="60.000"
                 step="0.001"
                 value={Math.min(60, Math.max(3, fullSolveTargetSec))}
-                onChange={(e) => updateFullSolveTargetPb(Number(e.target.value))}
+                onChange={(e) => updateFullSolveTargetPb(parseFloat(e.target.value))}
                 className="w-full accent-orange-500 cursor-pointer"
               />
-              <div className="grid grid-cols-5 gap-1">
+              <div className="flex items-center gap-1">
                 {[
-                  { label: '-100ms', delta: -0.1 },
                   { label: '-10ms', delta: -0.01 },
-                  { label: '+10ms', delta: 0.01 },
-                  { label: '+100ms', delta: 0.1 }
+                  { label: '-1ms', delta: -0.001 },
+                  { label: '+1ms', delta: 0.001 },
+                  { label: '+10ms', delta: 0.01 }
                 ].map((btn) => (
                   <button
                     key={btn.label}
@@ -2669,7 +2761,7 @@ function OLLDaySuite() {
                       emitBeep(540);
                       updateFullSolveTargetPb(fullSolveTargetSec + btn.delta);
                     }}
-                    className="py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                    className="flex-1 py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
                   >
                     {btn.label}
                   </button>
@@ -2680,28 +2772,28 @@ function OLLDaySuite() {
                   min="1.000"
                   max="120.000"
                   value={targetPbInput}
-                  onChange={(e) => setTargetPbInput(e.target.value)}
-                  onBlur={() => {
-                    const p = parseFloat(targetPbInput);
-                    if (Number.isFinite(p)) {
-                      updateFullSolveTargetPb(p);
-                    } else {
-                      setTargetPbInput(fullSolveTargetSec.toFixed(3));
+                  onChange={(e) => {
+                    setTargetPbInput(e.target.value);
+                    const parsed = parseFloat(e.target.value);
+                    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 120) {
+                      updateFullSolveTargetPb(parsed);
                     }
                   }}
-                  className="rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-amber-300"
+                  className="w-20 rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-orange-300"
                 />
               </div>
             </div>
 
-            {/* Phase Target PB Selector (C / F / O / P) */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-xs font-bold text-white block">Phase Target PB</span>
-                  <span className="text-[9.5px] text-slate-400">Default goal for each CFOP phase</span>
+            {/* Per-Phase Target PB (C, F, O, P) with Slider */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-white">Phase Target PB</span>
+                  <span className="font-mono text-xs font-black text-amber-300">
+                    {getPhaseTargetPb(selectedTargetPhase).toFixed(3)}s
+                  </span>
                 </div>
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10">
+                <div className="flex items-center gap-1">
                   {[
                     { key: 'cross', label: 'C' },
                     { key: 'f2l', label: 'F' },
@@ -2712,13 +2804,13 @@ function OLLDaySuite() {
                       key={ph.key}
                       type="button"
                       onClick={() => {
-                        emitBeep(540);
+                        emitBeep(520);
                         setSelectedTargetPhase(ph.key);
                       }}
-                      className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                      className={`w-6 h-6 rounded-lg text-[10px] font-black cursor-pointer transition-all ${
                         selectedTargetPhase === ph.key
                           ? 'bg-orange-500 text-slate-950'
-                          : 'text-slate-400 hover:text-white'
+                          : 'bg-slate-950 text-slate-400 hover:text-white'
                       }`}
                     >
                       {ph.label}
@@ -2726,34 +2818,16 @@ function OLLDaySuite() {
                   ))}
                 </div>
               </div>
-
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="font-bold uppercase tracking-wider text-slate-400">
-                  {selectedTargetPhase === 'cross'
-                    ? 'Phase C (Cross)'
-                    : selectedTargetPhase === 'f2l'
-                    ? 'Phase F (F2L)'
-                    : selectedTargetPhase === 'oll'
-                    ? 'Phase O (OLL)'
-                    : 'Phase P (PLL)'}{' '}
-                  Goal
-                </span>
-                <span className="font-mono text-xs font-black text-amber-300">
-                  {getPhaseTargetPb(selectedTargetPhase).toFixed(3)}s
-                </span>
-              </div>
-
               <input
                 type="range"
-                min="0.250"
-                max="10.000"
+                min="0.150"
+                max="15.000"
                 step="0.001"
-                value={Math.min(10, Math.max(0.25, getPhaseTargetPb(selectedTargetPhase)))}
-                onChange={(e) => updatePhaseTargetPb(selectedTargetPhase, Number(e.target.value))}
+                value={Math.min(15, Math.max(0.15, getPhaseTargetPb(selectedTargetPhase)))}
+                onChange={(e) => updatePhaseTargetPb(selectedTargetPhase, parseFloat(e.target.value))}
                 className="w-full accent-orange-500 cursor-pointer"
               />
-
-              <div className="grid grid-cols-5 gap-1">
+              <div className="flex items-center gap-1">
                 {[
                   { label: '-10ms', delta: -0.01 },
                   { label: '-1ms', delta: -0.001 },
@@ -2767,7 +2841,7 @@ function OLLDaySuite() {
                       emitBeep(540);
                       updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + btn.delta);
                     }}
-                    className="py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                    className="flex-1 py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
                   >
                     {btn.label}
                   </button>
@@ -2778,29 +2852,31 @@ function OLLDaySuite() {
                   min="0.100"
                   max="30.000"
                   value={phaseTargetInput}
-                  onChange={(e) => setPhaseTargetInput(e.target.value)}
-                  onBlur={() => {
-                    const p = parseFloat(phaseTargetInput);
-                    if (Number.isFinite(p)) {
-                      updatePhaseTargetPb(selectedTargetPhase, p);
-                    } else {
-                      setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3));
+                  onChange={(e) => {
+                    setPhaseTargetInput(e.target.value);
+                    const parsed = parseFloat(e.target.value);
+                    if (Number.isFinite(parsed) && parsed >= 0.1 && parsed <= 30) {
+                      updatePhaseTargetPb(selectedTargetPhase, parsed);
                     }
                   }}
-                  className="rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-amber-300"
+                  className="w-20 rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-amber-300"
                 />
               </div>
+              <p className="text-[9.5px] text-slate-400">
+                Custom per-case Target PBs can also be edited directly inside each phase&apos;s Statistics tab.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Full-Screen 3x3x3 CFOP Timer (Ao5 & Ao12) */}
+        {/* Card 2: Full-Screen 3x3x3 CFOP Timer Launcher & Pinned Home Screen Pills */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3.5 ${getDeckCardClass(1)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(1)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 6 • Full 3x3x3</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 7 • Timer &amp; Home</span>
             <button
+              type="button"
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(2);
@@ -2810,31 +2886,28 @@ function OLLDaySuite() {
               Notation →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white">3x3x3 CFOP Full Timer</h3>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Full-screen glassmorphic 3x3x3 timer with random competition scrambles, tap-anywhere start/stop, and live Ao5 &amp; Ao12 tracking.
+          <h3 className="text-lg font-black text-white">3x3x3 CFOP Timer</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Full-screen glassmorphic speedcube timer with WCA 20-move scrambles, +2 / DNF penalties, and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> tracking.
           </p>
 
-          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">
-              Next 3x3x3 Scramble
-            </span>
-            <p className="font-mono text-xs font-bold text-amber-300 leading-relaxed">
-              {fullScramble}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-              <span className="text-[9px] font-bold uppercase text-slate-400 block">Current Ao5</span>
-              <span className="font-mono text-lg font-black text-green-400">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
+              <span className="text-[9px] font-bold uppercase text-slate-400 block">Ao5</span>
+              <span className="font-mono text-sm font-black text-green-400">
                 {ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}
               </span>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-              <span className="text-[9px] font-bold uppercase text-slate-400 block">Current Ao12</span>
-              <span className="font-mono text-lg font-black text-sky-400">
+            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
+              <span className="text-[9px] font-bold uppercase text-slate-400 block">Ao12</span>
+              <span className="font-mono text-sm font-black text-sky-400">
                 {ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}
+              </span>
+            </div>
+            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
+              <span className="text-[9px] font-bold uppercase text-slate-400 block">Best PB</span>
+              <span className="font-mono text-sm font-black text-amber-300">
+                {formatMsTime(bestFullPbMs, 2)}
               </span>
             </div>
           </div>
@@ -2842,49 +2915,91 @@ function OLLDaySuite() {
           <button
             type="button"
             onClick={() => {
-              emitBeep(720);
+              emitBeep(680);
               setFullTimerState('idle');
               setFullElapsedMs(0);
               setFullTimerOpen(true);
             }}
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
           >
-            Launch Full-Screen Timer
+            Launch Full-Screen 3x3x3 Timer
           </button>
+
+          {/* Compact Pinned Startup Home Screen Pills (C, F, O, P) */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-black text-white block">Pinned Home Screen</span>
+                <span className="text-[10px] text-slate-400">Default phase on startup</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {[
+                  { key: 'cross', label: 'C' },
+                  { key: 'f2l', label: 'F' },
+                  { key: 'oll', label: 'O' },
+                  { key: 'pll', label: 'P' }
+                ].map((item) => {
+                  const isPinned = (pinnedHomePhase || 'cross') === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => {
+                        emitBeep(640);
+                        setPinnedHomePhase(item.key);
+                        try {
+                          if (typeof window !== 'undefined') {
+                            window.localStorage.setItem(STORAGE_KEYS.pinnedHomePhase, item.key);
+                          }
+                        } catch {
+                          // Ignore storage errors
+                        }
+                      }}
+                      className={`w-8 h-8 rounded-full text-xs font-black transition-all cursor-pointer ${
+                        isPinned
+                          ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30'
+                          : 'bg-slate-950 border border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Card 3: Notation Key */}
+        {/* Card 3: WCA Notation Guide */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(2)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(2)}`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 3 of 6 • Reference
-            </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 7 • Notation</span>
             <button
+              type="button"
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(3);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              Next Card →
+              Dossier →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white mb-2">Notation Key</h3>
+          <h3 className="text-lg font-black text-white">WCA Notation Guide</h3>
 
-          <div data-scrollable="true" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-1 flex-shrink-0">
-            {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations', 'Modifiers'].map((sec) => (
+          <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
+            {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
               <button
                 key={sec}
+                type="button"
                 onClick={() => {
-                  emitBeep(540);
+                  emitBeep(480);
                   setNotationFilter(sec);
                 }}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${
-                  notationFilter === sec
-                    ? 'bg-orange-500 text-slate-950 shadow-sm'
-                    : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${
+                  notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
                 {sec}
@@ -2892,53 +3007,49 @@ function OLLDaySuite() {
             ))}
           </div>
 
-          <div data-scrollable="true" className="h-[310px] overflow-y-auto no-scrollbar space-y-1.5 pr-1">
-            {WCA_NOTATION_GUIDE.filter((item) => notationFilter === 'All' || item.section === notationFilter).map((item) => (
-              <div key={item.move} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-                <div className="flex flex-col flex-shrink-0">
-                  <span className="font-mono text-xs font-black text-amber-300">{item.move}</span>
-                  {notationFilter === 'All' && (
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{item.section}</span>
-                  )}
-                </div>
-                <span className="text-[11px] text-slate-300 text-right max-w-[190px] leading-snug">{item.desc}</span>
+          <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
+            {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
+              <div
+                key={item.move}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2"
+              >
+                <span className="font-mono text-xs font-black text-amber-300 flex-shrink-0">{item.move}</span>
+                <span className="text-[11px] text-slate-300 text-right">{item.desc}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Card 4: All-Inclusive Color-Coded Fingertricks Dossier */}
+        {/* Card 4: Dedicated Fingertrick Dossier */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-              Card 4 of 6 • Mechanics Codex
-            </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 7 • Mechanics</span>
             <button
+              type="button"
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(4);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              Next Card →
+              Guide &amp; Reset →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white mb-2">Fingertricks Dossier</h3>
+          <h3 className="text-lg font-black text-white">Fingertrick Dossier</h3>
 
-          <div data-scrollable="true" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-1 flex-shrink-0">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
             {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
               <button
                 key={cat}
+                type="button"
                 onClick={() => {
-                  emitBeep(540);
+                  emitBeep(480);
                   setDossierFilter(cat);
                 }}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${
-                  dossierFilter === cat
-                    ? 'bg-orange-500 text-slate-950 shadow-sm'
-                    : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${
+                  dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
                 {cat}
@@ -2946,32 +3057,38 @@ function OLLDaySuite() {
             ))}
           </div>
 
-          <div data-scrollable="true" className="h-[310px] overflow-y-auto no-scrollbar space-y-2 pr-1">
-            {FINGERTRICK_CODEX.filter((entry) => dossierFilter === 'All' || entry.category === dossierFilter).map((entry) => (
-              <div key={entry.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
+          <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
+              <div
+                key={trig.id}
+                className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5"
+              >
                 <div className="flex items-center justify-between gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black ${entry.badgeClass}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${entry.dotClass}`} />
-                    {entry.name}
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
+                    <span className="text-xs font-black text-white">{trig.name}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>
+                    {trig.notation}
                   </span>
-                  <span className="font-mono text-[11px] font-black text-amber-300">{entry.notation}</span>
                 </div>
-                <p className="text-[10px] font-bold text-slate-400">
-                  <strong className="text-slate-200">Finger:</strong> {entry.finger} &nbsp;•&nbsp; <strong className="text-slate-200">Grip:</strong> {entry.grip}
+                <p className="text-[10px] font-bold text-slate-300">
+                  <span className="text-orange-400">Grip:</span> {trig.grip}
                 </p>
-                <p className="text-[11px] text-slate-300 leading-relaxed">{entry.execution}</p>
+                <p className="text-[10.5px] text-slate-300 leading-relaxed">{trig.execution}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Card 5: Membership, Guides & Account Data */}
+        {/* Card 5: Beginner's Guide, Custom Builder & Reset Controls */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 6 • Membership &amp; Guides</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 7 • Tools</span>
             <button
+              type="button"
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(5);
@@ -2981,136 +3098,178 @@ function OLLDaySuite() {
               Account →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white">Pro Access &amp; Guides</h3>
+          <h3 className="text-lg font-black text-white">Guides, Chunks &amp; Reset</h3>
 
-          {/* Lifetime Pro Status Card */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
+          <div className="space-y-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                emitBeep(560);
+                setOnboardingSlide(0);
+                setActiveModal('onboarding');
+              }}
+              className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left cursor-pointer"
+            >
               <div>
-                <span className="text-xs font-black text-white block">
-                  {isProUnlocked ? 'OLLDay Pro • Lifetime Active' : 'Starter Plan (Free Tier)'}
-                </span>
-                <span className="text-[10px] text-slate-400">
-                  {isProUnlocked
-                    ? 'All 41 F2L, 57 OLL, 25 PLL & Blind Mat unlocked'
-                    : 'Includes 3x3 Timer, Cross L1–L2 & 2-Look OLL/PLL'}
-                </span>
+                <p className="text-xs font-black text-white">CFOP Beginner&apos;s Walkthrough</p>
+                <p className="text-[10px] text-slate-400">4-step interactive overview of C → F → O → P</p>
               </div>
+              <span className="text-orange-400 font-black text-xs">Open →</span>
+            </button>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white">Custom Learning Chunks</span>
+                {!isProUnlocked && (
+                  <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">PRO</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { key: 'f2l', label: 'F2L Chunks' },
+                  { key: 'oll', label: 'OLL Chunks' },
+                  { key: 'pll', label: 'PLL Chunks' }
+                ].map((b) => (
+                  <button
+                    key={b.key}
+                    type="button"
+                    onClick={() => {
+                      if (!isProUnlocked) {
+                        openProPaywall('Custom Curriculum Chunk Builder');
+                        return;
+                      }
+                      emitBeep(560);
+                      openCurriculumBuilder(b.key);
+                    }}
+                    className="py-2 rounded-xl bg-slate-950 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/10 cursor-pointer"
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                emitBeep(420);
+                setActiveModal('reset');
+              }}
+              className="w-full p-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 flex items-center justify-between text-left cursor-pointer"
+            >
+              <div>
+                <p className="text-xs font-black text-red-300">Granular Progress Reset</p>
+                <p className="text-[10px] text-red-200/70">Reset individual phases, PBs, or timer history</p>
+              </div>
+              <span className="text-red-300 font-black text-xs">Manage →</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Card 6: Account & Cloud Sync */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 6 of 7 • Account</span>
+            <button
+              type="button"
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(6);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Pro &amp; Data →
+            </button>
+          </div>
+          <h3 className="text-lg font-black text-white">Account &amp; Cloud Sync</h3>
+
+          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-white">{String(activeUserKey || 'Solver')}</span>
+              <span className="text-[10px] font-bold text-green-400">
+                {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '● Local Saved'}
+              </span>
+            </div>
+            {currentUser.email && (
+              <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
+            )}
+            <p className="text-[10px] text-slate-400 pt-1">
+              F2L Day {safeF2lDay} • OLL Day {safeOllDay} • PLL Day {safePllDay} • {currentUser.fullSolveHistory?.length || 0} Full Solves
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              emitBeep(520);
+              setAuthErrorMsg('');
+              setAuthMode('signin');
+              setAuthScreenOpen(true);
+            }}
+            className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer"
+          >
+            Switch / Sign Out of Account
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              emitBeep(620);
+              if (!isProUnlocked) {
+                openProPaywall('Restore Purchase');
+              }
+            }}
+            className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-300 cursor-pointer"
+          >
+            Restore App Store Purchase
+          </button>
+        </div>
+
+        {/* Card 7: Membership Status & Account Deletion */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 7 of 7 • Membership</span>
+            <button
+              type="button"
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(0);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Preferences →
+            </button>
+          </div>
+          <h3 className="text-lg font-black text-white">OLLDay Pro &amp; Privacy</h3>
+
+          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-white">Current Plan</span>
               <span
-                className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
                   isProUnlocked
-                    ? 'bg-green-500/20 text-green-300 border border-green-500/35'
-                    : 'bg-orange-500/20 text-orange-300 border border-orange-500/35'
+                    ? 'bg-green-500/20 border border-green-500/40 text-green-300'
+                    : 'bg-orange-500/20 border border-orange-500/40 text-orange-300'
                 }`}
               >
-                {isProUnlocked ? 'PRO ✓' : 'FREE'}
+                {isProUnlocked ? 'Lifetime Pro Active' : 'Starter Tier'}
               </span>
             </div>
             {!isProUnlocked && (
               <button
                 type="button"
-                onClick={() => openProPaywall('All 123 CFOP Cases & Custom Chunks')}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider cursor-pointer"
+                onClick={() => openProPaywall('Full 123-Case CFOP Suite')}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
               >
                 Unlock Lifetime Pro — $3.99
               </button>
             )}
           </div>
 
-          <button
-            onClick={() => {
-              emitBeep(600);
-              setOnboardingSlide(0);
-              setActiveModal('onboarding');
-            }}
-            className="w-full p-3 rounded-2xl bg-gradient-to-r from-orange-600/20 to-amber-500/20 border border-orange-500/35 text-left flex items-center justify-between hover:bg-orange-500/25 cursor-pointer"
-          >
-            <div>
-              <p className="text-xs font-black text-orange-300">New to CFOP? Beginner&apos;s Guide</p>
-              <p className="text-[10px] text-slate-300 mt-0.5">Interactive walkthrough of C → F → O → P</p>
-            </div>
-            <span className="text-orange-400 font-black text-sm">→</span>
-          </button>
-
-          <button
-            onClick={() => {
-              emitBeep(420);
-              setActiveModal('reset');
-            }}
-            className="w-full p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/30 text-left flex items-center justify-between cursor-pointer"
-          >
-            <div>
-              <p className="text-xs font-black text-red-300">Granular Reset Progress</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Reset F2L, OLL, PLL, or 3x3 Timer stats</p>
-            </div>
-            <span className="text-red-400 font-black text-sm">↺</span>
-          </button>
-        </div>
-
-        {/* Card 6: Solver Account & Store Compliance Controls */}
-        <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out flex flex-col justify-between ${getDeckCardClass(5)}`}
-        >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                Card 6 of 6 • Solver Account
-              </span>
-              <button
-                onClick={() => {
-                  emitBeep(520);
-                  setSettingsDeckIdx(0);
-                }}
-                className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
-              >
-                Preferences →
-              </button>
-            </div>
-            <h3 className="text-lg font-black text-white">Account &amp; Cloud Sync</h3>
-
-            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-white">{String(activeUserKey || 'Solver')}</span>
-                <span className="text-[10px] font-bold text-green-400">
-                  {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '● Local Saved'}
-                </span>
-              </div>
-              {currentUser.email && (
-                <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
-              )}
-              <p className="text-[10px] text-slate-400 pt-1">
-                F2L Day {safeF2lDay} • OLL Day {safeOllDay} • PLL Day {safePllDay} • {currentUser.fullSolveHistory?.length || 0} Full Solves
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                emitBeep(520);
-                setAuthErrorMsg('');
-                setAuthMode('signin');
-                setAuthScreenOpen(true);
-              }}
-              className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer"
-            >
-              Switch / Sign Out of Account
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                emitBeep(620);
-                if (!isProUnlocked) {
-                  openProPaywall('Restore Purchase');
-                }
-              }}
-              className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-300 cursor-pointer"
-            >
-              Restore App Store Purchase
-            </button>
-          </div>
-
-          {/* Apple App Store Mandatory Self-Service Account Deletion */}
           <div className="pt-2 border-t border-white/10">
             {!deleteAccountConfirm ? (
               <button
@@ -3325,15 +3484,57 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
+                    {/* Standard vs. Advanced Full-Scramble Ladder Toggle */}
+                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(520);
+                          setCrossDifficulty('standard');
+                          const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
+                          setCrossUserMoves(tObj.moves);
+                          setEfficiencyFeedback(null);
+                        }}
+                        className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                          crossDifficulty === 'standard'
+                            ? 'bg-white/15 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Standard (2–6 Moves)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(580);
+                          setCrossDifficulty('advanced');
+                          const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
+                          setCrossUserMoves(tObj.moves);
+                          setEfficiencyFeedback(null);
+                        }}
+                        className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                          crossDifficulty === 'advanced'
+                            ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Advanced Full Scramble
+                      </button>
+                    </div>
+
                     <div className="grid grid-cols-5 gap-1.5">
-                      {CROSS_TIERS.map((t) => {
-                        const locked = !isProUnlocked && t.tier > 2;
+                      {activeCrossTierList.map((t) => {
+                        const locked = !isProUnlocked && (crossDifficulty === 'advanced' || t.tier > 2);
                         return (
                           <button
                             key={t.tier}
                             onClick={() => {
                               if (locked) {
-                                openProPaywall(`Cross Ladder Level ${t.tier}`);
+                                openProPaywall(
+                                  crossDifficulty === 'advanced'
+                                    ? `Advanced Full-Scramble Cross L${t.tier}`
+                                    : `Cross Ladder Level ${t.tier}`
+                                );
                                 return;
                               }
                               emitBeep(540);
@@ -3388,7 +3589,7 @@ function OLLDaySuite() {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                            Level {activeTierObj.tier} • Cross in {activeTierObj.moves}
+                            {crossDifficulty === 'advanced' ? 'Advanced Full Scramble • ' : ''}Level {activeTierObj.tier} • Cross in {activeTierObj.moves}
                           </span>
                           <h3 className="text-base font-black text-white">{activeTierObj.title}</h3>
                         </div>
@@ -3408,127 +3609,80 @@ function OLLDaySuite() {
                         <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">
                           Hold White (D) • Green (F) • Red (L) • Orange (R)
                         </span>
-                        <div className="font-mono text-xl font-black text-amber-300 tracking-wider select-all">
+                        <div
+                          className={`font-mono font-black text-amber-300 tracking-wider select-all ${
+                            crossDifficulty === 'advanced' ? 'text-xs sm:text-sm leading-relaxed' : 'text-xl'
+                          }`}
+                        >
                           {activeCrossScramble}
                         </div>
                       </div>
 
-                      {(() => {
-                        const cube = simulateCrossCubeState(activeCrossScramble);
-                        const dGrid = [
-                          [cube[27], cube[28], cube[29]],
-                          [cube[30], cube[31], cube[32]],
-                          [cube[33], cube[34], cube[35]]
-                        ];
-                        const uGrid = [
-                          [cube[0], cube[1], cube[2]],
-                          [cube[3], cube[4], cube[5]],
-                          [cube[6], cube[7], cube[8]]
-                        ];
-                        const grid = crossBottomView ? dGrid : uGrid;
-                        const topStrip = crossBottomView ? [cube[24], cube[25], cube[26]] : [cube[47], cube[46], cube[45]];
-                        const bottomStrip = crossBottomView ? [cube[51], cube[52], cube[53]] : [cube[18], cube[19], cube[20]];
-                        const leftStrip = crossBottomView ? [cube[42], cube[43], cube[44]] : [cube[36], cube[37], cube[38]];
-                        const rightStrip = crossBottomView ? [cube[17], cube[16], cube[15]] : [cube[11], cube[10], cube[9]];
-
-                        return (
-                          <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-2">
-                            <div className="w-full flex items-center justify-between px-1">
-                              <span className="text-[10px] font-bold text-slate-400">
-                                {crossBottomView ? '180° Bottom Verification Diagram (D-Face)' : 'Top Overview Diagram (U-Face)'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  emitBeep(540);
-                                  setCrossBottomView((v) => !v);
-                                }}
-                                className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer active:scale-95 transition-all"
-                              >
-                                {crossBottomView ? 'Show Top ↻' : 'Flip 180° ↻'}
-                              </button>
-                            </div>
-
-                            <svg viewBox="0 0 180 180" className="w-36 h-36 drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]">
-                              {topStrip.map((c, idx) => (
-                                <rect
-                                  key={`t-${idx}`}
-                                  x={45 + idx * 31}
-                                  y={16}
-                                  width={27}
-                                  height={11}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
-                              ))}
-                              {bottomStrip.map((c, idx) => (
-                                <rect
-                                  key={`b-${idx}`}
-                                  x={45 + idx * 31}
-                                  y={153}
-                                  width={27}
-                                  height={11}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
-                              ))}
-                              {leftStrip.map((c, idx) => (
-                                <rect
-                                  key={`l-${idx}`}
-                                  x={16}
-                                  y={45 + idx * 31}
-                                  width={11}
-                                  height={27}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
-                              ))}
-                              {rightStrip.map((c, idx) => (
-                                <rect
-                                  key={`r-${idx}`}
-                                  x={153}
-                                  y={45 + idx * 31}
-                                  width={11}
-                                  height={27}
-                                  rx={3}
-                                  fill={STICKER_HEX[c] || '#334155'}
-                                  stroke="#090e1c"
-                                  strokeWidth="1.5"
-                                />
-                              ))}
-                              <rect x="38" y="38" width="104" height="104" rx="12" fill="#090a14" stroke="#1e293b" strokeWidth="2" />
-                              {grid.map((row, rIdx) =>
-                                row.map((c, cIdx) => (
-                                  <rect
-                                    key={`cell-${rIdx}-${cIdx}`}
-                                    x={45 + cIdx * 31}
-                                    y={45 + rIdx * 31}
-                                    width={27}
-                                    height={27}
-                                    rx={5}
-                                    fill={STICKER_HEX[c] || '#334155'}
-                                    stroke="#090a14"
-                                    strokeWidth="1.5"
-                                  />
-                                ))
-                              )}
-                            </svg>
-
-                            <div className="flex items-center gap-3 text-[9.5px] font-bold text-slate-400">
-                              <span className="text-green-400">▲ Green (F)</span>
-                              <span className="text-red-400">◀ Red (L)</span>
-                              <span className="text-orange-400">Orange (R) ▶</span>
-                              <span className="text-blue-400">▼ Blue (B)</span>
-                            </div>
+                      {/* Interactive 3D Spatial Cross Cube (Same Volumetric 3D Engine as F2L) */}
+                      <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-1.5">
+                        <div className="w-full flex items-center justify-between px-1">
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {crossDragRot.pitch > 15
+                              ? '3D Bottom-Right View (D-Face)'
+                              : crossDragRot.pitch < -15
+                              ? '3D Top-Right View (U-Face)'
+                              : '3D Front-Right View'}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                emitBeep(540);
+                                setCrossDragRot((prev) =>
+                                  prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 }
+                                );
+                              }}
+                              className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer active:scale-95 transition-all"
+                            >
+                              {crossDragRot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                emitBeep(480);
+                                setCrossDragRot({ yaw: -35, pitch: 38 });
+                              }}
+                              className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                            >
+                              Reset
+                            </button>
                           </div>
-                        );
-                      })()}
+                        </div>
+
+                        <div
+                          onMouseDown={handleCrossCubePointerDown}
+                          onMouseMove={handleCrossCubePointerMove}
+                          onMouseUp={handleCrossCubePointerUp}
+                          onMouseLeave={handleCrossCubePointerUp}
+                          onTouchStart={handleCrossCubePointerDown}
+                          onTouchMove={handleCrossCubePointerMove}
+                          onTouchEnd={handleCrossCubePointerUp}
+                          style={{ touchAction: 'none' }}
+                          className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
+                        >
+                          <CrossSpatial3DCube
+                            scramble={activeCrossScramble}
+                            yaw={crossDragRot.yaw}
+                            pitch={crossDragRot.pitch}
+                            isDragging={crossIsDragging}
+                          />
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                            3D Cross Orbit • Drag to Spin ({((crossDragRot.yaw % 360) + 360) % 360}°)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-[9.5px] font-bold text-slate-400">
+                          <span className="text-green-400">▲ Green (F)</span>
+                          <span className="text-red-400">◀ Red (L)</span>
+                          <span className="text-orange-400">Orange (R) ▶</span>
+                          <span className="text-blue-400">▼ Blue (B)</span>
+                        </div>
+                      </div>
 
                       <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">
                         {activeTierObj.hint}
@@ -3904,6 +4058,22 @@ function OLLDaySuite() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
+                            emitBeep(480);
+                            const prevDay = Math.max(1, safeF2lDay - 1);
+                            const updated = { ...currentUser, f2lDay: prevDay };
+                            setUsers((prev) => ({
+                              ...prev,
+                              [activeUserKey]: updated
+                            }));
+                            saveUserToCloud(activeUserKey, updated);
+                          }}
+                          disabled={safeF2lDay <= 1}
+                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+                        >
+                          ← Prev
+                        </button>
+                        <button
+                          onClick={() => {
                             const hasLocked = f2lLineupOrder.some((c) => !isCaseUnlockedForTier('f2l', c.id, isProUnlocked));
                             if (hasLocked) {
                               openProPaywall(`Day ${safeF2lDay} F2L Pairs`);
@@ -3920,7 +4090,7 @@ function OLLDaySuite() {
                           }}
                           className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
                         >
-                          Start Day {safeF2lDay} F2L Grind ({f2lLineupOrder.length} Pairs)
+                          Start Day {safeF2lDay} Grind ({f2lLineupOrder.length})
                         </button>
                         <button
                           onClick={() => {
@@ -3933,7 +4103,7 @@ function OLLDaySuite() {
                             }));
                             saveUserToCloud(activeUserKey, updated);
                           }}
-                          className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                         >
                           Next →
                         </button>
@@ -4195,6 +4365,26 @@ function OLLDaySuite() {
                                       )}
                                     </div>
                                     <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
+                                    {fingertricksEnabled && (
+                                      <div className="mt-1.5 space-y-1">
+                                        {getAlgorithmTriggerTags(item.alg).length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                                              <span
+                                                key={tag.label}
+                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                                              >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                                {tag.label}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
+                                          <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                                        </p>
+                                      </div>
+                                    )}
                                     <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.step1}</p>
                                   </div>
                                 </div>
@@ -4346,6 +4536,22 @@ function OLLDaySuite() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
+                            emitBeep(480);
+                            const prevDay = Math.max(1, safeOllDay - 1);
+                            const updated = { ...currentUser, day: prevDay };
+                            setUsers((prev) => ({
+                              ...prev,
+                              [activeUserKey]: updated
+                            }));
+                            saveUserToCloud(activeUserKey, updated);
+                          }}
+                          disabled={safeOllDay <= 1}
+                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+                        >
+                          ← Prev
+                        </button>
+                        <button
+                          onClick={() => {
                             const hasLocked = ollLineupOrder.some((c) => !isCaseUnlockedForTier('oll', c.id, isProUnlocked));
                             if (hasLocked) {
                               openProPaywall(`Day ${safeOllDay} OLL Cases`);
@@ -4363,7 +4569,7 @@ function OLLDaySuite() {
                           }}
                           className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
                         >
-                          Start Day {safeOllDay} OLL Grind ({ollLineupOrder.length} Cases)
+                          Start Day {safeOllDay} Grind ({ollLineupOrder.length})
                         </button>
                         <button
                           onClick={() => {
@@ -4376,7 +4582,7 @@ function OLLDaySuite() {
                             }));
                             saveUserToCloud(activeUserKey, updated);
                           }}
-                          className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                         >
                           Next →
                         </button>
@@ -4637,6 +4843,26 @@ function OLLDaySuite() {
                                       )}
                                     </div>
                                     <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
+                                    {fingertricksEnabled && (
+                                      <div className="mt-1.5 space-y-1">
+                                        {getAlgorithmTriggerTags(item.alg).length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                                              <span
+                                                key={tag.label}
+                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                                              >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                                {tag.label}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
+                                          <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 {fingertricksEnabled && (
@@ -4788,6 +5014,22 @@ function OLLDaySuite() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
+                            emitBeep(480);
+                            const prevDay = Math.max(1, safePllDay - 1);
+                            const updated = { ...currentUser, pllDay: prevDay };
+                            setUsers((prev) => ({
+                              ...prev,
+                              [activeUserKey]: updated
+                            }));
+                            saveUserToCloud(activeUserKey, updated);
+                          }}
+                          disabled={safePllDay <= 1}
+                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+                        >
+                          ← Prev
+                        </button>
+                        <button
+                          onClick={() => {
                             const hasLocked = pllLineupOrder.some((c) => !isCaseUnlockedForTier('pll', c.id, isProUnlocked));
                             if (hasLocked) {
                               openProPaywall(`Day ${safePllDay} PLL Algorithms`);
@@ -4805,7 +5047,7 @@ function OLLDaySuite() {
                           }}
                           className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
                         >
-                          Start Day {safePllDay} PLL Grind ({pllLineupOrder.length} Cases)
+                          Start Day {safePllDay} Grind ({pllLineupOrder.length})
                         </button>
                         <button
                           onClick={() => {
@@ -4818,7 +5060,7 @@ function OLLDaySuite() {
                             }));
                             saveUserToCloud(activeUserKey, updated);
                           }}
-                          className="px-3.5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                         >
                           Next →
                         </button>
@@ -5081,6 +5323,26 @@ function OLLDaySuite() {
                                     </div>
                                     <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
                                     <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>
+                                    {fingertricksEnabled && (
+                                      <div className="mt-1.5 space-y-1">
+                                        {getAlgorithmTriggerTags(item.alg).length > 0 && (
+                                          <div className="flex flex-wrap gap-1">
+                                            {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                                              <span
+                                                key={tag.label}
+                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                                              >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                                {tag.label}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
+                                          <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 {fingertricksEnabled && (
@@ -5842,7 +6104,7 @@ function OLLDaySuite() {
                 onTouchMove={handleF2LCubePointerMove}
                 onTouchEnd={handleF2LCubePointerUp}
                 style={{ touchAction: 'none' }}
-                className="w-44 h-44 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none relative"
+                className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
               >
                 <F2LSpatial3DCube
                   setupScramble={generateF2LSetupScramble(activeF2LSessionCase.alg, f2lSetupMode, f2lSetupSeed)}
@@ -5855,63 +6117,88 @@ function OLLDaySuite() {
                 </span>
               </div>
 
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {activeF2LSessionCase.group}
-                </span>
-                <h3 className="text-2xl font-black text-white">{activeF2LSessionCase.name}</h3>
-              </div>
+              <h3 className="text-xl font-black text-white text-center">{activeF2LSessionCase.name}</h3>
 
               <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    Setup Scramble ({f2lSetupMode})
+                  <span className="text-[9px] font-black uppercase text-slate-400">
+                    Setup ({f2lSetupMode})
                   </span>
                   <button
                     onClick={() => {
                       emitBeep(540);
                       setF2lSetupSeed((s) => s + 1);
                     }}
-                    className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
+                    className="text-[10px] font-bold text-orange-400 cursor-pointer"
                   >
                     New Scramble ↻
                   </button>
                 </div>
-                <p className="font-mono text-sm font-black text-amber-300 select-all">
+                <p className="font-mono text-xs font-black text-amber-300 select-all">
                   {generateF2LSetupScramble(activeF2LSessionCase.alg, f2lSetupMode, f2lSetupSeed)}
                 </p>
               </div>
 
-              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5 text-center">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">
-                  Solution (Target: Front-Right Slot)
-                </span>
+              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-400">
+                    Solution (Front-Right Slot)
+                  </span>
+                  {fingertricksEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setFtPhaseContext('f2l');
+                        setFtCase(activeF2LSessionCase);
+                        setActiveModal('fingertrick');
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
+                    >
+                      Grip Guide →
+                    </button>
+                  )}
+                </div>
                 <p className="font-mono text-base font-black text-white">{activeF2LSessionCase.alg}</p>
-                {f2lSession.dayObj.mode === 'Learn' && (
-                  <div className="text-[11px] text-slate-300 pt-1 border-t border-white/10 space-y-0.5 text-left">
-                    <p>• <strong className="text-orange-300">Step 1:</strong> {activeF2LSessionCase.step1}</p>
-                    <p>• <strong className="text-orange-300">Step 2:</strong> {activeF2LSessionCase.step2}</p>
+                {fingertricksEnabled && (
+                  <div className="space-y-1.5 text-left">
+                    {getAlgorithmTriggerTags(activeF2LSessionCase.alg).length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-1">
+                        {getAlgorithmTriggerTags(activeF2LSessionCase.alg).map((tag) => (
+                          <span
+                            key={tag.label}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                            {tag.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+                      <strong className="text-orange-400">Fingertrick:</strong> {activeF2LSessionCase.fingertrick}
+                    </p>
                   </div>
                 )}
+                <p className="text-[11px] text-slate-300 text-left pt-1">
+                  • <strong>Step 1:</strong> {activeF2LSessionCase.step1}
+                  <br />• <strong>Step 2:</strong> {activeF2LSessionCase.step2}
+                </p>
               </div>
 
               {stopwatchEnabled && (
                 <button
-                  onClick={() =>
-                    toggleStopwatch((sec) => recordCaseTime('f2l', activeF2LSessionCase.id, sec))
-                  }
-                  className={`w-full py-3 rounded-2xl border font-mono text-lg font-black transition-all cursor-pointer ${
+                  onClick={() => toggleStopwatch((sec) => recordCaseTime('f2l', activeF2LSessionCase.id, sec))}
+                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
                     swRunning
                       ? 'bg-green-500/20 border-green-400 text-green-300'
-                      : 'bg-slate-950 border-white/10 text-slate-200 hover:border-orange-500/40'
+                      : 'bg-slate-950 border-white/10 text-slate-200'
                   }`}
                 >
                   {swRunning ? (
                     <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                  ) : swElapsedMs > 0 ? (
-                    `Last: ${(swElapsedMs / 1000).toFixed(2)}s — Tap to Retry`
                   ) : (
-                    'Tap to Time Execution'
+                    'Tap to Time Case'
                   )}
                 </button>
               )}
@@ -5956,188 +6243,133 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 3. ISOLATED F2L DRILL MODAL */}
-        {f2lDrillCase && (
-          <div className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {f2lDrillCase.group}
-                </span>
-                <button
-                  onClick={() => {
-                    setSwRunning(false);
-                    setF2lDrillCase(null);
-                  }}
-                  className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-1.5">
-                <span className="text-[10px] font-bold text-slate-300">
-                  {getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(480);
-                        setF2LPresetAngle(0);
-                      }}
-                      className="px-2 py-0.5 rounded bg-white/5 text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
-                    >
-                      Reset
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      emitBeep(620);
-                      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
-                    }}
-                    className="px-2.5 py-0.5 rounded bg-orange-500/20 border border-orange-500/40 text-[10px] font-black text-orange-400 cursor-pointer"
-                  >
-                    Rotate Cube ↻
-                  </button>
-                </div>
-              </div>
-
-              <div
-                onMouseDown={handleF2LCubePointerDown}
-                onMouseMove={handleF2LCubePointerMove}
-                onMouseUp={handleF2LCubePointerUp}
-                onMouseLeave={handleF2LCubePointerUp}
-                onTouchStart={handleF2LCubePointerDown}
-                onTouchMove={handleF2LCubePointerMove}
-                onTouchEnd={handleF2LCubePointerUp}
-                style={{ touchAction: 'none' }}
-                className="w-44 h-44 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none relative"
-              >
-                <F2LSpatial3DCube
-                  setupScramble={generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
-                  yaw={f2lDragRot.yaw}
-                  pitch={f2lDragRot.pitch}
-                  isDragging={f2lIsDragging}
-                />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
-                  3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
-                </span>
-              </div>
-
-              <h3 className="text-xl font-black text-white text-center">{f2lDrillCase.name}</h3>
-
-              <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase text-slate-400">
-                    Setup Scramble ({f2lSetupMode})
-                  </span>
-                  <button
-                    onClick={() => {
-                      emitBeep(540);
-                      setF2lSetupSeed((s) => s + 1);
-                    }}
-                    className="text-[10px] font-bold text-orange-400 cursor-pointer"
-                  >
-                    New Scramble ↻
-                  </button>
-                </div>
-                <p className="font-mono text-xs font-black text-amber-300 select-all">
-                  {generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
-                </p>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1">
-                <span className="text-[9px] font-black uppercase text-slate-400 block">
-                  Solution (Front-Right Slot)
-                </span>
-                <p className="font-mono text-base font-black text-white">{f2lDrillCase.alg}</p>
-                <p className="text-[11px] text-slate-300 text-left pt-1">
-                  • <strong>Step 1:</strong> {f2lDrillCase.step1}
-                  <br />• <strong>Step 2:</strong> {f2lDrillCase.step2}
-                </p>
-              </div>
-
-              {stopwatchEnabled && (
-                <button
-                  onClick={() => toggleStopwatch((sec) => recordCaseTime('f2l', f2lDrillCase.id, sec))}
-                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
-                    swRunning
-                      ? 'bg-green-500/20 border-green-400 text-green-300'
-                      : 'bg-slate-950 border-white/10 text-slate-200'
-                  }`}
-                >
-                  {swRunning ? (
-                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                  ) : (
-                    'Tap to Time Case'
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 4. OLL DAILY SESSION RUNNER */}
-        {ollSession && activeOLLSessionCase && (() => {
-          const caseStat = currentUser.stats?.[activeOLLSessionCase.id] || {};
+        {/* 3. ISOLATED F2L DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
+        {f2lDrillCase && (() => {
+          const caseStat = currentUser.f2lStats?.[f2lDrillCase.id] || {};
           const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
           const ao5Case = computeCaseWindowAvg(caseHist, 5);
           const ao20Case = computeCaseWindowAvg(caseHist, 20);
           const ao40Case = computeCaseWindowAvg(caseHist, 40);
           const lastResultForThis =
-            swLastResult && swLastResult.phase === 'oll' && swLastResult.caseId === activeOLLSessionCase.id
+            swLastResult && swLastResult.phase === 'f2l' && swLastResult.caseId === f2lDrillCase.id
               ? swLastResult
               : null;
 
           return (
-            <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {ollSession.dayObj.mode} • Case {ollSession.index + 1}/{ollSession.queue.length}
-                </span>
-                <button
-                  onClick={() => {
-                    setSwRunning(false);
-                    setSwLastResult(null);
-                    setOllSession(null);
-                  }}
-                  className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
-                <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 flex items-center justify-center">
-                  <img
-                    src={getOLLImageUrl(activeOLLSessionCase.alg)}
-                    alt={activeOLLSessionCase.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-
-                <div className="text-center">
+            <div
+              onClick={() => {
+                setSwRunning(false);
+                setSwLastResult(null);
+                setF2lDrillCase(null);
+              }}
+              className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
+              >
+                <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    {activeOLLSessionCase.group}
+                    {f2lDrillCase.group}
                   </span>
-                  <h3 className="text-2xl font-black text-white">{activeOLLSessionCase.name}</h3>
+                  <button
+                    onClick={() => {
+                      setSwRunning(false);
+                      setSwLastResult(null);
+                      setF2lDrillCase(null);
+                    }}
+                    className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                <div className="w-full flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(480);
+                          setF2LPresetAngle(0);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(620);
+                        setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
+                    >
+                      Rotate Cube ↻
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  onMouseDown={handleF2LCubePointerDown}
+                  onMouseMove={handleF2LCubePointerMove}
+                  onMouseUp={handleF2LCubePointerUp}
+                  onMouseLeave={handleF2LCubePointerUp}
+                  onTouchStart={handleF2LCubePointerDown}
+                  onTouchMove={handleF2LCubePointerMove}
+                  onTouchEnd={handleF2LCubePointerUp}
+                  style={{ touchAction: 'none' }}
+                  className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
+                >
+                  <F2LSpatial3DCube
+                    setupScramble={generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
+                    yaw={f2lDragRot.yaw}
+                    pitch={f2lDragRot.pitch}
+                    isDragging={f2lIsDragging}
+                  />
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                    3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-black text-white text-center">{f2lDrillCase.name}</h3>
+
+                <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      Execution Algorithm
+                    <span className="text-[9px] font-black uppercase text-slate-400">
+                      Setup ({f2lSetupMode})
+                    </span>
+                    <button
+                      onClick={() => {
+                        emitBeep(540);
+                        setF2lSetupSeed((s) => s + 1);
+                      }}
+                      className="text-[10px] font-bold text-orange-400 cursor-pointer"
+                    >
+                      New Scramble ↻
+                    </button>
+                  </div>
+                  <p className="font-mono text-xs font-black text-amber-300 select-all">
+                    {generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase text-slate-400">
+                      Solution (Front-Right Slot)
                     </span>
                     {fingertricksEnabled && (
                       <button
                         type="button"
                         onClick={() => {
                           emitBeep(540);
-                          setFtPhaseContext('oll');
-                          setFtCase(activeOLLSessionCase);
+                          setFtPhaseContext('f2l');
+                          setFtCase(f2lDrillCase);
                           setActiveModal('fingertrick');
                         }}
                         className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
@@ -6146,19 +6378,38 @@ function OLLDaySuite() {
                       </button>
                     )}
                   </div>
-                  <p className="font-mono text-base font-black text-amber-300">{activeOLLSessionCase.alg}</p>
+                  <p className="font-mono text-base font-black text-white">{f2lDrillCase.alg}</p>
                   {fingertricksEnabled && (
-                    <p className="text-[11px] text-slate-400">{activeOLLSessionCase.fingertrick}</p>
+                    <div className="space-y-1.5 text-left">
+                      {getAlgorithmTriggerTags(f2lDrillCase.alg).length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {getAlgorithmTriggerTags(f2lDrillCase.alg).map((tag) => (
+                            <span
+                              key={tag.label}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+                        <strong className="text-orange-400">Fingertrick:</strong> {f2lDrillCase.fingertrick}
+                      </p>
+                    </div>
                   )}
+                  <p className="text-[11px] text-slate-300 text-left pt-1">
+                    • <strong>Step 1:</strong> {f2lDrillCase.step1}
+                    <br />• <strong>Step 2:</strong> {f2lDrillCase.step2}
+                  </p>
                 </div>
 
                 {stopwatchEnabled && (
-                  <div className="w-full space-y-2">
+                  <div className="space-y-2">
                     <button
-                      onClick={() =>
-                        toggleStopwatch((sec) => recordCaseTime('oll', activeOLLSessionCase.id, sec))
-                      }
-                      className={`w-full py-3.5 px-3 rounded-2xl border font-mono transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                      onClick={() => toggleStopwatch((sec) => recordCaseTime('f2l', f2lDrillCase.id, sec))}
+                      className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
                         swRunning
                           ? 'bg-green-500/20 border-green-400 text-green-300'
                           : lastResultForThis?.isNewPb
@@ -6167,11 +6418,11 @@ function OLLDaySuite() {
                       }`}
                     >
                       {swRunning ? (
-                        <span ref={swDisplayRef} className="text-lg font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
                       ) : lastResultForThis ? (
                         <>
                           <div className="flex items-center gap-2">
-                            <span className="text-lg font-black text-white">
+                            <span className="text-base font-black text-white">
                               Got: {lastResultForThis.timeSec.toFixed(3)}s
                             </span>
                             {lastResultForThis.isNewPb ? (
@@ -6190,7 +6441,7 @@ function OLLDaySuite() {
                         </>
                       ) : (
                         <div className="flex flex-col items-center">
-                          <span className="text-base font-black">Tap to Time OLL</span>
+                          <span className="text-base font-black">Tap to Time F2L</span>
                           {typeof caseStat.best === 'number' && (
                             <span className="text-[10px] font-bold text-amber-300">
                               Recorded PB: {caseStat.best.toFixed(3)}s
@@ -6223,50 +6474,320 @@ function OLLDaySuite() {
                   </div>
                 )}
               </div>
+            </div>
+          );
+        })()}
+        {/* 5C. ISOLATED PLL DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
+        {pllDrillCase && (() => {
+          const caseStat = currentUser.pllStats?.[pllDrillCase.id] || {};
+          const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
+          const ao5Case = computeCaseWindowAvg(caseHist, 5);
+          const ao20Case = computeCaseWindowAvg(caseHist, 20);
+          const ao40Case = computeCaseWindowAvg(caseHist, 40);
+          const lastResultForThis =
+            swLastResult && swLastResult.phase === 'pll' && swLastResult.caseId === pllDrillCase.id
+              ? swLastResult
+              : null;
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  onClick={() => {
-                    emitBeep(460);
-                    setSwRunning(false);
-                    setSwElapsedMs(0);
-                    setSwLastResult(null);
-                    setOllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
-                  }}
-                  disabled={ollSession.index === 0}
-                  className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                >
-                  ← Previous
-                </button>
-                <button
-                  onClick={() => {
-                    emitBeep(760);
-                    setSwRunning(false);
-                    setSwElapsedMs(0);
-                    setSwLastResult(null);
-                    if (ollSession.index + 1 < ollSession.queue.length) {
-                      setOllSession((s) => ({ ...s, index: s.index + 1 }));
-                    } else {
-                      const nextDay = safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1;
-                      const updated = { ...currentUser, day: nextDay };
-                      setUsers((prev) => ({
-                        ...prev,
-                        [activeUserKey]: updated
-                      }));
-                      saveUserToCloud(activeUserKey, updated);
-                      setOllSession(null);
-                    }
-                  }}
-                  className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-                >
-                  {ollSession.index + 1 < ollSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
-                </button>
+          return (
+            <div
+              onClick={() => {
+                setSwRunning(false);
+                setSwLastResult(null);
+                setPllDrillCase(null);
+              }}
+              className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                    {pllDrillCase.group}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSwRunning(false);
+                      setSwLastResult(null);
+                      setPllDrillCase(null);
+                    }}
+                    className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+                  <img
+                    src={getPLLImageUrl(
+                      pllDrillCase.alg,
+                      pllSetupSeed > 0 ? generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed) : null
+                    )}
+                    alt={pllDrillCase.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                <div className="text-center">
+                  <h3 className="text-xl font-black text-white">{pllDrillCase.name}</h3>
+                  <p className="text-[11px] text-slate-300 mt-0.5">{pllDrillCase.recognition}</p>
+                </div>
+
+                <div className="bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      Setup Scramble (From Solved Cube)
+                    </span>
+                    <button
+                      onClick={() => {
+                        emitBeep(540);
+                        setPllSetupSeed((s) => s + 1);
+                      }}
+                      className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
+                    >
+                      New AUF ↻
+                    </button>
+                  </div>
+                  <p className="font-mono text-xs font-black text-amber-300 select-all">
+                    {generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed)}
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      Execution Algorithm
+                    </span>
+                    {fingertricksEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(540);
+                          setFtPhaseContext('pll');
+                          setFtCase(pllDrillCase);
+                          setActiveModal('fingertrick');
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
+                      >
+                        Grip Guide →
+                      </button>
+                    )}
+                  </div>
+                  <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
+                  {fingertricksEnabled && (
+                    <div className="space-y-1.5 text-left">
+                      {getAlgorithmTriggerTags(pllDrillCase.alg).length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {getAlgorithmTriggerTags(pllDrillCase.alg).map((tag) => (
+                            <span
+                              key={tag.label}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+                        <strong className="text-orange-400">Fingertrick:</strong> {pllDrillCase.fingertrick}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {stopwatchEnabled && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => toggleStopwatch((sec) => recordCaseTime('pll', pllDrillCase.id, sec))}
+                      className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                        swRunning
+                          ? 'bg-green-500/20 border-green-400 text-green-300'
+                          : lastResultForThis?.isNewPb
+                          ? 'bg-amber-500/15 border-amber-400/60 text-white'
+                          : 'bg-slate-950 border-white/10 text-slate-200'
+                      }`}
+                    >
+                      {swRunning ? (
+                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                      ) : lastResultForThis ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-black text-white">
+                              Got: {lastResultForThis.timeSec.toFixed(3)}s
+                            </span>
+                            {lastResultForThis.isNewPb ? (
+                              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
+                                ★ New PB!
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
+                                PB: {caseStat.best?.toFixed(3)}s
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                            Tap to Time Again
+                          </span>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <span className="text-base font-black">Tap to Time PLL</span>
+                          {typeof caseStat.best === 'number' && (
+                            <span className="text-[10px] font-bold text-amber-300">
+                              Recorded PB: {caseStat.best.toFixed(3)}s
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </button>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
+                        <span className="font-mono text-xs font-black text-green-400">
+                          {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
+                        </span>
+                      </div>
+                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
+                        <span className="font-mono text-xs font-black text-sky-400">
+                          {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
+                        </span>
+                      </div>
+                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
+                        <span className="font-mono text-xs font-black text-purple-300">
+                          {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
         })()}
 
-        {/* 5. ISOLATED OLL DRILL MODAL */}
+        {/* 4. OLL DAILY SESSION RUNNER */}
+        {ollSession && activeOLLSessionCase && (
+          <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                {ollSession.dayObj.mode} • Case {ollSession.index + 1}/{ollSession.queue.length}
+              </span>
+              <button
+                onClick={() => {
+                  setSwRunning(false);
+                  setOllSession(null);
+                }}
+                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
+              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+                <img
+                  src={getOLLImageUrl(activeOLLSessionCase.alg)}
+                  alt={activeOLLSessionCase.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              <div className="text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {activeOLLSessionCase.group}
+                </span>
+                <h3 className="text-xl font-black text-white">{activeOLLSessionCase.name}</h3>
+              </div>
+
+              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-400">Execution Algorithm</span>
+                  {fingertricksEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setFtPhaseContext('oll');
+                        setFtCase(activeOLLSessionCase);
+                        setActiveModal('fingertrick');
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
+                    >
+                      Grip Guide →
+                    </button>
+                  )}
+                </div>
+                <p className="font-mono text-base font-black text-amber-300">{activeOLLSessionCase.alg}</p>
+                {fingertricksEnabled && (
+                  <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug text-left">
+                    <strong className="text-orange-400">Fingertrick:</strong> {activeOLLSessionCase.fingertrick}
+                  </p>
+                )}
+              </div>
+
+              {stopwatchEnabled && (
+                <button
+                  onClick={() => toggleStopwatch((sec) => recordCaseTime('oll', activeOLLSessionCase.id, sec))}
+                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
+                    swRunning
+                      ? 'bg-green-500/20 border-green-400 text-green-300'
+                      : 'bg-slate-950 border-white/10 text-slate-200'
+                  }`}
+                >
+                  {swRunning ? (
+                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                  ) : (
+                    'Tap to Time OLL'
+                  )}
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => {
+                  emitBeep(460);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  setOllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
+                }}
+                disabled={ollSession.index === 0}
+                className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+              >
+                ← Previous
+              </button>
+              <button
+                onClick={() => {
+                  emitBeep(760);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  if (ollSession.index + 1 < ollSession.queue.length) {
+                    setOllSession((s) => ({ ...s, index: s.index + 1 }));
+                  } else {
+                    const nextDay = safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1;
+                    const updated = { ...currentUser, day: nextDay };
+                    setUsers((prev) => ({
+                      ...prev,
+                      [activeUserKey]: updated
+                    }));
+                    saveUserToCloud(activeUserKey, updated);
+                    setOllSession(null);
+                  }
+                }}
+                className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+              >
+                {ollSession.index + 1 < ollSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 4B. ISOLATED OLL DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
         {ollDrillCase && (() => {
           const caseStat = currentUser.stats?.[ollDrillCase.id] || {};
           const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
@@ -6279,8 +6800,18 @@ function OLLDaySuite() {
               : null;
 
           return (
-            <div className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
+            <div
+              onClick={() => {
+                setSwRunning(false);
+                setSwLastResult(null);
+                setOllDrillCase(null);
+              }}
+              className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                     {ollDrillCase.group}
@@ -6296,6 +6827,7 @@ function OLLDaySuite() {
                     ✕
                   </button>
                 </div>
+
                 <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
                   <img
                     src={getOLLImageUrl(ollDrillCase.alg)}
@@ -6303,11 +6835,52 @@ function OLLDaySuite() {
                     className="w-full h-full object-contain"
                   />
                 </div>
+
                 <h3 className="text-xl font-black text-white text-center">{ollDrillCase.name}</h3>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-2">
+
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      Execution Algorithm
+                    </span>
+                    {fingertricksEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(540);
+                          setFtPhaseContext('oll');
+                          setFtCase(ollDrillCase);
+                          setActiveModal('fingertrick');
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
+                      >
+                        Grip Guide →
+                      </button>
+                    )}
+                  </div>
                   <p className="font-mono text-base font-black text-amber-300">{ollDrillCase.alg}</p>
-                  <p className="text-[11px] text-slate-400 mt-1">{ollDrillCase.fingertrick}</p>
+                  {fingertricksEnabled && (
+                    <div className="space-y-1.5 text-left">
+                      {getAlgorithmTriggerTags(ollDrillCase.alg).length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {getAlgorithmTriggerTags(ollDrillCase.alg).map((tag) => (
+                            <span
+                              key={tag.label}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+                        <strong className="text-orange-400">Fingertrick:</strong> {ollDrillCase.fingertrick}
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 {stopwatchEnabled && (
                   <div className="space-y-2">
                     <button
@@ -6381,334 +6954,146 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* 5B. PLL DAILY SESSION RUNNER */}
-        {pllSession && activePLLSessionCase && (() => {
-          const caseStat = currentUser.pllStats?.[activePLLSessionCase.id] || {};
-          const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
-          const ao5Case = computeCaseWindowAvg(caseHist, 5);
-          const ao20Case = computeCaseWindowAvg(caseHist, 20);
-          const ao40Case = computeCaseWindowAvg(caseHist, 40);
-          const lastResultForThis =
-            swLastResult && swLastResult.phase === 'pll' && swLastResult.caseId === activePLLSessionCase.id
-              ? swLastResult
-              : null;
-
-          return (
-            <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {pllSession.dayObj.mode} • Case {pllSession.index + 1}/{pllSession.queue.length}
-                </span>
-                <button
-                  onClick={() => {
-                    setSwRunning(false);
-                    setSwLastResult(null);
-                    setPllSession(null);
-                  }}
-                  className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
-                <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 flex items-center justify-center">
-                  <img
-                    src={getPLLImageUrl(
-                      activePLLSessionCase.alg,
-                      pllSetupSeed > 0 ? generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed) : null
-                    )}
-                    alt={activePLLSessionCase.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="text-center">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    {activePLLSessionCase.group}
-                  </span>
-                  <h3 className="text-2xl font-black text-white">{activePLLSessionCase.name}</h3>
-                  <p className="text-[11px] text-slate-300 mt-1">{activePLLSessionCase.recognition}</p>
-                </div>
-
-                <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      {pllSetupSeed === 0 ? 'Standard Setup' : 'AUF Varied Setup'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {pllSetupSeed > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            emitBeep(460);
-                            setPllSetupSeed(0);
-                          }}
-                          className="text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
-                        >
-                          Reset
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(540);
-                          setPllSetupSeed((s) => s + 1);
-                        }}
-                        className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
-                      >
-                        New Scramble ↻
-                      </button>
-                    </div>
-                  </div>
-                  <p className="font-mono text-xs font-black text-slate-300 select-all">
-                    {generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed)}
-                  </p>
-                </div>
-
-                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">
-                    Execution Algorithm
-                  </span>
-                  <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
-                  {fingertricksEnabled && (
-                    <p className="text-[11px] text-slate-400 mt-1">{activePLLSessionCase.fingertrick}</p>
-                  )}
-                </div>
-
-                {stopwatchEnabled && (
-                  <div className="w-full space-y-2">
-                    <button
-                      onClick={() =>
-                        toggleStopwatch((sec) => recordCaseTime('pll', activePLLSessionCase.id, sec))
-                      }
-                      className={`w-full py-3.5 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                        swRunning
-                          ? 'bg-green-500/20 border-green-400 text-green-300'
-                          : lastResultForThis?.isNewPb
-                          ? 'bg-amber-500/15 border-amber-400/60 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-200'
-                      }`}
-                    >
-                      {swRunning ? (
-                        <span ref={swDisplayRef} className="text-lg font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                      ) : lastResultForThis ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-black text-white">
-                              Got: {lastResultForThis.timeSec.toFixed(3)}s
-                            </span>
-                            {lastResultForThis.isNewPb ? (
-                              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
-                                ★ New PB!
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                                PB: {caseStat.best?.toFixed(3)}s
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                            Tap to Time Again
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <span className="text-base font-black">Tap to Time PLL</span>
-                          {typeof caseStat.best === 'number' && (
-                            <span className="text-[10px] font-bold text-amber-300">
-                              Recorded PB: {caseStat.best.toFixed(3)}s
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
-                        <span className="font-mono text-xs font-black text-green-400">
-                          {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
-                        <span className="font-mono text-xs font-black text-sky-400">
-                          {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
-                        <span className="font-mono text-xs font-black text-purple-300">
-                          {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  onClick={() => {
-                    emitBeep(460);
-                    setSwRunning(false);
-                    setSwElapsedMs(0);
-                    setSwLastResult(null);
-                    setPllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
-                  }}
-                  disabled={pllSession.index === 0}
-                  className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                >
-                  ← Previous
-                </button>
-                <button
-                  onClick={() => {
-                    emitBeep(760);
-                    setSwRunning(false);
-                    setSwElapsedMs(0);
-                    setSwLastResult(null);
-                    if (pllSession.index + 1 < pllSession.queue.length) {
-                      setPllSession((s) => ({ ...s, index: s.index + 1 }));
-                    } else {
-                      const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
-                      const updated = { ...currentUser, pllDay: nextDay };
-                      setUsers((prev) => ({
-                        ...prev,
-                        [activeUserKey]: updated
-                      }));
-                      saveUserToCloud(activeUserKey, updated);
-                      setPllSession(null);
-                    }
-                  }}
-                  className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-                >
-                  {pllSession.index + 1 < pllSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
-                </button>
-              </div>
+        {/* 5. PLL DAILY SESSION RUNNER */}
+        {pllSession && activePLLSessionCase && (
+          <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                {pllSession.dayObj.mode} • Alg {pllSession.index + 1}/{pllSession.queue.length}
+              </span>
+              <button
+                onClick={() => {
+                  setSwRunning(false);
+                  setPllSession(null);
+                }}
+                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
-          );
-        })()}
 
-        {/* 5C. ISOLATED PLL DRILL MODAL */}
-        {pllDrillCase && (() => {
-          const caseStat = currentUser.pllStats?.[pllDrillCase.id] || {};
-          const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
-          const ao5Case = computeCaseWindowAvg(caseHist, 5);
-          const ao20Case = computeCaseWindowAvg(caseHist, 20);
-          const ao40Case = computeCaseWindowAvg(caseHist, 40);
-          const lastResultForThis =
-            swLastResult && swLastResult.phase === 'pll' && swLastResult.caseId === pllDrillCase.id
-              ? swLastResult
-              : null;
+            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
+              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+                <img
+                  src={getPLLImageUrl(
+                    activePLLSessionCase.alg,
+                    pllSetupSeed > 0 ? generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed) : null
+                  )}
+                  alt={activePLLSessionCase.name}
+                  className="w-full h-full object-contain"
+                />
+              </div>
 
-          return (
-            <div className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
+              <div className="text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  {activePLLSessionCase.group}
+                </span>
+                <h3 className="text-xl font-black text-white">{activePLLSessionCase.name}</h3>
+                <p className="text-[11px] text-slate-300 mt-0.5">{activePLLSessionCase.recognition}</p>
+              </div>
+
+              <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    {pllDrillCase.group}
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    Setup Scramble
                   </span>
                   <button
                     onClick={() => {
-                      setSwRunning(false);
-                      setSwLastResult(null);
-                      setPllDrillCase(null);
+                      emitBeep(540);
+                      setPllSetupSeed((s) => s + 1);
                     }}
-                    className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
+                    className="text-[10px] font-bold text-orange-400 cursor-pointer"
                   >
-                    ✕
+                    New AUF ↻
                   </button>
                 </div>
-                <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-                  <img
-                    src={getPLLImageUrl(
-                      pllDrillCase.alg,
-                      pllSetupSeed > 0 ? generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed) : null
-                    )}
-                    alt={pllDrillCase.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-xl font-black text-white">{pllDrillCase.name}</h3>
-                  <p className="text-[11px] text-slate-300 mt-0.5">{pllDrillCase.recognition}</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
-                  <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
-                  <p className="text-[11px] text-slate-400 mt-1">{pllDrillCase.fingertrick}</p>
-                </div>
-                {stopwatchEnabled && (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => toggleStopwatch((sec) => recordCaseTime('pll', pllDrillCase.id, sec))}
-                      className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                        swRunning
-                          ? 'bg-green-500/20 border-green-400 text-green-300'
-                          : lastResultForThis?.isNewPb
-                          ? 'bg-amber-500/15 border-amber-400/60 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-200'
-                      }`}
-                    >
-                      {swRunning ? (
-                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                      ) : lastResultForThis ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-black text-white">
-                              Got: {lastResultForThis.timeSec.toFixed(3)}s
-                            </span>
-                            {lastResultForThis.isNewPb ? (
-                              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
-                                ★ New PB!
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                                PB: {caseStat.best?.toFixed(3)}s
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                            Tap to Time Again
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <span className="text-base font-black">Tap to Time PLL</span>
-                          {typeof caseStat.best === 'number' && (
-                            <span className="text-[10px] font-bold text-amber-300">
-                              Recorded PB: {caseStat.best.toFixed(3)}s
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
+                <p className="font-mono text-xs font-black text-amber-300 select-all">
+                  {generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed)}
+                </p>
+              </div>
 
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
-                        <span className="font-mono text-xs font-black text-green-400">
-                          {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
-                        <span className="font-mono text-xs font-black text-sky-400">
-                          {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
-                        <span className="font-mono text-xs font-black text-purple-300">
-                          {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase text-slate-400">Execution Algorithm</span>
+                  {fingertricksEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(540);
+                        setFtPhaseContext('pll');
+                        setFtCase(activePLLSessionCase);
+                        setActiveModal('fingertrick');
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
+                    >
+                      Grip Guide →
+                    </button>
+                  )}
+                </div>
+                <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
+                {fingertricksEnabled && (
+                  <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug text-left">
+                    <strong className="text-orange-400">Fingertrick:</strong> {activePLLSessionCase.fingertrick}
+                  </p>
                 )}
               </div>
+
+              {stopwatchEnabled && (
+                <button
+                  onClick={() => toggleStopwatch((sec) => recordCaseTime('pll', activePLLSessionCase.id, sec))}
+                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
+                    swRunning
+                      ? 'bg-green-500/20 border-green-400 text-green-300'
+                      : 'bg-slate-950 border-white/10 text-slate-200'
+                  }`}
+                >
+                  {swRunning ? (
+                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                  ) : (
+                    'Tap to Time PLL'
+                  )}
+                </button>
+              )}
             </div>
-          );
-        })()}
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => {
+                  emitBeep(460);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  setPllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
+                }}
+                disabled={pllSession.index === 0}
+                className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+              >
+                ← Previous
+              </button>
+              <button
+                onClick={() => {
+                  emitBeep(760);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  if (pllSession.index + 1 < pllSession.queue.length) {
+                    setPllSession((s) => ({ ...s, index: s.index + 1 }));
+                  } else {
+                    const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
+                    const updated = { ...currentUser, pllDay: nextDay };
+                    setUsers((prev) => ({
+                      ...prev,
+                      [activeUserKey]: updated
+                    }));
+                    saveUserToCloud(activeUserKey, updated);
+                    setPllSession(null);
+                  }
+                }}
+                className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+              >
+                {pllSession.index + 1 < pllSession.queue.length ? 'Next Alg →' : 'Complete Day ✓'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 6. FINGERTRICK DOSSIER MODAL */}
         {activeModal === 'fingertrick' && ftCase && (() => {
