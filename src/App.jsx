@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 // Resolve Firebase config from sandbox globals or Vercel Vite environment variables
 function resolveFirebaseConfig() {
@@ -225,9 +225,91 @@ const CROSS_MECHANICS = [
   {
     id: 4,
     title: 'Edge Preservation',
-    badge: 'Mechanic 4 • Lookahead',
-    summary: 'When inserting a middle-layer edge, check if another white edge sits in the adjacent slot so one turn solves both simultaneously.',
-    example: "Setup: U R' F' R  →  Solve: R' F R U'"
+    badge: 'Mechanic 4 • Multi-Edge Lookahead',
+    summary: 'Solve two or more white edges in a single fluid chain by using one face turn to simultaneously insert an active edge and kick a trapped middle/bottom edge into its U-layer setup.',
+    example: "Setup: U R' F' R  →  Solve: R' F R U'",
+    approaches: [
+      {
+        id: 'chained-kick',
+        name: '1. Kicked-Edge Chaining',
+        tag: '2-Edge Flow',
+        rule: 'Before turning R or F to drop an edge, check the back-right (BR) or front-right (FR) middle slot. Turning R\' or F can kick a trapped white edge straight onto U with White facing up.',
+        cases: [
+          {
+            label: 'Case 4A • Front-to-Right Kick',
+            setup: "U R' F' R",
+            solve: "R' F R U'",
+            note: 'F brings the UF white edge down while kicking the FR edge into position so R finishes both before U\' aligns.'
+          },
+          {
+            label: 'Case 4B • Back-Right Un-Trap',
+            setup: "R2 U' R' F R",
+            solve: "R' F' R U R2",
+            note: 'R\' F\' R solves the front-right edge while lifting the trapped BR white edge onto U for an immediate R2 drop.'
+          },
+          {
+            label: 'Case 4C • Left-Front Mirror Chain',
+            setup: "U' L F L'",
+            solve: "L F' L' U",
+            note: 'Left-hand mirror: F\' inserts the front edge and pops the FL white edge into alignment for L.'
+          }
+        ]
+      },
+      {
+        id: 'opposite-sweep',
+        name: '2. Opposite-Edge Double Drop',
+        tag: 'Zero Regrip',
+        rule: 'When two opposite cross edges (Green & Blue, or Red & Orange) sit in the E-slice or U-layer simultaneously, align their relative 180° offset first so both drop down back-to-back without extra U turns.',
+        cases: [
+          {
+            label: 'Case 4D • Parallel E-Slice Drop',
+            setup: "R2 L2 U2",
+            solve: "U2 R2 L2",
+            note: 'A single U2 aligns both opposite top edges over their matching centers for a simultaneous R2 L2 double drop.'
+          },
+          {
+            label: 'Case 4E • Staggered Opposite Kick',
+            setup: "L2 U' R' F R",
+            solve: "R' F' R U L2",
+            note: 'Solve the Front/Right edge with R\' F\' R while preserving the Blue edge on U so U L2 finishes both cleanly.'
+          }
+        ]
+      },
+      {
+        id: 'd-sweep-preserve',
+        name: '3. Relative D-Offset Preservation',
+        tag: 'Sub-6 Pro Technique',
+        rule: 'Ignore center colors temporarily—insert edges in their correct clockwise order (Green → Orange → Blue → Red) onto D, then align all 4 centers at once with a single D, D\', or D2 turn.',
+        cases: [
+          {
+            label: 'Case 4F • 3-Edge Clockwise Shift',
+            setup: "D' R2 F2 L2",
+            solve: "L2 F2 R2 D",
+            note: 'Drop Left, Front, and Right edges 90° off-center, then snap all three onto their centers with a single D.'
+          },
+          {
+            label: 'Case 4G • Keyhole + Kick Combo',
+            setup: "D R' F' R D'",
+            solve: "D R' F R D'",
+            note: 'Shift D first to open the slot, execute R\' F R to preserve the adjacent edge, and restore D\' in 5 total moves.'
+          }
+        ]
+      },
+      {
+        id: 'xcross-corner-safe',
+        name: '4. F2L Corner-Safe Preservation',
+        tag: 'X-Cross Transition',
+        rule: 'When you spot an already-paired White corner + middle edge during inspection, preserve that block by inserting the final cross edge via keyhole D-turns or wide r/u moves instead of breaking the pair.',
+        cases: [
+          {
+            label: 'Case 4H • Preserve Front-Right Pair',
+            setup: "D' F2 D",
+            solve: "D' F2 D",
+            note: 'Instead of U2 R2 (which breaks a solved FR pair), shift D\' to bring the open DF slot under UF, drop F2, and restore D.'
+          }
+        ]
+      }
+    ]
   }
 ];
 
@@ -389,356 +471,31 @@ const OLL_DEFAULT_CHUNKS = [
 ];
 
 const PLL_DATA = [
-  {
-    id: 1,
-    name: 'PLL Ua',
-    group: 'Edges Only (EPLL)',
-    alg: "(R U R' U R') U' R2 U' (R' U R' U R)",
-    inverse: "R' U' R U' R U R2 U R U' R U' R'",
-    recognition: 'Solved bar in Back; 3 edges cycle counter-clockwise.',
-    fingertrick: 'Keep right thumb on front; push all U turns with right index finger.',
-    segments: [
-      { moves: "(R U R' U R')", cue: 'Right wrist up/down while right index pushes U' },
-      { moves: "U' R2 U'", cue: 'Left index flicks U\', roll R2 smoothly, left index U\'' },
-      { moves: "(R' U R' U R)", cue: 'Thumb-down R\' pulls with right index U pushes' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'PLL Ub',
-    group: 'Edges Only (EPLL)',
-    alg: "(R' U) (R' U') (R' U') (R' U) R U R2",
-    inverse: "R2 U' R' U' R U R U R U' R",
-    recognition: 'Solved bar in Back; 3 edges cycle clockwise.',
-    fingertrick: 'Start thumb-up on R\'; alternate right index U and left index U\' without regripping.',
-    segments: [
-      { moves: "(R' U)", cue: 'Thumb-up R\' down, right index U push' },
-      { moves: "(R' U') (R' U')", cue: 'Two crisp R\' pulls paired with left index U\' flicks' },
-      { moves: "(R' U) R U R2", cue: 'Right index U, wrist R, index U, roll R2 finish' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'PLL H',
-    group: 'Edges Only (EPLL)',
-    alg: "M2 (U') M2 (U2) M2 (U') M2",
-    inverse: "M2 U M2 U2 M2 U M2",
-    recognition: 'All corners solved; opposite edge pairs swap.',
-    fingertrick: 'Support outer layers with thumbs; flick M2 with left ring → middle finger.',
-    segments: [
-      { moves: "M2 (U')", cue: 'Left ring + middle finger M2 double-flick, left index U\'' },
-      { moves: "M2 (U2)", cue: 'Left M2 double-flick, left index + middle U2 double-flick' },
-      { moves: "M2 (U') M2", cue: 'Final M2, left index U\', M2 lock' }
-    ]
-  },
-  {
-    id: 4,
-    name: 'PLL Z',
-    group: 'Edges Only (EPLL)',
-    alg: "M' U' (M2 U') (M2 U') M' U2 M2",
-    inverse: "M2 U2 M U M2 U M2 U M",
-    recognition: 'All corners solved; adjacent edge pairs swap (FR-UF & BL-UB).',
-    fingertrick: 'Use left ring finger for single M\' pulls and ring + middle for M2.',
-    segments: [
-      { moves: "M' U'", cue: 'Left ring finger pulls DB up (M\'), left index flicks U\'' },
-      { moves: "(M2 U') (M2 U')", cue: 'Two M2 double-flicks separated by left index U\'' },
-      { moves: "M' U2 M2", cue: 'Left ring M\', left U2 double-flick, M2 finish' }
-    ]
-  },
-  {
-    id: 5,
-    name: 'PLL Aa',
-    group: 'Corners Only (CPLL)',
-    alg: "x (R' U R') D2 (R U' R') D2 R2 x'",
-    inverse: "x R2 D2 R U R' D2 R U' R x'",
-    recognition: '2x2 block in Back-Left; headlights on Back.',
-    fingertrick: 'Tilt x upward so D2 sits under your left ring + middle fingers on the back-bottom.',
-    segments: [
-      { moves: "x (R' U R')", cue: 'Tilt x up; thumb-up R\', right index U, R\'' },
-      { moves: "D2 (R U' R')", cue: 'Left ring + middle D2 double-flick; R, left index U\', R\'' },
-      { moves: "D2 R2 x'", cue: 'Left D2 double-flick, roll R2 up, tilt x\' back' }
-    ]
-  },
-  {
-    id: 6,
-    name: 'PLL Ab',
-    group: 'Corners Only (CPLL)',
-    alg: "x R2 D2 (R U R') D2 (R U' R) x'",
-    inverse: "x R' U R' D2 R U' R' D2 R2 x'",
-    recognition: '2x2 block in Front-Left; headlights on Right.',
-    fingertrick: 'Tilt x upward, start immediately with R2, and keep left thumb anchored during D2.',
-    segments: [
-      { moves: "x R2 D2", cue: 'Tilt x up, roll R2 down, left ring + middle D2' },
-      { moves: "(R U R') D2", cue: 'Right-hand R U R\', second left D2 double-flick' },
-      { moves: "(R U' R) x'", cue: 'Wrist R, left index U\', wrist R, tilt x\' back' }
-    ]
-  },
-  {
-    id: 7,
-    name: 'PLL E',
-    group: 'Corners Only (CPLL)',
-    alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x",
-    inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x",
-    recognition: 'No headlights anywhere; diagonal corner swaps.',
-    fingertrick: 'Tilt x\' downward; push D with left ring finger and pull D\' with right ring finger.',
-    segments: [
-      { moves: "x' (R U' R' D)", cue: 'Tilt x\' down; R, left index U\', R\', left ring D push' },
-      { moves: "(R U R' D')", cue: 'Sexy R U R\', right ring finger D\' pull' },
-      { moves: "(R U R' D) (R U' R' D') x", cue: 'Repeat alternating D / D\' ring-finger rhythm, tilt x' }
-    ]
-  },
-  {
-    id: 8,
-    name: 'PLL T',
-    group: 'Adjacent Swap',
-    alg: "(R U R' U') (R' F R2 U') R' U' (R U R' F')",
-    inverse: "F R U' R' U R U R2 F' R U R U' R'",
-    recognition: 'Headlights on Left; two 1x1x2 blocks on Front-Left and Back-Left.',
-    fingertrick: 'Flow straight from Sexy Move into thumb-down R\' and right-thumb F without regripping.',
-    segments: [
-      { moves: "(R U R' U')", cue: 'Standard Sexy Move — right wrist + right/left index' },
-      { moves: "(R' F R2 U')", cue: 'R\' down, right thumb pushes F, roll R2, left index U\'' },
-      { moves: "R' U' (R U R' F')", cue: 'R\', left index U\', R U R\', right index pulls F\'' }
-    ]
-  },
-  {
-    id: 9,
-    name: 'PLL F',
-    group: 'Adjacent Swap',
-    alg: "(R' U' F') (R U R' U') (R' F R2 U') (R' U' R U) (R' U R)",
-    inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R",
-    recognition: 'Full 1x1x3 solved bar on Left; no headlights on other sides.',
-    fingertrick: 'Start thumb-up for R\' U\' F\', then execute a T-Perm ending with R\' U R.',
-    segments: [
-      { moves: "(R' U' F')", cue: 'Thumb-up R\', left index U\', left index flicks F\'' },
-      { moves: "(R U R' U') (R' F R2 U')", cue: 'Sexy Move into thumb F and R2 roll (T-Perm core)' },
-      { moves: "(R' U' R U) (R' U R)", cue: 'Inverse Sexy + right index U pushes to finish' }
-    ]
-  },
-  {
-    id: 10,
-    name: 'PLL Ja',
-    group: 'Adjacent Swap',
-    alg: "(R' U L' U2) (R U' R' U2) R L",
-    inverse: "L' R' U2 R U R' U2 L U' R",
-    recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Right.',
-    fingertrick: 'Use left index + middle for both U2 double-flicks; finish R and L simultaneously.',
-    segments: [
-      { moves: "(R' U L' U2)", cue: 'Thumb-up R\', right index U, left wrist L\', left U2' },
-      { moves: "(R U' R' U2)", cue: 'Wrist R, left index U\', R\', left U2 double-flick' },
-      { moves: "R L", cue: 'Turn right side up (R) and left side down (L) together' }
-    ]
-  },
-  {
-    id: 11,
-    name: 'PLL Jb',
-    group: 'Adjacent Swap',
-    alg: "(R U R' F') (R U R' U') R' F R2 U' R'",
-    inverse: "R U R2 F' R U R U' R' F R U' R'",
-    recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Left.',
-    fingertrick: 'Completely regripless—flick F\' with right index after R U R\'.',
-    segments: [
-      { moves: "(R U R' F')", cue: 'R U R\' trigger, right index pulls F\' down' },
-      { moves: "(R U R' U')", cue: 'Standard Sexy Move with right thumb still on front' },
-      { moves: "R' F R2 U' R'", cue: 'R\', right thumb F push, roll R2, left index U\', R\'' }
-    ]
-  },
-  {
-    id: 12,
-    name: 'PLL Ra',
-    group: 'Adjacent Swap',
-    alg: "(R U' R' U') (R U R) D (R' U' R) D' (R' U2 R')",
-    inverse: "R U2 R D R' U R D' R' U' R' U R U R'",
-    recognition: 'Headlights on Left; 1x1x2 block in Front-Right.',
-    fingertrick: 'Push D with left ring finger and pull D\' with right ring finger while keeping thumbs front.',
-    segments: [
-      { moves: "(R U' R' U')", cue: 'R, left index U\', R\', left index U\'' },
-      { moves: "(R U R) D", cue: 'R U R upward flow, left ring finger pushes D' },
-      { moves: "(R' U' R) D' (R' U2 R')", cue: 'R\' U\' R, right ring D\', R\', U2 double-flick, R\'' }
-    ]
-  },
-  {
-    id: 13,
-    name: 'PLL Rb',
-    group: 'Adjacent Swap',
-    alg: "(R' U2 R U2') R' F (R U R' U') R' F' R2",
-    inverse: "R2 F R U R U' R' F' R U2 R' U2 R",
-    recognition: 'Headlights on Back; 1x1x2 block on Front-Right.',
-    fingertrick: 'Start thumb-up for R\'; use right thumb for F and right index for F\'.',
-    segments: [
-      { moves: "(R' U2 R U2')", cue: 'Thumb-up R\', right U2, wrist R, left U2\'' },
-      { moves: "R' F (R U R' U')", cue: 'R\', right thumb pushes F into Sexy Move' },
-      { moves: "R' F' R2", cue: 'R\' down, right index pulls F\', roll R2 finish' }
-    ]
-  },
-  {
-    id: 14,
-    name: 'PLL Y',
-    group: 'Diagonal Swap',
-    alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')",
-    inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'",
-    recognition: 'Two 1x1x2 blocks meeting at Front-Left; no headlights.',
-    fingertrick: 'Push opening F with right thumb; flow into Sexy Move + Sledgehammer at the end.',
-    segments: [
-      { moves: "F (R U' R' U')", cue: 'Right thumb F push; R, left index U\', R\', left index U\'' },
-      { moves: "(R U R' F')", cue: 'R U R\', right index pulls F\' down' },
-      { moves: "(R U R' U') (R' F R F')", cue: 'Sexy Move directly into Sledgehammer finish' }
-    ]
-  },
-  {
-    id: 15,
-    name: 'PLL V',
-    group: 'Diagonal Swap',
-    alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F",
-    inverse: "F' R' F' R U' R U R2 F R y' U R U' R",
-    recognition: '2x2 solved block in Front-Left; no headlights anywhere.',
-    fingertrick: 'Start thumb-up R\'; rotate y smoothly during U\' so R2 F flows without a pause.',
-    segments: [
-      { moves: "(R' U R' U') y", cue: 'Thumb-up R\', index U, R\', left U\' while rotating y' },
-      { moves: "(R' F' R2 U')", cue: 'R\', left index F\', roll R2, left index U\'' },
-      { moves: "(R' U R' F) R F", cue: 'R\' U R\', right thumb F, wrist R, thumb F' }
-    ]
-  },
-  {
-    id: 16,
-    name: 'PLL Na',
-    group: 'Diagonal Swap',
-    alg: "(R U R' U) (R U R' F') (R U R' U') R' F (R2 U' R') (U2 R U' R')",
-    inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'",
-    recognition: '1x1x2 blocks on Right of every face (clockwise pinwheel).',
-    fingertrick: 'Think of this as (R U R\' U) + full Jb-Perm + (U2 R U\' R\') — zero regrips needed.',
-    segments: [
-      { moves: "(R U R' U)", cue: '4-move setup trigger with right index U pushes' },
-      { moves: "(R U R' F') (R U R' U') R' F R2 U' R'", cue: 'Full Jb-Perm execution in the middle' },
-      { moves: "(U2 R U' R')", cue: 'Left U2 double-flick into Inverse Sexy finish' }
-    ]
-  },
-  {
-    id: 17,
-    name: 'PLL Nb',
-    group: 'Diagonal Swap',
-    alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)",
-    inverse: "R' U R' F R F' R U' R' F' U F R U R' U' R",
-    recognition: '1x1x2 blocks on Left of every face (counter-clockwise pinwheel).',
-    fingertrick: 'Start thumb-up; use left index for F\' and right thumb for F so right hand stays planted.',
-    segments: [
-      { moves: "(R' U R U')", cue: 'Thumb-up R\', right index U, wrist R, left index U\'' },
-      { moves: "(R' F' U' F)", cue: 'R\', left index F\', left index U\', right thumb F' },
-      { moves: "(R U R' F) R' F' (R U' R)", cue: 'R U R\', thumb F, R\', index F\', R U\' R' }
-    ]
-  },
-  {
-    id: 18,
-    name: 'PLL Ga',
-    group: 'G-Perms',
-    alg: "R2 U (R' U R' U') (R U' R2) D U' (R' U R D')",
-    inverse: "D R' U' R U D' R2 U R' U R U' R U' R2",
-    recognition: 'Headlights on Left; 1x1x2 block on Front-Right.',
-    fingertrick: 'Execute D and U\' simultaneously using left ring (D) + left index (U\').',
-    segments: [
-      { moves: "R2 U (R' U R' U')", cue: 'Roll R2, right index U, R\' U R\' U\' rhythm' },
-      { moves: "(R U' R2) D U'", cue: 'R U\' R2, then simultaneous left-ring D + left-index U\'' },
-      { moves: "(R' U R D')", cue: 'R\' U R, finish with right ring finger D\' pull' }
-    ]
-  },
-  {
-    id: 19,
-    name: 'PLL Gb',
-    group: 'G-Perms',
-    alg: "D (R' U' R U) D' (R2 U R' U) (R U' R U') R2'",
-    inverse: "R2 U R' U R' U' R U' R2 D U' R' U R D'",
-    recognition: 'Headlights on Left; 1x1x2 block on Back-Right.',
-    fingertrick: 'Push opening D with left ring finger and pull D\' with right ring finger before rolling R2.',
-    segments: [
-      { moves: "D (R' U' R U) D'", cue: 'Left ring D, Inverse Sexy (R\' U\' R U), right ring D\'' },
-      { moves: "(R2 U R' U)", cue: 'Roll R2, right index U, R\', right index U' },
-      { moves: "(R U' R U') R2'", cue: 'R, left index U\', R, left index U\', roll R2\' finish' }
-    ]
-  },
-  {
-    id: 20,
-    name: 'PLL Gc',
-    group: 'G-Perms',
-    alg: "R2' F2 (R U2 R U2') R' F (R U R' U') R' F R2",
-    inverse: "R2 F' R U R U' R' F' R U2 R' U2 R' F2 R2",
-    recognition: 'Headlights on Left; 1x1x2 block on Back-Left.',
-    fingertrick: 'Rotationless R2\' F2 variant — use right thumb F into Sexy Move on the back half.',
-    segments: [
-      { moves: "R2' F2 (R U2 R U2')", cue: 'Roll R2\', double-flick F2, R U2 R U2\'' },
-      { moves: "R' F (R U R' U')", cue: 'R\' down, right thumb F push into Sexy Move' },
-      { moves: "R' F R2", cue: 'R\', right thumb F push, roll R2 finish' }
-    ]
-  },
-  {
-    id: 21,
-    name: 'PLL Gd',
-    group: 'G-Perms',
-    alg: "(R U R' U') D (R2 U' R U') (R' U R' U) R2 D'",
-    inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'",
-    recognition: 'Headlights on Left; 1x1x2 block on Front-Left.',
-    fingertrick: 'Sexy Move into left-ring D push; finish with right-ring D\' pull after R2.',
-    segments: [
-      { moves: "(R U R' U') D", cue: 'Sexy Move followed immediately by left ring D push' },
-      { moves: "(R2 U' R U')", cue: 'Roll R2, left index U\', wrist R, left index U\'' },
-      { moves: "(R' U R' U) R2 D'", cue: 'R\' U R\' U, roll R2, right ring finger D\' finish' }
-    ]
-  },
-  {
-    id: 22,
-    name: 'PLL H (Left-Hand M)',
-    group: 'Edges Only (EPLL)',
-    alg: "M2 (U) M2 (U2) M2 (U) M2",
-    inverse: "M2 U' M2 U2 M2 U' M2",
-    recognition: 'H-Perm variant using right-index U pushes.',
-    fingertrick: 'Left ring + middle M2 flicks paired with right index U and right U2 double-flick.',
-    segments: [
-      { moves: "M2 (U) M2", cue: 'Left M2 double-flick, right index U push, M2' },
-      { moves: "(U2) M2", cue: 'Right index + middle U2 double-flick, left M2' },
-      { moves: "(U) M2", cue: 'Right index U push, final left M2 lock' }
-    ]
-  },
-  {
-    id: 23,
-    name: 'PLL Z (Left-Hand M)',
-    group: 'Edges Only (EPLL)',
-    alg: "y M' U (M2 U) (M2 U) M' U2 M2",
-    inverse: "M2 U2 M U' M2 U' M2 U' M y'",
-    recognition: 'Z-Perm variant for swaps on Front-Left & Back-Right.',
-    fingertrick: 'Rotate y, then alternate left-ring M\' / M2 pulls with right-index U pushes.',
-    segments: [
-      { moves: "y M' U", cue: 'Rotate y, left ring pulls M\', right index pushes U' },
-      { moves: "(M2 U) (M2 U)", cue: 'Two left M2 double-flicks paired with right index U' },
-      { moves: "M' U2 M2", cue: 'Left ring M\', right U2 double-flick, M2 finish' }
-    ]
-  },
-  {
-    id: 24,
-    name: 'PLL Ja (Wide Finish)',
-    group: 'Adjacent Swap',
-    alg: "(R' U L' U2) (R U' R' U2) R r",
-    inverse: "r' R' U2 R U R' U2 L U' R",
-    recognition: 'Ja-Perm ending with ergonomic R r instead of R L.',
-    fingertrick: 'Replace the awkward R L finish with right-hand R followed by wide r upward.',
-    segments: [
-      { moves: "(R' U L' U2)", cue: 'Thumb-up R\', right index U, left wrist L\', left U2' },
-      { moves: "(R U' R' U2)", cue: 'Wrist R, left index U\', R\', left U2 double-flick' },
-      { moves: "R r", cue: 'Outer R up, then wide double-layer r up with right hand' }
-    ]
-  },
-  {
-    id: 25,
-    name: 'PLL Jb (Left-Handed)',
-    group: 'Adjacent Swap',
-    alg: "y' (L' U' L F) (L' U' L U) L F' L2' U L",
-    inverse: "L' U' L2 F L' U' L' U L F' L' U L y",
-    recognition: 'Mirror Jb-Perm when 1x1x3 bar is on Right.',
-    fingertrick: 'Exact left-hand mirror of Jb—use left thumb for F\' and left index for F.',
-    segments: [
-      { moves: "y' (L' U' L F)", cue: 'Rotate y\'; left L\' U\' L trigger, left index flicks F' },
-      { moves: "(L' U' L U)", cue: 'Left-Hand Sexy Move with left thumb on front' },
-      { moves: "L F' L2' U L", cue: 'L, left thumb F\', roll L2\', right index U, L' }
-    ]
-  }
+  { id: 1, name: 'PLL Ua', group: 'Edges Only (EPLL)', alg: "(R U R' U R') U' R2 U' (R' U R' U R)", inverse: "R' U' R U' R U R2 U R U' R U' R'", recognition: 'Solved bar in Back; 3 edges cycle counter-clockwise.', fingertrick: 'Keep right thumb on front; push all U turns with right index finger.' },
+  { id: 2, name: 'PLL Ub', group: 'Edges Only (EPLL)', alg: "(R' U) (R' U') (R' U') (R' U) R U R2", inverse: "R2 U' R' U' R U R U R U' R", recognition: 'Solved bar in Back; 3 edges cycle clockwise.', fingertrick: 'Start thumb-up on R\'; alternate right index U and left index U\' without regripping.' },
+  { id: 3, name: 'PLL H', group: 'Edges Only (EPLL)', alg: "M2 (U') M2 (U2) M2 (U') M2", inverse: "M2 U M2 U2 M2 U M2", recognition: 'All corners solved; opposite edge pairs swap.', fingertrick: 'Support outer layers with thumbs; flick M2 with left ring → middle finger.' },
+  { id: 4, name: 'PLL Z', group: 'Edges Only (EPLL)', alg: "M' U' (M2 U') (M2 U') M' U2 M2", inverse: "M2 U2 M U M2 U M2 U M", recognition: 'All corners solved; adjacent edge pairs swap (FR-UF & BL-UB).', fingertrick: 'Use left ring finger for single M\' pulls and ring + middle for M2.' },
+  { id: 5, name: 'PLL Aa', group: 'Corners Only (CPLL)', alg: "x (R' U R') D2 (R U' R') D2 R2 x'", inverse: "x R2 D2 R U R' D2 R U' R x'", recognition: '2x2 block in Back-Left; headlights on Back.', fingertrick: 'Tilt x upward so D2 sits under your left ring + middle fingers on the back-bottom.' },
+  { id: 6, name: 'PLL Ab', group: 'Corners Only (CPLL)', alg: "x R2 D2 (R U R') D2 (R U' R) x'", inverse: "x R' U R' D2 R U' R' D2 R2 x'", recognition: '2x2 block in Front-Left; headlights on Right.', fingertrick: 'Tilt x upward, start immediately with R2, and keep left thumb anchored during D2.' },
+  { id: 7, name: 'PLL E', group: 'Corners Only (CPLL)', alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x", inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x", recognition: 'No headlights anywhere; diagonal corner swaps.', fingertrick: 'Tilt x\' downward; push D with left ring finger and pull D\' with right ring finger.' },
+  { id: 8, name: 'PLL T', group: 'Adjacent Swap', alg: "(R U R' U') (R' F R2 U') R' U' (R U R' F')", inverse: "F R U' R' U R U R2 F' R U R U' R'", recognition: 'Headlights on Left; two 1x1x2 blocks on Front-Left and Back-Left.', fingertrick: 'Flow straight from Sexy Move into thumb-down R\' and right-thumb F without regripping.' },
+  { id: 9, name: 'PLL F', group: 'Adjacent Swap', alg: "(R' U' F') (R U R' U') (R' F R2 U') (R' U' R U) (R' U R)", inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R", recognition: 'Full 1x1x3 solved bar on Left; no headlights on other sides.', fingertrick: 'Start thumb-up for R\' U\' F\', then execute a T-Perm ending with R\' U R.' },
+  { id: 10, name: 'PLL Ja', group: 'Adjacent Swap', alg: "(R' U L' U2) (R U' R' U2) R L", inverse: "L' R' U2 R U R' U2 L U' R", recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Right.', fingertrick: 'Use left index + middle for both U2 double-flicks; finish R and L simultaneously.' },
+  { id: 11, name: 'PLL Jb', group: 'Adjacent Swap', alg: "(R U R' F') (R U R' U') R' F R2 U' R'", inverse: "R U R2 F' R U R U' R' F R U' R'", recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Left.', fingertrick: 'Completely regripless—flick F\' with right index after R U R\'.' },
+  { id: 12, name: 'PLL Ra', group: 'Adjacent Swap', alg: "(R U' R' U') (R U R) D (R' U' R) D' (R' U2 R')", inverse: "R U2 R D R' U R D' R' U' R' U R U R'", recognition: 'Headlights on Left; 1x1x2 block in Front-Right.', fingertrick: 'Push D with left ring finger and pull D\' with right ring finger while keeping thumbs front.' },
+  { id: 13, name: 'PLL Rb', group: 'Adjacent Swap', alg: "(R' U2 R U2') R' F (R U R' U') R' F' R2", inverse: "R2 F R U R U' R' F' R U2 R' U2 R", recognition: 'Headlights on Back; 1x1x2 block on Front-Right.', fingertrick: 'Start thumb-up for R\'; use right thumb for F and right index for F\'.' },
+  { id: 14, name: 'PLL Y', group: 'Diagonal Swap', alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')", inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'", recognition: 'Two 1x1x2 blocks meeting at Front-Left; no headlights.', fingertrick: 'Push opening F with right thumb; flow into Sexy Move + Sledgehammer at the end.' },
+  { id: 15, name: 'PLL V', group: 'Diagonal Swap', alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F", inverse: "F' R' F' R U' R U R2 F R y' U R U' R", recognition: '2x2 solved block in Front-Left; no headlights anywhere.', fingertrick: 'Start thumb-up R\'; rotate y smoothly during U\' so R2 F flows without a pause.' },
+  { id: 16, name: 'PLL Na', group: 'Diagonal Swap', alg: "(R U R' U) (R U R' F') (R U R' U') R' F (R2 U' R') (U2 R U' R')", inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'", recognition: '1x1x2 blocks on Right of every face (clockwise pinwheel).', fingertrick: 'Think of this as (R U R\' U) + full Jb-Perm + (U2 R U\' R\') — zero regrips needed.' },
+  { id: 17, name: 'PLL Nb', group: 'Diagonal Swap', alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)", inverse: "R' U R' F R F' R U' R' F' U F R U R' U' R", recognition: '1x1x2 blocks on Left of every face (counter-clockwise pinwheel).', fingertrick: 'Start thumb-up; use left index for F\' and right thumb for F so right hand stays planted.' },
+  { id: 18, name: 'PLL Ga', group: 'G-Perms', alg: "R2 U (R' U R' U') (R U' R2) D U' (R' U R D')", inverse: "D R' U' R U D' R2 U R' U R U' R U' R2", recognition: 'Headlights on Left; 1x1x2 block on Front-Right.', fingertrick: 'Execute D and U\' simultaneously using left ring (D) + left index (U\').' },
+  { id: 19, name: 'PLL Gb', group: 'G-Perms', alg: "D (R' U' R U) D' (R2 U R' U) (R U' R U') R2'", inverse: "R2 U R' U R' U' R U' R2 D U' R' U R D'", recognition: 'Headlights on Left; 1x1x2 block on Back-Right.', fingertrick: 'Push opening D with left ring finger and pull D\' with right ring finger before rolling R2.' },
+  { id: 20, name: 'PLL Gc', group: 'G-Perms', alg: "R2' F2 (R U2 R U2') R' F (R U R' U') R' F R2", inverse: "R2 F' R U R U' R' F' R U2 R' U2 R' F2 R2", recognition: 'Headlights on Left; 1x1x2 block on Back-Left.', fingertrick: 'Rotationless R2\' F2 variant — use right thumb F into Sexy Move on the back half.' },
+  { id: 21, name: 'PLL Gd', group: 'G-Perms', alg: "(R U R' U') D (R2 U' R U') (R' U R' U) R2 D'", inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'", recognition: 'Headlights on Left; 1x1x2 block on Front-Left.', fingertrick: 'Sexy Move into left-ring D push; finish with right-ring D\' pull after R2.' },
+  { id: 22, name: 'PLL H (Left-Hand M)', group: 'Edges Only (EPLL)', alg: "M2 (U) M2 (U2) M2 (U) M2", inverse: "M2 U' M2 U2 M2 U' M2", recognition: 'H-Perm variant using right-index U pushes.', fingertrick: 'Left ring + middle M2 flicks paired with right index U and right U2 double-flick.' },
+  { id: 23, name: 'PLL Z (Left-Hand M)', group: 'Edges Only (EPLL)', alg: "y M' U (M2 U) (M2 U) M' U2 M2", inverse: "M2 U2 M U' M2 U' M2 U' M y'", recognition: 'Z-Perm variant for swaps on Front-Left & Back-Right.', fingertrick: 'Rotate y, then alternate left-ring M\' / M2 pulls with right-index U pushes.' },
+  { id: 24, name: 'PLL Ja (Wide Finish)', group: 'Adjacent Swap', alg: "(R' U L' U2) (R U' R' U2) R r", inverse: "r' R' U2 R U R' U2 L U' R", recognition: 'Ja-Perm ending with ergonomic R r instead of R L.', fingertrick: 'Replace the awkward R L finish with right-hand R followed by wide r upward.' },
+  { id: 25, name: 'PLL Jb (Left-Handed)', group: 'Adjacent Swap', alg: "y' (L' U' L F) (L' U' L U) L F' L2' U L", inverse: "L' U' L2 F L' U' L' U L F' L' U L y", recognition: 'Mirror Jb-Perm when 1x1x3 bar is on Right.', fingertrick: 'Exact left-hand mirror of Jb—use left thumb for F\' and left index for F.' }
 ];
 
 const PLL_GROUPS = [
@@ -758,6 +515,11 @@ const PLL_DEFAULT_CHUNKS = [
   { id: 'pll-c6', title: 'Chunk 6: G-Perms (Ga–Gd)', ids: [18, 19, 20, 21] },
   { id: 'pll-c7', title: 'Chunk 7: Bonus Left & Wide Variants', ids: [22, 23, 24, 25] }
 ];
+
+// O(1) Lookup Maps for Fast Case Resolution
+const F2L_BY_ID = new Map(F2L_DATA.map((c) => [c.id, c]));
+const OLL_BY_ID = new Map(OLL_DATA.map((c) => [c.id, c]));
+const PLL_BY_ID = new Map(PLL_DATA.map((c) => [c.id, c]));
 
 const WCA_NOTATION_GUIDE = [
   { section: 'Outer Faces', move: "R / R'", desc: 'Right face clockwise / counter-clockwise' },
@@ -938,7 +700,10 @@ function buildFingertrickBreakdown(item) {
   };
 }
 
+const TRIGGER_TAGS_CACHE = new Map();
+
 function getAlgorithmTriggerTags(alg = '') {
+  if (TRIGGER_TAGS_CACHE.has(alg)) return TRIGGER_TAGS_CACHE.get(alg);
   const normalized = alg.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
   const tags = [];
   if (normalized.includes("R U R' U'")) tags.push({ label: "Sexy Move (R U R' U')", badgeClass: FINGERTRICK_CODEX[0].badgeClass, dotClass: FINGERTRICK_CODEX[0].dotClass });
@@ -950,6 +715,7 @@ function getAlgorithmTriggerTags(alg = '') {
   if (normalized.includes("F R' F' R")) tags.push({ label: "Hedgeslammer (F R' F' R)", badgeClass: FINGERTRICK_CODEX[4].badgeClass, dotClass: FINGERTRICK_CODEX[4].dotClass });
   if (/\bM2?\b|\bM'/.test(normalized)) tags.push({ label: 'M-Slice Flick', badgeClass: FINGERTRICK_CODEX[6].badgeClass, dotClass: FINGERTRICK_CODEX[6].dotClass });
   if (/\bD2?\b|\bD'/.test(normalized)) tags.push({ label: 'Ring-Finger D', badgeClass: FINGERTRICK_CODEX[7].badgeClass, dotClass: FINGERTRICK_CODEX[7].dotClass });
+  TRIGGER_TAGS_CACHE.set(alg, tags);
   return tags;
 }
 
@@ -1130,33 +896,9 @@ function simulateF2LCubeState(setupScramble = '') {
   return simulateCrossCubeState(setupScramble);
 }
 
-function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
-  const stickers = simulateCrossCubeState(scramble);
+// Unified 3D Spatial Cube Renderer (Used by both Cross & F2L Orbit Cubes)
+function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, isDragging, cubeRef }) {
   const half = 48;
-
-  const isCrossRelevant = (offset, idx) => {
-    if (idx === 4) return true;
-    const isEdge = idx === 1 || idx === 3 || idx === 5 || idx === 7;
-    if (!isEdge) return false;
-    const code = stickers[offset + idx];
-    if (code === 'W') return true;
-    const edgePairs = {
-      '0_1': 46, '45_1': 1,
-      '0_3': 37, '36_1': 3,
-      '0_5': 10, '9_1': 5,
-      '0_7': 19, '18_1': 7,
-      '27_1': 25, '18_7': 28,
-      '27_3': 43, '36_7': 30,
-      '27_5': 16, '9_7': 32,
-      '27_7': 52, '45_7': 34,
-      '18_3': 41, '36_5': 21,
-      '18_5': 12, '9_3': 23,
-      '45_3': 14, '9_5': 48,
-      '45_5': 39, '36_3': 41
-    };
-    const partner = edgePairs[`${offset}_${idx}`];
-    return partner !== undefined && stickers[partner] === 'W';
-  };
 
   const renderFace = (offset, transform, shadeOpacity) => (
     <div
@@ -1178,15 +920,17 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
     >
       {Array.from({ length: 9 }).map((_, idx) => {
         const code = stickers[offset + idx];
-        const active = isCrossRelevant(offset, idx);
+        const active = isStickerActive ? isStickerActive(stickers, offset, idx) : true;
+        const muted = isStickerMuted ? isStickerMuted(stickers, offset, idx) : false;
+        const dimmed = !active || muted;
         return (
           <div
             key={idx}
             style={{
-              backgroundColor: active ? STICKER_HEX[code] || '#334155' : '#1e293b',
+              backgroundColor: dimmed ? (muted ? '#334155' : '#1e293b') : STICKER_HEX[code] || '#334155',
               borderRadius: '4.5px',
-              boxShadow: !active
-                ? 'inset 0 1px 1px rgba(255,255,255,0.05)'
+              boxShadow: dimmed
+                ? 'inset 0 1px 1px rgba(255,255,255,0.06)'
                 : 'inset 0 1.5px 2px rgba(255,255,255,0.45), inset 0 -1.5px 2px rgba(0,0,0,0.28)',
               position: 'relative',
               overflow: 'hidden'
@@ -1234,11 +978,13 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
       />
 
       <div
+        ref={cubeRef}
         style={{
           width: `${half * 2}px`,
           height: `${half * 2}px`,
           position: 'relative',
           transformStyle: 'preserve-3d',
+          willChange: isDragging ? 'transform' : 'auto',
           transform: `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${isDragging ? 1.05 : 1})`,
           transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
@@ -1254,105 +1000,137 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
   );
 }
 
-function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
-  const stickers = simulateF2LCubeState(setupScramble);
-  const half = 48;
+const CROSS_EDGE_PAIRS = {
+  '0_1': 46, '45_1': 1,
+  '0_3': 37, '36_1': 3,
+  '0_5': 10, '9_1': 5,
+  '0_7': 19, '18_1': 7,
+  '27_1': 25, '18_7': 28,
+  '27_3': 43, '36_7': 30,
+  '27_5': 16, '9_7': 32,
+  '27_7': 52, '45_7': 34,
+  '18_3': 41, '36_5': 21,
+  '18_5': 12, '9_3': 23,
+  '45_3': 14, '9_5': 48,
+  '45_5': 39, '36_3': 41
+};
 
-  const renderFace = (offset, transform, shadeOpacity) => (
-    <div
-      style={{
-        position: 'absolute',
-        width: `${half * 2}px`,
-        height: `${half * 2}px`,
-        transform,
-        backfaceVisibility: 'hidden',
-        backgroundColor: '#070a12',
-        borderRadius: '10px',
-        padding: '4px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gridTemplateRows: 'repeat(3, 1fr)',
-        gap: '3.5px',
-        boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.08)'
-      }}
-    >
-      {Array.from({ length: 9 }).map((_, idx) => {
-        const code = stickers[offset + idx];
-        const isTopYellow = offset === 0 && code === 'Y';
-        const isTopSideYellow = offset !== 0 && idx < 3 && code === 'Y';
-        const muted = isTopYellow || isTopSideYellow;
-        return (
-          <div
-            key={idx}
-            style={{
-              backgroundColor: muted ? '#334155' : STICKER_HEX[code] || '#334155',
-              borderRadius: '4.5px',
-              boxShadow: muted
-                ? 'inset 0 1px 1px rgba(255,255,255,0.08)'
-                : 'inset 0 1.5px 2px rgba(255,255,255,0.45), inset 0 -1.5px 2px rgba(0,0,0,0.28)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            {shadeOpacity > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundColor: `rgba(2, 6, 23, ${shadeOpacity})`
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+const isCrossStickerActive = (stickers, offset, idx) => {
+  if (idx === 4) return true;
+  if (idx !== 1 && idx !== 3 && idx !== 5 && idx !== 7) return false;
+  if (stickers[offset + idx] === 'W') return true;
+  const partner = CROSS_EDGE_PAIRS[`${offset}_${idx}`];
+  return partner !== undefined && stickers[partner] === 'W';
+};
 
+const isF2LStickerMuted = (stickers, offset, idx) => {
+  const code = stickers[offset + idx];
+  return (offset === 0 && code === 'Y') || (offset !== 0 && idx < 3 && code === 'Y');
+};
+
+function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging, cubeRef }) {
+  const stickers = useMemo(() => simulateCrossCubeState(scramble), [scramble]);
   return (
-    <div
-      style={{
-        width: '154px',
-        height: '154px',
-        perspective: '520px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative'
-      }}
-      className="pointer-events-none"
-    >
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '8px',
-          width: '92px',
-          height: '20px',
-          borderRadius: '9999px',
-          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 72%)',
-          transform: `scale(${isDragging ? 1.08 : 1})`,
-          transition: isDragging ? 'none' : 'transform 0.2s ease'
-        }}
-      />
+    <Spatial3DCube
+      stickers={stickers}
+      isStickerActive={isCrossStickerActive}
+      yaw={yaw}
+      pitch={pitch}
+      isDragging={isDragging}
+      cubeRef={cubeRef}
+    />
+  );
+}
 
-      <div
-        style={{
-          width: `${half * 2}px`,
-          height: `${half * 2}px`,
-          position: 'relative',
-          transformStyle: 'preserve-3d',
-          transform: `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${isDragging ? 1.05 : 1})`,
-          transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
-        }}
-      >
-        {renderFace(18, `rotateY(0deg) translateZ(${half}px)`, 0.04)}
-        {renderFace(45, `rotateY(180deg) translateZ(${half}px)`, 0.14)}
-        {renderFace(9, `rotateY(90deg) translateZ(${half}px)`, 0.12)}
-        {renderFace(36, `rotateY(-90deg) translateZ(${half}px)`, 0.12)}
-        {renderFace(0, `rotateX(90deg) translateZ(${half}px)`, 0)}
-        {renderFace(27, `rotateX(-90deg) translateZ(${half}px)`, 0.22)}
+function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
+  const stickers = useMemo(() => simulateF2LCubeState(setupScramble), [setupScramble]);
+  return (
+    <Spatial3DCube
+      stickers={stickers}
+      isStickerMuted={isF2LStickerMuted}
+      yaw={yaw}
+      pitch={pitch}
+      isDragging={isDragging}
+      cubeRef={cubeRef}
+    />
+  );
+}
+
+// Reusable Millisecond Fine-Tuning Slider + Stepper Bar
+function MillisecondSliderControl({
+  value,
+  min,
+  max,
+  draftValue,
+  onSliderChange,
+  onStepDelta,
+  onDraftChange,
+  accentTextClass = 'text-amber-300',
+  inputWidthClass = 'w-20'
+}) {
+  return (
+    <>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step="0.001"
+        value={Math.min(max, Math.max(min, value))}
+        onChange={(e) => onSliderChange(parseFloat(e.target.value))}
+        className="w-full accent-orange-500 cursor-pointer"
+      />
+      <div className="flex items-center gap-1">
+        {[
+          { label: '-10ms', delta: -0.01 },
+          { label: '-1ms', delta: -0.001 },
+          { label: '+1ms', delta: 0.001 },
+          { label: '+10ms', delta: 0.01 }
+        ].map((btn) => (
+          <button
+            key={btn.label}
+            type="button"
+            onClick={() => onStepDelta(btn.delta)}
+            className="flex-1 py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
+          >
+            {btn.label}
+          </button>
+        ))}
+        <input
+          type="number"
+          step="0.001"
+          min="0.100"
+          max="120.000"
+          value={draftValue}
+          onChange={(e) => onDraftChange(e.target.value)}
+          className={`${inputWidthClass} rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center ${accentTextClass}`}
+        />
       </div>
-    </div>
+    </>
+  );
+}
+
+// Reusable Brand Sune Emblem SVG
+function SuneEmblemSvg({ className = 'w-full h-full' }) {
+  return (
+    <svg viewBox="0 0 1000 1000" className={className} fill="none">
+      <path d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z" fill="#090a14" stroke="#090a14" strokeWidth="32" strokeLinejoin="round" strokeLinecap="round" />
+      <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
+        <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
+        <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
+        <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
+      </g>
+      <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
+        <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
+        <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
+        <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
+        <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
+        <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
+        <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
+        <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
+        <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
+        <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
+      </g>
+    </svg>
   );
 }
 
@@ -1439,15 +1217,15 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'How CFOP Solves the 3x3 Cube',
     phase: 'cross',
     tab: 'ladder',
-    desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. This app trains each phase step-by-step with daily sessions, 3D cubes, and millisecond PB tracking.',
-    howToReach: 'Tap the orange phase pill (C / F / O / P) in the top-right header anytime to switch phases.'
+    desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. Instead of solving layer-by-layer slowly, you build a bottom cross, pair corners & edges together, orient the yellow top in one look, and permute the final layer.',
+    howToReach: 'Tap the orange phase pill (C / F / O / P) in the top-right header anytime to jump between phases.'
   },
   {
     badge: 'Step 2 of 6 • Phase C (Cross)',
     title: 'Solve the White Cross on Bottom',
     phase: 'cross',
     tab: 'ladder',
-    desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 8 moves or fewer using the 3D Cross Orbit cube and Ladder levels.',
+    desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6–8 moves or fewer while matching their side colors to the center pieces—use the 3D Cross Orbit cube and Ladder tiers to build efficiency.',
     howToReach: 'Top-right pill → C • Bottom bar: Ladder, Blind Run (dual-thumb mat), Mechanics.'
   },
   {
@@ -1455,7 +1233,7 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'First Two Layers (41 Pairs)',
     phase: 'f2l',
     tab: 'grind',
-    desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—solving the first two layers simultaneously.',
+    desc: 'Keep White on the bottom and Green in front. Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—completing the first two layers at the same time.',
     howToReach: 'Top-right pill → F • Tap Start Day Grind or any pair in Today\'s Lineup for a 3D isolated drill.'
   },
   {
@@ -1463,7 +1241,7 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'Orient Last Layer (57 Cases)',
     phase: 'oll',
     tab: 'grind',
-    desc: 'Recognize the Yellow pattern on top and execute one algorithm to make the entire top face solid Yellow.',
+    desc: 'Recognize the Yellow pattern on the top face and execute one algorithm to make the entire top face solid Yellow.',
     howToReach: 'Top-right pill → O • Use The Grind for daily chunks or Algorithms to browse all 57 OLL shapes.'
   },
   {
@@ -1471,16 +1249,16 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'Permute Last Layer (25 Algorithms)',
     phase: 'pll',
     tab: 'grind',
-    desc: 'With Yellow solid on top, swap the final corners and edges into their solved positions to finish the cube.',
+    desc: 'With Yellow solid on top, swap the final top-layer corners and edges into their solved positions to finish the cube.',
     howToReach: 'Top-right pill → P • Each case highlights inline fingertrick triggers and step-by-step grip cues.'
   },
   {
-    badge: 'Step 6 of 6 • Stats, Timer & Settings',
-    title: 'Track PBs & Full 3x3 Solves',
+    badge: 'Step 6 of 6 • Ready to Train',
+    title: 'Pick Your Starting Phase',
     phase: 'oll',
     tab: 'settings',
-    desc: 'Every phase includes Statistics (with custom per-case Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier.',
-    howToReach: 'Bottom bar → Statistics or Settings (swipe cards or tap dots at top-right of Settings).'
+    desc: 'Every phase includes Statistics (with custom 0.001s Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier. Choose where you want to start training right now:',
+    howToReach: 'Tap a phase button below to jump straight in, or switch anytime using the top-right C • F • O • P pill.'
   }
 ];
 
@@ -1638,6 +1416,11 @@ class AppErrorBoundary extends React.Component {
 }
 
 function OLLDaySuite() {
+  // Foreground Visibility State (Deep-sleep guard for background battery & thermal savings)
+  const [isAppVisible, setIsAppVisible] = useState(() =>
+    typeof document !== 'undefined' ? !document.hidden : true
+  );
+
   // Cloud Auth & Sync State
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
@@ -1730,11 +1513,16 @@ function OLLDaySuite() {
   const [crossDragRot, setCrossDragRot] = useState({ yaw: -35, pitch: 38 });
   const [crossIsDragging, setCrossIsDragging] = useState(false);
   const crossDragStartRef = useRef(null);
+  const crossLiveRotRef = useRef({ yaw: -35, pitch: 38 });
+  const crossCubeDomRef = useRef(null);
+  const crossDegreeLabelRef = useRef(null);
+  const crossRafRef = useRef(0);
   const [crossUserMoves, setCrossUserMoves] = useState(2);
   const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
   const [activeMechanicId, setActiveMechanicId] = useState(1);
-
-  // Blind Inspection Trainer State
+  const [activeMechApproachIdx, setActiveMechApproachIdx] = useState(0);
+  const [activeMechCaseIdx, setActiveMechCaseIdx] = useState(0);
+  const [mechCubeRot, setMechCubeRot] = useState({ yaw: -35, pitch: 38 });
   const [blindState, setBlindState] = useState('idle');
   const [inspectionLeft, setInspectionLeft] = useState(15.0);
   const [blindLogs, setBlindLogs] = useState([]);
@@ -1769,7 +1557,6 @@ function OLLDaySuite() {
 
   // Active Modals & Session Runners
   const [activeModal, setActiveModal] = useState(null);
-  const [onboardingSlide, setOnboardingSlide] = useState(0);
   const [ftCase, setFtCase] = useState(null);
   const [ftPhaseContext, setFtPhaseContext] = useState('f2l');
   const [builderPhase, setBuilderPhase] = useState('f2l');
@@ -1841,15 +1628,19 @@ function OLLDaySuite() {
   const [f2lDragRot, setF2lDragRot] = useState({ yaw: -35, pitch: -25 });
   const [f2lIsDragging, setF2lIsDragging] = useState(false);
   const f2lDragStartRef = useRef(null);
+  const f2lLiveRotRef = useRef({ yaw: -35, pitch: -25 });
+  const f2lCubeDomRef = useRef(null);
+  const f2lDegreeLabelRef = useRef(null);
+  const f2lRafRef = useRef(0);
 
   // Web Audio Acoustic Synthesizer
   const audioCtxRef = useRef(null);
   const emitBeep = (freq = 640, type = 'sine', duration = 0.07, vol = 0.12) => {
-    if (!audioEnabled || typeof window === 'undefined') return;
+    if (!audioEnabled || typeof window === 'undefined' || (typeof document !== 'undefined' && document.hidden)) return;
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
-      if (!audioCtxRef.current) {
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
         audioCtxRef.current = new AudioCtx();
       }
       const ctx = audioCtxRef.current;
@@ -1869,30 +1660,6 @@ function OLLDaySuite() {
     } catch {
       // Ignore audio restrictions
     }
-  };
-
-  // Auto-Navigation Helper for Guided Interactive Tours
-  const applyTourNavigation = (stepObj) => {
-    if (!stepObj) return;
-    setActivePhase(stepObj.phase);
-    if (stepObj.phase === 'cross') {
-      setCrossTab(stepObj.tab);
-    } else if (stepObj.phase === 'f2l') {
-      setF2lTab(stepObj.tab);
-    } else if (stepObj.phase === 'oll') {
-      setOllTab(stepObj.tab);
-    } else if (stepObj.phase === 'pll') {
-      setPllTab(stepObj.tab);
-    }
-  };
-
-  const startGuidedTour = (type) => {
-    const steps = type === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
-    setTourType(type);
-    setTourStepIdx(0);
-    applyTourNavigation(steps[0]);
-    setActiveModal('guidedTour');
-    emitBeep(680, 'sine', 0.08);
   };
 
   // Sanitize User Profile Record
@@ -1931,15 +1698,83 @@ function OLLDaySuite() {
     };
   };
 
-  // Persist Users & Active Account to localStorage
-  useEffect(() => {
+  // Auto-Navigation Helper for Guided Interactive Tours
+  const applyTourNavigation = (stepObj) => {
+    if (!stepObj) return;
+    setActivePhase(stepObj.phase);
+    if (stepObj.phase === 'cross') setCrossTab(stepObj.tab);
+    if (stepObj.phase === 'f2l') setF2lTab(stepObj.tab);
+    if (stepObj.phase === 'oll') setOllTab(stepObj.tab);
+    if (stepObj.phase === 'pll') setPllTab(stepObj.tab);
+  };
+
+  const startGuidedTour = (type) => {
+    emitBeep(720, 'sine', 0.08);
+    const steps = type === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
+    setTourType(type);
+    setTourStepIdx(0);
+    applyTourNavigation(steps[0]);
+    setActiveModal('guidedTour');
+  };
+
+  // Debounced Persistence for Users (450ms) + Immediate Flush on pagehide/visibilitychange
+  const latestUsersRef = useRef(users);
+  latestUsersRef.current = users;
+  const pendingCloudSyncRef = useRef(null);
+  const cloudSaveTimerRef = useRef(null);
+  const localSaveTimerRef = useRef(null);
+
+  const flushPendingPersistence = async () => {
+    if (localSaveTimerRef.current) {
+      clearTimeout(localSaveTimerRef.current);
+      localSaveTimerRef.current = null;
+    }
     try {
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(latestUsersRef.current));
       }
     } catch {
       // Ignore storage quota errors
     }
+
+    if (cloudSaveTimerRef.current) {
+      clearTimeout(cloudSaveTimerRef.current);
+      cloudSaveTimerRef.current = null;
+    }
+    const pending = pendingCloudSyncRef.current;
+    if (pending && pending.uKey && resolvedFirebaseConfig && cloudAuthUser) {
+      pendingCloudSyncRef.current = null;
+      try {
+        const svc = await getFirebaseServices();
+        if (svc) {
+          await svc.fsMod.setDoc(
+            svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', pending.uKey),
+            { ...sanitizeUserRecord(pending.record), updatedAt: Date.now() },
+            { merge: true }
+          );
+          setCloudSyncStatus('synced');
+        }
+      } catch {
+        setCloudSyncStatus('local');
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
+    localSaveTimerRef.current = setTimeout(() => {
+      localSaveTimerRef.current = null;
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+        }
+      } catch {
+        // Ignore storage quota errors
+      }
+    }, 450);
+    return () => {
+      if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
+    };
   }, [users]);
 
   useEffect(() => {
@@ -1956,26 +1791,18 @@ function OLLDaySuite() {
     }
   }, [activeUserKey]);
 
-  // Cloud Firestore Sync
-  const saveUserToCloud = async (uKey, record) => {
+  // Debounced Cloud Firestore Sync (Prevents burst writes during millisecond slider adjustments)
+  const saveUserToCloud = (uKey, record) => {
     if (!uKey || !resolvedFirebaseConfig || !cloudAuthUser) return;
-    try {
-      const svc = await getFirebaseServices();
-      if (!svc) return;
-      await svc.fsMod.setDoc(
-        svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
-        { ...sanitizeUserRecord(record), updatedAt: Date.now() },
-        { merge: true }
-      );
-      setCloudSyncStatus('synced');
-    } catch {
-      setCloudSyncStatus('local');
-    }
+    pendingCloudSyncRef.current = { uKey, record };
+    if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
+    cloudSaveTimerRef.current = setTimeout(() => {
+      flushPendingPersistence();
+    }, 450);
   };
 
   useEffect(() => {
     let unsubAuth = null;
-    let unsubSnapshot = null;
     let cancelled = false;
 
     (async () => {
@@ -2004,84 +1831,153 @@ function OLLDaySuite() {
         setCloudAuthUser(fbUser || null);
         if (!fbUser) {
           setCloudSyncStatus('local');
-          return;
+        } else {
+          setCloudSyncStatus('synced');
         }
-        setCloudSyncStatus('synced');
-        const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
-        unsubSnapshot = svc.fsMod.onSnapshot(
-          colRef,
-          (snap) => {
-            if (cancelled) return;
-            setUsers((prev) => {
-              const merged = { ...prev };
-              snap.forEach((docSnap) => {
-                const data = docSnap.data();
-                if (data && data._deleted) {
-                  delete merged[docSnap.id];
-                } else if (data && typeof data === 'object') {
-                  merged[docSnap.id] = sanitizeUserRecord({ ...(merged[docSnap.id] || {}), ...data });
-                }
-              });
-              return Object.keys(merged).length > 0 ? merged : { ...DEFAULT_USERS };
-            });
-          },
-          () => setCloudSyncStatus('local')
-        );
       });
     })();
 
     return () => {
       cancelled = true;
       if (typeof unsubAuth === 'function') unsubAuth();
+    };
+  }, []);
+
+  // Foreground-Only Firestore Snapshot Listener (Disconnects WebSocket while backgrounded)
+  useEffect(() => {
+    if (!resolvedFirebaseConfig || !cloudAuthUser || !isAppVisible) return;
+    let unsubSnapshot = null;
+    let cancelled = false;
+
+    (async () => {
+      const svc = await getFirebaseServices();
+      if (!svc || cancelled) return;
+      setCloudSyncStatus('synced');
+      const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+      unsubSnapshot = svc.fsMod.onSnapshot(
+        colRef,
+        (snap) => {
+          if (cancelled) return;
+          setUsers((prev) => {
+            const merged = { ...prev };
+            snap.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data && data._deleted) {
+                delete merged[docSnap.id];
+              } else if (data && typeof data === 'object') {
+                merged[docSnap.id] = sanitizeUserRecord({ ...(merged[docSnap.id] || {}), ...data });
+              }
+            });
+            return Object.keys(merged).length > 0 ? merged : { ...DEFAULT_USERS };
+          });
+        },
+        () => setCloudSyncStatus('local')
+      );
+    })();
+
+    return () => {
+      cancelled = true;
       if (typeof unsubSnapshot === 'function') unsubSnapshot();
     };
-  }, []);
+  }, [cloudAuthUser, isAppVisible]);
 
-  // Background Power-Save Lifecycle (visibilitychange)
+  // Deep-Sleep Background Power-Save Lifecycle (visibilitychange & pagehide)
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    const enterBackgroundSleep = () => {
+      setIsAppVisible(false);
+      flushPendingPersistence();
+      if (padHoldTimeoutRef.current) {
+        clearTimeout(padHoldTimeoutRef.current);
+        padHoldTimeoutRef.current = null;
+      }
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      if (crossRafRef.current) {
+        cancelAnimationFrame(crossRafRef.current);
+        crossRafRef.current = 0;
+      }
+      if (f2lRafRef.current) {
+        cancelAnimationFrame(f2lRafRef.current);
+        f2lRafRef.current = 0;
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
+      setLeftPadHeld(false);
+      setRightPadHeld(false);
+      setDraggedLineupIdx(null);
+      setBlindState((prev) => (prev === 'inspecting' || prev === 'readying' || prev === 'armed' ? 'idle' : prev));
+      setSwRunning(false);
+      setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
-          audioCtxRef.current.suspend().catch(() => {});
-        }
-        setSwRunning(false);
-        setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
+        enterBackgroundSleep();
+      } else {
+        setIsAppVisible(true);
       }
     };
+
+    const handlePageHide = () => {
+      enterBackgroundSleep();
+    };
+
+    const handlePageShow = () => {
+      setIsAppVisible(!document.hidden);
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
-  // Zero-Re-Render Case Stopwatch Loop (DOM ref updates)
+  // 30fps Throttled Case Stopwatch Loop (75% fewer 120Hz wakeups; exact ms precision on stop)
   useEffect(() => {
-    if (!swRunning) return;
+    if (!swRunning || !isAppVisible) return;
     let rafId = 0;
-    const tick = () => {
-      const elapsed = performance.now() - swStartRef.current;
-      if (swDisplayRef.current) {
-        swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
+    let lastPaint = 0;
+    const tick = (now) => {
+      if (now - lastPaint >= 33) {
+        lastPaint = now;
+        const elapsed = performance.now() - swStartRef.current;
+        if (swDisplayRef.current) {
+          swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [swRunning]);
+  }, [swRunning, isAppVisible]);
 
-  // Zero-Re-Render Full-Screen 3x3x3 Timer Loop (DOM ref updates)
+  // 30fps Throttled Full-Screen 3x3x3 Timer Loop (75% fewer 120Hz wakeups; exact ms precision on stop)
   useEffect(() => {
-    if (fullTimerState !== 'running') return;
+    if (fullTimerState !== 'running' || !isAppVisible) return;
     let rafId = 0;
-    const tick = () => {
-      const elapsed = performance.now() - fullStartRef.current;
-      if (fullTimerDisplayRef.current) {
-        fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
+    let lastPaint = 0;
+    const tick = (now) => {
+      if (now - lastPaint >= 33) {
+        lastPaint = now;
+        const elapsed = performance.now() - fullStartRef.current;
+        if (fullTimerDisplayRef.current) {
+          fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [fullTimerState]);
+  }, [fullTimerState, isAppVisible]);
 
   // Derived Current User & Curriculum Schedules
   const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
@@ -2322,9 +2218,9 @@ function OLLDaySuite() {
     .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0))
     .filter((n) => Number.isFinite(n));
   const bestFullPbMs = validFullMs.length ? Math.min(...validFullMs) : null;
-
-  // WCA Blind Inspection Countdown Effect
+  // WCA Blind Inspection Countdown Effect (Foreground-only)
   useEffect(() => {
+    if (!isAppVisible) return;
     if (blindState !== 'inspecting' && blindState !== 'readying' && blindState !== 'armed') return;
     const interval = setInterval(() => {
       setInspectionLeft((prev) => {
@@ -2342,7 +2238,7 @@ function OLLDaySuite() {
       });
     }, 100);
     return () => clearInterval(interval);
-  }, [blindState]);
+  }, [blindState, isAppVisible]);
 
   // Multi-touch dual-thumb arming lifecycle
   useEffect(() => {
@@ -2599,6 +2495,7 @@ function OLLDaySuite() {
     e.stopPropagation();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    crossLiveRotRef.current = { ...crossDragRot };
     crossDragStartRef.current = { lastX: clientX, lastY: clientY, moved: false };
     setCrossIsDragging(true);
   };
@@ -2615,34 +2512,59 @@ function OLLDaySuite() {
     if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
       crossDragStartRef.current.moved = true;
     }
-    setCrossDragRot((prev) => ({
-      yaw: Math.round(prev.yaw + deltaX * 1.15),
-      pitch: Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)))
-    }));
+    const nextYaw = Math.round(crossLiveRotRef.current.yaw + deltaX * 1.15);
+    const nextPitch = Math.max(-75, Math.min(75, Math.round(crossLiveRotRef.current.pitch - deltaY * 0.95)));
+    crossLiveRotRef.current = { yaw: nextYaw, pitch: nextPitch };
+
+    if (!crossRafRef.current) {
+      crossRafRef.current = requestAnimationFrame(() => {
+        crossRafRef.current = 0;
+        const { yaw, pitch } = crossLiveRotRef.current;
+        if (crossCubeDomRef.current) {
+          crossCubeDomRef.current.style.transform = `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(1.05)`;
+        }
+        if (crossDegreeLabelRef.current) {
+          crossDegreeLabelRef.current.textContent = `3D Cross Orbit • Drag to Spin (${((yaw % 360) + 360) % 360}°)`;
+        }
+      });
+    }
   };
 
   const handleCrossCubePointerUp = () => {
     if (!crossDragStartRef.current) return;
+    if (crossRafRef.current) {
+      cancelAnimationFrame(crossRafRef.current);
+      crossRafRef.current = 0;
+    }
     const wasTap = !crossDragStartRef.current.moved;
     crossDragStartRef.current = null;
     setCrossIsDragging(false);
     if (wasTap) {
       emitBeep(620);
-      setCrossDragRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch }));
+      setCrossDragRot((prev) => {
+        const next = { yaw: prev.yaw - 90, pitch: prev.pitch };
+        crossLiveRotRef.current = next;
+        return next;
+      });
+    } else {
+      setCrossDragRot({ ...crossLiveRotRef.current });
     }
   };
 
   // Interactive 3D F2L Cube Orbit Handlers
   const setF2LPresetAngle = (idx) => {
     const preset = F2L_VIEW_ANGLES[idx % F2L_VIEW_ANGLES.length];
+    const next = { yaw: preset.yaw, pitch: preset.pitch };
+    f2lLiveRotRef.current = next;
     setF2lViewIdx(idx % F2L_VIEW_ANGLES.length);
-    setF2lDragRot({ yaw: preset.yaw, pitch: preset.pitch });
+    setF2lDragRot(next);
   };
 
   const handleF2LCubePointerDown = (e) => {
     e.stopPropagation();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    f2lLiveRotRef.current = { ...f2lDragRot };
     f2lDragStartRef.current = { lastX: clientX, lastY: clientY, moved: false };
     setF2lIsDragging(true);
   };
@@ -2659,20 +2581,38 @@ function OLLDaySuite() {
     if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
       f2lDragStartRef.current.moved = true;
     }
-    setF2lDragRot((prev) => ({
-      yaw: Math.round(prev.yaw + deltaX * 1.15),
-      pitch: Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)))
-    }));
+    const nextYaw = Math.round(f2lLiveRotRef.current.yaw + deltaX * 1.15);
+    const nextPitch = Math.max(-75, Math.min(75, Math.round(f2lLiveRotRef.current.pitch - deltaY * 0.95)));
+    f2lLiveRotRef.current = { yaw: nextYaw, pitch: nextPitch };
+
+    if (!f2lRafRef.current) {
+      f2lRafRef.current = requestAnimationFrame(() => {
+        f2lRafRef.current = 0;
+        const { yaw, pitch } = f2lLiveRotRef.current;
+        if (f2lCubeDomRef.current) {
+          f2lCubeDomRef.current.style.transform = `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(1.05)`;
+        }
+        if (f2lDegreeLabelRef.current) {
+          f2lDegreeLabelRef.current.textContent = `3D Orbit • Drag to Spin (${((yaw % 360) + 360) % 360}°)`;
+        }
+      });
+    }
   };
 
   const handleF2LCubePointerUp = () => {
     if (!f2lDragStartRef.current) return;
+    if (f2lRafRef.current) {
+      cancelAnimationFrame(f2lRafRef.current);
+      f2lRafRef.current = 0;
+    }
     const wasTap = !f2lDragStartRef.current.moved;
     f2lDragStartRef.current = null;
     setF2lIsDragging(false);
     if (wasTap) {
       emitBeep(620);
       setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
+    } else {
+      setF2lDragRot({ ...f2lLiveRotRef.current });
     }
   };
 
@@ -2921,50 +2861,25 @@ function OLLDaySuite() {
                 <span className="text-[11px] font-bold text-white">3x3x3 Full-Solve Target PB</span>
                 <span className="font-mono text-xs font-black text-orange-400">{fullSolveTargetSec.toFixed(3)}s</span>
               </div>
-              <input
-                type="range"
-                min="3.000"
-                max="60.000"
-                step="0.001"
-                value={Math.min(60, Math.max(3, fullSolveTargetSec))}
-                onChange={(e) => updateFullSolveTargetPb(parseFloat(e.target.value))}
-                className="w-full accent-orange-500 cursor-pointer"
+              <MillisecondSliderControl
+                value={fullSolveTargetSec}
+                min={3.0}
+                max={60.0}
+                draftValue={targetPbInput}
+                accentTextClass="text-orange-300"
+                onSliderChange={updateFullSolveTargetPb}
+                onStepDelta={(delta) => {
+                  emitBeep(540);
+                  updateFullSolveTargetPb(fullSolveTargetSec + delta);
+                }}
+                onDraftChange={(val) => {
+                  setTargetPbInput(val);
+                  const parsed = parseFloat(val);
+                  if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 120) {
+                    updateFullSolveTargetPb(parsed);
+                  }
+                }}
               />
-              <div className="flex items-center gap-1">
-                {[
-                  { label: '-10ms', delta: -0.01 },
-                  { label: '-1ms', delta: -0.001 },
-                  { label: '+1ms', delta: 0.001 },
-                  { label: '+10ms', delta: 0.01 }
-                ].map((btn) => (
-                  <button
-                    key={btn.label}
-                    type="button"
-                    onClick={() => {
-                      emitBeep(540);
-                      updateFullSolveTargetPb(fullSolveTargetSec + btn.delta);
-                    }}
-                    className="flex-1 py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-                <input
-                  type="number"
-                  step="0.001"
-                  min="1.000"
-                  max="120.000"
-                  value={targetPbInput}
-                  onChange={(e) => {
-                    setTargetPbInput(e.target.value);
-                    const parsed = parseFloat(e.target.value);
-                    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 120) {
-                      updateFullSolveTargetPb(parsed);
-                    }
-                  }}
-                  className="w-20 rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-orange-300"
-                />
-              </div>
             </div>
 
             {/* Per-Phase Target PB (C, F, O, P) with Slider */}
@@ -3001,50 +2916,25 @@ function OLLDaySuite() {
                   ))}
                 </div>
               </div>
-              <input
-                type="range"
-                min="0.150"
-                max="15.000"
-                step="0.001"
-                value={Math.min(15, Math.max(0.15, getPhaseTargetPb(selectedTargetPhase)))}
-                onChange={(e) => updatePhaseTargetPb(selectedTargetPhase, parseFloat(e.target.value))}
-                className="w-full accent-orange-500 cursor-pointer"
+              <MillisecondSliderControl
+                value={getPhaseTargetPb(selectedTargetPhase)}
+                min={0.15}
+                max={15.0}
+                draftValue={phaseTargetInput}
+                accentTextClass="text-amber-300"
+                onSliderChange={(sec) => updatePhaseTargetPb(selectedTargetPhase, sec)}
+                onStepDelta={(delta) => {
+                  emitBeep(540);
+                  updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + delta);
+                }}
+                onDraftChange={(val) => {
+                  setPhaseTargetInput(val);
+                  const parsed = parseFloat(val);
+                  if (Number.isFinite(parsed) && parsed >= 0.1 && parsed <= 30) {
+                    updatePhaseTargetPb(selectedTargetPhase, parsed);
+                  }
+                }}
               />
-              <div className="flex items-center gap-1">
-                {[
-                  { label: '-10ms', delta: -0.01 },
-                  { label: '-1ms', delta: -0.001 },
-                  { label: '+1ms', delta: 0.001 },
-                  { label: '+10ms', delta: 0.01 }
-                ].map((btn) => (
-                  <button
-                    key={btn.label}
-                    type="button"
-                    onClick={() => {
-                      emitBeep(540);
-                      updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + btn.delta);
-                    }}
-                    className="flex-1 py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0.100"
-                  max="30.000"
-                  value={phaseTargetInput}
-                  onChange={(e) => {
-                    setPhaseTargetInput(e.target.value);
-                    const parsed = parseFloat(e.target.value);
-                    if (Number.isFinite(parsed) && parsed >= 0.1 && parsed <= 30) {
-                      updatePhaseTargetPb(selectedTargetPhase, parsed);
-                    }
-                  }}
-                  className="w-20 rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-amber-300"
-                />
-              </div>
               <p className="text-[9.5px] text-slate-400">
                 Custom per-case Target PBs can also be edited directly inside each phase&apos;s Statistics tab.
               </p>
@@ -3264,7 +3154,7 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 6: Beginner's Guide, Custom Builder (Blurred if non-Pro) & Reset Controls */}
+        {/* Card 6: Custom Builder (Blurred if non-Pro) & Reset Controls */}
         <div
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
         >
@@ -3281,25 +3171,9 @@ function OLLDaySuite() {
               Account →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white">Guides, Chunks &amp; Reset</h3>
+          <h3 className="text-lg font-black text-white">Custom Chunks &amp; Reset</h3>
 
           <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                emitBeep(560);
-                setOnboardingSlide(0);
-                setActiveModal('onboarding');
-              }}
-              className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left cursor-pointer"
-            >
-              <div>
-                <p className="text-xs font-black text-white">CFOP Beginner&apos;s Walkthrough</p>
-                <p className="text-[10px] text-slate-400">4-step interactive overview of C → F → O → P</p>
-              </div>
-              <span className="text-orange-400 font-black text-xs">Open →</span>
-            </button>
-
             <div className="relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
               {!isProUnlocked && (
                 <button
@@ -3504,6 +3378,1132 @@ function OLLDaySuite() {
     </div>
   );
 
+  // Unified Case Thumbnail Renderer (F2L Satin Cube vs. OLL/PLL VisualCube Plan)
+  const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
+    if (phaseKey === 'f2l') {
+      return (
+        <div className={`${sizeClass} flex-shrink-0 flex items-center justify-center pointer-events-none`}>
+          <img
+            src={getF2LImageUrl(item.alg)}
+            alt={item.name}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-contain f2l-cube-satin"
+          />
+        </div>
+      );
+    }
+    const imgUrl = phaseKey === 'pll' ? getPLLImageUrl(item.alg) : getOLLImageUrl(item.alg);
+    return (
+      <div className={`${sizeClass} rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center pointer-events-none`}>
+        <img
+          src={imgUrl}
+          alt={item.name}
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-contain"
+        />
+      </div>
+    );
+  };
+
+  // Unified Phase Workspace for F2L, OLL, and PLL (The Grind, Algorithms Library, Statistics, Settings)
+  const renderCFOPAlgorithmPhase = (phaseKey) => {
+    const isF2L = phaseKey === 'f2l';
+    const isPLL = phaseKey === 'pll';
+    const tab = isF2L ? f2lTab : isPLL ? pllTab : ollTab;
+    const dataList = isF2L ? F2L_DATA : isPLL ? PLL_DATA : OLL_DATA;
+    const lookupMap = isF2L ? F2L_BY_ID : isPLL ? PLL_BY_ID : OLL_BY_ID;
+    const groupList = isF2L ? F2L_GROUPS : isPLL ? PLL_GROUPS : OLL_GROUPS;
+    const chunksList = isF2L ? f2lChunks : isPLL ? pllChunks : ollChunks;
+    const scheduleList = isF2L ? f2lSchedule : isPLL ? pllSchedule : ollSchedule;
+    const safeDay = isF2L ? safeF2lDay : isPLL ? safePllDay : safeOllDay;
+    const dayObj = isF2L ? currentF2lDayObj : isPLL ? currentPllDayObj : currentOllDayObj;
+    const dayField = isF2L ? 'f2lDay' : isPLL ? 'pllDay' : 'day';
+    const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
+    const masteredCount = isF2L ? f2lMasteredCount : isPLL ? pllMasteredCount : ollMasteredCount;
+    const lineupOrder = isF2L ? f2lLineupOrder : isPLL ? pllLineupOrder : ollLineupOrder;
+    const libMode = isF2L ? f2lLibMode : isPLL ? pllLibMode : ollLibMode;
+    const setLibMode = isF2L ? setF2lLibMode : isPLL ? setPllLibMode : setOllLibMode;
+    const selectedCategory = isF2L ? f2lSelectedCategory : isPLL ? pllSelectedCategory : ollSelectedCategory;
+    const setSelectedCategory = isF2L ? setF2lSelectedCategory : isPLL ? setPllSelectedCategory : setOllSelectedCategory;
+    const setSession = isF2L ? setF2lSession : isPLL ? setPllSession : setOllSession;
+    const setDrillCase = isF2L ? setF2lDrillCase : isPLL ? setPllDrillCase : setOllDrillCase;
+
+    const meta = isF2L
+      ? {
+          subtitle: 'Hold White on Bottom • Green in Front • Target Slot: Front-Right (White–Green–Orange)',
+          lineupLabel: "Today's Pair Lineup (Hold & Drag to Reorder)",
+          libEyebrow: '41 Standard Pairs',
+          libTitle: 'F2L Library',
+          groupTabLabel: '6 Pair Groups',
+          unitLabel: 'Pairs',
+          statsTitle: 'F2L Statistics',
+          isFreeGroup: (g) => g === 'Basic Inserts'
+        }
+      : isPLL
+      ? {
+          subtitle: `2-Side Headlight & Block Recognition • Phase Target PB: ${getPhaseTargetPb('pll').toFixed(3)}s`,
+          lineupLabel: "Today's PLL Lineup (Hold & Drag to Reorder)",
+          libEyebrow: '21 Standard + 4 Bonus Algs',
+          libTitle: 'PLL Library',
+          groupTabLabel: '5 Perm Groups',
+          unitLabel: 'Algs',
+          statsTitle: 'PLL Statistics',
+          isFreeGroup: (g) => g === 'Edges Only (EPLL)' || g === 'Corners Only (CPLL)'
+        }
+      : {
+          subtitle: `Yellow Top Recognition • Phase Target PB: ${getPhaseTargetPb('oll').toFixed(3)}s`,
+          lineupLabel: "Today's OLL Lineup (Hold & Drag to Reorder)",
+          libEyebrow: '57 Last-Layer Cases',
+          libTitle: 'OLL Library',
+          groupTabLabel: 'Shape Groups',
+          unitLabel: 'Cases',
+          statsTitle: 'OLL Statistics',
+          isFreeGroup: (g) => g === 'All Edges Oriented'
+        };
+
+    if (tab === 'settings') return renderSettingsDeck();
+
+    if (tab === 'grind') {
+      return (
+        <div className="p-5 pb-10 space-y-4">
+          <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                Day {safeDay} • {dayObj.mode} Mode
+              </span>
+              <span className="text-xs font-black text-slate-300 font-mono">
+                {masteredCount}/{dataList.length} Mastered
+              </span>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-black text-white leading-tight">{dayObj.chunkTitle}</h2>
+              <p className="text-xs text-slate-400 mt-1">{meta.subtitle}</p>
+            </div>
+
+            {isF2L && (
+              <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Setup Scramble Style
+                  </span>
+                  <div className="bg-slate-900 p-0.5 rounded-xl border border-white/10 flex">
+                    {['beginner', 'realistic'].map((modeKey) => (
+                      <button
+                        key={modeKey}
+                        onClick={() => {
+                          emitBeep(520);
+                          setF2lSetupMode(modeKey);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer transition-all ${
+                          f2lSetupMode === modeKey
+                            ? 'bg-orange-500 text-slate-950'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {modeKey}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  {f2lSetupMode === 'beginner'
+                    ? 'Start from a solved cube (White bottom, Green front): sets up only the Front-Right pair while keeping the other 3 slots solved.'
+                    : 'Start from a solved cube (White bottom, Green front): keeps the White Cross solved while scrambling back/left slots like a real mid-solve.'}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  emitBeep(480);
+                  const prevDay = Math.max(1, safeDay - 1);
+                  const updated = { ...currentUser, [dayField]: prevDay };
+                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                  saveUserToCloud(activeUserKey, updated);
+                }}
+                disabled={safeDay <= 1}
+                className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+              >
+                ← Prev
+              </button>
+              <button
+                onClick={() => {
+                  const hasLocked = lineupOrder.some((c) => !isCaseUnlockedForTier(phaseKey, c.id, isProUnlocked));
+                  if (hasLocked) {
+                    openProPaywall(`Day ${safeDay} ${phaseKey.toUpperCase()} Cases`);
+                    return;
+                  }
+                  emitBeep(720, 'sine', 0.08);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  setSwLastResult(null);
+                  setSession({
+                    dayObj,
+                    index: 0,
+                    queue: [...lineupOrder]
+                  });
+                }}
+                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+              >
+                Start Day {safeDay} Grind ({lineupOrder.length})
+              </button>
+              <button
+                onClick={() => {
+                  emitBeep(480);
+                  const nextDay = safeDay >= scheduleList.length ? 1 : safeDay + 1;
+                  const updated = { ...currentUser, [dayField]: nextDay };
+                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                  saveUserToCloud(activeUserKey, updated);
+                }}
+                className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {meta.lineupLabel}
+              </span>
+              <span className="text-[10px] font-bold text-orange-400">{lineupOrder.length} Cases</span>
+            </div>
+
+            <div className="space-y-2">
+              {lineupOrder.map((item, idx) => {
+                const stat = statsMap?.[item.id];
+                const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+                return (
+                  <div
+                    key={item.id}
+                    data-lineup-idx={idx}
+                    onContextMenu={(e) => e.preventDefault()}
+                    onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
+                    onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
+                    onTouchEnd={cancelLineupHold}
+                    onClick={() => {
+                      if (draggedLineupIdx !== null) return;
+                      if (locked) {
+                        openProPaywall(item.name);
+                        return;
+                      }
+                      emitBeep(600);
+                      setSwRunning(false);
+                      setSwElapsedMs(0);
+                      setSwLastResult(null);
+                      setDrillCase(item);
+                    }}
+                    className={`relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      draggedLineupIdx === idx
+                        ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
+                        : locked
+                        ? 'border-orange-500/20'
+                        : 'border-white/10 hover:bg-slate-800/80'
+                    }`}
+                  >
+                    {locked && (
+                      <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                        <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                          🔒 {item.name} • Pro
+                        </span>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
+                      {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-12 h-12 rounded-xl')}
+                      <div className="min-w-0">
+                        <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                        <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
+                        {(item.step1 || item.recognition) && (
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.step1 || item.recognition}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
+                      {stat?.best && (
+                        <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
+                          {stat.best.toFixed(2)}s
+                        </span>
+                      )}
+                      <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (tab === 'algorithms') {
+      return (
+        <div className="p-5 pb-10 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">{meta.libEyebrow}</p>
+              <h2 className="text-2xl font-black tracking-tight text-white">{meta.libTitle}</h2>
+            </div>
+            <button
+              onClick={() => {
+                if (!isProUnlocked) {
+                  openProPaywall('Custom Curriculum Chunk Builder');
+                  return;
+                }
+                emitBeep(560);
+                openCurriculumBuilder(phaseKey);
+              }}
+              className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
+            >
+              {isProUnlocked ? '+ Edit Chunks' : '🔒 Edit Chunks'}
+            </button>
+          </div>
+
+          <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
+            <button
+              onClick={() => {
+                emitBeep(480);
+                setLibMode('groups');
+                setSelectedCategory(null);
+              }}
+              className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                libMode === 'groups' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {meta.groupTabLabel}
+            </button>
+            <button
+              onClick={() => {
+                emitBeep(480);
+                setLibMode('chunks');
+                setSelectedCategory(null);
+              }}
+              className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                libMode === 'chunks' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Curriculum Chunks
+            </button>
+          </div>
+
+          {!selectedCategory ? (
+            libMode === 'groups' ? (
+              <div className="grid grid-cols-2 gap-3">
+                {groupList.map((group) => {
+                  const groupCases = dataList.filter((c) => c.group === group);
+                  const sampleCase = groupCases[0];
+                  const groupLocked = !isProUnlocked && !meta.isFreeGroup(group);
+                  return (
+                    <button
+                      key={group}
+                      onClick={() => {
+                        emitBeep(520);
+                        setSelectedCategory({ type: 'group', name: group });
+                      }}
+                      className={`relative overflow-hidden bg-slate-900/60 border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
+                        groupLocked ? 'border-orange-500/20' : 'border-white/10'
+                      }`}
+                    >
+                      {groupLocked && (
+                        <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
+                          🔒 Pro
+                        </span>
+                      )}
+                      <div className={groupLocked ? 'blur-[2.5px] opacity-65' : ''}>
+                        {renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-24 h-24' : 'w-16 h-16')}
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-white leading-snug">{group}</h3>
+                        <span className="text-[10px] font-bold text-orange-400">
+                          {groupCases.length} {meta.unitLabel}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {chunksList.map((chk) => {
+                  const sampleCase = lookupMap.get(chk.ids[0]) || dataList[0];
+                  const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier(phaseKey, id, false));
+                  return (
+                    <button
+                      key={chk.id}
+                      onClick={() => {
+                        emitBeep(520);
+                        setSelectedCategory({ type: 'chunk', chunk: chk });
+                      }}
+                      className={`relative overflow-hidden w-full bg-slate-900/60 border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer ${
+                        chunkLocked ? 'border-orange-500/20' : 'border-white/10'
+                      }`}
+                    >
+                      <div className={chunkLocked ? 'blur-[2.5px] opacity-65' : ''}>
+                        {renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                          {chunkLocked && (
+                            <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
+                              🔒 PRO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {chk.ids.length} {phaseKey.toUpperCase()} {meta.unitLabel}
+                        </p>
+                      </div>
+                      <span className="text-orange-400 font-black text-sm">→</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  emitBeep(460);
+                  setSelectedCategory(null);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 cursor-pointer"
+              >
+                ← Back to All {libMode === 'groups' ? 'Groups' : 'Chunks'}
+              </button>
+              <h3 className="text-lg font-black text-white">
+                {selectedCategory.type === 'group' ? selectedCategory.name : selectedCategory.chunk.title}
+              </h3>
+              <div className="space-y-2.5">
+                {(selectedCategory.type === 'group'
+                  ? dataList.filter((c) => c.group === selectedCategory.name)
+                  : selectedCategory.chunk.ids.map((id) => lookupMap.get(id)).filter(Boolean)
+                ).map((item) => {
+                  const stat = statsMap?.[item.id];
+                  const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        if (locked) {
+                          openProPaywall(item.name);
+                          return;
+                        }
+                        emitBeep(600);
+                        setSwRunning(false);
+                        setSwElapsedMs(0);
+                        setSwLastResult(null);
+                        setDrillCase(item);
+                      }}
+                      className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
+                        locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
+                      }`}
+                    >
+                      {locked && (
+                        <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                          <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
+                            🔒 {item.name} • Unlock Pro
+                          </span>
+                        </div>
+                      )}
+                      <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
+                        {renderCaseThumb(phaseKey, item, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-black text-white truncate">{item.name}</span>
+                            {stat?.best && (
+                              <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
+                                {stat.best.toFixed(2)}s
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
+                          {item.recognition && (
+                            <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>
+                          )}
+                          {fingertricksEnabled && (
+                            <div className="mt-1.5 space-y-1">
+                              {getAlgorithmTriggerTags(item.alg).length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                                    <span
+                                      key={tag.label}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                                    >
+                                      <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                      {tag.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
+                                <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                              </p>
+                            </div>
+                          )}
+                          {item.step1 && <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.step1}</p>}
+                        </div>
+                      </div>
+                      {fingertricksEnabled && !locked && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            emitBeep(540);
+                            setFtPhaseContext(phaseKey);
+                            setFtCase(item);
+                            setActiveModal('fingertrick');
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
+                        >
+                          Grip
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Statistics Tab
+    return (
+      <div className="p-5 pb-10 space-y-4">
+        <div>
+          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
+          <h2 className="text-2xl font-black tracking-tight text-white">{meta.statsTitle}</h2>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+            <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
+            <span className="font-mono text-xl font-black text-green-400">
+              {masteredCount}/{dataList.length}
+            </span>
+          </div>
+          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+            <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Day</span>
+            <span className="font-mono text-xl font-black text-orange-400">{safeDay}</span>
+          </div>
+          <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+            <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
+            <span className="font-mono text-xl font-black text-amber-300">
+              {getPhaseTargetPb(phaseKey).toFixed(3)}s
+            </span>
+          </div>
+        </div>
+
+        {renderFullSolveStatsBlock()}
+
+        <div className="space-y-2">
+          {dataList.map((item) => {
+            const stat = statsMap?.[item.id];
+            const caseGoal = getEffectiveCaseTargetPb(phaseKey, item.id);
+            const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+            return (
+              <div
+                key={item.id}
+                onClick={() => {
+                  if (locked) {
+                    openProPaywall(item.name);
+                    return;
+                  }
+                  emitBeep(580);
+                  setSwRunning(false);
+                  setSwElapsedMs(0);
+                  setSwLastResult(null);
+                  setDrillCase(item);
+                }}
+                className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
+                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
+                }`}
+              >
+                {locked && (
+                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                    <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                      🔒 {item.name} • Pro
+                    </span>
+                  </div>
+                )}
+                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
+                  {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-11 h-11 rounded-xl')}
+                  <div className="min-w-0">
+                    <span className="text-xs font-black text-white block truncate">{item.name}</span>
+                    <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (locked) {
+                          openProPaywall(item.name);
+                          return;
+                        }
+                        emitBeep(560);
+                        setEditingCaseTarget({
+                          phase: phaseKey,
+                          caseId: item.id,
+                          name: item.name,
+                          draft: caseGoal.toFixed(3)
+                        });
+                      }}
+                      className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                      title="Set Case Target PB"
+                    >
+                      Goal: {caseGoal.toFixed(3)}s ✎
+                    </button>
+                  </div>
+                </div>
+                <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
+                  {stat?.best ? (
+                    <>
+                      <span
+                        className={`font-mono text-xs font-black block ${
+                          stat.best <= caseGoal ? 'text-green-400' : 'text-amber-300'
+                        }`}
+                      >
+                        PB: {stat.best.toFixed(3)}s
+                      </span>
+                      <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-500">Unlogged</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Unified Daily Session Runner (F2L, OLL, or PLL)
+  const renderUnifiedDailySession = () => {
+    const activePhaseSession = f2lSession
+      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
+      : ollSession
+      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
+      : pllSession
+      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
+      : null;
+
+    if (!activePhaseSession) return null;
+    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, itemLabel, timerLabel } = activePhaseSession;
+    const item = session.queue[session.index];
+    if (!item) return null;
+    const isF2L = phaseKey === 'f2l';
+    const isPLL = phaseKey === 'pll';
+
+    return (
+      <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
+        <div className="flex items-center justify-between">
+          <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+            {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
+          </span>
+          <button
+            onClick={() => {
+              setSwRunning(false);
+              setSession(null);
+            }}
+            className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
+          {isF2L ? (
+            <>
+              <div className="w-full flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(480);
+                        setF2LPresetAngle(0);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(620);
+                      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
+                  >
+                    Rotate Cube ↻
+                  </button>
+                </div>
+              </div>
+
+              <div
+                onMouseDown={handleF2LCubePointerDown}
+                onMouseMove={handleF2LCubePointerMove}
+                onMouseUp={handleF2LCubePointerUp}
+                onMouseLeave={handleF2LCubePointerUp}
+                onTouchStart={handleF2LCubePointerDown}
+                onTouchMove={handleF2LCubePointerMove}
+                onTouchEnd={handleF2LCubePointerUp}
+                style={{ touchAction: 'none' }}
+                className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
+              >
+                <F2LSpatial3DCube
+                  setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
+                  yaw={f2lDragRot.yaw}
+                  pitch={f2lDragRot.pitch}
+                  isDragging={f2lIsDragging}
+                  cubeRef={f2lCubeDomRef}
+                />
+                <span ref={f2lDegreeLabelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                  3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+              <img
+                src={
+                  isPLL
+                    ? getPLLImageUrl(
+                        item.alg,
+                        pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null
+                      )
+                    : getOLLImageUrl(item.alg)
+                }
+                alt={item.name}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+
+          <div className="text-center">
+            {!isF2L && (
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                {item.group}
+              </span>
+            )}
+            <h3 className="text-xl font-black text-white">{item.name}</h3>
+            {item.recognition && <p className="text-[11px] text-slate-300 mt-0.5">{item.recognition}</p>}
+          </div>
+
+          {(isF2L || isPLL) && (
+            <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
+                </span>
+                <button
+                  onClick={() => {
+                    emitBeep(540);
+                    if (isF2L) setF2lSetupSeed((s) => s + 1);
+                    else setPllSetupSeed((s) => s + 1);
+                  }}
+                  className="text-[10px] font-bold text-orange-400 cursor-pointer"
+                >
+                  {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
+                </button>
+              </div>
+              <p className="font-mono text-xs font-black text-amber-300 select-all">
+                {isF2L
+                  ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)
+                  : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
+              </p>
+            </div>
+          )}
+
+          <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase text-slate-400">
+                {isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}
+              </span>
+              {fingertricksEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(540);
+                    setFtPhaseContext(phaseKey);
+                    setFtCase(item);
+                    setActiveModal('fingertrick');
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
+                >
+                  Grip Guide →
+                </button>
+              )}
+            </div>
+            <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+            {fingertricksEnabled && (
+              <div className="space-y-1.5 text-left">
+                {isF2L && getAlgorithmTriggerTags(item.alg).length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-1">
+                    {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                      <span
+                        key={tag.label}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                        {tag.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+                  <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                </p>
+              </div>
+            )}
+            {isF2L && (
+              <p className="text-[11px] text-slate-300 text-left pt-1">
+                • <strong>Step 1:</strong> {item.step1}
+                <br />• <strong>Step 2:</strong> {item.step2}
+              </p>
+            )}
+          </div>
+
+          {stopwatchEnabled && (
+            <button
+              onClick={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+              className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
+                swRunning
+                  ? 'bg-green-500/20 border-green-400 text-green-300'
+                  : 'bg-slate-950 border-white/10 text-slate-200'
+              }`}
+            >
+              {swRunning ? (
+                <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+              ) : (
+                timerLabel
+              )}
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            onClick={() => {
+              emitBeep(460);
+              setSwRunning(false);
+              setSwElapsedMs(0);
+              setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
+            }}
+            disabled={session.index === 0}
+            className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+          >
+            ← Previous
+          </button>
+          <button
+            onClick={() => {
+              emitBeep(760);
+              setSwRunning(false);
+              setSwElapsedMs(0);
+              if (session.index + 1 < session.queue.length) {
+                setSession((s) => ({ ...s, index: s.index + 1 }));
+              } else {
+                const nextDay = safeDay >= scheduleLen ? 1 : safeDay + 1;
+                const updated = { ...currentUser, [dayField]: nextDay };
+                setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                saveUserToCloud(activeUserKey, updated);
+                setSession(null);
+              }
+            }}
+            className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+          >
+            {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Unified Isolated Case Drill Modal (F2L, OLL, or PLL)
+  const renderUnifiedDrillModal = () => {
+    const activeDrill = f2lDrillCase
+      ? { phaseKey: 'f2l', item: f2lDrillCase, close: () => setF2lDrillCase(null), statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' }
+      : ollDrillCase
+      ? { phaseKey: 'oll', item: ollDrillCase, close: () => setOllDrillCase(null), statsMap: currentUser.stats, timerLabel: 'Tap to Time OLL' }
+      : pllDrillCase
+      ? { phaseKey: 'pll', item: pllDrillCase, close: () => setPllDrillCase(null), statsMap: currentUser.pllStats, timerLabel: 'Tap to Time PLL' }
+      : null;
+
+    if (!activeDrill) return null;
+    const { phaseKey, item, close, statsMap, timerLabel } = activeDrill;
+    const isF2L = phaseKey === 'f2l';
+    const isPLL = phaseKey === 'pll';
+
+    const caseStat = statsMap?.[item.id] || {};
+    const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
+    const ao5Case = computeCaseWindowAvg(caseHist, 5);
+    const ao20Case = computeCaseWindowAvg(caseHist, 20);
+    const ao40Case = computeCaseWindowAvg(caseHist, 40);
+    const lastResultForThis =
+      swLastResult && swLastResult.phase === phaseKey && swLastResult.caseId === item.id ? swLastResult : null;
+
+    const handleClose = () => {
+      setSwRunning(false);
+      setSwLastResult(null);
+      close();
+    };
+
+    return (
+      <div
+        onClick={handleClose}
+        className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+              {item.group}
+            </span>
+            <button
+              onClick={handleClose}
+              className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          {isF2L ? (
+            <>
+              <div className="w-full flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(480);
+                        setF2LPresetAngle(0);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(620);
+                      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
+                  >
+                    Rotate Cube ↻
+                  </button>
+                </div>
+              </div>
+
+              <div
+                onMouseDown={handleF2LCubePointerDown}
+                onMouseMove={handleF2LCubePointerMove}
+                onMouseUp={handleF2LCubePointerUp}
+                onMouseLeave={handleF2LCubePointerUp}
+                onTouchStart={handleF2LCubePointerDown}
+                onTouchMove={handleF2LCubePointerMove}
+                onTouchEnd={handleF2LCubePointerUp}
+                style={{ touchAction: 'none' }}
+                className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
+              >
+                <F2LSpatial3DCube
+                  setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
+                  yaw={f2lDragRot.yaw}
+                  pitch={f2lDragRot.pitch}
+                  isDragging={f2lIsDragging}
+                  cubeRef={f2lCubeDomRef}
+                />
+                <span ref={f2lDegreeLabelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                  3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+              <img
+                src={
+                  isPLL
+                    ? getPLLImageUrl(
+                        item.alg,
+                        pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null
+                      )
+                    : getOLLImageUrl(item.alg)
+                }
+                alt={item.name}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+
+          <div className="text-center">
+            <h3 className="text-xl font-black text-white">{item.name}</h3>
+            {item.recognition && <p className="text-[11px] text-slate-300 mt-0.5">{item.recognition}</p>}
+          </div>
+
+          {(isF2L || isPLL) && (
+            <div className="bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble (From Solved Cube)'}
+                </span>
+                <button
+                  onClick={() => {
+                    emitBeep(540);
+                    if (isF2L) setF2lSetupSeed((s) => s + 1);
+                    else setPllSetupSeed((s) => s + 1);
+                  }}
+                  className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
+                >
+                  {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
+                </button>
+              </div>
+              <p className="font-mono text-xs font-black text-amber-300 select-all">
+                {isF2L
+                  ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)
+                  : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
+              </p>
+            </div>
+          )}
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                {isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}
+              </span>
+              {fingertricksEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(540);
+                    setFtPhaseContext(phaseKey);
+                    setFtCase(item);
+                    setActiveModal('fingertrick');
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
+                >
+                  Grip Guide →
+                </button>
+              )}
+            </div>
+            <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+            {fingertricksEnabled && (
+              <div className="space-y-1.5 text-left">
+                {getAlgorithmTriggerTags(item.alg).length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-1">
+                    {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                      <span
+                        key={tag.label}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                        {tag.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+                  <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                </p>
+              </div>
+            )}
+            {isF2L && (
+              <p className="text-[11px] text-slate-300 text-left pt-1">
+                • <strong>Step 1:</strong> {item.step1}
+                <br />• <strong>Step 2:</strong> {item.step2}
+              </p>
+            )}
+          </div>
+
+          {stopwatchEnabled && (
+            <div className="space-y-2">
+              <button
+                onClick={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+                className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                  swRunning
+                    ? 'bg-green-500/20 border-green-400 text-green-300'
+                    : lastResultForThis?.isNewPb
+                    ? 'bg-amber-500/15 border-amber-400/60 text-white'
+                    : 'bg-slate-950 border-white/10 text-slate-200'
+                }`}
+              >
+                {swRunning ? (
+                  <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+                ) : lastResultForThis ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-white">
+                        Got: {lastResultForThis.timeSec.toFixed(3)}s
+                      </span>
+                      {lastResultForThis.isNewPb ? (
+                        <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
+                          ★ New PB!
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
+                          PB: {caseStat.best?.toFixed(3)}s
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                      Tap to Time Again
+                    </span>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <span className="text-base font-black">{timerLabel}</span>
+                    {typeof caseStat.best === 'number' && (
+                      <span className="text-[10px] font-bold text-amber-300">
+                        Recorded PB: {caseStat.best.toFixed(3)}s
+                      </span>
+                    )}
+                  </div>
+                )}
+              </button>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
+                  <span className="font-mono text-xs font-black text-green-400">
+                    {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
+                  </span>
+                </div>
+                <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
+                  <span className="font-mono text-xs font-black text-sky-400">
+                    {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
+                  </span>
+                </div>
+                <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
+                  <span className="font-mono text-xs font-black text-purple-300">
+                    {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <style>{`
@@ -3522,11 +4522,23 @@ function OLLDaySuite() {
           filter: contrast(0.92) saturate(0.86) brightness(0.96) drop-shadow(0 12px 18px rgba(0, 0, 0, 0.52));
           transition: transform 0.25s ease, filter 0.25s ease;
         }
+        .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          transition: none !important;
+          animation: none !important;
+        }
       `}</style>
 
-      <div className="min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden">
-        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[40vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
-        <div className="fixed bottom-0 right-0 w-3/4 h-[35vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
+      <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
+        <div
+          style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)' }}
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] pointer-events-none z-0"
+        />
+        <div
+          style={{ background: 'radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)' }}
+          className="fixed bottom-0 right-0 w-3/4 h-[38vh] pointer-events-none z-0"
+        />
 
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
@@ -3534,25 +4546,7 @@ function OLLDaySuite() {
             <div className="flex items-center gap-2.5 min-w-0">
               {/* Sune Emblem */}
               <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
-                <svg viewBox="0 0 1000 1000" className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]" fill="none">
-                  <path d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z" fill="#090a14" stroke="#090a14" strokeWidth="32" strokeLinejoin="round" strokeLinecap="round" />
-                  <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-                    <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
-                    <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
-                    <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
-                  </g>
-                  <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
-                    <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
-                    <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
-                    <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
-                    <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
-                    <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
-                    <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
-                    <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
-                    <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
-                    <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
-                  </g>
-                </svg>
+                <SuneEmblemSvg className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg font-black tracking-tight text-white leading-none truncate">
@@ -3652,7 +4646,7 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    {/* Standard vs. Advanced Full-Scramble Ladder Toggle (Blurred for non-Pro) */}
+                    {/* Standard vs. Advanced Full-Scramble Ladder Toggle */}
                     <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
                       <button
                         type="button"
@@ -3690,13 +4684,10 @@ function OLLDaySuite() {
                             : 'text-slate-400 hover:text-white'
                         }`}
                       >
-                        {!isProUnlocked ? (
-                          <span className="inline-flex items-center gap-1 text-orange-300">
-                            🔒 <span className="blur-[2px] opacity-70">Advanced Full Scramble</span>
-                          </span>
-                        ) : (
-                          'Advanced Full Scramble'
-                        )}
+                        <span className={!isProUnlocked ? 'blur-[1.5px] opacity-80' : ''}>
+                          Advanced Full Scramble
+                        </span>
+                        {!isProUnlocked && <span className="ml-1 text-[9px] text-orange-300">🔒</span>}
                       </button>
                     </div>
 
@@ -3724,17 +4715,15 @@ function OLLDaySuite() {
                               crossTier === t.tier
                                 ? 'bg-orange-500 text-slate-950 shadow-md'
                                 : locked
-                                ? 'bg-white/5 text-slate-500 border border-orange-500/20'
+                                ? 'bg-white/5 text-slate-400 border border-orange-500/20'
                                 : 'bg-white/5 text-slate-400 hover:text-white'
                             }`}
                           >
-                            {locked ? (
-                              <span className="inline-flex items-center justify-center gap-0.5">
-                                <span className="blur-[2.5px] opacity-60">L{t.tier}</span>
-                                <span className="text-[9px]">🔒</span>
+                            <span className={locked ? 'blur-[2px] opacity-60' : ''}>L{t.tier}</span>
+                            {locked && (
+                              <span className="absolute inset-0 flex items-center justify-center text-[10px] text-orange-300">
+                                🔒
                               </span>
-                            ) : (
-                              `L${t.tier}`
                             )}
                           </button>
                         );
@@ -3855,8 +4844,9 @@ function OLLDaySuite() {
                             yaw={crossDragRot.yaw}
                             pitch={crossDragRot.pitch}
                             isDragging={crossIsDragging}
+                            cubeRef={crossCubeDomRef}
                           />
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                          <span ref={crossDegreeLabelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
                             3D Cross Orbit • Drag to Spin ({((crossDragRot.yaw % 360) + 360) % 360}°)
                           </span>
                         </div>
@@ -3941,7 +4931,7 @@ function OLLDaySuite() {
                         </button>
                       </div>
                     ) : (
-                      <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
+                      <div className="relative overflow-hidden bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                             Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill
@@ -3958,10 +4948,12 @@ function OLLDaySuite() {
                             <span>How It Works</span>
                           </button>
                         </div>
-                        <h4 className="text-base font-black text-white">Blind Practice Ready</h4>
-                        <p className="text-xs text-slate-400">
-                          Plan all {activeTierObj.moves} cross moves during inspection, then execute with eyes closed.
-                        </p>
+                        <div className={!isProUnlocked ? 'blur-[2.5px] opacity-65 select-none space-y-2' : 'space-y-2'}>
+                          <h4 className="text-base font-black text-white">Blind Practice Ready</h4>
+                          <p className="text-xs text-slate-400">
+                            Plan all {activeTierObj.moves} cross moves during inspection, then execute with eyes closed.
+                          </p>
+                        </div>
                         <button
                           onClick={() => {
                             if (!isProUnlocked) {
@@ -3973,15 +4965,7 @@ function OLLDaySuite() {
                           }}
                           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
                         >
-                          {isProUnlocked ? (
-                            'Open Blindfold Timer Mat'
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5">
-                              <span>🔒</span>
-                              <span className="blur-[2px] opacity-80">Blindfold Timer Mat</span>
-                              <span>• Pro</span>
-                            </span>
-                          )}
+                          {isProUnlocked ? 'Open Blindfold Timer Mat' : '🔒 Unlock Blindfold Timer Mat (Pro)'}
                         </button>
                       </div>
                     )}
@@ -3989,172 +4973,177 @@ function OLLDaySuite() {
                 )}
 
                 {crossTab === 'blind' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
-                        <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(540);
-                          setActiveModal('blindHelp');
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer"
-                      >
-                        <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
-                        <span>How It Works</span>
-                      </button>
-                    </div>
-
-                    <div className="relative overflow-hidden space-y-4">
-                      {!isProUnlocked && (
-                        <div
-                          onClick={() => openProPaywall('WCA Blindfold Timer Mat')}
-                          className="absolute inset-0 z-20 rounded-[2rem] bg-slate-950/45 backdrop-blur-[3px] flex flex-col items-center justify-center p-6 text-center cursor-pointer border border-orange-500/35"
-                        >
-                          <span className="px-3.5 py-1.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-xs font-black uppercase tracking-wider text-orange-200 shadow-lg">
-                            🔒 Blindfold Timer Mat • Pro
+                  <div className="relative p-5 pb-10 space-y-4">
+                    {!isProUnlocked && (
+                      <div className="fixed inset-x-0 top-20 bottom-24 z-30 flex items-center justify-center p-6 pointer-events-none">
+                        <div className="pointer-events-auto max-w-xs w-full rounded-[2rem] bg-slate-900/95 border border-orange-500/40 p-5 text-center shadow-2xl space-y-3">
+                          <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                            🔒 OLLDay Pro Feature
                           </span>
-                          <p className="text-[11px] text-slate-200 mt-2 max-w-[230px]">
-                            Tap to unlock the 15s WCA Inspection &amp; Dual-Thumb Speedstack Blind Mat.
+                          <h3 className="text-lg font-black text-white">WCA Blindfold Timer Mat</h3>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            Train 15-second inspection and eyes-closed execution on the dual-thumb Speedstack mat.
                           </p>
+                          <button
+                            type="button"
+                            onClick={() => openProPaywall('WCA Blindfold Timer Mat')}
+                            className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                          >
+                            Unlock Pro — $3.99
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={!isProUnlocked ? 'blur-[4px] opacity-55 pointer-events-none select-none space-y-4' : 'space-y-4'}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
+                          <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(540);
+                            setActiveModal('blindHelp');
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
+                          <span>How It Works</span>
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
+                        <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
+                        <p className="text-xs font-bold text-orange-400">
+                          {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
+                          {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
+                          {blindState === 'readying' && 'Holding pads... keep holding'}
+                          {blindState === 'armed' && 'ARMED! Release pads to close visor'}
+                          {blindState === 'done' && 'Run complete — log result below'}
+                        </p>
+                      </div>
+
+                      {blindState === 'idle' && (
+                        <button
+                          onClick={() => {
+                            emitBeep(800);
+                            setInspectionLeft(15.0);
+                            setBlindState('inspecting');
+                          }}
+                          className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer"
+                        >
+                          Start 15s Countdown
+                        </button>
+                      )}
+
+                      <div
+                        onContextMenu={(e) => e.preventDefault()}
+                        style={{ touchAction: 'none' }}
+                        className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${
+                          blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'
+                        }`}
+                      >
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">
+                          Speedstack Touch Pads (Hold Both Thumbs &amp; Release)
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div
+                            onMouseDown={() => handleSingleMousePadDown('left')}
+                            onMouseUp={handleSingleMousePadUp}
+                            onMouseLeave={handleSingleMousePadUp}
+                            onTouchStart={(e) => {
+                              e.preventDefault();
+                              if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
+                              setLeftPadHeld(true);
+                            }}
+                            onTouchEnd={(e) => {
+                              e.preventDefault();
+                              setLeftPadHeld(false);
+                            }}
+                            onTouchCancel={() => setLeftPadHeld(false)}
+                            className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
+                              blindState === 'armed'
+                                ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
+                                : leftPadHeld
+                                ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
+                                : 'bg-white/5 border-white/10 text-slate-400'
+                            }`}
+                          >
+                            <span>LEFT THUMB</span>
+                            <span className="text-[9px] font-bold opacity-80">
+                              {blindState === 'armed' ? 'READY ✓' : leftPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                            </span>
+                          </div>
+                          <div
+                            onMouseDown={() => handleSingleMousePadDown('right')}
+                            onMouseUp={handleSingleMousePadUp}
+                            onMouseLeave={handleSingleMousePadUp}
+                            onTouchStart={(e) => {
+                              e.preventDefault();
+                              if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
+                              setRightPadHeld(true);
+                            }}
+                            onTouchEnd={(e) => {
+                              e.preventDefault();
+                              setRightPadHeld(false);
+                            }}
+                            onTouchCancel={() => setRightPadHeld(false)}
+                            className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
+                              blindState === 'armed'
+                                ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
+                                : rightPadHeld
+                                ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
+                                : 'bg-white/5 border-white/10 text-slate-400'
+                            }`}
+                          >
+                            <span>RIGHT THUMB</span>
+                            <span className="text-[9px] font-bold opacity-80">
+                              {blindState === 'armed' ? 'READY ✓' : rightPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {blindState === 'done' && (
+                        <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-2">
+                          <span className="text-xs font-bold text-slate-300 block">Log Execution Result:</span>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['Clean', '+2', 'DNF'].map((res) => (
+                              <button
+                                key={res}
+                                onClick={() => {
+                                  emitBeep(600);
+                                  setBlindLogs((l) => [
+                                    { id: Date.now(), result: res, time: `${(15 - inspectionLeft).toFixed(1)}s insp` },
+                                    ...l.slice(0, 7)
+                                  ]);
+                                  setBlindState('idle');
+                                  setInspectionLeft(15.0);
+                                }}
+                                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
+                              >
+                                {res}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
 
-                      <div className={!isProUnlocked ? 'blur-[4px] opacity-55 pointer-events-none space-y-4' : 'space-y-4'}>
-                        <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
-                          <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
-                          <p className="text-xs font-bold text-orange-400">
-                            {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
-                            {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
-                            {blindState === 'readying' && 'Holding pads... keep holding'}
-                            {blindState === 'armed' && 'ARMED! Release pads to close visor'}
-                            {blindState === 'done' && 'Run complete — log result below'}
-                          </p>
-                        </div>
-
-                        {blindState === 'idle' && (
-                          <button
-                            onClick={() => {
-                              emitBeep(800);
-                              setInspectionLeft(15.0);
-                              setBlindState('inspecting');
-                            }}
-                            className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer"
-                          >
-                            Start 15s Countdown
-                          </button>
-                        )}
-
-                        <div
-                          onContextMenu={(e) => e.preventDefault()}
-                          style={{ touchAction: 'none' }}
-                          className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${
-                            blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'
-                          }`}
-                        >
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">
-                            Speedstack Touch Pads (Hold Both Thumbs &amp; Release)
-                          </p>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div
-                              onMouseDown={() => handleSingleMousePadDown('left')}
-                              onMouseUp={handleSingleMousePadUp}
-                              onMouseLeave={handleSingleMousePadUp}
-                              onTouchStart={(e) => {
-                                e.preventDefault();
-                                if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
-                                setLeftPadHeld(true);
-                              }}
-                              onTouchEnd={(e) => {
-                                e.preventDefault();
-                                setLeftPadHeld(false);
-                              }}
-                              onTouchCancel={() => setLeftPadHeld(false)}
-                              className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
-                                blindState === 'armed'
-                                  ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
-                                  : leftPadHeld
-                                  ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
-                                  : 'bg-white/5 border-white/10 text-slate-400'
-                              }`}
-                            >
-                              <span>LEFT THUMB</span>
-                              <span className="text-[9px] font-bold opacity-80">
-                                {blindState === 'armed' ? 'READY ✓' : leftPadHeld ? 'HOLDING ●' : 'TOUCH'}
-                              </span>
+                      {blindLogs.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Runs</span>
+                          {blindLogs.map((log) => (
+                            <div key={log.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs">
+                              <span className="font-bold text-white">{log.result}</span>
+                              <span className="font-mono text-slate-400">{log.time}</span>
                             </div>
-                            <div
-                              onMouseDown={() => handleSingleMousePadDown('right')}
-                              onMouseUp={handleSingleMousePadUp}
-                              onMouseLeave={handleSingleMousePadUp}
-                              onTouchStart={(e) => {
-                                e.preventDefault();
-                                if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
-                                setRightPadHeld(true);
-                              }}
-                              onTouchEnd={(e) => {
-                                e.preventDefault();
-                                setRightPadHeld(false);
-                              }}
-                              onTouchCancel={() => setRightPadHeld(false)}
-                              className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
-                                blindState === 'armed'
-                                  ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
-                                  : rightPadHeld
-                                  ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
-                                  : 'bg-white/5 border-white/10 text-slate-400'
-                              }`}
-                            >
-                              <span>RIGHT THUMB</span>
-                              <span className="text-[9px] font-bold opacity-80">
-                                {blindState === 'armed' ? 'READY ✓' : rightPadHeld ? 'HOLDING ●' : 'TOUCH'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {blindState === 'done' && (
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-2">
-                        <span className="text-xs font-bold text-slate-300 block">Log Execution Result:</span>
-                        <div className="grid grid-cols-3 gap-2">
-                          {['Clean', '+2', 'DNF'].map((res) => (
-                            <button
-                              key={res}
-                              onClick={() => {
-                                emitBeep(600);
-                                setBlindLogs((l) => [
-                                  { id: Date.now(), result: res, time: `${(15 - inspectionLeft).toFixed(1)}s insp` },
-                                  ...l.slice(0, 7)
-                                ]);
-                                setBlindState('idle');
-                                setInspectionLeft(15.0);
-                              }}
-                              className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
-                            >
-                              {res}
-                            </button>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {blindLogs.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Runs</span>
-                        {blindLogs.map((log) => (
-                          <div key={log.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs">
-                            <span className="font-bold text-white">{log.result}</span>
-                            <span className="font-mono text-slate-400">{log.time}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -4184,7 +5173,7 @@ function OLLDaySuite() {
                       ))}
                     </div>
 
-                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3">
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
                       <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                         {activeMechanicObj.badge}
                       </span>
@@ -4193,6 +5182,125 @@ function OLLDaySuite() {
                       <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">
                         {activeMechanicObj.example}
                       </div>
+
+                      {activeMechanicObj.approaches && (() => {
+                        const activeApproach =
+                          activeMechanicObj.approaches[activeMechApproachIdx] || activeMechanicObj.approaches[0];
+                        const activeCase =
+                          activeApproach.cases[activeMechCaseIdx] || activeApproach.cases[0];
+
+                        return (
+                          <div className="pt-2 border-t border-white/10 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                                Fine-Tuning Approaches
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {activeApproach.tag}
+                              </span>
+                            </div>
+
+                            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                              {activeMechanicObj.approaches.map((app, aIdx) => (
+                                <button
+                                  key={app.id}
+                                  type="button"
+                                  onClick={() => {
+                                    emitBeep(520);
+                                    setActiveMechApproachIdx(aIdx);
+                                    setActiveMechCaseIdx(0);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${
+                                    activeMechApproachIdx === aIdx
+                                      ? 'bg-orange-500 text-slate-950 shadow-sm'
+                                      : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white'
+                                  }`}
+                                >
+                                  {app.name}
+                                </button>
+                              ))}
+                            </div>
+
+                            <p className="text-[11px] text-slate-300 leading-relaxed bg-white/5 border border-white/5 rounded-xl p-3">
+                              {activeApproach.rule}
+                            </p>
+
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {activeApproach.cases.map((cItem, cIdx) => (
+                                <button
+                                  key={cItem.label}
+                                  type="button"
+                                  onClick={() => {
+                                    emitBeep(580);
+                                    setActiveMechCaseIdx(cIdx);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all ${
+                                    activeMechCaseIdx === cIdx
+                                      ? 'bg-amber-400/20 border border-amber-400/50 text-amber-300'
+                                      : 'bg-slate-950 border border-white/10 text-slate-400 hover:text-white'
+                                  }`}
+                                >
+                                  {cItem.label.split('•')[0].trim()}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-white">{activeCase.label}</span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      emitBeep(540);
+                                      setMechCubeRot((prev) =>
+                                        prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 }
+                                      );
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-300 cursor-pointer"
+                                  >
+                                    {mechCubeRot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      emitBeep(520);
+                                      setMechCubeRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch }));
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9.5px] font-bold text-slate-300 cursor-pointer"
+                                  >
+                                    Spin 90°
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="w-36 h-36 mx-auto flex items-center justify-center">
+                                <CrossSpatial3DCube
+                                  scramble={activeCase.setup}
+                                  yaw={mechCubeRot.yaw}
+                                  pitch={mechCubeRot.pitch}
+                                  isDragging={false}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-center font-mono">
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+                                  <span className="text-[9px] font-sans font-bold uppercase text-slate-400 block">Setup</span>
+                                  <span className="text-xs font-black text-amber-300">{activeCase.setup}</span>
+                                </div>
+                                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-2">
+                                  <span className="text-[9px] font-sans font-bold uppercase text-green-300 block">Optimal Solve</span>
+                                  <span className="text-xs font-black text-green-300">{activeCase.solve}</span>
+                                </div>
+                              </div>
+
+                              <p className="text-[11px] text-slate-300 leading-relaxed">
+                                {activeCase.note}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -4202,1604 +5310,10 @@ function OLLDaySuite() {
             )}
 
             {/* ===================================================== */}
-            {/* PHASE 2: F2L (FIRST TWO LAYERS — 41 CASES) */}
+            {/* PHASES 2, 3 & 4: F2L, OLL, PLL (UNIFIED WORKSPACE) */}
             {/* ===================================================== */}
-            {activePhase === 'f2l' && (
-              <>
-                {f2lTab === 'grind' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                          Day {safeF2lDay} • {currentF2lDayObj.mode} Mode
-                        </span>
-                        <span className="text-xs font-black text-slate-300 font-mono">
-                          {f2lMasteredCount}/41 Mastered
-                        </span>
-                      </div>
-
-                      <div>
-                        <h2 className="text-xl font-black text-white leading-tight">{currentF2lDayObj.chunkTitle}</h2>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Hold White on Bottom • Green in Front • Target Slot: Front-Right (White–Green–Orange)
-                        </p>
-                      </div>
-
-                      <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            Setup Scramble Style
-                          </span>
-                          <div className="bg-slate-900 p-0.5 rounded-xl border border-white/10 flex">
-                            <button
-                              onClick={() => {
-                                emitBeep(520);
-                                setF2lSetupMode('beginner');
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer transition-all ${
-                                f2lSetupMode === 'beginner'
-                                  ? 'bg-orange-500 text-slate-950'
-                                  : 'text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              Beginner
-                            </button>
-                            <button
-                              onClick={() => {
-                                emitBeep(520);
-                                setF2lSetupMode('realistic');
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer transition-all ${
-                                f2lSetupMode === 'realistic'
-                                  ? 'bg-orange-500 text-slate-950'
-                                  : 'text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              Realistic
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-slate-300 leading-relaxed">
-                          {f2lSetupMode === 'beginner'
-                            ? 'Start from a solved cube (White bottom, Green front): sets up only the Front-Right pair while keeping the other 3 slots solved.'
-                            : 'Start from a solved cube (White bottom, Green front): keeps the White Cross solved while scrambling back/left slots like a real mid-solve.'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            emitBeep(480);
-                            const prevDay = Math.max(1, safeF2lDay - 1);
-                            const updated = { ...currentUser, f2lDay: prevDay };
-                            setUsers((prev) => ({
-                              ...prev,
-                              [activeUserKey]: updated
-                            }));
-                            saveUserToCloud(activeUserKey, updated);
-                          }}
-                          disabled={safeF2lDay <= 1}
-                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                        >
-                          ← Prev
-                        </button>
-                        <button
-                          onClick={() => {
-                            const hasLocked = f2lLineupOrder.some((c) => !isCaseUnlockedForTier('f2l', c.id, isProUnlocked));
-                            if (hasLocked) {
-                              openProPaywall(`Day ${safeF2lDay} F2L Pairs`);
-                              return;
-                            }
-                            emitBeep(720, 'sine', 0.08);
-                            setSwRunning(false);
-                            setSwElapsedMs(0);
-                            setF2lSession({
-                              dayObj: currentF2lDayObj,
-                              index: 0,
-                              queue: [...f2lLineupOrder]
-                            });
-                          }}
-                          className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-                        >
-                          Start Day {safeF2lDay} Grind ({f2lLineupOrder.length})
-                        </button>
-                        <button
-                          onClick={() => {
-                            emitBeep(480);
-                            const nextDay = safeF2lDay >= f2lSchedule.length ? 1 : safeF2lDay + 1;
-                            const updated = { ...currentUser, f2lDay: nextDay };
-                            setUsers((prev) => ({
-                              ...prev,
-                              [activeUserKey]: updated
-                            }));
-                            saveUserToCloud(activeUserKey, updated);
-                          }}
-                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-                        >
-                          Next →
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          Today&apos;s Pair Lineup (Hold &amp; Drag to Reorder)
-                        </span>
-                        <span className="text-[10px] font-bold text-orange-400">{f2lLineupOrder.length} Cases</span>
-                      </div>
-
-                      <div className="space-y-2">
-                        {f2lLineupOrder.map((item, idx) => {
-                          const stat = currentUser.f2lStats?.[item.id];
-                          const locked = !isCaseUnlockedForTier('f2l', item.id, isProUnlocked);
-                          return (
-                            <div
-                              key={item.id}
-                              data-lineup-idx={idx}
-                              onContextMenu={(e) => e.preventDefault()}
-                              onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
-                              onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
-                              onTouchEnd={cancelLineupHold}
-                              onClick={() => {
-                                if (draggedLineupIdx !== null) return;
-                                if (locked) {
-                                  openProPaywall(item.name);
-                                  return;
-                                }
-                                emitBeep(600);
-                                setSwRunning(false);
-                                setSwElapsedMs(0);
-                                setF2lDrillCase(item);
-                              }}
-                              className={`relative overflow-hidden bg-slate-900/70 backdrop-blur-xl border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                                draggedLineupIdx === idx
-                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
-                                  : locked
-                                  ? 'border-orange-500/20'
-                                  : 'border-white/10 hover:bg-slate-800/80'
-                              }`}
-                            >
-                              {locked && (
-                                <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
-                                    🔒 {item.name} • Pro
-                                  </span>
-                                </div>
-                              )}
-                              <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                                <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center pointer-events-none">
-                                  <img
-                                    src={getF2LImageUrl(item.alg)}
-                                    alt={item.name}
-                                    className="w-full h-full object-contain f2l-cube-satin"
-                                  />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-black text-white">{item.name}</span>
-                                  </div>
-                                  <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
-                                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.step1}</p>
-                                </div>
-                              </div>
-
-                              <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
-                                {stat?.best && (
-                                  <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
-                                    {stat.best.toFixed(2)}s
-                                  </span>
-                                )}
-                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {f2lTab === 'algorithms' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">41 Standard Pairs</p>
-                        <h2 className="text-2xl font-black tracking-tight text-white">F2L Library</h2>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (!isProUnlocked) {
-                            openProPaywall('Custom Curriculum Chunk Builder');
-                            return;
-                          }
-                          emitBeep(560);
-                          openCurriculumBuilder('f2l');
-                        }}
-                        className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
-                      >
-                        {isProUnlocked ? '+ Edit Chunks' : '🔒 Edit Chunks'}
-                      </button>
-                    </div>
-
-                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
-                      <button
-                        onClick={() => {
-                          emitBeep(480);
-                          setF2lLibMode('groups');
-                          setF2lSelectedCategory(null);
-                        }}
-                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                          f2lLibMode === 'groups' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        6 Pair Groups
-                      </button>
-                      <button
-                        onClick={() => {
-                          emitBeep(480);
-                          setF2lLibMode('chunks');
-                          setF2lSelectedCategory(null);
-                        }}
-                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                          f2lLibMode === 'chunks' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Curriculum Chunks
-                      </button>
-                    </div>
-
-                    {!f2lSelectedCategory ? (
-                      f2lLibMode === 'groups' ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          {F2L_GROUPS.map((group) => {
-                            const groupCases = F2L_DATA.filter((c) => c.group === group);
-                            const sampleCase = groupCases[0];
-                            const groupLocked = !isProUnlocked && group !== 'Basic Inserts';
-                            return (
-                              <button
-                                key={group}
-                                onClick={() => {
-                                  emitBeep(520);
-                                  setF2lSelectedCategory({ type: 'group', name: group });
-                                }}
-                                className={`relative overflow-hidden bg-slate-900/60 backdrop-blur-2xl border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
-                                  groupLocked ? 'border-orange-500/20' : 'border-white/10'
-                                }`}
-                              >
-                                {groupLocked && (
-                                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
-                                    🔒 Pro
-                                  </span>
-                                )}
-                                <div className={`w-24 h-24 flex items-center justify-center ${groupLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
-                                  <img
-                                    src={getF2LImageUrl(sampleCase.alg)}
-                                    alt={group}
-                                    className="w-full h-full object-contain f2l-cube-satin"
-                                  />
-                                </div>
-                                <div>
-                                  <h3 className="text-xs font-black text-white leading-snug">{group}</h3>
-                                  <span className="text-[10px] font-bold text-orange-400">{groupCases.length} Pairs</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          {f2lChunks.map((chk) => {
-                            const sampleCase = F2L_DATA.find((c) => c.id === chk.ids[0]) || F2L_DATA[0];
-                            const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier('f2l', id, false));
-                            return (
-                              <button
-                                key={chk.id}
-                                onClick={() => {
-                                  emitBeep(520);
-                                  setF2lSelectedCategory({ type: 'chunk', chunk: chk });
-                                }}
-                                className={`relative overflow-hidden w-full bg-slate-900/60 backdrop-blur-2xl border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 active:scale-98 transition-all cursor-pointer ${
-                                  chunkLocked ? 'border-orange-500/20' : 'border-white/10'
-                                }`}
-                              >
-                                <div className={`w-20 h-20 flex-shrink-0 flex items-center justify-center ${chunkLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
-                                  <img
-                                    src={getF2LImageUrl(sampleCase.alg)}
-                                    alt={chk.title}
-                                    className="w-full h-full object-contain f2l-cube-satin"
-                                  />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
-                                    {chunkLocked && (
-                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
-                                        🔒 PRO
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} F2L Pairs</p>
-                                </div>
-                                <span className="text-orange-400 font-black text-sm">→</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )
-                    ) : (
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => {
-                            emitBeep(460);
-                            setF2lSelectedCategory(null);
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 hover:text-orange-300 cursor-pointer"
-                        >
-                          ← Back to All {f2lLibMode === 'groups' ? 'Groups' : 'Chunks'}
-                        </button>
-
-                        <h3 className="text-lg font-black text-white">
-                          {f2lSelectedCategory.type === 'group'
-                            ? f2lSelectedCategory.name
-                            : f2lSelectedCategory.chunk.title}
-                        </h3>
-
-                        <div className="space-y-2.5">
-                          {(f2lSelectedCategory.type === 'group'
-                            ? F2L_DATA.filter((c) => c.group === f2lSelectedCategory.name)
-                            : f2lSelectedCategory.chunk.ids
-                                .map((id) => F2L_DATA.find((c) => c.id === id))
-                                .filter(Boolean)
-                          ).map((item) => {
-                            const stat = currentUser.f2lStats?.[item.id];
-                            const locked = !isCaseUnlockedForTier('f2l', item.id, isProUnlocked);
-                            return (
-                              <div
-                                key={item.id}
-                                onClick={() => {
-                                  if (locked) {
-                                    openProPaywall(item.name);
-                                    return;
-                                  }
-                                  emitBeep(600);
-                                  setSwRunning(false);
-                                  setSwElapsedMs(0);
-                                  setF2lDrillCase(item);
-                                }}
-                                className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
-                                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
-                                }`}
-                              >
-                                {locked && (
-                                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
-                                      🔒 {item.name} • Unlock Pro
-                                    </span>
-                                  </div>
-                                )}
-                                <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                                  <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
-                                    <img
-                                      src={getF2LImageUrl(item.alg)}
-                                      alt={item.name}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="w-full h-full object-contain f2l-cube-satin"
-                                    />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-sm font-black text-white">{item.name}</span>
-                                      {stat?.best && (
-                                        <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
-                                          {stat.best.toFixed(2)}s
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
-                                    {fingertricksEnabled && (
-                                      <div className="mt-1.5 space-y-1">
-                                        {getAlgorithmTriggerTags(item.alg).length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {getAlgorithmTriggerTags(item.alg).map((tag) => (
-                                              <span
-                                                key={tag.label}
-                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                                              >
-                                                <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                                                {tag.label}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                        <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
-                                          <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-                                        </p>
-                                      </div>
-                                    )}
-                                    <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.step1}</p>
-                                  </div>
-                                </div>
-                                {fingertricksEnabled && !locked && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      emitBeep(540);
-                                      setFtPhaseContext('f2l');
-                                      setFtCase(item);
-                                      setActiveModal('fingertrick');
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
-                                  >
-                                    Grip
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {f2lTab === 'stats' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
-                      <h2 className="text-2xl font-black tracking-tight text-white">F2L Statistics</h2>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
-                        <span className="font-mono text-xl font-black text-green-400">{f2lMasteredCount}/41</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Day</span>
-                        <span className="font-mono text-xl font-black text-orange-400">{safeF2lDay}</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
-                        <span className="font-mono text-xl font-black text-amber-300">{getPhaseTargetPb('f2l').toFixed(3)}s</span>
-                      </div>
-                    </div>
-
-                    {renderFullSolveStatsBlock()}
-
-                    <div className="space-y-2">
-                      {F2L_DATA.map((item) => {
-                        const stat = currentUser.f2lStats?.[item.id];
-                        const caseGoal = getEffectiveCaseTargetPb('f2l', item.id);
-                        const locked = !isCaseUnlockedForTier('f2l', item.id, isProUnlocked);
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              if (locked) {
-                                openProPaywall(item.name);
-                                return;
-                              }
-                              emitBeep(580);
-                              setSwRunning(false);
-                              setSwElapsedMs(0);
-                              setF2lDrillCase(item);
-                            }}
-                            className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
-                              locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
-                            }`}
-                          >
-                            {locked && (
-                              <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
-                                  🔒 {item.name} • Pro
-                                </span>
-                              </div>
-                            )}
-                            <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                              <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center">
-                                <img
-                                  src={getF2LImageUrl(item.alg)}
-                                  alt={item.name}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-contain f2l-cube-satin"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <span className="text-xs font-black text-white block">{item.name}</span>
-                                <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (locked) {
-                                      openProPaywall(item.name);
-                                      return;
-                                    }
-                                    emitBeep(560);
-                                    setEditingCaseTarget({
-                                      phase: 'f2l',
-                                      caseId: item.id,
-                                      name: item.name,
-                                      draft: caseGoal.toFixed(3)
-                                    });
-                                  }}
-                                  className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                                  title="Set Case Target PB"
-                                >
-                                  Goal: {caseGoal.toFixed(3)}s ✎
-                                </button>
-                              </div>
-                            </div>
-                            <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
-                              {stat?.best ? (
-                                <>
-                                  <span
-                                    className={`font-mono text-xs font-black block ${
-                                      stat.best <= caseGoal ? 'text-green-400' : 'text-amber-300'
-                                    }`}
-                                  >
-                                    PB: {stat.best.toFixed(3)}s
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
-                                </>
-                              ) : (
-                                <span className="text-[10px] font-bold text-slate-500">Unlogged</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {f2lTab === 'settings' && renderSettingsDeck()}
-              </>
-            )}
-
-            {/* ===================================================== */}
-            {/* PHASE 3: OLL (ORIENT LAST LAYER — 57 CASES) */}
-            {/* ===================================================== */}
-            {activePhase === 'oll' && (
-              <>
-                {ollTab === 'grind' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                          Day {safeOllDay} • {currentOllDayObj.mode} Mode
-                        </span>
-                        <span className="text-xs font-black text-slate-300 font-mono">
-                          {ollMasteredCount}/57 Mastered
-                        </span>
-                      </div>
-
-                      <div>
-                        <h2 className="text-xl font-black text-white leading-tight">{currentOllDayObj.chunkTitle}</h2>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Yellow Top Recognition • Phase Target PB: {getPhaseTargetPb('oll').toFixed(3)}s
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            emitBeep(480);
-                            const prevDay = Math.max(1, safeOllDay - 1);
-                            const updated = { ...currentUser, day: prevDay };
-                            setUsers((prev) => ({
-                              ...prev,
-                              [activeUserKey]: updated
-                            }));
-                            saveUserToCloud(activeUserKey, updated);
-                          }}
-                          disabled={safeOllDay <= 1}
-                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                        >
-                          ← Prev
-                        </button>
-                        <button
-                          onClick={() => {
-                            const hasLocked = ollLineupOrder.some((c) => !isCaseUnlockedForTier('oll', c.id, isProUnlocked));
-                            if (hasLocked) {
-                              openProPaywall(`Day ${safeOllDay} OLL Cases`);
-                              return;
-                            }
-                            emitBeep(720, 'sine', 0.08);
-                            setSwRunning(false);
-                            setSwElapsedMs(0);
-                            setSwLastResult(null);
-                            setOllSession({
-                              dayObj: currentOllDayObj,
-                              index: 0,
-                              queue: [...ollLineupOrder]
-                            });
-                          }}
-                          className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-                        >
-                          Start Day {safeOllDay} Grind ({ollLineupOrder.length})
-                        </button>
-                        <button
-                          onClick={() => {
-                            emitBeep(480);
-                            const nextDay = safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1;
-                            const updated = { ...currentUser, day: nextDay };
-                            setUsers((prev) => ({
-                              ...prev,
-                              [activeUserKey]: updated
-                            }));
-                            saveUserToCloud(activeUserKey, updated);
-                          }}
-                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-                        >
-                          Next →
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          Today&apos;s OLL Lineup (Hold &amp; Drag to Reorder)
-                        </span>
-                        <span className="text-[10px] font-bold text-orange-400">{ollLineupOrder.length} Cases</span>
-                      </div>
-
-                      <div className="space-y-2">
-                        {ollLineupOrder.map((item, idx) => {
-                          const stat = currentUser.stats?.[item.id];
-                          const locked = !isCaseUnlockedForTier('oll', item.id, isProUnlocked);
-                          return (
-                            <div
-                              key={item.id}
-                              data-lineup-idx={idx}
-                              onContextMenu={(e) => e.preventDefault()}
-                              onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
-                              onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
-                              onTouchEnd={cancelLineupHold}
-                              onClick={() => {
-                                if (draggedLineupIdx !== null) return;
-                                if (locked) {
-                                  openProPaywall(item.name);
-                                  return;
-                                }
-                                emitBeep(600);
-                                setSwRunning(false);
-                                setSwElapsedMs(0);
-                                setSwLastResult(null);
-                                setOllDrillCase(item);
-                              }}
-                              className={`relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                                draggedLineupIdx === idx
-                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
-                                  : locked
-                                  ? 'border-orange-500/20'
-                                  : 'border-white/10 hover:bg-slate-800/80'
-                              }`}
-                            >
-                              {locked && (
-                                <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
-                                    🔒 {item.name} • Pro
-                                  </span>
-                                </div>
-                              )}
-                              <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                                <div className="w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 flex items-center justify-center pointer-events-none">
-                                  <img
-                                    src={getOLLImageUrl(item.alg)}
-                                    alt={item.name}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-black text-white block truncate">{item.name}</span>
-                                  </div>
-                                  <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
-                                </div>
-                              </div>
-
-                              <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
-                                {stat?.best && (
-                                  <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
-                                    {stat.best.toFixed(2)}s
-                                  </span>
-                                )}
-                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {ollTab === 'algorithms' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">57 Last-Layer Cases</p>
-                        <h2 className="text-2xl font-black tracking-tight text-white">OLL Library</h2>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (!isProUnlocked) {
-                            openProPaywall('Custom Curriculum Chunk Builder');
-                            return;
-                          }
-                          emitBeep(560);
-                          openCurriculumBuilder('oll');
-                        }}
-                        className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
-                      >
-                        {isProUnlocked ? '+ Edit Chunks' : '🔒 Edit Chunks'}
-                      </button>
-                    </div>
-
-                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
-                      <button
-                        onClick={() => {
-                          emitBeep(480);
-                          setOllLibMode('groups');
-                          setOllSelectedCategory(null);
-                        }}
-                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                          ollLibMode === 'groups' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Shape Groups
-                      </button>
-                      <button
-                        onClick={() => {
-                          emitBeep(480);
-                          setOllLibMode('chunks');
-                          setOllSelectedCategory(null);
-                        }}
-                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                          ollLibMode === 'chunks' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Curriculum Chunks
-                      </button>
-                    </div>
-
-                    {!ollSelectedCategory ? (
-                      ollLibMode === 'groups' ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          {OLL_GROUPS.map((group) => {
-                            const groupCases = OLL_DATA.filter((c) => c.group === group);
-                            const sampleCase = groupCases[0];
-                            const groupLocked = !isProUnlocked && group !== 'All Edges Oriented';
-                            return (
-                              <button
-                                key={group}
-                                onClick={() => {
-                                  emitBeep(520);
-                                  setOllSelectedCategory({ type: 'group', name: group });
-                                }}
-                                className={`relative overflow-hidden bg-slate-900/60 border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
-                                  groupLocked ? 'border-orange-500/20' : 'border-white/10'
-                                }`}
-                              >
-                                {groupLocked && (
-                                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
-                                    🔒 Pro
-                                  </span>
-                                )}
-                                <div className={`w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center ${groupLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
-                                  <img
-                                    src={getOLLImageUrl(sampleCase.alg)}
-                                    alt={group}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div>
-                                  <h3 className="text-xs font-black text-white leading-snug">{group}</h3>
-                                  <span className="text-[10px] font-bold text-orange-400">{groupCases.length} Cases</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          {ollChunks.map((chk) => {
-                            const sampleCase = OLL_DATA.find((c) => c.id === chk.ids[0]) || OLL_DATA[0];
-                            const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier('oll', id, false));
-                            return (
-                              <button
-                                key={chk.id}
-                                onClick={() => {
-                                  emitBeep(520);
-                                  setOllSelectedCategory({ type: 'chunk', chunk: chk });
-                                }}
-                                className={`relative overflow-hidden w-full bg-slate-900/60 border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer ${
-                                  chunkLocked ? 'border-orange-500/20' : 'border-white/10'
-                                }`}
-                              >
-                                <div className={`w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center ${chunkLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
-                                  <img
-                                    src={getOLLImageUrl(sampleCase.alg)}
-                                    alt={chk.title}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
-                                    {chunkLocked && (
-                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
-                                        🔒 PRO
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} OLL Cases</p>
-                                </div>
-                                <span className="text-orange-400 font-black text-sm">→</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )
-                    ) : (
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => {
-                            emitBeep(460);
-                            setOllSelectedCategory(null);
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 cursor-pointer"
-                        >
-                          ← Back to All {ollLibMode === 'groups' ? 'Groups' : 'Chunks'}
-                        </button>
-                        <h3 className="text-lg font-black text-white">
-                          {ollSelectedCategory.type === 'group'
-                            ? ollSelectedCategory.name
-                            : ollSelectedCategory.chunk.title}
-                        </h3>
-                        <div className="space-y-2.5">
-                          {(ollSelectedCategory.type === 'group'
-                            ? OLL_DATA.filter((c) => c.group === ollSelectedCategory.name)
-                            : ollSelectedCategory.chunk.ids
-                                .map((id) => OLL_DATA.find((c) => c.id === id))
-                                .filter(Boolean)
-                          ).map((item) => {
-                            const stat = currentUser.stats?.[item.id];
-                            const locked = !isCaseUnlockedForTier('oll', item.id, isProUnlocked);
-                            return (
-                              <div
-                                key={item.id}
-                                onClick={() => {
-                                  if (locked) {
-                                    openProPaywall(item.name);
-                                    return;
-                                  }
-                                  emitBeep(600);
-                                  setSwRunning(false);
-                                  setSwElapsedMs(0);
-                                  setSwLastResult(null);
-                                  setOllDrillCase(item);
-                                }}
-                                className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
-                                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
-                                }`}
-                              >
-                                {locked && (
-                                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
-                                      🔒 {item.name} • Unlock Pro
-                                    </span>
-                                  </div>
-                                )}
-                                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                                  <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0">
-                                    <img
-                                      src={getOLLImageUrl(item.alg)}
-                                      alt={item.name}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="w-full h-full object-contain"
-                                    />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-sm font-black text-white truncate">{item.name}</span>
-                                      {stat?.best && (
-                                        <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
-                                          {stat.best.toFixed(2)}s
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
-                                    {fingertricksEnabled && (
-                                      <div className="mt-1.5 space-y-1">
-                                        {getAlgorithmTriggerTags(item.alg).length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {getAlgorithmTriggerTags(item.alg).map((tag) => (
-                                              <span
-                                                key={tag.label}
-                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                                              >
-                                                <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                                                {tag.label}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                        <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
-                                          <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                {fingertricksEnabled && !locked && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      emitBeep(540);
-                                      setFtPhaseContext('oll');
-                                      setFtCase(item);
-                                      setActiveModal('fingertrick');
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
-                                  >
-                                    Grip
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {ollTab === 'stats' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
-                      <h2 className="text-2xl font-black tracking-tight text-white">OLL Statistics</h2>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
-                        <span className="font-mono text-xl font-black text-green-400">{ollMasteredCount}/57</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Day</span>
-                        <span className="font-mono text-xl font-black text-orange-400">{safeOllDay}</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
-                        <span className="font-mono text-xl font-black text-amber-300">{getPhaseTargetPb('oll').toFixed(3)}s</span>
-                      </div>
-                    </div>
-
-                    {renderFullSolveStatsBlock()}
-
-                    <div className="space-y-2">
-                      {OLL_DATA.map((item) => {
-                        const stat = currentUser.stats?.[item.id];
-                        const caseGoal = getEffectiveCaseTargetPb('oll', item.id);
-                        const locked = !isCaseUnlockedForTier('oll', item.id, isProUnlocked);
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              if (locked) {
-                                openProPaywall(item.name);
-                                return;
-                              }
-                              emitBeep(580);
-                              setSwRunning(false);
-                              setSwElapsedMs(0);
-                              setSwLastResult(null);
-                              setOllDrillCase(item);
-                            }}
-                            className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
-                              locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
-                            }`}
-                          >
-                            {locked && (
-                              <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
-                                  🔒 {item.name} • Pro
-                                </span>
-                              </div>
-                            )}
-                            <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                              <div className="w-11 h-11 rounded-xl bg-slate-200 p-1 flex-shrink-0">
-                                <img
-                                  src={getOLLImageUrl(item.alg)}
-                                  alt={item.name}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-contain"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <span className="text-xs font-black text-white block truncate">{item.name}</span>
-                                <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (locked) {
-                                      openProPaywall(item.name);
-                                      return;
-                                    }
-                                    emitBeep(560);
-                                    setEditingCaseTarget({
-                                      phase: 'oll',
-                                      caseId: item.id,
-                                      name: item.name,
-                                      draft: caseGoal.toFixed(3)
-                                    });
-                                  }}
-                                  className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                                  title="Set Case Target PB"
-                                >
-                                  Goal: {caseGoal.toFixed(3)}s ✎
-                                </button>
-                              </div>
-                            </div>
-                            <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
-                              {stat?.best ? (
-                                <>
-                                  <span
-                                    className={`font-mono text-xs font-black block ${
-                                      stat.best <= caseGoal ? 'text-green-400' : 'text-amber-300'
-                                    }`}
-                                  >
-                                    PB: {stat.best.toFixed(3)}s
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
-                                </>
-                              ) : (
-                                <span className="text-[10px] font-bold text-slate-500">Unlogged</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {ollTab === 'settings' && renderSettingsDeck()}
-              </>
-            )}
-
-            {/* ===================================================== */}
-            {/* PHASE 4: PLL (PERMUTE LAST LAYER — 25 ALGORITHMS) */}
-            {/* ===================================================== */}
-            {activePhase === 'pll' && (
-              <>
-                {pllTab === 'grind' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                          Day {safePllDay} • {currentPllDayObj.mode} Mode
-                        </span>
-                        <span className="text-xs font-black text-slate-300 font-mono">
-                          {pllMasteredCount}/{PLL_DATA.length} Mastered
-                        </span>
-                      </div>
-
-                      <div>
-                        <h2 className="text-xl font-black text-white leading-tight">{currentPllDayObj.chunkTitle}</h2>
-                        <p className="text-xs text-slate-400 mt-1">
-                          2-Side Headlight &amp; Block Recognition • Phase Target PB: {getPhaseTargetPb('pll').toFixed(3)}s
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            emitBeep(480);
-                            const prevDay = Math.max(1, safePllDay - 1);
-                            const updated = { ...currentUser, pllDay: prevDay };
-                            setUsers((prev) => ({
-                              ...prev,
-                              [activeUserKey]: updated
-                            }));
-                            saveUserToCloud(activeUserKey, updated);
-                          }}
-                          disabled={safePllDay <= 1}
-                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-                        >
-                          ← Prev
-                        </button>
-                        <button
-                          onClick={() => {
-                            const hasLocked = pllLineupOrder.some((c) => !isCaseUnlockedForTier('pll', c.id, isProUnlocked));
-                            if (hasLocked) {
-                              openProPaywall(`Day ${safePllDay} PLL Algorithms`);
-                              return;
-                            }
-                            emitBeep(720, 'sine', 0.08);
-                            setSwRunning(false);
-                            setSwElapsedMs(0);
-                            setSwLastResult(null);
-                            setPllSession({
-                              dayObj: currentPllDayObj,
-                              index: 0,
-                              queue: [...pllLineupOrder]
-                            });
-                          }}
-                          className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-                        >
-                          Start Day {safePllDay} Grind ({pllLineupOrder.length})
-                        </button>
-                        <button
-                          onClick={() => {
-                            emitBeep(480);
-                            const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
-                            const updated = { ...currentUser, pllDay: nextDay };
-                            setUsers((prev) => ({
-                              ...prev,
-                              [activeUserKey]: updated
-                            }));
-                            saveUserToCloud(activeUserKey, updated);
-                          }}
-                          className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-                        >
-                          Next →
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          Today&apos;s PLL Lineup (Hold &amp; Drag to Reorder)
-                        </span>
-                        <span className="text-[10px] font-bold text-orange-400">{pllLineupOrder.length} Cases</span>
-                      </div>
-
-                      <div className="space-y-2">
-                        {pllLineupOrder.map((item, idx) => {
-                          const stat = currentUser.pllStats?.[item.id];
-                          const locked = !isCaseUnlockedForTier('pll', item.id, isProUnlocked);
-                          return (
-                            <div
-                              key={item.id}
-                              data-lineup-idx={idx}
-                              onContextMenu={(e) => e.preventDefault()}
-                              onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
-                              onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
-                              onTouchEnd={cancelLineupHold}
-                              onClick={() => {
-                                if (draggedLineupIdx !== null) return;
-                                if (locked) {
-                                  openProPaywall(item.name);
-                                  return;
-                                }
-                                emitBeep(600);
-                                setSwRunning(false);
-                                setSwElapsedMs(0);
-                                setSwLastResult(null);
-                                setPllDrillCase(item);
-                              }}
-                              className={`relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                                draggedLineupIdx === idx
-                                  ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
-                                  : locked
-                                  ? 'border-orange-500/20'
-                                  : 'border-white/10 hover:bg-slate-800/80'
-                              }`}
-                            >
-                              {locked && (
-                                <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
-                                    🔒 {item.name} • Pro
-                                  </span>
-                                </div>
-                              )}
-                              <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                                <div className="w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 flex items-center justify-center pointer-events-none">
-                                  <img
-                                    src={getPLLImageUrl(item.alg)}
-                                    alt={item.name}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-black text-white block truncate">{item.name}</span>
-                                  </div>
-                                  <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
-                                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.recognition}</p>
-                                </div>
-                              </div>
-
-                              <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
-                                {stat?.best && (
-                                  <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
-                                    {stat.best.toFixed(2)}s
-                                  </span>
-                                )}
-                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {pllTab === 'algorithms' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">21 Standard + 4 Bonus Algs</p>
-                        <h2 className="text-2xl font-black tracking-tight text-white">PLL Library</h2>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (!isProUnlocked) {
-                            openProPaywall('Custom Curriculum Chunk Builder');
-                            return;
-                          }
-                          emitBeep(560);
-                          openCurriculumBuilder('pll');
-                        }}
-                        className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
-                      >
-                        {isProUnlocked ? '+ Edit Chunks' : '🔒 Edit Chunks'}
-                      </button>
-                    </div>
-
-                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
-                      <button
-                        onClick={() => {
-                          emitBeep(480);
-                          setPllLibMode('groups');
-                          setPllSelectedCategory(null);
-                        }}
-                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                          pllLibMode === 'groups' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        5 Perm Groups
-                      </button>
-                      <button
-                        onClick={() => {
-                          emitBeep(480);
-                          setPllLibMode('chunks');
-                          setPllSelectedCategory(null);
-                        }}
-                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                          pllLibMode === 'chunks' ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Curriculum Chunks
-                      </button>
-                    </div>
-
-                    {!pllSelectedCategory ? (
-                      pllLibMode === 'groups' ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          {PLL_GROUPS.map((group) => {
-                            const groupCases = PLL_DATA.filter((c) => c.group === group);
-                            const sampleCase = groupCases[0];
-                            const groupLocked =
-                              !isProUnlocked &&
-                              group !== 'Edges Only (EPLL)' &&
-                              group !== 'Corners Only (CPLL)';
-                            return (
-                              <button
-                                key={group}
-                                onClick={() => {
-                                  emitBeep(520);
-                                  setPllSelectedCategory({ type: 'group', name: group });
-                                }}
-                                className={`relative overflow-hidden bg-slate-900/60 border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
-                                  groupLocked ? 'border-orange-500/20' : 'border-white/10'
-                                }`}
-                              >
-                                {groupLocked && (
-                                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
-                                    🔒 Pro
-                                  </span>
-                                )}
-                                <div className={`w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center ${groupLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
-                                  <img
-                                    src={getPLLImageUrl(sampleCase.alg)}
-                                    alt={group}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div>
-                                  <h3 className="text-xs font-black text-white leading-snug">{group}</h3>
-                                  <span className="text-[10px] font-bold text-orange-400">{groupCases.length} Algs</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          {pllChunks.map((chk) => {
-                            const sampleCase = PLL_DATA.find((c) => c.id === chk.ids[0]) || PLL_DATA[0];
-                            const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier('pll', id, false));
-                            return (
-                              <button
-                                key={chk.id}
-                                onClick={() => {
-                                  emitBeep(520);
-                                  setPllSelectedCategory({ type: 'chunk', chunk: chk });
-                                }}
-                                className={`relative overflow-hidden w-full bg-slate-900/60 border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer ${
-                                  chunkLocked ? 'border-orange-500/20' : 'border-white/10'
-                                }`}
-                              >
-                                <div className={`w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center ${chunkLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
-                                  <img
-                                    src={getPLLImageUrl(sampleCase.alg)}
-                                    alt={chk.title}
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
-                                    {chunkLocked && (
-                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
-                                        🔒 PRO
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} PLL Cases</p>
-                                </div>
-                                <span className="text-orange-400 font-black text-sm">→</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )
-                    ) : (
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => {
-                            emitBeep(460);
-                            setPllSelectedCategory(null);
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 cursor-pointer"
-                        >
-                          ← Back to All {pllLibMode === 'groups' ? 'Groups' : 'Chunks'}
-                        </button>
-                        <h3 className="text-lg font-black text-white">
-                          {pllSelectedCategory.type === 'group'
-                            ? pllSelectedCategory.name
-                            : pllSelectedCategory.chunk.title}
-                        </h3>
-                        <div className="space-y-2.5">
-                          {(pllSelectedCategory.type === 'group'
-                            ? PLL_DATA.filter((c) => c.group === pllSelectedCategory.name)
-                            : pllSelectedCategory.chunk.ids
-                                .map((id) => PLL_DATA.find((c) => c.id === id))
-                                .filter(Boolean)
-                          ).map((item) => {
-                            const stat = currentUser.pllStats?.[item.id];
-                            const locked = !isCaseUnlockedForTier('pll', item.id, isProUnlocked);
-                            return (
-                              <div
-                                key={item.id}
-                                onClick={() => {
-                                  if (locked) {
-                                    openProPaywall(item.name);
-                                    return;
-                                  }
-                                  emitBeep(600);
-                                  setSwRunning(false);
-                                  setSwElapsedMs(0);
-                                  setSwLastResult(null);
-                                  setPllDrillCase(item);
-                                }}
-                                className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
-                                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
-                                }`}
-                              >
-                                {locked && (
-                                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
-                                      🔒 {item.name} • Unlock Pro
-                                    </span>
-                                  </div>
-                                )}
-                                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                                  <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0">
-                                    <img
-                                      src={getPLLImageUrl(item.alg)}
-                                      alt={item.name}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="w-full h-full object-contain"
-                                    />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-sm font-black text-white truncate">{item.name}</span>
-                                      {stat?.best && (
-                                        <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
-                                          {stat.best.toFixed(2)}s
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
-                                    <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>
-                                    {fingertricksEnabled && (
-                                      <div className="mt-1.5 space-y-1">
-                                        {getAlgorithmTriggerTags(item.alg).length > 0 && (
-                                          <div className="flex flex-wrap gap-1">
-                                            {getAlgorithmTriggerTags(item.alg).map((tag) => (
-                                              <span
-                                                key={tag.label}
-                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                                              >
-                                                <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                                                {tag.label}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                        <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
-                                          <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                {fingertricksEnabled && !locked && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      emitBeep(540);
-                                      setFtPhaseContext('pll');
-                                      setFtCase(item);
-                                      setActiveModal('fingertrick');
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
-                                  >
-                                    Grip
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {pllTab === 'stats' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
-                      <h2 className="text-2xl font-black tracking-tight text-white">PLL Statistics</h2>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Mastered</span>
-                        <span className="font-mono text-xl font-black text-green-400">{pllMasteredCount}/{PLL_DATA.length}</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Current Day</span>
-                        <span className="font-mono text-xl font-black text-orange-400">{safePllDay}</span>
-                      </div>
-                      <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Target PB</span>
-                        <span className="font-mono text-xl font-black text-amber-300">{getPhaseTargetPb('pll').toFixed(3)}s</span>
-                      </div>
-                    </div>
-
-                    {renderFullSolveStatsBlock()}
-
-                    <div className="space-y-2">
-                      {PLL_DATA.map((item) => {
-                        const stat = currentUser.pllStats?.[item.id];
-                        const caseGoal = getEffectiveCaseTargetPb('pll', item.id);
-                        const locked = !isCaseUnlockedForTier('pll', item.id, isProUnlocked);
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              if (locked) {
-                                openProPaywall(item.name);
-                                return;
-                              }
-                              emitBeep(580);
-                              setSwRunning(false);
-                              setSwElapsedMs(0);
-                              setSwLastResult(null);
-                              setPllDrillCase(item);
-                            }}
-                            className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
-                              locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
-                            }`}
-                          >
-                            {locked && (
-                              <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
-                                  🔒 {item.name} • Pro
-                                </span>
-                              </div>
-                            )}
-                            <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
-                              <div className="w-11 h-11 rounded-xl bg-slate-200 p-1 flex-shrink-0">
-                                <img
-                                  src={getPLLImageUrl(item.alg)}
-                                  alt={item.name}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-contain"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <span className="text-xs font-black text-white block truncate">{item.name}</span>
-                                <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (locked) {
-                                      openProPaywall(item.name);
-                                      return;
-                                    }
-                                    emitBeep(560);
-                                    setEditingCaseTarget({
-                                      phase: 'pll',
-                                      caseId: item.id,
-                                      name: item.name,
-                                      draft: caseGoal.toFixed(3)
-                                    });
-                                  }}
-                                  className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                                  title="Set Case Target PB"
-                                >
-                                  Goal: {caseGoal.toFixed(3)}s ✎
-                                </button>
-                              </div>
-                            </div>
-                            <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
-                              {stat?.best ? (
-                                <>
-                                  <span
-                                    className={`font-mono text-xs font-black block ${
-                                      stat.best <= caseGoal ? 'text-green-400' : 'text-amber-300'
-                                    }`}
-                                  >
-                                    PB: {stat.best.toFixed(3)}s
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">{stat.attempts} runs</span>
-                                </>
-                              ) : (
-                                <span className="text-[10px] font-bold text-slate-500">Unlogged</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {pllTab === 'settings' && renderSettingsDeck()}
-              </>
-            )}
+            {(activePhase === 'f2l' || activePhase === 'oll' || activePhase === 'pll') &&
+              renderCFOPAlgorithmPhase(activePhase)}
           </main>
 
           {/* SYMMETRICAL 4-COLUMN BOTTOM NAVIGATION BAR */}
@@ -5946,10 +5460,16 @@ function OLLDaySuite() {
         {fullTimerOpen && (
           <div
             onClick={handleFullTimerScreenTap}
-            className="fixed inset-0 z-[290] bg-slate-950/80 backdrop-blur-3xl flex flex-col justify-between p-6 select-none cursor-pointer"
+            className="fixed inset-0 z-[290] bg-slate-950/88 backdrop-blur-xl flex flex-col justify-between p-6 select-none cursor-pointer"
           >
-            <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
-            <div className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-sky-500/15 blur-[110px]" />
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }}
+              className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+            />
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)' }}
+              className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+            />
 
             <div
               onClick={(e) => e.stopPropagation()}
@@ -6067,33 +5587,21 @@ function OLLDaySuite() {
 
         {/* 7. GLASSMORPHIC SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-slate-950/65 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-y-auto">
-            <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
-            <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-sky-500/15 blur-[110px]" />
+          <div className="fixed inset-0 z-[255] bg-slate-950/80 backdrop-blur-xl flex flex-col items-center justify-center p-6 overflow-y-auto">
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }}
+              className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+            />
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)' }}
+              className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full"
+            />
 
             <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-white/[0.08] backdrop-blur-2xl border border-white/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.2)] space-y-5">
               {/* Brand Emblem & Title */}
               <div className="flex flex-col items-center text-center space-y-2">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-2 flex items-center justify-center shadow-lg">
-                  <svg viewBox="0 0 1000 1000" className="w-full h-full" fill="none">
-                    <path d="M214 310 L295 258 L524 168 L806 416 L726 558 L592 660 L515 688 L214 550 Z" fill="#090a14" stroke="#090a14" strokeWidth="32" strokeLinejoin="round" strokeLinecap="round" />
-                    <g stroke="#090a14" strokeWidth="14" strokeLinejoin="round">
-                      <polygon points="248,312 331,343 403,286 320,255" fill="#d96528" />
-                      <polygon points="348,350 431,381 503,324 420,293" fill="#090a12" />
-                      <polygon points="448,388 531,419 603,362 520,331" fill="#090a12" />
-                    </g>
-                    <g transform="matrix(0.967, 0.367, -0.067, 1.067, 240, 315)" stroke="#090a14" strokeWidth="10" strokeLinejoin="round">
-                      <rect x="6" y="6" width="86" height="86" rx="14" fill="#090a12" />
-                      <rect x="104" y="6" width="86" height="86" rx="14" fill="#d96528" />
-                      <rect x="202" y="6" width="86" height="86" rx="14" fill="#090a12" />
-                      <rect x="6" y="104" width="86" height="86" rx="14" fill="#d96528" />
-                      <rect x="104" y="104" width="86" height="86" rx="14" fill="#d96528" />
-                      <rect x="202" y="104" width="86" height="86" rx="14" fill="#d96528" />
-                      <rect x="6" y="202" width="86" height="86" rx="14" fill="#d96528" />
-                      <rect x="104" y="202" width="86" height="86" rx="14" fill="#d96528" />
-                      <rect x="202" y="202" width="86" height="86" rx="14" fill="#090a12" />
-                    </g>
-                  </svg>
+                  <SuneEmblemSvg className="w-full h-full" />
                 </div>
                 <div>
                   <h2 className="text-xl font-black tracking-tight text-white">
@@ -6367,6 +5875,35 @@ function OLLDaySuite() {
                   <p className="text-[11px] text-slate-200 mt-0.5">{step.howToReach}</p>
                 </div>
 
+                {isLast && (
+                  <div className="space-y-1.5 pt-0.5">
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">
+                      Jump Directly to a Phase:
+                    </span>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { key: 'cross', label: 'C • Cross', tab: 'ladder' },
+                        { key: 'f2l', label: 'F • F2L', tab: 'grind' },
+                        { key: 'oll', label: 'O • OLL', tab: 'grind' },
+                        { key: 'pll', label: 'P • PLL', tab: 'grind' }
+                      ].map((dest) => (
+                        <button
+                          key={dest.key}
+                          type="button"
+                          onClick={() => {
+                            emitBeep(760, 'sine', 0.08);
+                            applyTourNavigation({ phase: dest.key, tab: dest.tab });
+                            setActiveModal(null);
+                          }}
+                          className="py-2 px-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/40 text-[10px] font-black text-orange-200 transition-all active:scale-95 cursor-pointer"
+                        >
+                          {dest.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2 pt-0.5">
                   <button
                     type="button"
@@ -6486,1055 +6023,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* 2. F2L DAILY SESSION RUNNER */}
-        {f2lSession && activeF2LSessionCase && (
-          <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                {f2lSession.dayObj.mode} • Pair {f2lSession.index + 1}/{f2lSession.queue.length}
-              </span>
-              <button
-                onClick={() => {
-                  setSwRunning(false);
-                  setF2lSession(null);
-                }}
-                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
-              <div className="w-full flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(480);
-                        setF2LPresetAngle(0);
-                      }}
-                      className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
-                    >
-                      Reset
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      emitBeep(620);
-                      setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
-                  >
-                    Rotate Cube ↻
-                  </button>
-                </div>
-              </div>
-
-              <div
-                onMouseDown={handleF2LCubePointerDown}
-                onMouseMove={handleF2LCubePointerMove}
-                onMouseUp={handleF2LCubePointerUp}
-                onMouseLeave={handleF2LCubePointerUp}
-                onTouchStart={handleF2LCubePointerDown}
-                onTouchMove={handleF2LCubePointerMove}
-                onTouchEnd={handleF2LCubePointerUp}
-                style={{ touchAction: 'none' }}
-                className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
-              >
-                <F2LSpatial3DCube
-                  setupScramble={generateF2LSetupScramble(activeF2LSessionCase.alg, f2lSetupMode, f2lSetupSeed)}
-                  yaw={f2lDragRot.yaw}
-                  pitch={f2lDragRot.pitch}
-                  isDragging={f2lIsDragging}
-                />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
-                  3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
-                </span>
-              </div>
-
-              <h3 className="text-xl font-black text-white text-center">{activeF2LSessionCase.name}</h3>
-
-              <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase text-slate-400">
-                    Setup ({f2lSetupMode})
-                  </span>
-                  <button
-                    onClick={() => {
-                      emitBeep(540);
-                      setF2lSetupSeed((s) => s + 1);
-                    }}
-                    className="text-[10px] font-bold text-orange-400 cursor-pointer"
-                  >
-                    New Scramble ↻
-                  </button>
-                </div>
-                <p className="font-mono text-xs font-black text-amber-300 select-all">
-                  {generateF2LSetupScramble(activeF2LSessionCase.alg, f2lSetupMode, f2lSetupSeed)}
-                </p>
-              </div>
-
-              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase text-slate-400">
-                    Solution (Front-Right Slot)
-                  </span>
-                  {fingertricksEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(540);
-                        setFtPhaseContext('f2l');
-                        setFtCase(activeF2LSessionCase);
-                        setActiveModal('fingertrick');
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
-                    >
-                      Grip Guide →
-                    </button>
-                  )}
-                </div>
-                <p className="font-mono text-base font-black text-white">{activeF2LSessionCase.alg}</p>
-                {fingertricksEnabled && (
-                  <div className="space-y-1.5 text-left">
-                    {getAlgorithmTriggerTags(activeF2LSessionCase.alg).length > 0 && (
-                      <div className="flex flex-wrap justify-center gap-1">
-                        {getAlgorithmTriggerTags(activeF2LSessionCase.alg).map((tag) => (
-                          <span
-                            key={tag.label}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                            {tag.label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
-                      <strong className="text-orange-400">Fingertrick:</strong> {activeF2LSessionCase.fingertrick}
-                    </p>
-                  </div>
-                )}
-                <p className="text-[11px] text-slate-300 text-left pt-1">
-                  • <strong>Step 1:</strong> {activeF2LSessionCase.step1}
-                  <br />• <strong>Step 2:</strong> {activeF2LSessionCase.step2}
-                </p>
-              </div>
-
-              {stopwatchEnabled && (
-                <button
-                  onClick={() => toggleStopwatch((sec) => recordCaseTime('f2l', activeF2LSessionCase.id, sec))}
-                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
-                    swRunning
-                      ? 'bg-green-500/20 border-green-400 text-green-300'
-                      : 'bg-slate-950 border-white/10 text-slate-200'
-                  }`}
-                >
-                  {swRunning ? (
-                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                  ) : (
-                    'Tap to Time Case'
-                  )}
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => {
-                  emitBeep(460);
-                  setSwRunning(false);
-                  setSwElapsedMs(0);
-                  setF2lSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
-                }}
-                disabled={f2lSession.index === 0}
-                className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-              >
-                ← Previous
-              </button>
-              <button
-                onClick={() => {
-                  emitBeep(760);
-                  setSwRunning(false);
-                  setSwElapsedMs(0);
-                  if (f2lSession.index + 1 < f2lSession.queue.length) {
-                    setF2lSession((s) => ({ ...s, index: s.index + 1 }));
-                  } else {
-                    const nextDay = safeF2lDay >= f2lSchedule.length ? 1 : safeF2lDay + 1;
-                    const updated = { ...currentUser, f2lDay: nextDay };
-                    setUsers((prev) => ({
-                      ...prev,
-                      [activeUserKey]: updated
-                    }));
-                    saveUserToCloud(activeUserKey, updated);
-                    setF2lSession(null);
-                  }
-                }}
-                className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-              >
-                {f2lSession.index + 1 < f2lSession.queue.length ? 'Next Pair →' : 'Complete Day ✓'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 3. ISOLATED F2L DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
-        {f2lDrillCase && (() => {
-          const caseStat = currentUser.f2lStats?.[f2lDrillCase.id] || {};
-          const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
-          const ao5Case = computeCaseWindowAvg(caseHist, 5);
-          const ao20Case = computeCaseWindowAvg(caseHist, 20);
-          const ao40Case = computeCaseWindowAvg(caseHist, 40);
-          const lastResultForThis =
-            swLastResult && swLastResult.phase === 'f2l' && swLastResult.caseId === f2lDrillCase.id
-              ? swLastResult
-              : null;
-
-          return (
-            <div
-              onClick={() => {
-                setSwRunning(false);
-                setSwLastResult(null);
-                setF2lDrillCase(null);
-              }}
-              className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    {f2lDrillCase.group}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSwRunning(false);
-                      setSwLastResult(null);
-                      setF2lDrillCase(null);
-                    }}
-                    className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="w-full flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {(f2lDragRot.yaw !== -35 || f2lDragRot.pitch !== -25) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(480);
-                          setF2LPresetAngle(0);
-                        }}
-                        className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
-                      >
-                        Reset
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(620);
-                        setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
-                    >
-                      Rotate Cube ↻
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  onMouseDown={handleF2LCubePointerDown}
-                  onMouseMove={handleF2LCubePointerMove}
-                  onMouseUp={handleF2LCubePointerUp}
-                  onMouseLeave={handleF2LCubePointerUp}
-                  onTouchStart={handleF2LCubePointerDown}
-                  onTouchMove={handleF2LCubePointerMove}
-                  onTouchEnd={handleF2LCubePointerUp}
-                  style={{ touchAction: 'none' }}
-                  className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
-                >
-                  <F2LSpatial3DCube
-                    setupScramble={generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
-                    yaw={f2lDragRot.yaw}
-                    pitch={f2lDragRot.pitch}
-                    isDragging={f2lIsDragging}
-                  />
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
-                    3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
-                  </span>
-                </div>
-
-                <h3 className="text-xl font-black text-white text-center">{f2lDrillCase.name}</h3>
-
-                <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase text-slate-400">
-                      Setup ({f2lSetupMode})
-                    </span>
-                    <button
-                      onClick={() => {
-                        emitBeep(540);
-                        setF2lSetupSeed((s) => s + 1);
-                      }}
-                      className="text-[10px] font-bold text-orange-400 cursor-pointer"
-                    >
-                      New Scramble ↻
-                    </button>
-                  </div>
-                  <p className="font-mono text-xs font-black text-amber-300 select-all">
-                    {generateF2LSetupScramble(f2lDrillCase.alg, f2lSetupMode, f2lSetupSeed)}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase text-slate-400">
-                      Solution (Front-Right Slot)
-                    </span>
-                    {fingertricksEnabled && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(540);
-                          setFtPhaseContext('f2l');
-                          setFtCase(f2lDrillCase);
-                          setActiveModal('fingertrick');
-                        }}
-                        className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
-                      >
-                        Grip Guide →
-                      </button>
-                    )}
-                  </div>
-                  <p className="font-mono text-base font-black text-white">{f2lDrillCase.alg}</p>
-                  {fingertricksEnabled && (
-                    <div className="space-y-1.5 text-left">
-                      {getAlgorithmTriggerTags(f2lDrillCase.alg).length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-1">
-                          {getAlgorithmTriggerTags(f2lDrillCase.alg).map((tag) => (
-                            <span
-                              key={tag.label}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                              {tag.label}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
-                        <strong className="text-orange-400">Fingertrick:</strong> {f2lDrillCase.fingertrick}
-                      </p>
-                    </div>
-                  )}
-                  <p className="text-[11px] text-slate-300 text-left pt-1">
-                    • <strong>Step 1:</strong> {f2lDrillCase.step1}
-                    <br />• <strong>Step 2:</strong> {f2lDrillCase.step2}
-                  </p>
-                </div>
-
-                {stopwatchEnabled && (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => toggleStopwatch((sec) => recordCaseTime('f2l', f2lDrillCase.id, sec))}
-                      className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                        swRunning
-                          ? 'bg-green-500/20 border-green-400 text-green-300'
-                          : lastResultForThis?.isNewPb
-                          ? 'bg-amber-500/15 border-amber-400/60 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-200'
-                      }`}
-                    >
-                      {swRunning ? (
-                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                      ) : lastResultForThis ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-black text-white">
-                              Got: {lastResultForThis.timeSec.toFixed(3)}s
-                            </span>
-                            {lastResultForThis.isNewPb ? (
-                              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
-                                ★ New PB!
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                                PB: {caseStat.best?.toFixed(3)}s
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                            Tap to Time Again
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <span className="text-base font-black">Tap to Time F2L</span>
-                          {typeof caseStat.best === 'number' && (
-                            <span className="text-[10px] font-bold text-amber-300">
-                              Recorded PB: {caseStat.best.toFixed(3)}s
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
-                        <span className="font-mono text-xs font-black text-green-400">
-                          {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
-                        <span className="font-mono text-xs font-black text-sky-400">
-                          {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
-                        <span className="font-mono text-xs font-black text-purple-300">
-                          {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 5C. ISOLATED PLL DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
-        {pllDrillCase && (() => {
-          const caseStat = currentUser.pllStats?.[pllDrillCase.id] || {};
-          const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
-          const ao5Case = computeCaseWindowAvg(caseHist, 5);
-          const ao20Case = computeCaseWindowAvg(caseHist, 20);
-          const ao40Case = computeCaseWindowAvg(caseHist, 40);
-          const lastResultForThis =
-            swLastResult && swLastResult.phase === 'pll' && swLastResult.caseId === pllDrillCase.id
-              ? swLastResult
-              : null;
-
-          return (
-            <div
-              onClick={() => {
-                setSwRunning(false);
-                setSwLastResult(null);
-                setPllDrillCase(null);
-              }}
-              className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    {pllDrillCase.group}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSwRunning(false);
-                      setSwLastResult(null);
-                      setPllDrillCase(null);
-                    }}
-                    className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-                  <img
-                    src={getPLLImageUrl(
-                      pllDrillCase.alg,
-                      pllSetupSeed > 0 ? generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed) : null
-                    )}
-                    alt={pllDrillCase.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-
-                <div className="text-center">
-                  <h3 className="text-xl font-black text-white">{pllDrillCase.name}</h3>
-                  <p className="text-[11px] text-slate-300 mt-0.5">{pllDrillCase.recognition}</p>
-                </div>
-
-                <div className="bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      Setup Scramble (From Solved Cube)
-                    </span>
-                    <button
-                      onClick={() => {
-                        emitBeep(540);
-                        setPllSetupSeed((s) => s + 1);
-                      }}
-                      className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
-                    >
-                      New AUF ↻
-                    </button>
-                  </div>
-                  <p className="font-mono text-xs font-black text-amber-300 select-all">
-                    {generatePLLSetupScramble(pllDrillCase.inverse, pllSetupSeed)}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      Execution Algorithm
-                    </span>
-                    {fingertricksEnabled && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(540);
-                          setFtPhaseContext('pll');
-                          setFtCase(pllDrillCase);
-                          setActiveModal('fingertrick');
-                        }}
-                        className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer"
-                      >
-                        Grip Guide →
-                      </button>
-                    )}
-                  </div>
-                  <p className="font-mono text-base font-black text-amber-300">{pllDrillCase.alg}</p>
-                  {fingertricksEnabled && (
-                    <div className="space-y-1.5 text-left">
-                      {getAlgorithmTriggerTags(pllDrillCase.alg).length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-1">
-                          {getAlgorithmTriggerTags(pllDrillCase.alg).map((tag) => (
-                            <span
-                              key={tag.label}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                              {tag.label}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
-                        <strong className="text-orange-400">Fingertrick:</strong> {pllDrillCase.fingertrick}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {stopwatchEnabled && (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => toggleStopwatch((sec) => recordCaseTime('pll', pllDrillCase.id, sec))}
-                      className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                        swRunning
-                          ? 'bg-green-500/20 border-green-400 text-green-300'
-                          : lastResultForThis?.isNewPb
-                          ? 'bg-amber-500/15 border-amber-400/60 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-200'
-                      }`}
-                    >
-                      {swRunning ? (
-                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                      ) : lastResultForThis ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-black text-white">
-                              Got: {lastResultForThis.timeSec.toFixed(3)}s
-                            </span>
-                            {lastResultForThis.isNewPb ? (
-                              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
-                                ★ New PB!
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                                PB: {caseStat.best?.toFixed(3)}s
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                            Tap to Time Again
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <span className="text-base font-black">Tap to Time PLL</span>
-                          {typeof caseStat.best === 'number' && (
-                            <span className="text-[10px] font-bold text-amber-300">
-                              Recorded PB: {caseStat.best.toFixed(3)}s
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
-                        <span className="font-mono text-xs font-black text-green-400">
-                          {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
-                        <span className="font-mono text-xs font-black text-sky-400">
-                          {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
-                        <span className="font-mono text-xs font-black text-purple-300">
-                          {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 4. OLL DAILY SESSION RUNNER */}
-        {ollSession && activeOLLSessionCase && (
-          <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                {ollSession.dayObj.mode} • Case {ollSession.index + 1}/{ollSession.queue.length}
-              </span>
-              <button
-                onClick={() => {
-                  setSwRunning(false);
-                  setOllSession(null);
-                }}
-                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
-              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-                <img
-                  src={getOLLImageUrl(activeOLLSessionCase.alg)}
-                  alt={activeOLLSessionCase.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {activeOLLSessionCase.group}
-                </span>
-                <h3 className="text-xl font-black text-white">{activeOLLSessionCase.name}</h3>
-              </div>
-
-              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase text-slate-400">Execution Algorithm</span>
-                  {fingertricksEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(540);
-                        setFtPhaseContext('oll');
-                        setFtCase(activeOLLSessionCase);
-                        setActiveModal('fingertrick');
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
-                    >
-                      Grip Guide →
-                    </button>
-                  )}
-                </div>
-                <p className="font-mono text-base font-black text-amber-300">{activeOLLSessionCase.alg}</p>
-                {fingertricksEnabled && (
-                  <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug text-left">
-                    <strong className="text-orange-400">Fingertrick:</strong> {activeOLLSessionCase.fingertrick}
-                  </p>
-                )}
-              </div>
-
-              {stopwatchEnabled && (
-                <button
-                  onClick={() => toggleStopwatch((sec) => recordCaseTime('oll', activeOLLSessionCase.id, sec))}
-                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
-                    swRunning
-                      ? 'bg-green-500/20 border-green-400 text-green-300'
-                      : 'bg-slate-950 border-white/10 text-slate-200'
-                  }`}
-                >
-                  {swRunning ? (
-                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                  ) : (
-                    'Tap to Time OLL'
-                  )}
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => {
-                  emitBeep(460);
-                  setSwRunning(false);
-                  setSwElapsedMs(0);
-                  setOllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
-                }}
-                disabled={ollSession.index === 0}
-                className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-              >
-                ← Previous
-              </button>
-              <button
-                onClick={() => {
-                  emitBeep(760);
-                  setSwRunning(false);
-                  setSwElapsedMs(0);
-                  if (ollSession.index + 1 < ollSession.queue.length) {
-                    setOllSession((s) => ({ ...s, index: s.index + 1 }));
-                  } else {
-                    const nextDay = safeOllDay >= ollSchedule.length ? 1 : safeOllDay + 1;
-                    const updated = { ...currentUser, day: nextDay };
-                    setUsers((prev) => ({
-                      ...prev,
-                      [activeUserKey]: updated
-                    }));
-                    saveUserToCloud(activeUserKey, updated);
-                    setOllSession(null);
-                  }
-                }}
-                className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-              >
-                {ollSession.index + 1 < ollSession.queue.length ? 'Next Case →' : 'Complete Day ✓'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 4B. ISOLATED OLL DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
-        {ollDrillCase && (() => {
-          const caseStat = currentUser.stats?.[ollDrillCase.id] || {};
-          const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
-          const ao5Case = computeCaseWindowAvg(caseHist, 5);
-          const ao20Case = computeCaseWindowAvg(caseHist, 20);
-          const ao40Case = computeCaseWindowAvg(caseHist, 40);
-          const lastResultForThis =
-            swLastResult && swLastResult.phase === 'oll' && swLastResult.caseId === ollDrillCase.id
-              ? swLastResult
-              : null;
-
-          return (
-            <div
-              onClick={() => {
-                setSwRunning(false);
-                setSwLastResult(null);
-                setOllDrillCase(null);
-              }}
-              className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                    {ollDrillCase.group}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSwRunning(false);
-                      setSwLastResult(null);
-                      setOllDrillCase(null);
-                    }}
-                    className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-                  <img
-                    src={getOLLImageUrl(ollDrillCase.alg)}
-                    alt={ollDrillCase.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-
-                <h3 className="text-xl font-black text-white text-center">{ollDrillCase.name}</h3>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      Execution Algorithm
-                    </span>
-                    {fingertricksEnabled && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(540);
-                          setFtPhaseContext('oll');
-                          setFtCase(ollDrillCase);
-                          setActiveModal('fingertrick');
-                        }}
-                        className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
-                      >
-                        Grip Guide →
-                      </button>
-                    )}
-                  </div>
-                  <p className="font-mono text-base font-black text-amber-300">{ollDrillCase.alg}</p>
-                  {fingertricksEnabled && (
-                    <div className="space-y-1.5 text-left">
-                      {getAlgorithmTriggerTags(ollDrillCase.alg).length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-1">
-                          {getAlgorithmTriggerTags(ollDrillCase.alg).map((tag) => (
-                            <span
-                              key={tag.label}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                              {tag.label}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
-                        <strong className="text-orange-400">Fingertrick:</strong> {ollDrillCase.fingertrick}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {stopwatchEnabled && (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => toggleStopwatch((sec) => recordCaseTime('oll', ollDrillCase.id, sec))}
-                      className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                        swRunning
-                          ? 'bg-green-500/20 border-green-400 text-green-300'
-                          : lastResultForThis?.isNewPb
-                          ? 'bg-amber-500/15 border-amber-400/60 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-200'
-                      }`}
-                    >
-                      {swRunning ? (
-                        <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                      ) : lastResultForThis ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-black text-white">
-                              Got: {lastResultForThis.timeSec.toFixed(3)}s
-                            </span>
-                            {lastResultForThis.isNewPb ? (
-                              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
-                                ★ New PB!
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                                PB: {caseStat.best?.toFixed(3)}s
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                            Tap to Time Again
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <span className="text-base font-black">Tap to Time OLL</span>
-                          {typeof caseStat.best === 'number' && (
-                            <span className="text-[10px] font-bold text-amber-300">
-                              Recorded PB: {caseStat.best.toFixed(3)}s
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
-                        <span className="font-mono text-xs font-black text-green-400">
-                          {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
-                        <span className="font-mono text-xs font-black text-sky-400">
-                          {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                      <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
-                        <span className="font-mono text-xs font-black text-purple-300">
-                          {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 5. PLL DAILY SESSION RUNNER */}
-        {pllSession && activePLLSessionCase && (
-          <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                {pllSession.dayObj.mode} • Alg {pllSession.index + 1}/{pllSession.queue.length}
-              </span>
-              <button
-                onClick={() => {
-                  setSwRunning(false);
-                  setPllSession(null);
-                }}
-                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
-              <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-                <img
-                  src={getPLLImageUrl(
-                    activePLLSessionCase.alg,
-                    pllSetupSeed > 0 ? generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed) : null
-                  )}
-                  alt={activePLLSessionCase.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {activePLLSessionCase.group}
-                </span>
-                <h3 className="text-xl font-black text-white">{activePLLSessionCase.name}</h3>
-                <p className="text-[11px] text-slate-300 mt-0.5">{activePLLSessionCase.recognition}</p>
-              </div>
-
-              <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                    Setup Scramble
-                  </span>
-                  <button
-                    onClick={() => {
-                      emitBeep(540);
-                      setPllSetupSeed((s) => s + 1);
-                    }}
-                    className="text-[10px] font-bold text-orange-400 cursor-pointer"
-                  >
-                    New AUF ↻
-                  </button>
-                </div>
-                <p className="font-mono text-xs font-black text-amber-300 select-all">
-                  {generatePLLSetupScramble(activePLLSessionCase.inverse, pllSetupSeed)}
-                </p>
-              </div>
-
-              <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase text-slate-400">Execution Algorithm</span>
-                  {fingertricksEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitBeep(540);
-                        setFtPhaseContext('pll');
-                        setFtCase(activePLLSessionCase);
-                        setActiveModal('fingertrick');
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer"
-                    >
-                      Grip Guide →
-                    </button>
-                  )}
-                </div>
-                <p className="font-mono text-base font-black text-amber-300">{activePLLSessionCase.alg}</p>
-                {fingertricksEnabled && (
-                  <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug text-left">
-                    <strong className="text-orange-400">Fingertrick:</strong> {activePLLSessionCase.fingertrick}
-                  </p>
-                )}
-              </div>
-
-              {stopwatchEnabled && (
-                <button
-                  onClick={() => toggleStopwatch((sec) => recordCaseTime('pll', activePLLSessionCase.id, sec))}
-                  className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${
-                    swRunning
-                      ? 'bg-green-500/20 border-green-400 text-green-300'
-                      : 'bg-slate-950 border-white/10 text-slate-200'
-                  }`}
-                >
-                  {swRunning ? (
-                    <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                  ) : (
-                    'Tap to Time PLL'
-                  )}
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => {
-                  emitBeep(460);
-                  setSwRunning(false);
-                  setSwElapsedMs(0);
-                  setPllSession((s) => ({ ...s, index: Math.max(0, s.index - 1) }));
-                }}
-                disabled={pllSession.index === 0}
-                className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-              >
-                ← Previous
-              </button>
-              <button
-                onClick={() => {
-                  emitBeep(760);
-                  setSwRunning(false);
-                  setSwElapsedMs(0);
-                  if (pllSession.index + 1 < pllSession.queue.length) {
-                    setPllSession((s) => ({ ...s, index: s.index + 1 }));
-                  } else {
-                    const nextDay = safePllDay >= pllSchedule.length ? 1 : safePllDay + 1;
-                    const updated = { ...currentUser, pllDay: nextDay };
-                    setUsers((prev) => ({
-                      ...prev,
-                      [activeUserKey]: updated
-                    }));
-                    saveUserToCloud(activeUserKey, updated);
-                    setPllSession(null);
-                  }
-                }}
-                className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-              >
-                {pllSession.index + 1 < pllSession.queue.length ? 'Next Alg →' : 'Complete Day ✓'}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* UNIFIED DAILY SESSION RUNNER & ISOLATED DRILL MODALS (F2L, OLL, PLL) */}
+        {renderUnifiedDailySession()}
+        {renderUnifiedDrillModal()}
 
         {/* 6. FINGERTRICK DOSSIER MODAL */}
         {activeModal === 'fingertrick' && ftCase && (() => {
@@ -7702,68 +6193,6 @@ function OLLDaySuite() {
                 >
                   Close
                 </button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 9. BEGINNER'S GUIDE MODAL */}
-        {activeModal === 'onboarding' && (() => {
-          const ONBOARDING_SLIDES = [
-            {
-              badge: 'Step 1 of 4 • C (Cross)',
-              title: 'Solve the White Cross on Bottom',
-              desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6 moves or fewer.'
-            },
-            {
-              badge: 'Step 2 of 4 • F (F2L)',
-              title: 'First Two Layers (41 Pairs)',
-              desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot.'
-            },
-            {
-              badge: 'Step 3 of 4 • O (OLL)',
-              title: 'Orient Last Layer (57 Cases)',
-              desc: 'Make the entire top face solid Yellow in a single algorithm.'
-            },
-            {
-              badge: 'Step 4 of 4 • P (PLL)',
-              title: 'Permute Last Layer (25 Algs)',
-              desc: 'Swap the final top-layer corners and edges into place to complete the solve.'
-            }
-          ];
-          const slide = ONBOARDING_SLIDES[onboardingSlide] || ONBOARDING_SLIDES[0];
-
-          return (
-            <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-                <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {slide.badge}
-                </span>
-                <h3 className="text-xl font-black text-white">{slide.title}</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">{slide.desc}</p>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveModal(null)}
-                    className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      emitBeep(620);
-                      if (onboardingSlide + 1 < ONBOARDING_SLIDES.length) {
-                        setOnboardingSlide((s) => s + 1);
-                      } else {
-                        setActiveModal(null);
-                      }
-                    }}
-                    className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
-                  >
-                    {onboardingSlide + 1 < ONBOARDING_SLIDES.length ? 'Next →' : 'Start Training'}
-                  </button>
-                </div>
               </div>
             </div>
           );
@@ -8110,53 +6539,28 @@ function OLLDaySuite() {
                     <span className="font-mono text-sm font-black text-amber-300">{numericVal.toFixed(3)}s</span>
                   </div>
 
-                  <input
-                    type="range"
-                    min="0.150"
-                    max="10.000"
-                    step="0.001"
-                    value={Math.min(10, Math.max(0.15, numericVal))}
-                    onChange={(e) =>
+                  <MillisecondSliderControl
+                    value={numericVal}
+                    min={0.15}
+                    max={10.0}
+                    draftValue={draft}
+                    accentTextClass="text-amber-300"
+                    inputWidthClass="w-16"
+                    onSliderChange={(val) =>
                       setEditingCaseTarget((prev) => ({
                         ...prev,
-                        draft: Number(e.target.value).toFixed(3)
+                        draft: val.toFixed(3)
                       }))
                     }
-                    className="w-full accent-orange-500 cursor-pointer"
+                    onStepDelta={(delta) => {
+                      emitBeep(540);
+                      const next = Math.min(30, Math.max(0.1, Number((numericVal + delta).toFixed(3))));
+                      setEditingCaseTarget((prev) => ({ ...prev, draft: next.toFixed(3) }));
+                    }}
+                    onDraftChange={(val) =>
+                      setEditingCaseTarget((prev) => ({ ...prev, draft: val }))
+                    }
                   />
-
-                  <div className="grid grid-cols-5 gap-1">
-                    {[
-                      { label: '-10ms', delta: -0.01 },
-                      { label: '-1ms', delta: -0.001 },
-                      { label: '+1ms', delta: 0.001 },
-                      { label: '+10ms', delta: 0.01 }
-                    ].map((btn) => (
-                      <button
-                        key={btn.label}
-                        type="button"
-                        onClick={() => {
-                          emitBeep(540);
-                          const next = Math.min(30, Math.max(0.1, Number((numericVal + btn.delta).toFixed(3))));
-                          setEditingCaseTarget((prev) => ({ ...prev, draft: next.toFixed(3) }));
-                        }}
-                        className="py-1 rounded-lg bg-white/5 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
-                      >
-                        {btn.label}
-                      </button>
-                    ))}
-                    <input
-                      type="number"
-                      step="0.001"
-                      min="0.100"
-                      max="30.000"
-                      value={draft}
-                      onChange={(e) =>
-                        setEditingCaseTarget((prev) => ({ ...prev, draft: e.target.value }))
-                      }
-                      className="rounded-lg bg-white/5 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center text-amber-300"
-                    />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
