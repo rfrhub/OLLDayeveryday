@@ -1490,7 +1490,7 @@ const APP_ONLY_TOUR_STEPS = [
     title: 'Instant C • F • O • P Phase Switching',
     phase: 'cross',
     tab: 'ladder',
-    desc: 'Switch seamlessly between Cross (C), F2L (F), OLL (O), and PLL (P). You can also pin your preferred startup phase in Settings Card 2.',
+    desc: 'Switch seamlessly between Cross (C), F2L (F), OLL (O), and PLL (P). You can also pin your preferred startup phase in Settings Card 3.',
     howToReach: 'Tap the orange phase selector pill in the top-right corner of the header.'
   },
   {
@@ -1530,7 +1530,7 @@ const APP_ONLY_TOUR_STEPS = [
     title: '8-Card Settings Deck & Guided Replay',
     phase: 'oll',
     tab: 'settings',
-    desc: 'Swipe through the 3D Settings deck to adjust Target PBs, pin your startup phase, inspect the WCA Notation & Fingertrick Dossier, or replay this guide anytime.',
+    desc: 'Swipe through the 3D Settings deck to replay this guide anytime on Card 1, adjust Target PBs on Card 2, pin your startup phase on Card 3, or inspect WCA Notation & Fingertricks.',
     howToReach: 'Any phase → Bottom tab: Settings → Swipe cards or tap the pagination dots.'
   }
 ];
@@ -1705,7 +1705,7 @@ function OLLDaySuite() {
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
-  // Settings 3D Card Deck State (8 Cards including Learn How to Use This App)
+  // Settings 3D Card Deck State (8 Cards: Card 1 Learn App + Cards 2..8)
   const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
@@ -2680,7 +2680,7 @@ function OLLDaySuite() {
   const activeOLLSessionCase = ollSession ? ollSession.queue[ollSession.index] : null;
   const activePLLSessionCase = pllSession ? pllSession.queue[pllSession.index] : null;
 
-  // Settings Deck Touch Swipe Handlers (8 Cards: Cards 1..7 + Card 8 Learn App)
+  // Settings Deck Touch Swipe Handlers (8 Cards: Card 1 Learn App + Cards 2..8)
   const totalDeckCards = 8;
   const handleDeckTouchStart = (e) => {
     if (e.target.closest('[data-scrollable="true"]')) return;
@@ -2758,7 +2758,7 @@ function OLLDaySuite() {
     </div>
   );
 
-  // Reusable Settings 8-Card Deck Renderer
+  // Reusable Settings 8-Card Deck Renderer (Card 1: Learn How to Use This App)
   const renderSettingsDeck = () => (
     <div className="p-5 pb-10 space-y-4">
       <div className="flex items-center justify-between">
@@ -3264,7 +3264,7 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 6: Beginner's Guide, Custom Builder & Reset Controls */}
+        {/* Card 6: Beginner's Guide, Custom Builder (Blurred if non-Pro) & Reset Controls */}
         <div
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
         >
@@ -3300,35 +3300,45 @@ function OLLDaySuite() {
               <span className="text-orange-400 font-black text-xs">Open →</span>
             </button>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-white">Custom Learning Chunks</span>
-                {!isProUnlocked && (
-                  <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">PRO</span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { key: 'f2l', label: 'F2L Chunks' },
-                  { key: 'oll', label: 'OLL Chunks' },
-                  { key: 'pll', label: 'PLL Chunks' }
-                ].map((b) => (
-                  <button
-                    key={b.key}
-                    type="button"
-                    onClick={() => {
-                      if (!isProUnlocked) {
-                        openProPaywall('Custom Curriculum Chunk Builder');
-                        return;
-                      }
-                      emitBeep(560);
-                      openCurriculumBuilder(b.key);
-                    }}
-                    className="py-2 rounded-xl bg-slate-950 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/10 cursor-pointer"
-                  >
-                    {b.label}
-                  </button>
-                ))}
+            <div className="relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
+              {!isProUnlocked && (
+                <button
+                  type="button"
+                  onClick={() => openProPaywall('Custom Curriculum Chunk Builder')}
+                  className="absolute inset-0 z-10 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer"
+                >
+                  <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
+                    🔒 Custom Chunks • Pro
+                  </span>
+                </button>
+              )}
+              <div className={!isProUnlocked ? 'blur-[3px] opacity-55 select-none space-y-2' : 'space-y-2'}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-white">Custom Learning Chunks</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { key: 'f2l', label: 'F2L Chunks' },
+                    { key: 'oll', label: 'OLL Chunks' },
+                    { key: 'pll', label: 'PLL Chunks' }
+                  ].map((b) => (
+                    <button
+                      key={b.key}
+                      type="button"
+                      onClick={() => {
+                        if (!isProUnlocked) {
+                          openProPaywall('Custom Curriculum Chunk Builder');
+                          return;
+                        }
+                        emitBeep(560);
+                        openCurriculumBuilder(b.key);
+                      }}
+                      className="py-2 rounded-xl bg-slate-950 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/10 cursor-pointer"
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -3642,7 +3652,7 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    {/* Standard vs. Advanced Full-Scramble Ladder Toggle */}
+                    {/* Standard vs. Advanced Full-Scramble Ladder Toggle (Blurred for non-Pro) */}
                     <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
                       <button
                         type="button"
@@ -3664,19 +3674,29 @@ function OLLDaySuite() {
                       <button
                         type="button"
                         onClick={() => {
+                          if (!isProUnlocked) {
+                            openProPaywall('Advanced Full-Scramble Cross Ladder');
+                            return;
+                          }
                           emitBeep(580);
                           setCrossDifficulty('advanced');
                           const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
                           setCrossUserMoves(tObj.moves);
                           setEfficiencyFeedback(null);
                         }}
-                        className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                        className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
                           crossDifficulty === 'advanced'
                             ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm'
                             : 'text-slate-400 hover:text-white'
                         }`}
                       >
-                        Advanced Full Scramble
+                        {!isProUnlocked ? (
+                          <span className="inline-flex items-center gap-1 text-orange-300">
+                            🔒 <span className="blur-[2px] opacity-70">Advanced Full Scramble</span>
+                          </span>
+                        ) : (
+                          'Advanced Full Scramble'
+                        )}
                       </button>
                     </div>
 
@@ -3700,15 +3720,22 @@ function OLLDaySuite() {
                               setCrossUserMoves(t.moves);
                               setEfficiencyFeedback(null);
                             }}
-                            className={`py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
+                            className={`relative overflow-hidden py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
                               crossTier === t.tier
                                 ? 'bg-orange-500 text-slate-950 shadow-md'
                                 : locked
-                                ? 'bg-white/5 text-slate-500 border border-white/5'
+                                ? 'bg-white/5 text-slate-500 border border-orange-500/20'
                                 : 'bg-white/5 text-slate-400 hover:text-white'
                             }`}
                           >
-                            L{t.tier}{locked ? ' 🔒' : ''}
+                            {locked ? (
+                              <span className="inline-flex items-center justify-center gap-0.5">
+                                <span className="blur-[2.5px] opacity-60">L{t.tier}</span>
+                                <span className="text-[9px]">🔒</span>
+                              </span>
+                            ) : (
+                              `L${t.tier}`
+                            )}
                           </button>
                         );
                       })}
@@ -3946,7 +3973,15 @@ function OLLDaySuite() {
                           }}
                           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
                         >
-                          {isProUnlocked ? 'Open Blindfold Timer Mat' : 'Unlock Blindfold Timer Mat (Pro)'}
+                          {isProUnlocked ? (
+                            'Open Blindfold Timer Mat'
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span>🔒</span>
+                              <span className="blur-[2px] opacity-80">Blindfold Timer Mat</span>
+                              <span>• Pro</span>
+                            </span>
+                          )}
                         </button>
                       </div>
                     )}
@@ -3973,95 +4008,113 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
-                      <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
-                      <p className="text-xs font-bold text-orange-400">
-                        {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
-                        {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
-                        {blindState === 'readying' && 'Holding pads... keep holding'}
-                        {blindState === 'armed' && 'ARMED! Release pads to close visor'}
-                        {blindState === 'done' && 'Run complete — log result below'}
-                      </p>
-                    </div>
-
-                    {blindState === 'idle' && (
-                      <button
-                        onClick={() => {
-                          emitBeep(800);
-                          setInspectionLeft(15.0);
-                          setBlindState('inspecting');
-                        }}
-                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer"
-                      >
-                        Start 15s Countdown
-                      </button>
-                    )}
-
-                    <div
-                      onContextMenu={(e) => e.preventDefault()}
-                      style={{ touchAction: 'none' }}
-                      className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${
-                        blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'
-                      }`}
-                    >
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">
-                        Speedstack Touch Pads (Hold Both Thumbs &amp; Release)
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="relative overflow-hidden space-y-4">
+                      {!isProUnlocked && (
                         <div
-                          onMouseDown={() => handleSingleMousePadDown('left')}
-                          onMouseUp={handleSingleMousePadUp}
-                          onMouseLeave={handleSingleMousePadUp}
-                          onTouchStart={(e) => {
-                            e.preventDefault();
-                            if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
-                            setLeftPadHeld(true);
-                          }}
-                          onTouchEnd={(e) => {
-                            e.preventDefault();
-                            setLeftPadHeld(false);
-                          }}
-                          onTouchCancel={() => setLeftPadHeld(false)}
-                          className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
-                            blindState === 'armed'
-                              ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
-                              : leftPadHeld
-                              ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
-                              : 'bg-white/5 border-white/10 text-slate-400'
-                          }`}
+                          onClick={() => openProPaywall('WCA Blindfold Timer Mat')}
+                          className="absolute inset-0 z-20 rounded-[2rem] bg-slate-950/45 backdrop-blur-[3px] flex flex-col items-center justify-center p-6 text-center cursor-pointer border border-orange-500/35"
                         >
-                          <span>LEFT THUMB</span>
-                          <span className="text-[9px] font-bold opacity-80">
-                            {blindState === 'armed' ? 'READY ✓' : leftPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                          <span className="px-3.5 py-1.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-xs font-black uppercase tracking-wider text-orange-200 shadow-lg">
+                            🔒 Blindfold Timer Mat • Pro
                           </span>
+                          <p className="text-[11px] text-slate-200 mt-2 max-w-[230px]">
+                            Tap to unlock the 15s WCA Inspection &amp; Dual-Thumb Speedstack Blind Mat.
+                          </p>
                         </div>
+                      )}
+
+                      <div className={!isProUnlocked ? 'blur-[4px] opacity-55 pointer-events-none space-y-4' : 'space-y-4'}>
+                        <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
+                          <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
+                          <p className="text-xs font-bold text-orange-400">
+                            {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
+                            {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
+                            {blindState === 'readying' && 'Holding pads... keep holding'}
+                            {blindState === 'armed' && 'ARMED! Release pads to close visor'}
+                            {blindState === 'done' && 'Run complete — log result below'}
+                          </p>
+                        </div>
+
+                        {blindState === 'idle' && (
+                          <button
+                            onClick={() => {
+                              emitBeep(800);
+                              setInspectionLeft(15.0);
+                              setBlindState('inspecting');
+                            }}
+                            className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer"
+                          >
+                            Start 15s Countdown
+                          </button>
+                        )}
+
                         <div
-                          onMouseDown={() => handleSingleMousePadDown('right')}
-                          onMouseUp={handleSingleMousePadUp}
-                          onMouseLeave={handleSingleMousePadUp}
-                          onTouchStart={(e) => {
-                            e.preventDefault();
-                            if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
-                            setRightPadHeld(true);
-                          }}
-                          onTouchEnd={(e) => {
-                            e.preventDefault();
-                            setRightPadHeld(false);
-                          }}
-                          onTouchCancel={() => setRightPadHeld(false)}
-                          className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
-                            blindState === 'armed'
-                              ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
-                              : rightPadHeld
-                              ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
-                              : 'bg-white/5 border-white/10 text-slate-400'
+                          onContextMenu={(e) => e.preventDefault()}
+                          style={{ touchAction: 'none' }}
+                          className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${
+                            blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'
                           }`}
                         >
-                          <span>RIGHT THUMB</span>
-                          <span className="text-[9px] font-bold opacity-80">
-                            {blindState === 'armed' ? 'READY ✓' : rightPadHeld ? 'HOLDING ●' : 'TOUCH'}
-                          </span>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">
+                            Speedstack Touch Pads (Hold Both Thumbs &amp; Release)
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div
+                              onMouseDown={() => handleSingleMousePadDown('left')}
+                              onMouseUp={handleSingleMousePadUp}
+                              onMouseLeave={handleSingleMousePadUp}
+                              onTouchStart={(e) => {
+                                e.preventDefault();
+                                if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
+                                setLeftPadHeld(true);
+                              }}
+                              onTouchEnd={(e) => {
+                                e.preventDefault();
+                                setLeftPadHeld(false);
+                              }}
+                              onTouchCancel={() => setLeftPadHeld(false)}
+                              className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
+                                blindState === 'armed'
+                                  ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
+                                  : leftPadHeld
+                                  ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
+                                  : 'bg-white/5 border-white/10 text-slate-400'
+                              }`}
+                            >
+                              <span>LEFT THUMB</span>
+                              <span className="text-[9px] font-bold opacity-80">
+                                {blindState === 'armed' ? 'READY ✓' : leftPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                              </span>
+                            </div>
+                            <div
+                              onMouseDown={() => handleSingleMousePadDown('right')}
+                              onMouseUp={handleSingleMousePadUp}
+                              onMouseLeave={handleSingleMousePadUp}
+                              onTouchStart={(e) => {
+                                e.preventDefault();
+                                if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
+                                setRightPadHeld(true);
+                              }}
+                              onTouchEnd={(e) => {
+                                e.preventDefault();
+                                setRightPadHeld(false);
+                              }}
+                              onTouchCancel={() => setRightPadHeld(false)}
+                              className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
+                                blindState === 'armed'
+                                  ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
+                                  : rightPadHeld
+                                  ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]'
+                                  : 'bg-white/5 border-white/10 text-slate-400'
+                              }`}
+                            >
+                              <span>RIGHT THUMB</span>
+                              <span className="text-[9px] font-bold opacity-80">
+                                {blindState === 'armed' ? 'READY ✓' : rightPadHeld ? 'HOLDING ●' : 'TOUCH'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4299,15 +4352,22 @@ function OLLDaySuite() {
                                 setSwElapsedMs(0);
                                 setF2lDrillCase(item);
                               }}
-                              className={`bg-slate-900/70 backdrop-blur-xl border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                              className={`relative overflow-hidden bg-slate-900/70 backdrop-blur-xl border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                                 draggedLineupIdx === idx
                                   ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
                                   : locked
-                                  ? 'border-white/5 opacity-75 hover:opacity-100'
+                                  ? 'border-orange-500/20'
                                   : 'border-white/10 hover:bg-slate-800/80'
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              {locked && (
+                                <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                                    🔒 {item.name} • Pro
+                                  </span>
+                                </div>
+                              )}
+                              <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                                 <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center pointer-events-none">
                                   <img
                                     src={getF2LImageUrl(item.alg)}
@@ -4318,24 +4378,19 @@ function OLLDaySuite() {
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-black text-white">{item.name}</span>
-                                    {locked && (
-                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                        PRO
-                                      </span>
-                                    )}
                                   </div>
                                   <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
                                   <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.step1}</p>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
                                 {stat?.best && (
                                   <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
                                     {stat.best.toFixed(2)}s
                                   </span>
                                 )}
-                                <span className="text-slate-500 text-xs font-bold px-1">{locked ? '🔒' : '⋮⋮'}</span>
+                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
                               </div>
                             </div>
                           );
@@ -4400,6 +4455,7 @@ function OLLDaySuite() {
                           {F2L_GROUPS.map((group) => {
                             const groupCases = F2L_DATA.filter((c) => c.group === group);
                             const sampleCase = groupCases[0];
+                            const groupLocked = !isProUnlocked && group !== 'Basic Inserts';
                             return (
                               <button
                                 key={group}
@@ -4407,9 +4463,16 @@ function OLLDaySuite() {
                                   emitBeep(520);
                                   setF2lSelectedCategory({ type: 'group', name: group });
                                 }}
-                                className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                                className={`relative overflow-hidden bg-slate-900/60 backdrop-blur-2xl border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
+                                  groupLocked ? 'border-orange-500/20' : 'border-white/10'
+                                }`}
                               >
-                                <div className="w-24 h-24 flex items-center justify-center">
+                                {groupLocked && (
+                                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
+                                    🔒 Pro
+                                  </span>
+                                )}
+                                <div className={`w-24 h-24 flex items-center justify-center ${groupLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
                                   <img
                                     src={getF2LImageUrl(sampleCase.alg)}
                                     alt={group}
@@ -4428,6 +4491,7 @@ function OLLDaySuite() {
                         <div className="space-y-2.5">
                           {f2lChunks.map((chk) => {
                             const sampleCase = F2L_DATA.find((c) => c.id === chk.ids[0]) || F2L_DATA[0];
+                            const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier('f2l', id, false));
                             return (
                               <button
                                 key={chk.id}
@@ -4435,9 +4499,11 @@ function OLLDaySuite() {
                                   emitBeep(520);
                                   setF2lSelectedCategory({ type: 'chunk', chunk: chk });
                                 }}
-                                className="w-full bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 active:scale-98 transition-all cursor-pointer"
+                                className={`relative overflow-hidden w-full bg-slate-900/60 backdrop-blur-2xl border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 active:scale-98 transition-all cursor-pointer ${
+                                  chunkLocked ? 'border-orange-500/20' : 'border-white/10'
+                                }`}
                               >
-                                <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
+                                <div className={`w-20 h-20 flex-shrink-0 flex items-center justify-center ${chunkLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
                                   <img
                                     src={getF2LImageUrl(sampleCase.alg)}
                                     alt={chk.title}
@@ -4445,7 +4511,14 @@ function OLLDaySuite() {
                                   />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                  <div className="flex items-center gap-1.5">
+                                    <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                    {chunkLocked && (
+                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
+                                        🔒 PRO
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} F2L Pairs</p>
                                 </div>
                                 <span className="text-orange-400 font-black text-sm">→</span>
@@ -4494,11 +4567,18 @@ function OLLDaySuite() {
                                   setSwElapsedMs(0);
                                   setF2lDrillCase(item);
                                 }}
-                                className={`bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
-                                  locked ? 'border-white/5 opacity-75' : 'border-white/10 hover:bg-slate-800/80'
+                                className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
+                                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
                                 }`}
                               >
-                                <div className="flex items-center gap-3.5 min-w-0">
+                                {locked && (
+                                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
+                                      🔒 {item.name} • Unlock Pro
+                                    </span>
+                                  </div>
+                                )}
+                                <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                                   <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
                                     <img
                                       src={getF2LImageUrl(item.alg)}
@@ -4511,11 +4591,6 @@ function OLLDaySuite() {
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="text-sm font-black text-white">{item.name}</span>
-                                      {locked && (
-                                        <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                          PRO
-                                        </span>
-                                      )}
                                       {stat?.best && (
                                         <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
                                           {stat.best.toFixed(2)}s
@@ -4546,7 +4621,7 @@ function OLLDaySuite() {
                                     <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.step1}</p>
                                   </div>
                                 </div>
-                                {fingertricksEnabled && (
+                                {fingertricksEnabled && !locked && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -4597,18 +4672,32 @@ function OLLDaySuite() {
                       {F2L_DATA.map((item) => {
                         const stat = currentUser.f2lStats?.[item.id];
                         const caseGoal = getEffectiveCaseTargetPb('f2l', item.id);
+                        const locked = !isCaseUnlockedForTier('f2l', item.id, isProUnlocked);
                         return (
                           <div
                             key={item.id}
                             onClick={() => {
+                              if (locked) {
+                                openProPaywall(item.name);
+                                return;
+                              }
                               emitBeep(580);
                               setSwRunning(false);
                               setSwElapsedMs(0);
                               setF2lDrillCase(item);
                             }}
-                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                            className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
+                              locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
+                            }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
+                            {locked && (
+                              <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                                  🔒 {item.name} • Pro
+                                </span>
+                              </div>
+                            )}
+                            <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                               <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center">
                                 <img
                                   src={getF2LImageUrl(item.alg)}
@@ -4625,6 +4714,10 @@ function OLLDaySuite() {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    if (locked) {
+                                      openProPaywall(item.name);
+                                      return;
+                                    }
                                     emitBeep(560);
                                     setEditingCaseTarget({
                                       phase: 'f2l',
@@ -4640,7 +4733,7 @@ function OLLDaySuite() {
                                 </button>
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
+                            <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
                               {stat?.best ? (
                                 <>
                                   <span
@@ -4779,15 +4872,22 @@ function OLLDaySuite() {
                                 setSwLastResult(null);
                                 setOllDrillCase(item);
                               }}
-                              className={`bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                              className={`relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                                 draggedLineupIdx === idx
                                   ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
                                   : locked
-                                  ? 'border-white/5 opacity-75 hover:opacity-100'
+                                  ? 'border-orange-500/20'
                                   : 'border-white/10 hover:bg-slate-800/80'
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              {locked && (
+                                <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                                    🔒 {item.name} • Pro
+                                  </span>
+                                </div>
+                              )}
+                              <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                                 <div className="w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 flex items-center justify-center pointer-events-none">
                                   <img
                                     src={getOLLImageUrl(item.alg)}
@@ -4798,23 +4898,18 @@ function OLLDaySuite() {
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-black text-white block truncate">{item.name}</span>
-                                    {locked && (
-                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                        PRO
-                                      </span>
-                                    )}
                                   </div>
                                   <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
                                 {stat?.best && (
                                   <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
                                     {stat.best.toFixed(2)}s
                                   </span>
                                 )}
-                                <span className="text-slate-500 text-xs font-bold px-1">{locked ? '🔒' : '⋮⋮'}</span>
+                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
                               </div>
                             </div>
                           );
@@ -4879,6 +4974,7 @@ function OLLDaySuite() {
                           {OLL_GROUPS.map((group) => {
                             const groupCases = OLL_DATA.filter((c) => c.group === group);
                             const sampleCase = groupCases[0];
+                            const groupLocked = !isProUnlocked && group !== 'All Edges Oriented';
                             return (
                               <button
                                 key={group}
@@ -4886,9 +4982,16 @@ function OLLDaySuite() {
                                   emitBeep(520);
                                   setOllSelectedCategory({ type: 'group', name: group });
                                 }}
-                                className="bg-slate-900/60 border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                                className={`relative overflow-hidden bg-slate-900/60 border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
+                                  groupLocked ? 'border-orange-500/20' : 'border-white/10'
+                                }`}
                               >
-                                <div className="w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center">
+                                {groupLocked && (
+                                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
+                                    🔒 Pro
+                                  </span>
+                                )}
+                                <div className={`w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center ${groupLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
                                   <img
                                     src={getOLLImageUrl(sampleCase.alg)}
                                     alt={group}
@@ -4907,6 +5010,7 @@ function OLLDaySuite() {
                         <div className="space-y-2.5">
                           {ollChunks.map((chk) => {
                             const sampleCase = OLL_DATA.find((c) => c.id === chk.ids[0]) || OLL_DATA[0];
+                            const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier('oll', id, false));
                             return (
                               <button
                                 key={chk.id}
@@ -4914,9 +5018,11 @@ function OLLDaySuite() {
                                   emitBeep(520);
                                   setOllSelectedCategory({ type: 'chunk', chunk: chk });
                                 }}
-                                className="w-full bg-slate-900/60 border border-white/10 rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer"
+                                className={`relative overflow-hidden w-full bg-slate-900/60 border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer ${
+                                  chunkLocked ? 'border-orange-500/20' : 'border-white/10'
+                                }`}
                               >
-                                <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center">
+                                <div className={`w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center ${chunkLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
                                   <img
                                     src={getOLLImageUrl(sampleCase.alg)}
                                     alt={chk.title}
@@ -4924,7 +5030,14 @@ function OLLDaySuite() {
                                   />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                  <div className="flex items-center gap-1.5">
+                                    <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                    {chunkLocked && (
+                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
+                                        🔒 PRO
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} OLL Cases</p>
                                 </div>
                                 <span className="text-orange-400 font-black text-sm">→</span>
@@ -4972,11 +5085,18 @@ function OLLDaySuite() {
                                   setSwLastResult(null);
                                   setOllDrillCase(item);
                                 }}
-                                className={`bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
-                                  locked ? 'border-white/5 opacity-75' : 'border-white/10 hover:bg-slate-800/80'
+                                className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
+                                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
                                 }`}
                               >
-                                <div className="flex items-center gap-3 min-w-0">
+                                {locked && (
+                                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
+                                      🔒 {item.name} • Unlock Pro
+                                    </span>
+                                  </div>
+                                )}
+                                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                                   <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0">
                                     <img
                                       src={getOLLImageUrl(item.alg)}
@@ -4989,11 +5109,6 @@ function OLLDaySuite() {
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="text-sm font-black text-white truncate">{item.name}</span>
-                                      {locked && (
-                                        <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                          PRO
-                                        </span>
-                                      )}
                                       {stat?.best && (
                                         <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
                                           {stat.best.toFixed(2)}s
@@ -5023,7 +5138,7 @@ function OLLDaySuite() {
                                     )}
                                   </div>
                                 </div>
-                                {fingertricksEnabled && (
+                                {fingertricksEnabled && !locked && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -5074,19 +5189,33 @@ function OLLDaySuite() {
                       {OLL_DATA.map((item) => {
                         const stat = currentUser.stats?.[item.id];
                         const caseGoal = getEffectiveCaseTargetPb('oll', item.id);
+                        const locked = !isCaseUnlockedForTier('oll', item.id, isProUnlocked);
                         return (
                           <div
                             key={item.id}
                             onClick={() => {
+                              if (locked) {
+                                openProPaywall(item.name);
+                                return;
+                              }
                               emitBeep(580);
                               setSwRunning(false);
                               setSwElapsedMs(0);
                               setSwLastResult(null);
                               setOllDrillCase(item);
                             }}
-                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                            className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
+                              locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
+                            }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
+                            {locked && (
+                              <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                                  🔒 {item.name} • Pro
+                                </span>
+                              </div>
+                            )}
+                            <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                               <div className="w-11 h-11 rounded-xl bg-slate-200 p-1 flex-shrink-0">
                                 <img
                                   src={getOLLImageUrl(item.alg)}
@@ -5103,6 +5232,10 @@ function OLLDaySuite() {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    if (locked) {
+                                      openProPaywall(item.name);
+                                      return;
+                                    }
                                     emitBeep(560);
                                     setEditingCaseTarget({
                                       phase: 'oll',
@@ -5118,7 +5251,7 @@ function OLLDaySuite() {
                                 </button>
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
+                            <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
                               {stat?.best ? (
                                 <>
                                   <span
@@ -5257,15 +5390,22 @@ function OLLDaySuite() {
                                 setSwLastResult(null);
                                 setPllDrillCase(item);
                               }}
-                              className={`bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                              className={`relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                                 draggedLineupIdx === idx
                                   ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
                                   : locked
-                                  ? 'border-white/5 opacity-75 hover:opacity-100'
+                                  ? 'border-orange-500/20'
                                   : 'border-white/10 hover:bg-slate-800/80'
                               }`}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              {locked && (
+                                <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                                    🔒 {item.name} • Pro
+                                  </span>
+                                </div>
+                              )}
+                              <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                                 <div className="w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 flex items-center justify-center pointer-events-none">
                                   <img
                                     src={getPLLImageUrl(item.alg)}
@@ -5276,24 +5416,19 @@ function OLLDaySuite() {
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-black text-white block truncate">{item.name}</span>
-                                    {locked && (
-                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                        PRO
-                                      </span>
-                                    )}
                                   </div>
                                   <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
                                   <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.recognition}</p>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
                                 {stat?.best && (
                                   <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
                                     {stat.best.toFixed(2)}s
                                   </span>
                                 )}
-                                <span className="text-slate-500 text-xs font-bold px-1">{locked ? '🔒' : '⋮⋮'}</span>
+                                <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
                               </div>
                             </div>
                           );
@@ -5358,6 +5493,10 @@ function OLLDaySuite() {
                           {PLL_GROUPS.map((group) => {
                             const groupCases = PLL_DATA.filter((c) => c.group === group);
                             const sampleCase = groupCases[0];
+                            const groupLocked =
+                              !isProUnlocked &&
+                              group !== 'Edges Only (EPLL)' &&
+                              group !== 'Corners Only (CPLL)';
                             return (
                               <button
                                 key={group}
@@ -5365,9 +5504,16 @@ function OLLDaySuite() {
                                   emitBeep(520);
                                   setPllSelectedCategory({ type: 'group', name: group });
                                 }}
-                                className="bg-slate-900/60 border border-white/10 rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                                className={`relative overflow-hidden bg-slate-900/60 border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${
+                                  groupLocked ? 'border-orange-500/20' : 'border-white/10'
+                                }`}
                               >
-                                <div className="w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center">
+                                {groupLocked && (
+                                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">
+                                    🔒 Pro
+                                  </span>
+                                )}
+                                <div className={`w-16 h-16 rounded-2xl bg-slate-200 p-1.5 flex items-center justify-center ${groupLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
                                   <img
                                     src={getPLLImageUrl(sampleCase.alg)}
                                     alt={group}
@@ -5386,6 +5532,7 @@ function OLLDaySuite() {
                         <div className="space-y-2.5">
                           {pllChunks.map((chk) => {
                             const sampleCase = PLL_DATA.find((c) => c.id === chk.ids[0]) || PLL_DATA[0];
+                            const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier('pll', id, false));
                             return (
                               <button
                                 key={chk.id}
@@ -5393,9 +5540,11 @@ function OLLDaySuite() {
                                   emitBeep(520);
                                   setPllSelectedCategory({ type: 'chunk', chunk: chk });
                                 }}
-                                className="w-full bg-slate-900/60 border border-white/10 rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer"
+                                className={`relative overflow-hidden w-full bg-slate-900/60 border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer ${
+                                  chunkLocked ? 'border-orange-500/20' : 'border-white/10'
+                                }`}
                               >
-                                <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center">
+                                <div className={`w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center ${chunkLocked ? 'blur-[2.5px] opacity-65' : ''}`}>
                                   <img
                                     src={getPLLImageUrl(sampleCase.alg)}
                                     alt={chk.title}
@@ -5403,7 +5552,14 @@ function OLLDaySuite() {
                                   />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                  <div className="flex items-center gap-1.5">
+                                    <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
+                                    {chunkLocked && (
+                                      <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">
+                                        🔒 PRO
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} PLL Cases</p>
                                 </div>
                                 <span className="text-orange-400 font-black text-sm">→</span>
@@ -5451,11 +5607,18 @@ function OLLDaySuite() {
                                   setSwLastResult(null);
                                   setPllDrillCase(item);
                                 }}
-                                className={`bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
-                                  locked ? 'border-white/5 opacity-75' : 'border-white/10 hover:bg-slate-800/80'
+                                className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
+                                  locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
                                 }`}
                               >
-                                <div className="flex items-center gap-3 min-w-0">
+                                {locked && (
+                                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
+                                      🔒 {item.name} • Unlock Pro
+                                    </span>
+                                  </div>
+                                )}
+                                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                                   <div className="w-14 h-14 rounded-2xl bg-slate-200 p-1.5 flex-shrink-0">
                                     <img
                                       src={getPLLImageUrl(item.alg)}
@@ -5468,11 +5631,6 @@ function OLLDaySuite() {
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="text-sm font-black text-white truncate">{item.name}</span>
-                                      {locked && (
-                                        <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[9px] font-black text-orange-300">
-                                          PRO
-                                        </span>
-                                      )}
                                       {stat?.best && (
                                         <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">
                                           {stat.best.toFixed(2)}s
@@ -5503,7 +5661,7 @@ function OLLDaySuite() {
                                     )}
                                   </div>
                                 </div>
-                                {fingertricksEnabled && (
+                                {fingertricksEnabled && !locked && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -5554,19 +5712,33 @@ function OLLDaySuite() {
                       {PLL_DATA.map((item) => {
                         const stat = currentUser.pllStats?.[item.id];
                         const caseGoal = getEffectiveCaseTargetPb('pll', item.id);
+                        const locked = !isCaseUnlockedForTier('pll', item.id, isProUnlocked);
                         return (
                           <div
                             key={item.id}
                             onClick={() => {
+                              if (locked) {
+                                openProPaywall(item.name);
+                                return;
+                              }
                               emitBeep(580);
                               setSwRunning(false);
                               setSwElapsedMs(0);
                               setSwLastResult(null);
                               setPllDrillCase(item);
                             }}
-                            className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-slate-800/80 cursor-pointer"
+                            className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
+                              locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
+                            }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
+                            {locked && (
+                              <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
+                                  🔒 {item.name} • Pro
+                                </span>
+                              </div>
+                            )}
+                            <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
                               <div className="w-11 h-11 rounded-xl bg-slate-200 p-1 flex-shrink-0">
                                 <img
                                   src={getPLLImageUrl(item.alg)}
@@ -5583,6 +5755,10 @@ function OLLDaySuite() {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    if (locked) {
+                                      openProPaywall(item.name);
+                                      return;
+                                    }
                                     emitBeep(560);
                                     setEditingCaseTarget({
                                       phase: 'pll',
@@ -5598,7 +5774,7 @@ function OLLDaySuite() {
                                 </button>
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
+                            <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
                               {stat?.best ? (
                                 <>
                                   <span
