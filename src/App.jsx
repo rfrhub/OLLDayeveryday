@@ -2104,7 +2104,7 @@ function OLLDaySuite() {
       const prevBest = typeof existing.best === 'number' ? existing.best : null;
       isNewPb = prevBest === null || timeSec < prevBest;
       const nextBest = isNewPb ? timeSec : prevBest;
-      const nextHistory = [timeSec, ...(Array.isArray(existing.history) ? existing.history : [])].slice(0, 50);
+      const nextHistory = [timeSec, ...(Array.isArray(existing.history) ? existing.history : [])].slice(0, 60);
       const updated = {
         ...u,
         [statField]: {
@@ -4267,9 +4267,9 @@ function OLLDaySuite() {
 
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
-    const ao5Case = computeCaseWindowAvg(caseHist, 5);
     const ao20Case = computeCaseWindowAvg(caseHist, 20);
     const ao40Case = computeCaseWindowAvg(caseHist, 40);
+    const ao60Case = computeCaseWindowAvg(caseHist, 60);
     const lastResultForThis =
       swLastResult && swLastResult.phase === phaseKey && swLastResult.caseId === item.id ? swLastResult : null;
 
@@ -4508,6 +4508,27 @@ function OLLDaySuite() {
               )}
             </button>
           )}
+
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+              <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
+              <span className="font-mono text-xs font-black text-green-400">
+                {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
+              </span>
+            </div>
+            <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+              <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
+              <span className="font-mono text-xs font-black text-sky-400">
+                {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
+              </span>
+            </div>
+            <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+              <span className="text-[9px] font-black uppercase text-slate-400 block">Ao60</span>
+              <span className="font-mono text-xs font-black text-purple-300">
+                {ao60Case !== null ? `${ao60Case.toFixed(2)}s` : '—'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     );
