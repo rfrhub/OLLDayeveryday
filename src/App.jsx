@@ -1134,14 +1134,12 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
   const stickers = simulateCrossCubeState(scramble);
   const half = 48;
 
-  // Cross-relevant sticker indices: centers (4,13,22,31,40,49) and all 12 edge positions
   const isCrossRelevant = (offset, idx) => {
-    if (idx === 4) return true; // Center sticker
+    if (idx === 4) return true;
     const isEdge = idx === 1 || idx === 3 || idx === 5 || idx === 7;
     if (!isEdge) return false;
     const code = stickers[offset + idx];
     if (code === 'W') return true;
-    // Also highlight the paired side sticker of any white edge
     const edgePairs = {
       '0_1': 46, '45_1': 1,
       '0_3': 37, '36_1': 3,
@@ -1433,6 +1431,111 @@ function buildSchedule(chunks, dataList) {
 }
 
 // =========================================================================
+// 2C. GUIDED INTERACTIVE ONBOARDING & AUTO-NAVIGATION STEPS
+// =========================================================================
+const CFOP_AND_APP_TOUR_STEPS = [
+  {
+    badge: 'Step 1 of 6 • Welcome to CFOP',
+    title: 'How CFOP Solves the 3x3 Cube',
+    phase: 'cross',
+    tab: 'ladder',
+    desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. This app trains each phase step-by-step with daily sessions, 3D cubes, and millisecond PB tracking.',
+    howToReach: 'Tap the orange phase pill (C / F / O / P) in the top-right header anytime to switch phases.'
+  },
+  {
+    badge: 'Step 2 of 6 • Phase C (Cross)',
+    title: 'Solve the White Cross on Bottom',
+    phase: 'cross',
+    tab: 'ladder',
+    desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 8 moves or fewer using the 3D Cross Orbit cube and Ladder levels.',
+    howToReach: 'Top-right pill → C • Bottom bar: Ladder, Blind Run (dual-thumb mat), Mechanics.'
+  },
+  {
+    badge: 'Step 3 of 6 • Phase F (F2L)',
+    title: 'First Two Layers (41 Pairs)',
+    phase: 'f2l',
+    tab: 'grind',
+    desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—solving the first two layers simultaneously.',
+    howToReach: 'Top-right pill → F • Tap Start Day Grind or any pair in Today\'s Lineup for a 3D isolated drill.'
+  },
+  {
+    badge: 'Step 4 of 6 • Phase O (OLL)',
+    title: 'Orient Last Layer (57 Cases)',
+    phase: 'oll',
+    tab: 'grind',
+    desc: 'Recognize the Yellow pattern on top and execute one algorithm to make the entire top face solid Yellow.',
+    howToReach: 'Top-right pill → O • Use The Grind for daily chunks or Algorithms to browse all 57 OLL shapes.'
+  },
+  {
+    badge: 'Step 5 of 6 • Phase P (PLL)',
+    title: 'Permute Last Layer (25 Algorithms)',
+    phase: 'pll',
+    tab: 'grind',
+    desc: 'With Yellow solid on top, swap the final corners and edges into their solved positions to finish the cube.',
+    howToReach: 'Top-right pill → P • Each case highlights inline fingertrick triggers and step-by-step grip cues.'
+  },
+  {
+    badge: 'Step 6 of 6 • Stats, Timer & Settings',
+    title: 'Track PBs & Full 3x3 Solves',
+    phase: 'oll',
+    tab: 'settings',
+    desc: 'Every phase includes Statistics (with custom per-case Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier.',
+    howToReach: 'Bottom bar → Statistics or Settings (swipe cards or tap dots at top-right of Settings).'
+  }
+];
+
+const APP_ONLY_TOUR_STEPS = [
+  {
+    badge: 'Feature 1 of 6 • Phase Navigation',
+    title: 'Instant C • F • O • P Phase Switching',
+    phase: 'cross',
+    tab: 'ladder',
+    desc: 'Switch seamlessly between Cross (C), F2L (F), OLL (O), and PLL (P). You can also pin your preferred startup phase in Settings Card 2.',
+    howToReach: 'Tap the orange phase selector pill in the top-right corner of the header.'
+  },
+  {
+    badge: 'Feature 2 of 6 • Cross & Blind Mat',
+    title: '3D Cross Ladder & Dual-Thumb Blind Mat',
+    phase: 'cross',
+    tab: 'blind',
+    desc: 'Train Standard (2–6 move) or Advanced 20-move scrambles with the interactive 3D Cross Orbit cube, then test 15s WCA inspection on the dual-thumb Speedstack mat.',
+    howToReach: 'Phase C → Bottom tabs: Ladder, Blind Run, and Mechanics.'
+  },
+  {
+    badge: 'Feature 3 of 6 • F2L 3D Spatial Drills',
+    title: 'Daily Grind & Interactive 3D F2L Cube',
+    phase: 'f2l',
+    tab: 'grind',
+    desc: 'Work through daily learning chunks, navigate backward/forward across days (← Prev / Next →), hold-and-drag to reorder your lineup, or tap any pair to spin it in 3D.',
+    howToReach: 'Phase F → The Grind (tap any pair) or Algorithms (41 F2L pairs).'
+  },
+  {
+    badge: 'Feature 4 of 6 • OLL & PLL Libraries',
+    title: 'Inline Fingertricks & Isolated Case Drills',
+    phase: 'oll',
+    tab: 'algorithms',
+    desc: 'Browse all 57 OLL and 25 PLL cases by shape group or curriculum chunk with color-coded inline fingertrick triggers, grip guides, and Ao5/Ao20/Ao40 case timers.',
+    howToReach: 'Phase O or P → Bottom tab: Algorithms → Tap any case to drill or tap Grip.'
+  },
+  {
+    badge: 'Feature 5 of 6 • Millisecond Telemetry',
+    title: 'Custom Target PBs & Full 3x3x3 Timer',
+    phase: 'pll',
+    tab: 'stats',
+    desc: 'Set 0.001s millisecond Target PBs per phase or per individual case, and launch the full-screen 3x3x3 WCA Timer with Ao5 and Ao12 tracking.',
+    howToReach: 'Any phase → Bottom tab: Statistics → Tap Open Timer or Goal ✎ on any case.'
+  },
+  {
+    badge: 'Feature 6 of 6 • Settings Control Deck',
+    title: '8-Card Settings Deck & Guided Replay',
+    phase: 'oll',
+    tab: 'settings',
+    desc: 'Swipe through the 3D Settings deck to adjust Target PBs, pin your startup phase, inspect the WCA Notation & Fingertrick Dossier, or replay this guide anytime.',
+    howToReach: 'Any phase → Bottom tab: Settings → Swipe cards or tap the pagination dots.'
+  }
+];
+
+// =========================================================================
 // 3. MAIN APPLICATION COMPONENT
 // =========================================================================
 
@@ -1602,11 +1705,15 @@ function OLLDaySuite() {
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
-  // Settings 3D Card Deck State (7 Cards)
+  // Settings 3D Card Deck State (8 Cards including Learn How to Use This App)
   const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
   const deckTouchStartRef = useRef(null);
+
+  // Guided Onboarding & Auto-Navigation Tour State
+  const [tourType, setTourType] = useState('cfopAndApp'); // 'cfopAndApp' | 'appOnly'
+  const [tourStepIdx, setTourStepIdx] = useState(0);
 
   // Full-Screen Glassmorphic 3x3x3 CFOP Timer State (Ao5 & Ao12)
   const [fullTimerOpen, setFullTimerOpen] = useState(false);
@@ -1637,7 +1744,7 @@ function OLLDaySuite() {
   // Color Orbit Flash Card Game State
   const [orbitQuizIdx, setOrbitQuizIdx] = useState(0);
   const [orbitQuizActive, setOrbitQuizActive] = useState(false);
-  const [orbitShuffledColors, setOrbitShuffledColors] = useState(['Green', 'Red', 'Orange', 'Blue']);
+  const [orbitShuffledColors] = useState(['Green', 'Red', 'Orange', 'Blue']);
   const [orbitStreak, setOrbitStreak] = useState(0);
   const [orbitFeedback, setOrbitFeedback] = useState(null);
   const padHoldTimeoutRef = useRef(null);
@@ -1762,6 +1869,30 @@ function OLLDaySuite() {
     } catch {
       // Ignore audio restrictions
     }
+  };
+
+  // Auto-Navigation Helper for Guided Interactive Tours
+  const applyTourNavigation = (stepObj) => {
+    if (!stepObj) return;
+    setActivePhase(stepObj.phase);
+    if (stepObj.phase === 'cross') {
+      setCrossTab(stepObj.tab);
+    } else if (stepObj.phase === 'f2l') {
+      setF2lTab(stepObj.tab);
+    } else if (stepObj.phase === 'oll') {
+      setOllTab(stepObj.tab);
+    } else if (stepObj.phase === 'pll') {
+      setPllTab(stepObj.tab);
+    }
+  };
+
+  const startGuidedTour = (type) => {
+    const steps = type === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
+    setTourType(type);
+    setTourStepIdx(0);
+    applyTourNavigation(steps[0]);
+    setActiveModal('guidedTour');
+    emitBeep(680, 'sine', 0.08);
   };
 
   // Sanitize User Profile Record
@@ -1965,6 +2096,17 @@ function OLLDaySuite() {
   const ollSchedule = buildSchedule(ollChunks, OLL_DATA);
   const pllSchedule = buildSchedule(pllChunks, PLL_DATA);
 
+  const getPhaseTargetPb = (phase) => {
+    const val = currentUser.phaseTargetPbs?.[phase];
+    return Number.isFinite(Number(val)) && Number(val) > 0 ? Number(val) : 2.0;
+  };
+
+  const getEffectiveCaseTargetPb = (phase, caseId) => {
+    const custom = currentUser.caseTargetPbs?.[phase]?.[caseId];
+    if (Number.isFinite(Number(custom)) && Number(custom) > 0) return Number(custom);
+    return getPhaseTargetPb(phase);
+  };
+
   const f2lMasteredCount = F2L_DATA.filter(
     (c) => typeof currentUser.f2lStats?.[c.id]?.best === 'number' && currentUser.f2lStats[c.id].best <= getEffectiveCaseTargetPb('f2l', c.id)
   ).length;
@@ -2004,20 +2146,9 @@ function OLLDaySuite() {
     setTargetPbInput(fullSolveTargetSec.toFixed(3));
   }, [fullSolveTargetSec]);
 
-  const getPhaseTargetPb = (phase) => {
-    const val = currentUser.phaseTargetPbs?.[phase];
-    return Number.isFinite(Number(val)) && Number(val) > 0 ? Number(val) : 2.0;
-  };
-
   useEffect(() => {
     setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3));
   }, [selectedTargetPhase, currentUser.phaseTargetPbs]);
-
-  const getEffectiveCaseTargetPb = (phase, caseId) => {
-    const custom = currentUser.caseTargetPbs?.[phase]?.[caseId];
-    if (Number.isFinite(Number(custom)) && Number(custom) > 0) return Number(custom);
-    return getPhaseTargetPb(phase);
-  };
 
   const updateFullSolveTargetPb = (sec) => {
     const clamped = Math.min(120, Math.max(1.0, Number(Number(sec).toFixed(3))));
@@ -2213,7 +2344,7 @@ function OLLDaySuite() {
     return () => clearInterval(interval);
   }, [blindState]);
 
-  // Multi-touch dual-thumb arming lifecycle (handles simultaneous left + right thumb holds on mobile)
+  // Multi-touch dual-thumb arming lifecycle
   useEffect(() => {
     if (blindState === 'idle' || blindState === 'visor' || blindState === 'done') {
       if (padHoldTimeoutRef.current) clearTimeout(padHoldTimeoutRef.current);
@@ -2246,7 +2377,6 @@ function OLLDaySuite() {
 
   const handleSingleMousePadDown = (side) => {
     if (blindState !== 'inspecting' && blindState !== 'readying' && blindState !== 'armed') return;
-    // Allow single-click desktop mouse testing to engage both pads seamlessly
     setLeftPadHeld(true);
     setRightPadHeld(true);
     if (side === 'left' || side === 'right') {
@@ -2341,7 +2471,7 @@ function OLLDaySuite() {
   const executeGranularReset = (scope) => {
     emitBeep(360, 'triangle', 0.12);
     setUsers((prev) => {
-      const u = { ...(prev[activeUserKey] || DEFAULT_USERS.Me) };
+      const u = { ...(prev[activeUserKey] || DEFAULT_USERS.Demo) };
       if (scope === 'f2l-day') u.f2lDay = 1;
       if (scope === 'f2l-stats') u.f2lStats = {};
       if (scope === 'f2l-chunks') u.f2lCustomChunks = null;
@@ -2441,7 +2571,7 @@ function OLLDaySuite() {
     if (!builderChunks.length) return;
     emitBeep(880, 'sine', 0.1);
     setUsers((prev) => {
-      const u = prev[activeUserKey] || DEFAULT_USERS.Me;
+      const u = prev[activeUserKey] || DEFAULT_USERS.Demo;
       const updatedUser = {
         ...u,
         ...(builderPhase === 'f2l'
@@ -2550,8 +2680,8 @@ function OLLDaySuite() {
   const activeOLLSessionCase = ollSession ? ollSession.queue[ollSession.index] : null;
   const activePLLSessionCase = pllSession ? pllSession.queue[pllSession.index] : null;
 
-  // Settings Deck Touch Swipe Handlers (7 Cards)
-  const totalDeckCards = 7;
+  // Settings Deck Touch Swipe Handlers (8 Cards: Cards 1..7 + Card 8 Learn App)
+  const totalDeckCards = 8;
   const handleDeckTouchStart = (e) => {
     if (e.target.closest('[data-scrollable="true"]')) return;
     const t = e.touches[0];
@@ -2628,7 +2758,7 @@ function OLLDaySuite() {
     </div>
   );
 
-  // Reusable Settings 7-Card Deck Renderer
+  // Reusable Settings 8-Card Deck Renderer
   const renderSettingsDeck = () => (
     <div className="p-5 pb-10 space-y-4">
       <div className="flex items-center justify-between">
@@ -2637,7 +2767,7 @@ function OLLDaySuite() {
           <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => (
             <button
               key={idx}
               onClick={() => {
@@ -2645,7 +2775,7 @@ function OLLDaySuite() {
                 setSettingsDeckIdx(idx);
               }}
               className={`h-2 rounded-full transition-all cursor-pointer ${
-                settingsDeckIdx === idx ? 'w-6 bg-orange-500' : 'w-2 bg-white/20'
+                settingsDeckIdx === idx ? 'w-5 bg-orange-500' : 'w-2 bg-white/20'
               }`}
             />
           ))}
@@ -2658,17 +2788,70 @@ function OLLDaySuite() {
         onTouchEnd={handleDeckTouchEnd}
         className="relative h-[515px] w-full mt-2"
       >
-        {/* Card 1: Hardware & Millisecond Target PB Preferences */}
+        {/* Card 1: Learn How to Use This App (Manual Guided Tour Launcher Across All Phases) */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(0)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 7 • Preferences</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 8 • Onboarding</span>
             <button
               type="button"
               onClick={() => {
                 emitBeep(520);
                 setSettingsDeckIdx(1);
+              }}
+              className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              Preferences →
+            </button>
+          </div>
+          <h3 className="text-lg font-black text-white">Learn How to Use This App</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Launch an interactive, auto-navigating walkthrough that switches through <strong className="text-white">C → F → O → P</strong> live and shows how to reach every feature yourself.
+          </p>
+
+          <div className="space-y-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => startGuidedTour('cfopAndApp')}
+              className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600/25 to-amber-500/20 hover:from-orange-600/35 hover:to-amber-500/30 border border-orange-500/40 text-left space-y-1 cursor-pointer transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white">New to CFOP + App Navigation</span>
+                <span className="text-[10px] font-black text-orange-300">Start →</span>
+              </div>
+              <p className="text-[10.5px] text-slate-300 leading-snug">
+                Teaches Cross, F2L, OLL, and PLL from scratch while navigating to each phase in the app.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => startGuidedTour('appOnly')}
+              className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 cursor-pointer transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white">I Know CFOP • App Feature Tour</span>
+                <span className="text-[10px] font-black text-sky-300">Start →</span>
+              </div>
+              <p className="text-[10.5px] text-slate-300 leading-snug">
+                Fast tour of 3D Cross &amp; F2L cubes, Blind Mat, Fingertrick tags, Target PBs, and the 3x3 Timer.
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Hardware & Millisecond Target PB Preferences */}
+        <div
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(1)}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 8 • Preferences</span>
+            <button
+              type="button"
+              onClick={() => {
+                emitBeep(520);
+                setSettingsDeckIdx(2);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2869,17 +3052,17 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 2: Full-Screen 3x3x3 CFOP Timer Launcher & Pinned Home Screen Pills */}
+        {/* Card 3: Full-Screen 3x3x3 CFOP Timer Launcher & Pinned Home Screen Pills */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(1)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(2)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 7 • Timer &amp; Home</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 8 • Timer &amp; Home</span>
             <button
               type="button"
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(2);
+                setSettingsDeckIdx(3);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -2970,17 +3153,17 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 3: WCA Notation Guide */}
+        {/* Card 4: WCA Notation Guide */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(2)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 7 • Notation</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 8 • Notation</span>
             <button
               type="button"
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(3);
+                setSettingsDeckIdx(4);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -3020,17 +3203,17 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 4: Dedicated Fingertrick Dossier */}
+        {/* Card 5: Dedicated Fingertrick Dossier */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 7 • Mechanics</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 8 • Mechanics</span>
             <button
               type="button"
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(4);
+                setSettingsDeckIdx(5);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -3081,17 +3264,17 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 5: Beginner's Guide, Custom Builder & Reset Controls */}
+        {/* Card 6: Beginner's Guide, Custom Builder & Reset Controls */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(4)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 7 • Tools</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 6 of 8 • Tools</span>
             <button
               type="button"
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(5);
+                setSettingsDeckIdx(6);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -3166,17 +3349,17 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 6: Account & Cloud Sync */}
+        {/* Card 7: Account & Cloud Sync */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 6 of 7 • Account</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 7 of 8 • Account</span>
             <button
               type="button"
               onClick={() => {
                 emitBeep(520);
-                setSettingsDeckIdx(6);
+                setSettingsDeckIdx(7);
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
@@ -3227,12 +3410,12 @@ function OLLDaySuite() {
           </button>
         </div>
 
-        {/* Card 7: Membership Status & Account Deletion */}
+        {/* Card 8: Membership Status & Account Deletion */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(7)}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 7 of 7 • Membership</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 8 of 8 • Membership</span>
             <button
               type="button"
               onClick={() => {
@@ -3241,7 +3424,7 @@ function OLLDaySuite() {
               }}
               className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
-              Preferences →
+              Learn App →
             </button>
           </div>
           <h3 className="text-lg font-black text-white">OLLDay Pro &amp; Privacy</h3>
@@ -3328,31 +3511,6 @@ function OLLDaySuite() {
         .f2l-cube-satin {
           filter: contrast(0.92) saturate(0.86) brightness(0.96) drop-shadow(0 12px 18px rgba(0, 0, 0, 0.52));
           transition: transform 0.25s ease, filter 0.25s ease;
-        }
-        @keyframes iosShake {
-          0%, 100% { transform: translateX(0); }
-          20%, 60% { transform: translateX(-8px); }
-          40%, 80% { transform: translateX(8px); }
-        }
-        .ios-pin-shake {
-          animation: iosShake 0.34s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-        }
-        .ios-glass-key {
-          background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06) 70%);
-          backdrop-filter: blur(28px) saturate(165%);
-          -webkit-backdrop-filter: blur(28px) saturate(165%);
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 20px rgba(0, 0, 0, 0.35);
-          transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background 0.15s ease, box-shadow 0.15s ease;
-        }
-        .ios-glass-key:hover {
-          background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.11) 70%);
-          border-color: rgba(255, 255, 255, 0.28);
-        }
-        .ios-glass-key:active {
-          transform: scale(0.91);
-          background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.24) 85%);
-          box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 24px rgba(255, 255, 255, 0.18);
         }
       `}</style>
 
@@ -3618,7 +3776,7 @@ function OLLDaySuite() {
                         </div>
                       </div>
 
-                      {/* Interactive 3D Spatial Cross Cube (Same Volumetric 3D Engine as F2L) */}
+                      {/* Interactive 3D Spatial Cross Cube */}
                       <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-1.5">
                         <div className="w-full flex items-center justify-between px-1">
                           <span className="text-[10px] font-bold text-slate-400">
@@ -5952,6 +6110,7 @@ function OLLDaySuite() {
                       setAuthNameInput('');
                       setAuthEmailInput('');
                       setAuthScreenOpen(false);
+                      setActiveModal('cfopExperienceChoice');
                     }}
                     className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
                   >
@@ -5962,6 +6121,111 @@ function OLLDaySuite() {
             </div>
           </div>
         )}
+
+        {/* NEW ACCOUNT WELCOME PROMPT: ARE YOU NEW TO CFOP? */}
+        {activeModal === 'cfopExperienceChoice' && (
+          <div className="fixed inset-0 z-[272] bg-slate-950/80 backdrop-blur-3xl flex items-center justify-center p-5">
+            <div className="w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-orange-500/35 p-6 shadow-2xl space-y-4 text-center">
+              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                Welcome, {String(activeUserKey || 'Solver')}!
+              </span>
+              <h3 className="text-xl font-black text-white">Are you new to CFOP?</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Choose your experience level and we&apos;ll walk you through the app live, showing you where every phase and tool lives.
+              </p>
+
+              <div className="space-y-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => startGuidedTour('cfopAndApp')}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  Yes, show me whats going on here.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startGuidedTour('appOnly')}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-black text-xs uppercase tracking-wider cursor-pointer"
+                >
+                  No, I know CFOP.
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AUTO-NAVIGATING INTERACTIVE ONBOARDING & FEATURE TOUR OVERLAY */}
+        {activeModal === 'guidedTour' && (() => {
+          const steps = tourType === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
+          const step = steps[tourStepIdx] || steps[0];
+          const isLast = tourStepIdx + 1 >= steps.length;
+
+          return (
+            <div className="fixed inset-x-0 bottom-24 z-[268] px-4 flex justify-center pointer-events-none">
+              <div className="pointer-events-auto w-full max-w-md rounded-[2rem] bg-slate-900/95 backdrop-blur-2xl border border-orange-500/45 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.75)] space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                    {step.badge}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(440);
+                      setActiveModal(null);
+                    }}
+                    className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Skip Tour ✕
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-black text-white">{step.title}</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed mt-1">{step.desc}</p>
+                </div>
+
+                <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5">
+                  <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-300 block">
+                    How to Navigate Here Yourself:
+                  </span>
+                  <p className="text-[11px] text-slate-200 mt-0.5">{step.howToReach}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    disabled={tourStepIdx === 0}
+                    onClick={() => {
+                      emitBeep(480);
+                      const prevIdx = Math.max(0, tourStepIdx - 1);
+                      setTourStepIdx(prevIdx);
+                      applyTourNavigation(steps[prevIdx]);
+                    }}
+                    className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(680);
+                      if (!isLast) {
+                        const nextIdx = tourStepIdx + 1;
+                        setTourStepIdx(nextIdx);
+                        applyTourNavigation(steps[nextIdx]);
+                      } else {
+                        setActiveModal(null);
+                      }
+                    }}
+                    className="py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                  >
+                    {isLast ? 'Finish Tour ✓' : 'Next Step →'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* LIFETIME PRO UNLOCK ($3.99) GLASSMORPHIC PAYWALL MODAL */}
         {activeModal === 'proPaywall' && (
@@ -6477,6 +6741,7 @@ function OLLDaySuite() {
             </div>
           );
         })()}
+
         {/* 5C. ISOLATED PLL DRILL MODAL (FROM LIBRARY, LINEUP, OR STATS) */}
         {pllDrillCase && (() => {
           const caseStat = currentUser.pllStats?.[pllDrillCase.id] || {};
