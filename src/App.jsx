@@ -891,7 +891,7 @@ function simulateF2LCubeState(setupScramble = '') {
   return simulateCrossCubeState(setupScramble);
 }
 
-function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
+function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging, cubeRef }) {
   const stickers = useMemo(() => simulateCrossCubeState(scramble), [scramble]);
   const half = 48;
 
@@ -995,11 +995,13 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
       />
 
       <div
+        ref={cubeRef}
         style={{
           width: `${half * 2}px`,
           height: `${half * 2}px`,
           position: 'relative',
           transformStyle: 'preserve-3d',
+          willChange: isDragging ? 'transform' : 'auto',
           transform: `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${isDragging ? 1.05 : 1})`,
           transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
@@ -1015,7 +1017,7 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
   );
 }
 
-function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
+function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
   const stickers = useMemo(() => simulateF2LCubeState(setupScramble), [setupScramble]);
   const half = 48;
 
@@ -1097,11 +1099,13 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
       />
 
       <div
+        ref={cubeRef}
         style={{
           width: `${half * 2}px`,
           height: `${half * 2}px`,
           position: 'relative',
           transformStyle: 'preserve-3d',
+          willChange: isDragging ? 'transform' : 'auto',
           transform: `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${isDragging ? 1.05 : 1})`,
           transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
@@ -1496,6 +1500,10 @@ function OLLDaySuite() {
   const [crossDragRot, setCrossDragRot] = useState({ yaw: -35, pitch: 38 });
   const [crossIsDragging, setCrossIsDragging] = useState(false);
   const crossDragStartRef = useRef(null);
+  const crossLiveRotRef = useRef({ yaw: -35, pitch: 38 });
+  const crossCubeDomRef = useRef(null);
+  const crossDegreeLabelRef = useRef(null);
+  const crossRafRef = useRef(0);
   const [crossUserMoves, setCrossUserMoves] = useState(2);
   const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
   const [activeMechanicId, setActiveMechanicId] = useState(1);
@@ -1607,8 +1615,12 @@ function OLLDaySuite() {
   const [f2lDragRot, setF2lDragRot] = useState({ yaw: -35, pitch: -25 });
   const [f2lIsDragging, setF2lIsDragging] = useState(false);
   const f2lDragStartRef = useRef(null);
+  const f2lLiveRotRef = useRef({ yaw: -35, pitch: -25 });
+  const f2lCubeDomRef = useRef(null);
+  const f2lDegreeLabelRef = useRef(null);
+  const f2lRafRef = useRef(0);
 
-  // Web Audio Acoustic Synthesizer (Suspends & releases hardware DSP when backgrounded)
+  // Web Audio Acoustic Synthesizer
   const audioCtxRef = useRef(null);
   const emitBeep = (freq = 640, type = 'sine', duration = 0.07, vol = 0.12) => {
     if (!audioEnabled || typeof window === 'undefined' || (typeof document !== 'undefined' && document.hidden)) return;
@@ -1869,6 +1881,14 @@ function OLLDaySuite() {
       if (holdTimerRef.current) {
         clearTimeout(holdTimerRef.current);
         holdTimerRef.current = null;
+      }
+      if (crossRafRef.current) {
+        cancelAnimationFrame(crossRafRef.current);
+        crossRafRef.current = 0;
+      }
+      if (f2lRafRef.current) {
+        cancelAnimationFrame(f2lRafRef.current);
+        f2lRafRef.current = 0;
       }
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close().catch(() => {});
@@ -2462,6 +2482,7 @@ function OLLDaySuite() {
     e.stopPropagation();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    crossLiveRotRef.current = { ...crossDragRot };
     crossDragStartRef.current = { lastX: clientX, lastY: clientY, moved: false };
     setCrossIsDragging(true);
   };
@@ -2478,34 +2499,59 @@ function OLLDaySuite() {
     if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
       crossDragStartRef.current.moved = true;
     }
-    setCrossDragRot((prev) => ({
-      yaw: Math.round(prev.yaw + deltaX * 1.15),
-      pitch: Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)))
-    }));
+    const nextYaw = Math.round(crossLiveRotRef.current.yaw + deltaX * 1.15);
+    const nextPitch = Math.max(-75, Math.min(75, Math.round(crossLiveRotRef.current.pitch - deltaY * 0.95)));
+    crossLiveRotRef.current = { yaw: nextYaw, pitch: nextPitch };
+
+    if (!crossRafRef.current) {
+      crossRafRef.current = requestAnimationFrame(() => {
+        crossRafRef.current = 0;
+        const { yaw, pitch } = crossLiveRotRef.current;
+        if (crossCubeDomRef.current) {
+          crossCubeDomRef.current.style.transform = `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(1.05)`;
+        }
+        if (crossDegreeLabelRef.current) {
+          crossDegreeLabelRef.current.textContent = `3D Cross Orbit • Drag to Spin (${((yaw % 360) + 360) % 360}°)`;
+        }
+      });
+    }
   };
 
   const handleCrossCubePointerUp = () => {
     if (!crossDragStartRef.current) return;
+    if (crossRafRef.current) {
+      cancelAnimationFrame(crossRafRef.current);
+      crossRafRef.current = 0;
+    }
     const wasTap = !crossDragStartRef.current.moved;
     crossDragStartRef.current = null;
     setCrossIsDragging(false);
     if (wasTap) {
       emitBeep(620);
-      setCrossDragRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch }));
+      setCrossDragRot((prev) => {
+        const next = { yaw: prev.yaw - 90, pitch: prev.pitch };
+        crossLiveRotRef.current = next;
+        return next;
+      });
+    } else {
+      setCrossDragRot({ ...crossLiveRotRef.current });
     }
   };
 
   // Interactive 3D F2L Cube Orbit Handlers
   const setF2LPresetAngle = (idx) => {
     const preset = F2L_VIEW_ANGLES[idx % F2L_VIEW_ANGLES.length];
+    const next = { yaw: preset.yaw, pitch: preset.pitch };
+    f2lLiveRotRef.current = next;
     setF2lViewIdx(idx % F2L_VIEW_ANGLES.length);
-    setF2lDragRot({ yaw: preset.yaw, pitch: preset.pitch });
+    setF2lDragRot(next);
   };
 
   const handleF2LCubePointerDown = (e) => {
     e.stopPropagation();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    f2lLiveRotRef.current = { ...f2lDragRot };
     f2lDragStartRef.current = { lastX: clientX, lastY: clientY, moved: false };
     setF2lIsDragging(true);
   };
@@ -2522,20 +2568,38 @@ function OLLDaySuite() {
     if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
       f2lDragStartRef.current.moved = true;
     }
-    setF2lDragRot((prev) => ({
-      yaw: Math.round(prev.yaw + deltaX * 1.15),
-      pitch: Math.max(-75, Math.min(75, Math.round(prev.pitch - deltaY * 0.95)))
-    }));
+    const nextYaw = Math.round(f2lLiveRotRef.current.yaw + deltaX * 1.15);
+    const nextPitch = Math.max(-75, Math.min(75, Math.round(f2lLiveRotRef.current.pitch - deltaY * 0.95)));
+    f2lLiveRotRef.current = { yaw: nextYaw, pitch: nextPitch };
+
+    if (!f2lRafRef.current) {
+      f2lRafRef.current = requestAnimationFrame(() => {
+        f2lRafRef.current = 0;
+        const { yaw, pitch } = f2lLiveRotRef.current;
+        if (f2lCubeDomRef.current) {
+          f2lCubeDomRef.current.style.transform = `translateZ(-12px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(1.05)`;
+        }
+        if (f2lDegreeLabelRef.current) {
+          f2lDegreeLabelRef.current.textContent = `3D Orbit • Drag to Spin (${((yaw % 360) + 360) % 360}°)`;
+        }
+      });
+    }
   };
 
   const handleF2LCubePointerUp = () => {
     if (!f2lDragStartRef.current) return;
+    if (f2lRafRef.current) {
+      cancelAnimationFrame(f2lRafRef.current);
+      f2lRafRef.current = 0;
+    }
     const wasTap = !f2lDragStartRef.current.moved;
     f2lDragStartRef.current = null;
     setF2lIsDragging(false);
     if (wasTap) {
       emitBeep(620);
       setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length);
+    } else {
+      setF2lDragRot({ ...f2lLiveRotRef.current });
     }
   };
 
@@ -3714,8 +3778,9 @@ function OLLDaySuite() {
                             yaw={crossDragRot.yaw}
                             pitch={crossDragRot.pitch}
                             isDragging={crossIsDragging}
+                            cubeRef={crossCubeDomRef}
                           />
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                          <span ref={crossDegreeLabelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
                             3D Cross Orbit • Drag to Spin ({((crossDragRot.yaw % 360) + 360) % 360}°)
                           </span>
                         </div>
@@ -5935,10 +6000,16 @@ function OLLDaySuite() {
         {fullTimerOpen && (
           <div
             onClick={handleFullTimerScreenTap}
-            className="fixed inset-0 z-[290] bg-slate-950/80 backdrop-blur-3xl flex flex-col justify-between p-6 select-none cursor-pointer"
+            className="fixed inset-0 z-[290] bg-slate-950/88 backdrop-blur-xl flex flex-col justify-between p-6 select-none cursor-pointer"
           >
-            <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
-            <div className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-sky-500/15 blur-[110px]" />
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }}
+              className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+            />
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)' }}
+              className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+            />
 
             <div
               onClick={(e) => e.stopPropagation()}
@@ -6056,9 +6127,15 @@ function OLLDaySuite() {
 
         {/* 7. GLASSMORPHIC SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-slate-950/65 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-y-auto">
-            <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/20 blur-[110px]" />
-            <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-sky-500/15 blur-[110px]" />
+          <div className="fixed inset-0 z-[255] bg-slate-950/80 backdrop-blur-xl flex flex-col items-center justify-center p-6 overflow-y-auto">
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }}
+              className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+            />
+            <div
+              style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)' }}
+              className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full"
+            />
 
             <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-white/[0.08] backdrop-blur-2xl border border-white/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.2)] space-y-5">
               {/* Brand Emblem & Title */}
@@ -6569,8 +6646,9 @@ function OLLDaySuite() {
                   yaw={f2lDragRot.yaw}
                   pitch={f2lDragRot.pitch}
                   isDragging={f2lIsDragging}
+                  cubeRef={f2lCubeDomRef}
                 />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                <span ref={f2lDegreeLabelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
                   3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
                 </span>
               </div>
@@ -6788,8 +6866,9 @@ function OLLDaySuite() {
                     yaw={f2lDragRot.yaw}
                     pitch={f2lDragRot.pitch}
                     isDragging={f2lIsDragging}
+                    cubeRef={f2lCubeDomRef}
                   />
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                  <span ref={f2lDegreeLabelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
                     3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
                   </span>
                 </div>
