@@ -1843,9 +1843,10 @@ function OLLDaySuite() {
     };
   }, []);
 
-  // Foreground-Only Firestore Snapshot Listener (Disconnects WebSocket while backgrounded)
+  // Foreground-Only Single-Document Firestore Snapshot Listener (Prevents unrelated user sync wakeups)
   useEffect(() => {
     if (!resolvedFirebaseConfig || !cloudAuthUser || !isAppVisible) return;
+    const targetDocKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
     let unsubSnapshot = null;
     let cancelled = false;
 
@@ -1853,22 +1854,23 @@ function OLLDaySuite() {
       const svc = await getFirebaseServices();
       if (!svc || cancelled) return;
       setCloudSyncStatus('synced');
-      const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+      const docRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', targetDocKey);
       unsubSnapshot = svc.fsMod.onSnapshot(
-        colRef,
-        (snap) => {
-          if (cancelled) return;
+        docRef,
+        (docSnap) => {
+          if (cancelled || !docSnap.exists()) return;
+          const data = docSnap.data();
+          if (!data || typeof data !== 'object') return;
           setUsers((prev) => {
-            const merged = { ...prev };
-            snap.forEach((docSnap) => {
-              const data = docSnap.data();
-              if (data && data._deleted) {
-                delete merged[docSnap.id];
-              } else if (data && typeof data === 'object') {
-                merged[docSnap.id] = sanitizeUserRecord({ ...(merged[docSnap.id] || {}), ...data });
-              }
-            });
-            return Object.keys(merged).length > 0 ? merged : { ...DEFAULT_USERS };
+            if (data._deleted) {
+              const copy = { ...prev };
+              delete copy[docSnap.id];
+              return Object.keys(copy).length > 0 ? copy : { ...DEFAULT_USERS };
+            }
+            return {
+              ...prev,
+              [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
+            };
           });
         },
         () => setCloudSyncStatus('local')
@@ -1879,7 +1881,7 @@ function OLLDaySuite() {
       cancelled = true;
       if (typeof unsubSnapshot === 'function') unsubSnapshot();
     };
-  }, [cloudAuthUser, isAppVisible]);
+  }, [cloudAuthUser, isAppVisible, activeUserKey]);
 
   // Deep-Sleep Background Power-Save Lifecycle (visibilitychange & pagehide)
   useEffect(() => {
@@ -1941,42 +1943,28 @@ function OLLDaySuite() {
     };
   }, []);
 
-  // 30fps Throttled Case Stopwatch Loop (75% fewer 120Hz wakeups; exact ms precision on stop)
+  // 30Hz Interval Case Stopwatch Loop (Eliminates 120Hz rAF wakeups; exact ms precision on stop)
   useEffect(() => {
     if (!swRunning || !isAppVisible) return;
-    let rafId = 0;
-    let lastPaint = 0;
-    const tick = (now) => {
-      if (now - lastPaint >= 33) {
-        lastPaint = now;
-        const elapsed = performance.now() - swStartRef.current;
-        if (swDisplayRef.current) {
-          swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
-        }
+    const id = setInterval(() => {
+      const elapsed = performance.now() - swStartRef.current;
+      if (swDisplayRef.current) {
+        swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
       }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    }, 33);
+    return () => clearInterval(id);
   }, [swRunning, isAppVisible]);
 
-  // 30fps Throttled Full-Screen 3x3x3 Timer Loop (75% fewer 120Hz wakeups; exact ms precision on stop)
+  // 30Hz Interval Full-Screen 3x3x3 Timer Loop (Eliminates 120Hz rAF wakeups; exact ms precision on stop)
   useEffect(() => {
     if (fullTimerState !== 'running' || !isAppVisible) return;
-    let rafId = 0;
-    let lastPaint = 0;
-    const tick = (now) => {
-      if (now - lastPaint >= 33) {
-        lastPaint = now;
-        const elapsed = performance.now() - fullStartRef.current;
-        if (fullTimerDisplayRef.current) {
-          fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
-        }
+    const id = setInterval(() => {
+      const elapsed = performance.now() - fullStartRef.current;
+      if (fullTimerDisplayRef.current) {
+        fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
       }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    }, 33);
+    return () => clearInterval(id);
   }, [fullTimerState, isAppVisible]);
 
   // Derived Current User & Curriculum Schedules
@@ -2272,12 +2260,9 @@ function OLLDaySuite() {
   }, [leftPadHeld, rightPadHeld, blindState]);
 
   const handleSingleMousePadDown = (side) => {
-    if (blindState !== 'inspecting' && blindState !== 'readying' && blindState !== 'armed') return;
+    emitBeep(side === 'left' ? 520 : 560, 'sine', 0.04, 0.06);
     setLeftPadHeld(true);
     setRightPadHeld(true);
-    if (side === 'left' || side === 'right') {
-      emitBeep(520, 'sine', 0.04, 0.06);
-    }
   };
 
   const handleSingleMousePadUp = () => {
@@ -2285,48 +2270,63 @@ function OLLDaySuite() {
     setRightPadHeld(false);
   };
 
-  // Non-passive mobile touch scroll lock during active lineup drag-and-drop
+  // Non-passive mobile touch scroll lock during active lineup drag-and-drop (rAF-gated hit-testing)
   useEffect(() => {
     if (draggedLineupIdx === null) return;
+    let dragRafId = 0;
+    let pendingPoint = null;
 
     const handleWindowTouchMove = (e) => {
       e.preventDefault();
       const touch = e.touches[0];
       if (!touch) return;
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      const row = el?.closest('[data-lineup-idx]');
-      if (row) {
-        const targetIdx = Number(row.getAttribute('data-lineup-idx'));
-        if (!Number.isNaN(targetIdx) && targetIdx !== draggedLineupIdx) {
-          if (activePhase === 'f2l') {
-            setF2lLineupOrder((prev) => {
-              const updated = [...prev];
-              const [moved] = updated.splice(draggedLineupIdx, 1);
-              updated.splice(targetIdx, 0, moved);
-              return updated;
-            });
-          } else if (activePhase === 'oll') {
-            setOllLineupOrder((prev) => {
-              const updated = [...prev];
-              const [moved] = updated.splice(draggedLineupIdx, 1);
-              updated.splice(targetIdx, 0, moved);
-              return updated;
-            });
-          } else if (activePhase === 'pll') {
-            setPllLineupOrder((prev) => {
-              const updated = [...prev];
-              const [moved] = updated.splice(draggedLineupIdx, 1);
-              updated.splice(targetIdx, 0, moved);
-              return updated;
-            });
+      pendingPoint = { x: touch.clientX, y: touch.clientY };
+      if (dragRafId) return;
+
+      dragRafId = requestAnimationFrame(() => {
+        dragRafId = 0;
+        if (!pendingPoint) return;
+        const { x, y } = pendingPoint;
+        pendingPoint = null;
+        const el = document.elementFromPoint(x, y);
+        const row = el?.closest('[data-lineup-idx]');
+        if (row) {
+          const targetIdx = Number(row.getAttribute('data-lineup-idx'));
+          if (!Number.isNaN(targetIdx) && targetIdx !== draggedLineupIdx) {
+            if (activePhase === 'f2l') {
+              setF2lLineupOrder((prev) => {
+                const updated = [...prev];
+                const [moved] = updated.splice(draggedLineupIdx, 1);
+                updated.splice(targetIdx, 0, moved);
+                return updated;
+              });
+            } else if (activePhase === 'oll') {
+              setOllLineupOrder((prev) => {
+                const updated = [...prev];
+                const [moved] = updated.splice(draggedLineupIdx, 1);
+                updated.splice(targetIdx, 0, moved);
+                return updated;
+              });
+            } else if (activePhase === 'pll') {
+              setPllLineupOrder((prev) => {
+                const updated = [...prev];
+                const [moved] = updated.splice(draggedLineupIdx, 1);
+                updated.splice(targetIdx, 0, moved);
+                return updated;
+              });
+            }
+            setDraggedLineupIdx(targetIdx);
+            emitBeep(640, 'sine', 0.04, 0.08);
           }
-          setDraggedLineupIdx(targetIdx);
-          emitBeep(640, 'sine', 0.04, 0.08);
         }
-      }
+      });
     };
 
     const handleWindowTouchEnd = () => {
+      if (dragRafId) {
+        cancelAnimationFrame(dragRafId);
+        dragRafId = 0;
+      }
       setDraggedLineupIdx(null);
     };
 
@@ -2334,6 +2334,7 @@ function OLLDaySuite() {
     window.addEventListener('touchend', handleWindowTouchEnd);
     window.addEventListener('touchcancel', handleWindowTouchEnd);
     return () => {
+      if (dragRafId) cancelAnimationFrame(dragRafId);
       window.removeEventListener('touchmove', handleWindowTouchMove);
       window.removeEventListener('touchend', handleWindowTouchEnd);
       window.removeEventListener('touchcancel', handleWindowTouchEnd);
@@ -2730,7 +2731,7 @@ function OLLDaySuite() {
       >
         {/* Card 1: Learn How to Use This App (Manual Guided Tour Launcher Across All Phases) */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 0 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 8 • Onboarding</span>
@@ -2783,7 +2784,7 @@ function OLLDaySuite() {
 
         {/* Card 2: Hardware & Millisecond Target PB Preferences */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(1)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 1 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(1)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 8 • Preferences</span>
@@ -2944,7 +2945,7 @@ function OLLDaySuite() {
 
         {/* Card 3: Full-Screen 3x3x3 CFOP Timer Launcher & Pinned Home Screen Pills */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(2)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 2 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(2)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 8 • Timer &amp; Home</span>
@@ -3045,7 +3046,7 @@ function OLLDaySuite() {
 
         {/* Card 4: WCA Notation Guide */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 3 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 8 • Notation</span>
@@ -3095,7 +3096,7 @@ function OLLDaySuite() {
 
         {/* Card 5: Dedicated Fingertrick Dossier */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 4 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 8 • Mechanics</span>
@@ -3156,7 +3157,7 @@ function OLLDaySuite() {
 
         {/* Card 6: Custom Builder (Blurred if non-Pro) & Reset Controls */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 5 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 6 of 8 • Tools</span>
@@ -3235,7 +3236,7 @@ function OLLDaySuite() {
 
         {/* Card 7: Account & Cloud Sync */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 6 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 7 of 8 • Account</span>
@@ -3296,7 +3297,7 @@ function OLLDaySuite() {
 
         {/* Card 8: Membership Status & Account Deletion */}
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(7)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 7 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(7)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 8 of 8 • Membership</span>
@@ -3378,7 +3379,7 @@ function OLLDaySuite() {
     </div>
   );
 
-  // Unified Case Thumbnail Renderer (F2L Satin Cube vs. OLL/PLL VisualCube Plan)
+  // Unified Case Thumbnail Renderer (Original VisualCube Diagrams with Lazy Async Decoding)
   const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
     if (phaseKey === 'f2l') {
       return (
@@ -4001,15 +4002,33 @@ function OLLDaySuite() {
     const isF2L = phaseKey === 'f2l';
     const isPLL = phaseKey === 'pll';
 
+    const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
+    const caseStat = statsMap?.[item.id] || {};
+    const lastResultForThis =
+      swLastResult && swLastResult.phase === phaseKey && swLastResult.caseId === item.id ? swLastResult : null;
+
+    const handleSessionScreenTap = (e) => {
+      if (!stopwatchEnabled) return;
+      if (e.target.closest('button, input, a')) return;
+      if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
+      toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec));
+    };
+
     return (
-      <div className="fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto">
-        <div className="flex items-center justify-between">
+      <div
+        onClick={handleSessionScreenTap}
+        className={`fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto ${
+          stopwatchEnabled ? 'cursor-pointer' : ''
+        }`}
+      >
+        <div data-no-timer-start="true" className="flex items-center justify-between">
           <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
             {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
           </span>
           <button
             onClick={() => {
               setSwRunning(false);
+              setSwLastResult(null);
               setSession(null);
             }}
             className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer"
@@ -4020,7 +4039,7 @@ function OLLDaySuite() {
 
         <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
           {isF2L ? (
-            <>
+            <div data-no-timer-start="true" className="w-full space-y-3">
               <div className="w-full flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                   Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
@@ -4073,7 +4092,7 @@ function OLLDaySuite() {
                   3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
                 </span>
               </div>
-            </>
+            </div>
           ) : (
             <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
               <img
@@ -4086,6 +4105,7 @@ function OLLDaySuite() {
                     : getOLLImageUrl(item.alg)
                 }
                 alt={item.name}
+                decoding="async"
                 className="w-full h-full object-contain"
               />
             </div>
@@ -4259,16 +4279,24 @@ function OLLDaySuite() {
       close();
     };
 
+    const handleModalScreenTap = (e) => {
+      if (!stopwatchEnabled) return;
+      if (e.target.closest('button, input, a')) return;
+      if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
+      toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec));
+    };
+
     return (
       <div
-        onClick={handleClose}
-        className="fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+        onClick={handleModalScreenTap}
+        className={`fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5 ${
+          stopwatchEnabled ? 'cursor-pointer' : ''
+        }`}
       >
         <div
-          onClick={(e) => e.stopPropagation()}
           className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar"
         >
-          <div className="flex items-center justify-between">
+          <div data-no-timer-start="true" className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
               {item.group}
             </span>
@@ -4281,7 +4309,7 @@ function OLLDaySuite() {
           </div>
 
           {isF2L ? (
-            <>
+            <div data-no-timer-start="true" className="w-full space-y-3">
               <div className="w-full flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                   Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(f2lDragRot.yaw, f2lDragRot.pitch)}</strong>
@@ -4334,7 +4362,7 @@ function OLLDaySuite() {
                   3D Orbit • Drag to Spin ({((f2lDragRot.yaw % 360) + 360) % 360}°)
                 </span>
               </div>
-            </>
+            </div>
           ) : (
             <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
               <img
@@ -4347,6 +4375,7 @@ function OLLDaySuite() {
                     : getOLLImageUrl(item.alg)
                 }
                 alt={item.name}
+                decoding="async"
                 className="w-full h-full object-contain"
               />
             </div>
@@ -4432,72 +4461,52 @@ function OLLDaySuite() {
           </div>
 
           {stopwatchEnabled && (
-            <div className="space-y-2">
-              <button
-                onClick={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-                className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                  swRunning
-                    ? 'bg-green-500/20 border-green-400 text-green-300'
-                    : lastResultForThis?.isNewPb
-                    ? 'bg-amber-500/15 border-amber-400/60 text-white'
-                    : 'bg-slate-950 border-white/10 text-slate-200'
-                }`}
-              >
-                {swRunning ? (
-                  <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-                ) : lastResultForThis ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-black text-white">
-                        Got: {lastResultForThis.timeSec.toFixed(3)}s
-                      </span>
-                      {lastResultForThis.isNewPb ? (
-                        <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
-                          ★ New PB!
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                          PB: {caseStat.best?.toFixed(3)}s
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                      Tap to Time Again
+            <button
+              onClick={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+              className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                swRunning
+                  ? 'bg-green-500/20 border-green-400 text-green-300'
+                  : lastResultForThis?.isNewPb
+                  ? 'bg-amber-500/15 border-amber-400/60 text-white'
+                  : 'bg-slate-950 border-white/10 text-slate-200'
+              }`}
+            >
+              {swRunning ? (
+                <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+              ) : lastResultForThis ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-black text-white">
+                      Got: {lastResultForThis.timeSec.toFixed(3)}s
                     </span>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <span className="text-base font-black">{timerLabel}</span>
-                    {typeof caseStat.best === 'number' && (
-                      <span className="text-[10px] font-bold text-amber-300">
-                        Recorded PB: {caseStat.best.toFixed(3)}s
+                    {lastResultForThis.isNewPb ? (
+                      <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">
+                        ★ New PB!
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
+                        PB: {caseStat.best?.toFixed(3)}s
                       </span>
                     )}
                   </div>
-                )}
-              </button>
-
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                  <span className="text-[9px] font-black uppercase text-slate-400 block">Ao5</span>
-                  <span className="font-mono text-xs font-black text-green-400">
-                    {ao5Case !== null ? `${ao5Case.toFixed(2)}s` : '—'}
+                  <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                    Tap Anywhere to Time Again
                   </span>
-                </div>
-                <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                  <span className="text-[9px] font-black uppercase text-slate-400 block">Ao20</span>
-                  <span className="font-mono text-xs font-black text-sky-400">
-                    {ao20Case !== null ? `${ao20Case.toFixed(2)}s` : '—'}
+                </>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <span className="text-base font-black">{timerLabel}</span>
+                  <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                    or Tap Anywhere on Screen
                   </span>
+                  {typeof caseStat.best === 'number' && (
+                    <span className="text-[10px] font-bold text-amber-300 mt-0.5">
+                      Recorded PB: {caseStat.best.toFixed(3)}s
+                    </span>
+                  )}
                 </div>
-                <div className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                  <span className="text-[9px] font-black uppercase text-slate-400 block">Ao40</span>
-                  <span className="font-mono text-xs font-black text-purple-300">
-                    {ao40Case !== null ? `${ao40Case.toFixed(2)}s` : '—'}
-                  </span>
-                </div>
-              </div>
-            </div>
+              )}
+            </button>
           )}
         </div>
       </div>
@@ -6062,10 +6071,11 @@ function OLLDaySuite() {
                         : getOLLImageUrl(ftCase.alg)
                     }
                     alt={ftCase.name}
+                    decoding="async"
                     className={
                       ftPhaseContext === 'f2l'
                         ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0'
-                        : 'w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0'
+                        : 'w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 object-contain'
                     }
                   />
                   <div className="min-w-0">
