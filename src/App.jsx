@@ -322,39 +322,39 @@ const F2L_DATA = [
   { id: 6, name: 'F2L 6', group: 'Top Layer: Same Color', alg: "(U F' U' F) U2' (F' U F)", step1: 'Hide corner with U F\' U\' F while moving edge across', step2: 'U2\' to pair up and insert into FR with F\' U F', fingertrick: 'Index U, F\' U\' F, left double-flick U2\', F\' U F' },
   { id: 7, name: 'F2L 7', group: 'Top Layer: Same Color', alg: "(U' R U2' R') U2 (R U' R')", step1: 'Swing edge to back with U2\' while corner hides', step2: 'Bring pair over FR and insert', fingertrick: 'U\' R, left U2\' double-flick, R\', U2, R U\' R\'' },
   { id: 8, name: 'F2L 8', group: 'Top Layer: Same Color', alg: "(U F' U2 F) U2' (F' U F)", step1: 'Separate adjacent matching stickers with U F\' U2 F', step2: 'Pair with U2\' and insert into FR via F\' U F', fingertrick: 'U F\' U2 F, left U2\' double-flick, F\' U F' },
-  { id: 9, name: 'F2L 9', group: 'Top Layer: Same Color', alg: "U' R U' R' U F' U' F", step1: 'Break apart bad connection in U layer', step2: 'Insert formed pair directly into FR with F\' U\' F', fingertrick: 'U\' R U\' R\' U, left index F\', U\' F' },
-  { id: 10, name: 'F2L 10', group: 'Top Layer: Same Color', alg: "U' R U R' U R U R'", step1: 'Lift and separate matching top stickers', step2: 'Connect over FR and insert with R U R\'', fingertrick: 'Regripless right-hand flow throughout' },
-  { id: 11, name: 'F2L 11', group: 'Top Layer: Opposite Colors', alg: "U' R U2' R' U F' U' F", step1: 'Hide corner and kick edge across top layer', step2: 'Catch the pair and insert with F\' U\' F', fingertrick: 'U\' R U2\' R\' U, left index F\', U\' F' },
-  { id: 12, name: 'F2L 12', group: 'Top Layer: Opposite Colors', alg: "R' U2 R2 U R2' U R", step1: 'Use wide R2 swing to pair without cube rotation', step2: 'Complete rotationless insert into FR', fingertrick: 'Thumb-down R\', U2, R2 U R2\' U R' },
-  { id: 13, name: 'F2L 13', group: 'Top Layer: Opposite Colors', alg: "U F' U F U' F' U' F", step1: 'Setup opposite-top edge using U F\' U F', step2: 'Pair and insert cleanly with U\' F\' U\' F', fingertrick: 'Index U, F\' U F, left U\', F\' U\' F' },
-  { id: 14, name: 'F2L 14', group: 'Top Layer: Opposite Colors', alg: "U' R U' R' U R U R'", step1: 'Create 3-move setup with U\' R U\' R\'', step2: 'Align with U and insert via R U R\'', fingertrick: 'Fast index pushes on U\' and U' },
-  { id: 15, name: 'F2L 15', group: 'Top Layer: Opposite Colors', alg: "R U R' U2 R U' R' U R U' R'", step1: 'Split connected opposite pair with R U R\' U2', step2: 'Pair and insert cleanly into FR', fingertrick: 'Continuous right-wrist rhythm' },
-  { id: 16, name: 'F2L 16', group: 'Top Layer: Opposite Colors', alg: "R U' R' U2 F' U' F", step1: 'Separate pair over FR with R U\' R\' U2', step2: 'Drop connected pair into FR using F\' U\' F', fingertrick: 'R U\' R\' U2, left index F\', U\' F' },
-  { id: 17, name: 'F2L 17', group: 'Top Layer: White Up', alg: "R U2 R' U' R U R'", step1: 'Align edge with matching center, hide corner with R U2 R\'', step2: 'Bring corner back over edge and insert', fingertrick: 'R, U2 double-flick, R\' U\' R U R\'' },
-  { id: 18, name: 'F2L 18', group: 'Top Layer: White Up', alg: "F' U2 F U F' U' F", step1: 'Swing white-up corner over matching edge with F\' U2 F', step2: 'Pair with U and insert via F\' U\' F', fingertrick: 'Left index F\', U2, thumb F, U F\' U\' F' },
-  { id: 19, name: 'F2L 19', group: 'Top Layer: White Up', alg: "U R U2 R' U R U' R'", step1: 'Position white-up corner at FR, swing with U R U2 R\'', step2: 'Pair and insert with U R U\' R\'', fingertrick: 'Index U, R U2 R\', U R U\' R\'' },
-  { id: 20, name: 'F2L 20', group: 'Top Layer: White Up', alg: "U' F' U2 F U' F' U F", step1: 'Setup white-up corner with U\' F\' U2 F', step2: 'Connect edge with U\' and insert via F\' U F', fingertrick: 'Left U\' pushes, F\' U2 F, U\' F\' U F' },
-  { id: 21, name: 'F2L 21', group: 'Top Layer: White Up', alg: "U2 R U R' U R U' R'", step1: 'U2 aligns edge to center, R U R\' pairs them', step2: 'U R U\' R\' inserts into FR', fingertrick: 'Double-flick U2, two smooth R triggers' },
-  { id: 22, name: 'F2L 22', group: 'Top Layer: White Up', alg: "U2 F' U' F U' F' U F", step1: 'U2 sets up front-edge alignment', step2: 'Pair with F\' U\' F and insert via U\' F\' U F', fingertrick: 'U2 double-flick, F\' U\' F U\' F\' U F' },
-  { id: 23, name: 'F2L 23', group: 'Top Layer: White Up', alg: "U R U' R' U' R U' R' U R U' R'", step1: 'Extract and orient white-up corner with U R U\' R\'', step2: 'Pair and insert in two smooth triggers', fingertrick: 'Rhythm: (U R U\' R\') U\' (R U\' R\') U (R U\' R\')' },
-  { id: 24, name: 'F2L 24', group: 'Top Layer: White Up', alg: "F U R U' R' F' R U' R'", step1: 'Sledge-style F setup pairs corner and edge in U', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'Right thumb F, U R U\' R\', thumb F\', R U\' R\'' },
-  { id: 25, name: 'F2L 25', group: 'Corner in Bottom', alg: "U' R' F R F' R U R'", step1: 'Use sledgehammer (R\' F R F\') to twist trapped corner', step2: 'Insert paired block with R U R\'', fingertrick: 'U\', R\' F R F\', R U R\'' },
-  { id: 26, name: 'F2L 26', group: 'Corner in Bottom', alg: "U R U' R' F R' F' R", step1: 'Pair edge with corner using U R U\' R\'', step2: 'Insert cleanly with sledgehammer (F R\' F\' R)', fingertrick: 'U R U\' R\', index F, R\' F\' R' },
-  { id: 27, name: 'F2L 27', group: 'Corner in Bottom', alg: "R U' R' U R U' R'", step1: 'Pop trapped corner out to U layer with R U\' R\'', step2: 'Align with U and re-insert via R U\' R\'', fingertrick: 'Double sexy-inverse trigger' },
-  { id: 28, name: 'F2L 28', group: 'Corner in Bottom', alg: "R U R' U' F R' F' R", step1: 'Lift corner with sexy move (R U R\' U\')', step2: 'Sledgehammer inserts without cube rotation', fingertrick: 'R U R\' U\' into F R\' F\' R' },
-  { id: 29, name: 'F2L 29', group: 'Corner in Bottom', alg: "R' F R F' R' F R F'", step1: 'Double sledgehammer twists corner while preserving edge', step2: 'Second sledge drops pair directly into FR', fingertrick: 'Two crisp R\' F R F\' triggers' },
-  { id: 30, name: 'F2L 30', group: 'Corner in Bottom', alg: "R U R' U' R U R'", step1: 'Pop white-right corner up with R U R\' U\'', step2: 'Direct insert with R U R\'', fingertrick: 'Fast regripless right-hand burst' },
-  { id: 31, name: 'F2L 31', group: 'Edge in Middle / Both Bottom', alg: "U' R' F R F' R U' R'", step1: 'Sledgehammer flips trapped middle-layer edge', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'U\' R\' F R F\' R U\' R\'' },
-  { id: 32, name: 'F2L 32', group: 'Edge in Middle / Both Bottom', alg: "R U R' U' R U R' U' R U R'", step1: 'Triple sexy move cycles trapped edge and corner', step2: 'Third trigger locks pair into FR', fingertrick: '3x (R U R\' U\') without final U\'' },
-  { id: 33, name: 'F2L 33', group: 'Edge in Middle / Both Bottom', alg: "U' R U' R' U2 R U' R'", step1: 'Extract trapped edge while setting corner in U', step2: 'U2 pairs them for R U\' R\' insert', fingertrick: 'U\' R U\' R\', U2 double-flick, R U\' R\'' },
-  { id: 34, name: 'F2L 34', group: 'Edge in Middle / Both Bottom', alg: "U R U R' U2 R U R'", step1: 'Lift trapped edge with U R U R\'', step2: 'U2 brings corner over for R U R\' insert', fingertrick: 'U R U R\', U2, R U R\'' },
-  { id: 35, name: 'F2L 35', group: 'Edge in Middle / Both Bottom', alg: "U' R U R' U F' U' F", step1: 'Extract edge to top with U\' R U R\'', step2: 'Front-slot insert via U F\' U\' F', fingertrick: 'U\' R U R\' U, left index F\', U\' F' },
-  { id: 36, name: 'F2L 36', group: 'Edge in Middle / Both Bottom', alg: "U2 R' F R F' U2 R U R'", step1: 'U2 + sledgehammer extracts flipped edge cleanly', step2: 'U2 + R U R\' drops solved pair into FR', fingertrick: 'U2, R\' F R F\', U2, R U R\'' },
-  { id: 37, name: 'F2L 37', group: 'Edge in Middle / Both Bottom', alg: "R2 U2 F R2 F' U2 R' U R'", step1: 'Classic flipped-in-slot algorithm using R2 U2 F R2 F\'', step2: 'Finish with U2 R\' U R\' into FR', fingertrick: 'R2 U2, thumb F, R2, index F\', U2 R\' U R\'' },
-  { id: 38, name: 'F2L 38', group: 'Edge in Middle / Both Bottom', alg: "R U R' U' R U2 R' U' R U R'", step1: 'Pop twisted pair out with R U R\' U\'', step2: 'Re-pair with R U2 R\' U\' and insert', fingertrick: 'Smooth continuous right-hand triggers' },
-  { id: 39, name: 'F2L 39', group: 'Edge in Middle / Both Bottom', alg: "R U' R' U' R U R' U2 R U' R'", step1: 'Separate twisted bottom pair with R U\' R\' U\'', step2: 'Pair via R U R\' U2 and insert', fingertrick: 'Keep right thumb anchored on front' },
-  { id: 40, name: 'F2L 40', group: 'Edge in Middle / Both Bottom', alg: "R U' R' U F' U2 F U2' F' U F", step1: 'Extract corner with R U\' R\' U without rotating', step2: 'Pair over front with F\' U2 F U2\' and insert via F\' U F', fingertrick: 'R U\' R\' U, F\' U2 F U2\' F\' U F' },
-  { id: 41, name: 'F2L 41', group: 'Edge in Middle / Both Bottom', alg: "R U R' U' R U' R' U2 F' U' F", step1: 'Lift twisted pair with R U R\' U\' R U\' R\'', step2: 'U2 + F\' U\' F drops pair straight into FR', fingertrick: 'R U R\' U\' R U\' R\', U2, F\' U\' F' }
+  { id: 9, name: 'F2L 9', group: 'Top Layer: Same Color', alg: "U' (R U' R') U (F' U' F)", step1: 'Break apart bad connection in U layer', step2: 'Insert formed pair directly into FR with F\' U\' F', fingertrick: 'U\' R U\' R\' U, left index F\', U\' F' },
+  { id: 10, name: 'F2L 10', group: 'Top Layer: Same Color', alg: "U' (R U R') U (R U R')", step1: 'Lift and separate matching top stickers', step2: 'Connect over FR and insert with R U R\'', fingertrick: 'Regripless right-hand flow throughout' },
+  { id: 11, name: 'F2L 11', group: 'Top Layer: Opposite Colors', alg: "U' (R U2' R') U (F' U' F)", step1: 'Hide corner and kick edge across top layer', step2: 'Catch the pair and insert with F\' U\' F', fingertrick: 'U\' R U2\' R\' U, left index F\', U\' F' },
+  { id: 12, name: 'F2L 12', group: 'Top Layer: Opposite Colors', alg: "(R' U2 R2) U (R2' U R)", step1: 'Use wide R2 swing to pair without cube rotation', step2: 'Complete rotationless insert into FR', fingertrick: 'Thumb-down R\', U2, R2 U R2\' U R' },
+  { id: 13, name: 'F2L 13', group: 'Top Layer: Opposite Colors', alg: "U (F' U F) U' (F' U' F)", step1: 'Setup opposite-top edge using U F\' U F', step2: 'Pair and insert cleanly with U\' F\' U\' F', fingertrick: 'Index U, F\' U F, left U\', F\' U\' F' },
+  { id: 14, name: 'F2L 14', group: 'Top Layer: Opposite Colors', alg: "U' (R U' R') U (R U R')", step1: 'Create 3-move setup with U\' R U\' R\'', step2: 'Align with U and insert via R U R\'', fingertrick: 'Fast index pushes on U\' and U' },
+  { id: 15, name: 'F2L 15', group: 'Top Layer: Opposite Colors', alg: "(R U R') U2 (R U' R') U (R U' R')", step1: 'Split connected opposite pair with R U R\' U2', step2: 'Pair and insert cleanly into FR', fingertrick: 'Continuous right-wrist rhythm' },
+  { id: 16, name: 'F2L 16', group: 'Top Layer: Opposite Colors', alg: "(R U' R') U2 (F' U' F)", step1: 'Separate pair over FR with R U\' R\' U2', step2: 'Drop connected pair into FR using F\' U\' F', fingertrick: 'R U\' R\' U2, left index F\', U\' F' },
+  { id: 17, name: 'F2L 17', group: 'Top Layer: White Up', alg: "(R U2 R') U' (R U R')", step1: 'Align edge with matching center, hide corner with R U2 R\'', step2: 'Bring corner back over edge and insert', fingertrick: 'R, U2 double-flick, R\' U\' R U R\'' },
+  { id: 18, name: 'F2L 18', group: 'Top Layer: White Up', alg: "(F' U2 F) U (F' U' F)", step1: 'Swing white-up corner over matching edge with F\' U2 F', step2: 'Pair with U and insert via F\' U\' F', fingertrick: 'Left index F\', U2, thumb F, U F\' U\' F' },
+  { id: 19, name: 'F2L 19', group: 'Top Layer: White Up', alg: "U (R U2 R') U (R U' R')", step1: 'Position white-up corner at FR, swing with U R U2 R\'', step2: 'Pair and insert with U R U\' R\'', fingertrick: 'Index U, R U2 R\', U R U\' R\'' },
+  { id: 20, name: 'F2L 20', group: 'Top Layer: White Up', alg: "U' (F' U2 F) U' (F' U F)", step1: 'Setup white-up corner with U\' F\' U2 F', step2: 'Connect edge with U\' and insert via F\' U F', fingertrick: 'Left U\' pushes, F\' U2 F, U\' F\' U F' },
+  { id: 21, name: 'F2L 21', group: 'Top Layer: White Up', alg: "U2 (R U R') U (R U' R')", step1: 'U2 aligns edge to center, R U R\' pairs them', step2: 'U R U\' R\' inserts into FR', fingertrick: 'Double-flick U2, two smooth R triggers' },
+  { id: 22, name: 'F2L 22', group: 'Top Layer: White Up', alg: "U2 (F' U' F) U' (F' U F)", step1: 'U2 sets up front-edge alignment', step2: 'Pair with F\' U\' F and insert via U\' F\' U F', fingertrick: 'U2 double-flick, F\' U\' F U\' F\' U F' },
+  { id: 23, name: 'F2L 23', group: 'Top Layer: White Up', alg: "(U R U' R') U' (R U' R') U (R U' R')", step1: 'Extract and orient white-up corner with U R U\' R\'', step2: 'Pair and insert in two smooth triggers', fingertrick: 'Rhythm: (U R U\' R\') U\' (R U\' R\') U (R U\' R\')' },
+  { id: 24, name: 'F2L 24', group: 'Top Layer: White Up', alg: "F (U R U' R') F' (R U' R')", step1: 'Sledge-style F setup pairs corner and edge in U', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'Right thumb F, U R U\' R\', thumb F\', R U\' R\'' },
+  { id: 25, name: 'F2L 25', group: 'Corner in Bottom', alg: "U' (R' F R F') (R U R')", step1: 'Use sledgehammer (R\' F R F\') to twist trapped corner', step2: 'Insert paired block with R U R\'', fingertrick: 'U\', R\' F R F\', R U R\'' },
+  { id: 26, name: 'F2L 26', group: 'Corner in Bottom', alg: "U (R U' R') (F R' F' R)", step1: 'Pair edge with corner using U R U\' R\'', step2: 'Insert cleanly with sledgehammer (F R\' F\' R)', fingertrick: 'U R U\' R\', index F, R\' F\' R' },
+  { id: 27, name: 'F2L 27', group: 'Corner in Bottom', alg: "(R U' R') U (R U' R')", step1: 'Pop trapped corner out to U layer with R U\' R\'', step2: 'Align with U and re-insert via R U\' R\'', fingertrick: 'Double sexy-inverse trigger' },
+  { id: 28, name: 'F2L 28', group: 'Corner in Bottom', alg: "(R U R' U') (F R' F' R)", step1: 'Lift corner with sexy move (R U R\' U\')', step2: 'Sledgehammer inserts without cube rotation', fingertrick: 'R U R\' U\' into F R\' F\' R' },
+  { id: 29, name: 'F2L 29', group: 'Corner in Bottom', alg: "(R' F R F') (R' F R F')", step1: 'Double sledgehammer twists corner while preserving edge', step2: 'Second sledge drops pair directly into FR', fingertrick: 'Two crisp R\' F R F\' triggers' },
+  { id: 30, name: 'F2L 30', group: 'Corner in Bottom', alg: "(R U R' U') (R U R')", step1: 'Pop white-right corner up with R U R\' U\'', step2: 'Direct insert with R U R\'', fingertrick: 'Fast regripless right-hand burst' },
+  { id: 31, name: 'F2L 31', group: 'Edge in Middle / Both Bottom', alg: "U' (R' F R F') (R U' R')", step1: 'Sledgehammer flips trapped middle-layer edge', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'U\' R\' F R F\' R U\' R\'' },
+  { id: 32, name: 'F2L 32', group: 'Edge in Middle / Both Bottom', alg: "(R U R' U') (R U R' U') (R U R')", step1: 'Triple sexy move cycles trapped edge and corner', step2: 'Third trigger locks pair into FR', fingertrick: '3x (R U R\' U\') without final U\'' },
+  { id: 33, name: 'F2L 33', group: 'Edge in Middle / Both Bottom', alg: "U' (R U' R') U2 (R U' R')", step1: 'Extract trapped edge while setting corner in U', step2: 'U2 pairs them for R U\' R\' insert', fingertrick: 'U\' R U\' R\', U2 double-flick, R U\' R\'' },
+  { id: 34, name: 'F2L 34', group: 'Edge in Middle / Both Bottom', alg: "U (R U R') U2 (R U R')", step1: 'Lift trapped edge with U R U R\'', step2: 'U2 brings corner over for R U R\' insert', fingertrick: 'U R U R\', U2, R U R\'' },
+  { id: 35, name: 'F2L 35', group: 'Edge in Middle / Both Bottom', alg: "U' (R U R') U (F' U' F)", step1: 'Extract edge to top with U\' R U R\'', step2: 'Front-slot insert via U F\' U\' F', fingertrick: 'U\' R U R\' U, left index F\', U\' F' },
+  { id: 36, name: 'F2L 36', group: 'Edge in Middle / Both Bottom', alg: "U2 (R' F R F') U2 (R U R')", step1: 'U2 + sledgehammer extracts flipped edge cleanly', step2: 'U2 + R U R\' drops solved pair into FR', fingertrick: 'U2, R\' F R F\', U2, R U R\'' },
+  { id: 37, name: 'F2L 37', group: 'Edge in Middle / Both Bottom', alg: "(R2 U2) (F R2 F') U2 (R' U R')", step1: 'Classic flipped-in-slot algorithm using R2 U2 F R2 F\'', step2: 'Finish with U2 R\' U R\' into FR', fingertrick: 'R2 U2, thumb F, R2, index F\', U2 R\' U R\'' },
+  { id: 38, name: 'F2L 38', group: 'Edge in Middle / Both Bottom', alg: "(R U R' U') (R U2 R') U' (R U R')", step1: 'Pop twisted pair out with R U R\' U\'', step2: 'Re-pair with R U2 R\' U\' and insert', fingertrick: 'Smooth continuous right-hand triggers' },
+  { id: 39, name: 'F2L 39', group: 'Edge in Middle / Both Bottom', alg: "(R U' R') U' (R U R') U2 (R U' R')", step1: 'Separate twisted bottom pair with R U\' R\' U\'', step2: 'Pair via R U R\' U2 and insert', fingertrick: 'Keep right thumb anchored on front' },
+  { id: 40, name: 'F2L 40', group: 'Edge in Middle / Both Bottom', alg: "(R U' R' U) (F' U2 F) U2' (F' U F)", step1: 'Extract corner with R U\' R\' U without rotating', step2: 'Pair over front with F\' U2 F U2\' and insert via F\' U F', fingertrick: 'R U\' R\' U, F\' U2 F U2\' F\' U F' },
+  { id: 41, name: 'F2L 41', group: 'Edge in Middle / Both Bottom', alg: "(R U R' U') (R U' R') U2 (F' U' F)", step1: 'Lift twisted pair with R U R\' U\' R U\' R\'', step2: 'U2 + F\' U\' F drops pair straight into FR', fingertrick: 'R U R\' U\' R U\' R\', U2, F\' U\' F' }
 ];
 
 const F2L_GROUPS = [
@@ -380,63 +380,63 @@ const F2L_DEFAULT_CHUNKS = [
 ];
 
 const OLL_DATA = [
-  { id: 27, name: 'OLL 27 (Sune)', group: 'All Edges Oriented', alg: "R U R' U R U2 R'", fingertrick: 'Right index U, double-flick U2' },
-  { id: 26, name: 'OLL 26 (Antisune)', group: 'All Edges Oriented', alg: "R U2 R' U' R U' R'", fingertrick: 'Start with R, double-flick U2, left index U\'' },
-  { id: 21, name: 'OLL 21 (Cross H)', group: 'All Edges Oriented', alg: "R U2 R' U' R U R' U' R U' R'", fingertrick: 'Continuous right-wrist rhythm with index pushes' },
-  { id: 22, name: 'OLL 22 (Cross Pi)', group: 'All Edges Oriented', alg: "R U2 R2 U' R2 U' R2 U2 R", fingertrick: 'Keep thumb anchored; roll R2 turns smoothly' },
-  { id: 23, name: 'OLL 23 (Headlights)', group: 'All Edges Oriented', alg: "R2 D R' U2 R D' R' U2 R'", fingertrick: 'Left ring finger D, right ring finger D\'' },
-  { id: 24, name: 'OLL 24 (Chameleon)', group: 'All Edges Oriented', alg: "r U R' U' r' F R F'", fingertrick: 'Wide r with right hand, thumb F, index F\'' },
-  { id: 25, name: 'OLL 25 (Bowtie)', group: 'All Edges Oriented', alg: "F' r U R' U' r' F R", fingertrick: 'Left index F\', wide r, right thumb F' },
+  { id: 27, name: 'OLL 27 (Sune)', group: 'All Edges Oriented', alg: "(R U R' U) (R U2 R')", fingertrick: 'Right index U, double-flick U2' },
+  { id: 26, name: 'OLL 26 (Antisune)', group: 'All Edges Oriented', alg: "(R U2 R') (U' R U' R')", fingertrick: 'Start with R, double-flick U2, left index U\'' },
+  { id: 21, name: 'OLL 21 (Cross H)', group: 'All Edges Oriented', alg: "(R U2 R') (U' R U R') (U' R U' R')", fingertrick: 'Continuous right-wrist rhythm with index pushes' },
+  { id: 22, name: 'OLL 22 (Cross Pi)', group: 'All Edges Oriented', alg: "R U2 (R2 U' R2 U' R2) U2 R", fingertrick: 'Keep thumb anchored; roll R2 turns smoothly' },
+  { id: 23, name: 'OLL 23 (Headlights)', group: 'All Edges Oriented', alg: "R2 D (R' U2 R) D' (R' U2 R')", fingertrick: 'Left ring finger D, right ring finger D\'' },
+  { id: 24, name: 'OLL 24 (Chameleon)', group: 'All Edges Oriented', alg: "(r U R' U') (r' F R F')", fingertrick: 'Wide r with right hand, thumb F, index F\'' },
+  { id: 25, name: 'OLL 25 (Bowtie)', group: 'All Edges Oriented', alg: "F' (r U R' U') r' F R", fingertrick: 'Left index F\', wide r, right thumb F' },
   { id: 45, name: 'OLL 45 (T-Shape)', group: 'T-Shapes', alg: "F (R U R' U') F'", fingertrick: 'Right thumb F, sexy move, right index F\'' },
   { id: 33, name: 'OLL 33 (Key T)', group: 'T-Shapes', alg: "(R U R' U') (R' F R F')", fingertrick: 'Sexy move directly into sledgehammer' },
-  { id: 31, name: 'OLL 31 (Couch)', group: 'P-Shapes', alg: "R' U' F U R U' R' F' R", fingertrick: 'Thumb-down R\', left index U\', thumb F' },
-  { id: 32, name: 'OLL 32 (Anti-Couch)', group: 'P-Shapes', alg: "S R U R' U' R' F R f'", fingertrick: 'Index S push, sexy move, wide f\'' },
+  { id: 31, name: 'OLL 31 (Couch)', group: 'P-Shapes', alg: "(R' U' F) (U R U' R') F' R", fingertrick: 'Thumb-down R\', left index U\', thumb F' },
+  { id: 32, name: 'OLL 32 (Anti-Couch)', group: 'P-Shapes', alg: "S (R U R' U') (R' F R f')", fingertrick: 'Index S push, sexy move, wide f\'' },
   { id: 43, name: 'OLL 43 (P-Shape L)', group: 'P-Shapes', alg: "f' (L' U' L U) f", fingertrick: 'Left-hand wide f\' into left sexy move' },
   { id: 44, name: 'OLL 44 (P-Shape R)', group: 'P-Shapes', alg: "f (R U R' U') f'", fingertrick: 'Wide f with thumb, sexy move, index f\'' },
-  { id: 36, name: 'OLL 36 (W-Shape L)', group: 'W-Shapes', alg: "L' U' L U' L' U L U L F' L' F", fingertrick: 'Left-hand flow ending with left thumb F\'' },
-  { id: 38, name: 'OLL 38 (W-Shape R)', group: 'W-Shapes', alg: "R U R' U R U' R' U' R' F R F'", fingertrick: 'Right-hand flow ending with sledgehammer' },
-  { id: 5, name: 'OLL 5 (Square L)', group: 'Squares', alg: "r' U2 R U R' U r", fingertrick: 'Wide r\' down, U2 double-flick, wide r up' },
-  { id: 6, name: 'OLL 6 (Square R)', group: 'Squares', alg: "r U2 R' U' R U' r'", fingertrick: 'Wide r up, U2 double-flick, wide r\' down' },
-  { id: 34, name: 'OLL 34 (City C)', group: 'C-Shapes', alg: "R U R2 U' R' F R U R U' F'", fingertrick: 'Roll R2 cleanly into thumb F' },
-  { id: 46, name: 'OLL 46 (Seein\' Headlights)', group: 'C-Shapes', alg: "R' U' R' F R F' U R", fingertrick: 'Thumb-down R\', sledgehammer, U R' },
-  { id: 7, name: 'OLL 7 (Lightning L)', group: 'Lightning Bolts', alg: "r U R' U R U2 r'", fingertrick: 'Wide Sune variant' },
-  { id: 8, name: 'OLL 8 (Lightning R)', group: 'Lightning Bolts', alg: "r' U' R U' R' U2 r", fingertrick: 'Left-thumb wide Antisune variant' },
-  { id: 11, name: 'OLL 11 (Downstairs)', group: 'Lightning Bolts', alg: "r U R' U R' F R F' R U2 r'", fingertrick: 'Combine wide setup with sledgehammer' },
-  { id: 12, name: 'OLL 12 (Upstairs)', group: 'Lightning Bolts', alg: "M' R' U' R U' R' U2 R U' R r'", fingertrick: 'Ring-finger M\' slice into Antisune' },
-  { id: 39, name: 'OLL 39 (Big Lightning L)', group: 'Lightning Bolts', alg: "L F' L' U' L U F U' L'", fingertrick: 'Left-hand F\' push, U\' L U, thumb F' },
-  { id: 40, name: 'OLL 40 (Big Lightning R)', group: 'Lightning Bolts', alg: "R' F R U R' U' F' U R", fingertrick: 'Right-hand F push, U R\' U\', index F\'' },
-  { id: 9, name: 'OLL 9 (Kite)', group: 'Fish Shapes', alg: "R U R' U' R' F R2 U R' U' F'", fingertrick: 'Sexy move into R\' F R2 flow' },
-  { id: 10, name: 'OLL 10 (Anti-Kite)', group: 'Fish Shapes', alg: "R U R' U R' F R F' R U2 R'", fingertrick: 'Sune interrupted by sledgehammer' },
-  { id: 35, name: 'OLL 35 (Fish Salad)', group: 'Fish Shapes', alg: "R U2 R2 F R F' R U2 R'", fingertrick: 'R U2 R2 into sledgehammer and U2 R\'' },
-  { id: 37, name: 'OLL 37 (Mounted Fish)', group: 'Fish Shapes', alg: "F R' F' R U R U' R'", fingertrick: 'Sledgehammer directly into inverse sexy' },
-  { id: 28, name: 'OLL 28 (Stealth)', group: 'Corners Oriented', alg: "r U R' U' r' R U R U' R'", fingertrick: 'Wide sexy into M-slice sexy' },
-  { id: 57, name: 'OLL 57 (H-Corners)', group: 'Corners Oriented', alg: "R U R' U' M' U R U' r'", fingertrick: 'Sexy move, ring-finger M\', finish with r\'' },
-  { id: 13, name: 'OLL 13 (Gun L)', group: 'Knight Move', alg: "F U R U' R2 F' R U R U' R'", fingertrick: 'Thumb F, U R U\', roll R2' },
-  { id: 14, name: 'OLL 14 (Gun R)', group: 'Knight Move', alg: "R' F R U R' F' R F U' F'", fingertrick: 'Sledgehammer variation with F U\' F\'' },
-  { id: 15, name: 'OLL 15 (Squeegee L)', group: 'Knight Move', alg: "l' U' l L' U' L U l' U l", fingertrick: 'Left-hand wide triggers' },
-  { id: 16, name: 'OLL 16 (Squeegee R)', group: 'Knight Move', alg: "r U r' R U R' U' r U' r'", fingertrick: 'Right-hand wide triggers' },
-  { id: 29, name: 'OLL 29 (Spotted Chameleon)', group: 'Awkward Shapes', alg: "R U R' U' R U' R' F' U' F R U R'", fingertrick: 'Keep right hand regripless through F\' U\' F' },
-  { id: 30, name: 'OLL 30 (Anti-Spotted)', group: 'Awkward Shapes', alg: "F R' F R2 U' R' U' R U R' F2", fingertrick: 'Thumb F, R\' F, roll R2' },
-  { id: 41, name: 'OLL 41 (Awkward L)', group: 'Awkward Shapes', alg: "R U R' U R U2 R' F R U R' U' F'", fingertrick: 'Sune directly into F-sexy-F\'' },
-  { id: 42, name: 'OLL 42 (Awkward R)', group: 'Awkward Shapes', alg: "R' U' R U' R' U2 R F R U R' U' F'", fingertrick: 'Back-Antisune directly into F-sexy-F\'' },
-  { id: 47, name: 'OLL 47 (Anti-Breakneck)', group: 'L-Shapes', alg: "R' U' R' F R F' R' F R F' U R", fingertrick: 'Double sledgehammer framed by R\' U\' and U R' },
+  { id: 36, name: 'OLL 36 (W-Shape L)', group: 'W-Shapes', alg: "(L' U' L U') (L' U L U) (L F' L' F)", fingertrick: 'Left-hand flow ending with left thumb F\'' },
+  { id: 38, name: 'OLL 38 (W-Shape R)', group: 'W-Shapes', alg: "(R U R' U) (R U' R' U') (R' F R F')", fingertrick: 'Right-hand flow ending with sledgehammer' },
+  { id: 5, name: 'OLL 5 (Square L)', group: 'Squares', alg: "(r' U2) (R U R' U) r", fingertrick: 'Wide r\' down, U2 double-flick, wide r up' },
+  { id: 6, name: 'OLL 6 (Square R)', group: 'Squares', alg: "(r U2) (R' U' R U') r'", fingertrick: 'Wide r up, U2 double-flick, wide r\' down' },
+  { id: 34, name: 'OLL 34 (City C)', group: 'C-Shapes', alg: "(R U R2 U') R' F (R U R U') F'", fingertrick: 'Roll R2 cleanly into thumb F' },
+  { id: 46, name: 'OLL 46 (Seein\' Headlights)', group: 'C-Shapes', alg: "R' U' (R' F R F') U R", fingertrick: 'Thumb-down R\', sledgehammer, U R' },
+  { id: 7, name: 'OLL 7 (Lightning L)', group: 'Lightning Bolts', alg: "(r U R' U) (R U2 r')", fingertrick: 'Wide Sune variant' },
+  { id: 8, name: 'OLL 8 (Lightning R)', group: 'Lightning Bolts', alg: "(r' U' R U') (R' U2 r)", fingertrick: 'Left-thumb wide Antisune variant' },
+  { id: 11, name: 'OLL 11 (Downstairs)', group: 'Lightning Bolts', alg: "(r U R' U) (R' F R F') (R U2 r')", fingertrick: 'Combine wide setup with sledgehammer' },
+  { id: 12, name: 'OLL 12 (Upstairs)', group: 'Lightning Bolts', alg: "M' (R' U' R U') (R' U2 R) U' (R r')", fingertrick: 'Ring-finger M\' slice into Antisune' },
+  { id: 39, name: 'OLL 39 (Big Lightning L)', group: 'Lightning Bolts', alg: "(L F' L') (U' L U) F U' L'", fingertrick: 'Left-hand F\' push, U\' L U, thumb F' },
+  { id: 40, name: 'OLL 40 (Big Lightning R)', group: 'Lightning Bolts', alg: "(R' F R) (U R' U') F' U R", fingertrick: 'Right-hand F push, U R\' U\', index F\'' },
+  { id: 9, name: 'OLL 9 (Kite)', group: 'Fish Shapes', alg: "(R U R' U') R' F (R2 U R' U') F'", fingertrick: 'Sexy move into R\' F R2 flow' },
+  { id: 10, name: 'OLL 10 (Anti-Kite)', group: 'Fish Shapes', alg: "(R U R' U) (R' F R F') (R U2 R')", fingertrick: 'Sune interrupted by sledgehammer' },
+  { id: 35, name: 'OLL 35 (Fish Salad)', group: 'Fish Shapes', alg: "(R U2 R2) (F R F') (R U2 R')", fingertrick: 'R U2 R2 into sledgehammer and U2 R\'' },
+  { id: 37, name: 'OLL 37 (Mounted Fish)', group: 'Fish Shapes', alg: "(F R' F' R) (U R U' R')", fingertrick: 'Sledgehammer directly into inverse sexy' },
+  { id: 28, name: 'OLL 28 (Stealth)', group: 'Corners Oriented', alg: "(r U R' U') r' (R U R U') R'", fingertrick: 'Wide sexy into M-slice sexy' },
+  { id: 57, name: 'OLL 57 (H-Corners)', group: 'Corners Oriented', alg: "(R U R' U') M' (U R U' r')", fingertrick: 'Sexy move, ring-finger M\', finish with r\'' },
+  { id: 13, name: 'OLL 13 (Gun L)', group: 'Knight Move', alg: "F (U R U' R2) F' R (U R U' R')", fingertrick: 'Thumb F, U R U\', roll R2' },
+  { id: 14, name: 'OLL 14 (Gun R)', group: 'Knight Move', alg: "(R' F R) (U R' F' R) (F U' F')", fingertrick: 'Sledgehammer variation with F U\' F\'' },
+  { id: 15, name: 'OLL 15 (Squeegee L)', group: 'Knight Move', alg: "(l' U' l) (L' U' L U) (l' U l)", fingertrick: 'Left-hand wide triggers' },
+  { id: 16, name: 'OLL 16 (Squeegee R)', group: 'Knight Move', alg: "(r U r') (R U R' U') (r U' r')", fingertrick: 'Right-hand wide triggers' },
+  { id: 29, name: 'OLL 29 (Spotted Chameleon)', group: 'Awkward Shapes', alg: "(R U R' U') (R U' R') (F' U' F) (R U R')", fingertrick: 'Keep right hand regripless through F\' U\' F' },
+  { id: 30, name: 'OLL 30 (Anti-Spotted)', group: 'Awkward Shapes', alg: "(F R' F R2) (U' R' U') (R U R') F2", fingertrick: 'Thumb F, R\' F, roll R2' },
+  { id: 41, name: 'OLL 41 (Awkward L)', group: 'Awkward Shapes', alg: "(R U R' U R U2 R') F (R U R' U') F'", fingertrick: 'Sune directly into F-sexy-F\'' },
+  { id: 42, name: 'OLL 42 (Awkward R)', group: 'Awkward Shapes', alg: "(R' U' R U' R' U2 R) F (R U R' U') F'", fingertrick: 'Back-Antisune directly into F-sexy-F\'' },
+  { id: 47, name: 'OLL 47 (Anti-Breakneck)', group: 'L-Shapes', alg: "R' U' (R' F R F') (R' F R F') U R", fingertrick: 'Double sledgehammer framed by R\' U\' and U R' },
   { id: 48, name: 'OLL 48 (Breakneck)', group: 'L-Shapes', alg: "F (R U R' U') (R U R' U') F'", fingertrick: 'Thumb F, double sexy move, index F\'' },
-  { id: 49, name: 'OLL 49 (Right Back Squeezy)', group: 'L-Shapes', alg: "r U' r2 U r2 U r2 U' r", fingertrick: 'Continuous wide r2 rolling' },
-  { id: 50, name: 'OLL 50 (Right Front Squeezy)', group: 'L-Shapes', alg: "r' U r2 U' r2 U' r2 U r'", fingertrick: 'Thumb-down wide r\'2 rolling' },
+  { id: 49, name: 'OLL 49 (Right Back Squeezy)', group: 'L-Shapes', alg: "r U' (r2 U r2 U r2) U' r", fingertrick: 'Continuous wide r2 rolling' },
+  { id: 50, name: 'OLL 50 (Right Front Squeezy)', group: 'L-Shapes', alg: "r' U (r2 U' r2 U' r2) U r'", fingertrick: 'Thumb-down wide r\'2 rolling' },
   { id: 51, name: 'OLL 51 (Bottlecap)', group: 'L-Shapes', alg: "f (R U R' U') (R U R' U') f'", fingertrick: 'Wide f, double sexy move, wide f\'' },
-  { id: 52, name: 'OLL 52 (Rice Cooker)', group: 'L-Shapes', alg: "R U R' U R U' B U' B' R'", fingertrick: 'Finish B turns with right ring/pinky' },
-  { id: 53, name: 'OLL 53 (Frying Pan L)', group: 'L-Shapes', alg: "l' U2 L U L' U' L U L' U l", fingertrick: 'Wide l\' setup into double left-trigger' },
-  { id: 54, name: 'OLL 54 (Frying Pan R)', group: 'L-Shapes', alg: "r U2 R' U' R U R' U' R U' r'", fingertrick: 'Wide r setup into double right-trigger' },
-  { id: 55, name: 'OLL 55 (Highway)', group: 'I-Shapes', alg: "R' F R U R U' R2 F' R2 U' R' U R U R'", fingertrick: 'Flowing R2 transitions without regrip' },
-  { id: 56, name: 'OLL 56 (Streetlights)', group: 'I-Shapes', alg: "r' U' r U' R' U R U' R' U R r' U r", fingertrick: 'Wide r\' framing two alternating triggers' },
-  { id: 1, name: 'OLL 1 (Runway)', group: 'Dot Cases', alg: "R U2 R2 F R F' U2 R' F R F'", fingertrick: 'Two sledgehammers separated by U2' },
+  { id: 52, name: 'OLL 52 (Rice Cooker)', group: 'L-Shapes', alg: "(R U R' U) (R U' B U' B') R'", fingertrick: 'Finish B turns with right ring/pinky' },
+  { id: 53, name: 'OLL 53 (Frying Pan L)', group: 'L-Shapes', alg: "(l' U2) (L U L' U') (L U L' U) l", fingertrick: 'Wide l\' setup into double left-trigger' },
+  { id: 54, name: 'OLL 54 (Frying Pan R)', group: 'L-Shapes', alg: "(r U2) (R' U' R U) (R' U' R U') r'", fingertrick: 'Wide r setup into double right-trigger' },
+  { id: 55, name: 'OLL 55 (Highway)', group: 'I-Shapes', alg: "(R' F R) (U R U' R2) F' R2 (U' R' U) (R U R')", fingertrick: 'Flowing R2 transitions without regrip' },
+  { id: 56, name: 'OLL 56 (Streetlights)', group: 'I-Shapes', alg: "(r' U' r) U' (R' U R) U' (R' U R) (r' U r)", fingertrick: 'Wide r\' framing two alternating triggers' },
+  { id: 1, name: 'OLL 1 (Runway)', group: 'Dot Cases', alg: "(R U2 R2) (F R F') U2 (R' F R F')", fingertrick: 'Two sledgehammers separated by U2' },
   { id: 2, name: 'OLL 2 (Zamboni)', group: 'Dot Cases', alg: "F (R U R' U') F' f (R U R' U') f'", fingertrick: 'F-sexy-F\' followed immediately by wide f-sexy-f\'' },
   { id: 3, name: 'OLL 3 (Anti-Nazi L)', group: 'Dot Cases', alg: "f (R U R' U') f' U' F (R U R' U') F'", fingertrick: 'Wide f trigger, U\', standard F trigger' },
   { id: 4, name: 'OLL 4 (Anti-Nazi R)', group: 'Dot Cases', alg: "f (R U R' U') f' U F (R U R' U') F'", fingertrick: 'Wide f trigger, U, standard F trigger' },
-  { id: 17, name: 'OLL 17 (Slash)', group: 'Dot Cases', alg: "F R' F' R2 r' U R U' R' U' M'", fingertrick: 'Sledgehammer into wide r\' and ring-finger M\'' },
-  { id: 18, name: 'OLL 18 (Crown)', group: 'Dot Cases', alg: "r U R' U R U2 r2 U' R U' R' U2 r", fingertrick: 'Wide Sune directly into wide Antisune' },
-  { id: 19, name: 'OLL 19 (Bunny)', group: 'Dot Cases', alg: "r' R U R U R' U' M' R' F R F'", fingertrick: 'M-slice setup into sledgehammer' },
-  { id: 20, name: 'OLL 20 (X-Checkers)', group: 'Dot Cases', alg: "r U R' U' M2 U R U' R' U' M'", fingertrick: 'Double M2 flick with left ring + middle fingers' }
+  { id: 17, name: 'OLL 17 (Slash)', group: 'Dot Cases', alg: "(F R' F' R2) r' (U R U' R') U' M'", fingertrick: 'Sledgehammer into wide r\' and ring-finger M\'' },
+  { id: 18, name: 'OLL 18 (Crown)', group: 'Dot Cases', alg: "(r U R' U R U2 r2) (U' R U' R' U2 r)", fingertrick: 'Wide Sune directly into wide Antisune' },
+  { id: 19, name: 'OLL 19 (Bunny)', group: 'Dot Cases', alg: "(r' R) (U R U R' U') M' (R' F R F')", fingertrick: 'M-slice setup into sledgehammer' },
+  { id: 20, name: 'OLL 20 (X-Checkers)', group: 'Dot Cases', alg: "(r U R' U') M2 (U R U' R') U' M'", fingertrick: 'Double M2 flick with left ring + middle fingers' }
 ];
 
 const OLL_GROUPS = [
@@ -751,6 +751,99 @@ const getPLLImageUrl = (alg, setupScramble = null) => {
     ? `${baseUrl}&alg=${encodeURIComponent(setupScramble)}`
     : `${baseUrl}&case=${encodeURIComponent(alg)}`;
 };
+
+// In-memory + sessionStorage SVG cache for VisualCube icons (eliminates repeated 5G/Wi-Fi radio wakeups)
+const VISUALCUBE_SVG_CACHE = new Map();
+const VISUALCUBE_INFLIGHT = new Map();
+const VISUALCUBE_FETCH_QUEUE = [];
+let visualCubeActiveFetches = 0;
+const VISUALCUBE_MAX_CONCURRENT = 5;
+
+function pumpVisualCubeQueue() {
+  while (visualCubeActiveFetches < VISUALCUBE_MAX_CONCURRENT && VISUALCUBE_FETCH_QUEUE.length > 0) {
+    const job = VISUALCUBE_FETCH_QUEUE.shift();
+    if (!job) break;
+    visualCubeActiveFetches++;
+    fetch(job.url)
+      .then((res) => (res.ok ? res.text() : null))
+      .then((svgText) => {
+        if (!svgText || !svgText.includes('<svg')) return null;
+        const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgText)}`;
+        VISUALCUBE_SVG_CACHE.set(job.url, dataUri);
+        try {
+          if (typeof window !== 'undefined' && window.sessionStorage && VISUALCUBE_SVG_CACHE.size <= 160) {
+            window.sessionStorage.setItem(`vc_svg_${job.url}`, dataUri);
+          }
+        } catch {
+          // Ignore sessionStorage quota limits
+        }
+        return dataUri;
+      })
+      .catch(() => null)
+      .finally(() => {
+        visualCubeActiveFetches--;
+        VISUALCUBE_INFLIGHT.delete(job.url);
+        pumpVisualCubeQueue();
+      })
+      .then(job.resolve);
+  }
+}
+
+function enqueueVisualCubeFetch(url) {
+  if (VISUALCUBE_INFLIGHT.has(url)) return VISUALCUBE_INFLIGHT.get(url);
+  const promise = new Promise((resolve) => {
+    VISUALCUBE_FETCH_QUEUE.push({ url, resolve });
+    pumpVisualCubeQueue();
+  });
+  VISUALCUBE_INFLIGHT.set(url, promise);
+  return promise;
+}
+
+function getCachedVisualCubeSrc(url) {
+  if (!url) return '';
+  if (VISUALCUBE_SVG_CACHE.has(url)) return VISUALCUBE_SVG_CACHE.get(url);
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const stored = window.sessionStorage.getItem(`vc_svg_${url}`);
+      if (stored) {
+        VISUALCUBE_SVG_CACHE.set(url, stored);
+        return stored;
+      }
+    }
+  } catch {
+    // Ignore storage quota restrictions
+  }
+  return url;
+}
+
+function CachedVisualCubeImg({ url, alt, className, lazy = true }) {
+  const [src, setSrc] = useState(() => getCachedVisualCubeSrc(url));
+
+  useEffect(() => {
+    let active = true;
+    const cached = getCachedVisualCubeSrc(url);
+    setSrc(cached);
+    if (!url || cached.startsWith('data:image/svg+xml')) return undefined;
+
+    enqueueVisualCubeFetch(url).then((dataUri) => {
+      if (active && dataUri) setSrc(dataUri);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [url]);
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading={lazy ? 'lazy' : undefined}
+      decoding="async"
+      className={className}
+    />
+  );
+}
 
 function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
   if (variationSeed === 0) return inverseAlg;
@@ -1167,15 +1260,15 @@ function generateF2LSetupScramble(alg, mode = 'beginner', variationSeed = 0) {
   const trigger = realisticTriggers[variationSeed % realisticTriggers.length];
   return `${trigger} ${aufPrefix}${baseInverse}`.replace(/\s+/g, ' ').trim();
 }
-
-function buildSchedule(chunks, dataList) {
+function buildSchedule(chunks, dataList, lookupMap = null) {
   const schedule = [];
   let dayCounter = 1;
+  const resolveById = (id) => (lookupMap ? lookupMap.get(id) : dataList.find((item) => item.id === id));
   (Array.isArray(chunks) ? chunks : []).forEach((chunk, idx) => {
     if (!chunk || !Array.isArray(chunk.ids)) return;
     const safeTitle = typeof chunk.title === 'string' ? chunk.title : `Chunk ${idx + 1}`;
     const cases = chunk.ids
-      .map((id) => dataList.find((item) => item.id === id))
+      .map(resolveById)
       .filter(Boolean);
     if (!cases.length) return;
 
@@ -1195,7 +1288,7 @@ function buildSchedule(chunks, dataList) {
     if (idx > 0 && idx % 2 === 1 && Array.isArray(chunks[idx - 1]?.ids)) {
       const prevTitle = typeof chunks[idx - 1].title === 'string' ? chunks[idx - 1].title : `Chunk ${idx}`;
       const prevCases = chunks[idx - 1].ids
-        .map((id) => dataList.find((item) => item.id === id))
+        .map(resolveById)
         .filter(Boolean);
       schedule.push({
         day: dayCounter++,
@@ -1793,7 +1886,7 @@ function OLLDaySuite() {
 
   // Debounced Cloud Firestore Sync (Prevents burst writes during millisecond slider adjustments)
   const saveUserToCloud = (uKey, record) => {
-    if (!uKey || !resolvedFirebaseConfig || !cloudAuthUser) return;
+    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUser) return;
     pendingCloudSyncRef.current = { uKey, record };
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
     cloudSaveTimerRef.current = setTimeout(() => {
@@ -1802,14 +1895,14 @@ function OLLDaySuite() {
   };
 
   useEffect(() => {
+    if (!resolvedFirebaseConfig || !activeUserKey || activeUserKey === 'Demo') {
+      setCloudSyncStatus('local');
+      return;
+    }
     let unsubAuth = null;
     let cancelled = false;
 
     (async () => {
-      if (!resolvedFirebaseConfig) {
-        setCloudSyncStatus('local');
-        return;
-      }
       const svc = await getFirebaseServices();
       if (!svc || cancelled) {
         setCloudSyncStatus('local');
@@ -1841,12 +1934,13 @@ function OLLDaySuite() {
       cancelled = true;
       if (typeof unsubAuth === 'function') unsubAuth();
     };
-  }, []);
+  }, [activeUserKey]);
 
   // Foreground-Only Single-Document Firestore Snapshot Listener (Prevents unrelated user sync wakeups)
   useEffect(() => {
-    if (!resolvedFirebaseConfig || !cloudAuthUser || !isAppVisible) return;
-    const targetDocKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
+    if (!resolvedFirebaseConfig || !cloudAuthUser || !isAppVisible || !activeUserKey || activeUserKey === 'Demo') return;
+    const targetDocKey = users[activeUserKey] ? activeUserKey : null;
+    if (!targetDocKey) return;
     let unsubSnapshot = null;
     let cancelled = false;
 
@@ -1976,9 +2070,9 @@ function OLLDaySuite() {
   const ollChunks = currentUser.customChunks?.length ? currentUser.customChunks : OLL_DEFAULT_CHUNKS;
   const pllChunks = currentUser.pllCustomChunks?.length ? currentUser.pllCustomChunks : PLL_DEFAULT_CHUNKS;
 
-  const f2lSchedule = buildSchedule(f2lChunks, F2L_DATA);
-  const ollSchedule = buildSchedule(ollChunks, OLL_DATA);
-  const pllSchedule = buildSchedule(pllChunks, PLL_DATA);
+  const f2lSchedule = useMemo(() => buildSchedule(f2lChunks, F2L_DATA, F2L_BY_ID), [f2lChunks]);
+  const ollSchedule = useMemo(() => buildSchedule(ollChunks, OLL_DATA, OLL_BY_ID), [ollChunks]);
+  const pllSchedule = useMemo(() => buildSchedule(pllChunks, PLL_DATA, PLL_BY_ID), [pllChunks]);
 
   const getPhaseTargetPb = (phase) => {
     const val = currentUser.phaseTargetPbs?.[phase];
@@ -2652,6 +2746,11 @@ function OLLDaySuite() {
     return 'deck-card-3';
   };
 
+  const isDeckCardMounted = (cardIdx) => {
+    const rel = (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards;
+    return rel <= 2;
+  };
+
   // Shared 3x3x3 CFOP Full-Solve Telemetry Section (Shown inside Statistics across all phases)
   const renderFullSolveStatsBlock = () => (
     <div className="bg-slate-900/75 border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
@@ -2722,16 +2821,16 @@ function OLLDaySuite() {
           ))}
         </div>
       </div>
-
-      {/* Stacked 3D Deck Container */}
+      {/* Stacked 3D Deck Container (Only 3 visible stack cards mounted to eliminate offscreen DOM/GPU cost) */}
       <div
         onTouchStart={handleDeckTouchStart}
         onTouchEnd={handleDeckTouchEnd}
         className="relative h-[515px] w-full mt-2"
       >
         {/* Card 1: Learn How to Use This App (Manual Guided Tour Launcher Across All Phases) */}
+        {isDeckCardMounted(0) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 0 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 8 • Onboarding</span>
@@ -2781,10 +2880,12 @@ function OLLDaySuite() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Card 2: Hardware & Millisecond Target PB Preferences */}
+        {isDeckCardMounted(1) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 1 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(1)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(1)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 8 • Preferences</span>
@@ -2942,10 +3043,12 @@ function OLLDaySuite() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Card 3: Full-Screen 3x3x3 CFOP Timer Launcher & Pinned Home Screen Pills */}
+        {isDeckCardMounted(2) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 2 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(2)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(2)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 8 • Timer &amp; Home</span>
@@ -3043,10 +3146,12 @@ function OLLDaySuite() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Card 4: WCA Notation Guide */}
+        {isDeckCardMounted(3) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 3 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 8 • Notation</span>
@@ -3093,10 +3198,12 @@ function OLLDaySuite() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Card 5: Dedicated Fingertrick Dossier */}
+        {isDeckCardMounted(4) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 4 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 8 • Mechanics</span>
@@ -3154,10 +3261,12 @@ function OLLDaySuite() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Card 6: Custom Builder (Blurred if non-Pro) & Reset Controls */}
+        {isDeckCardMounted(5) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 5 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 6 of 8 • Tools</span>
@@ -3180,14 +3289,14 @@ function OLLDaySuite() {
                 <button
                   type="button"
                   onClick={() => openProPaywall('Custom Curriculum Chunk Builder')}
-                  className="absolute inset-0 z-10 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer"
+                  className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center cursor-pointer"
                 >
                   <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
                     🔒 Custom Chunks • Pro
                   </span>
                 </button>
               )}
-              <div className={!isProUnlocked ? 'blur-[3px] opacity-55 select-none space-y-2' : 'space-y-2'}>
+              <div className={!isProUnlocked ? 'opacity-40 select-none space-y-2' : 'space-y-2'}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-white">Custom Learning Chunks</span>
                 </div>
@@ -3233,10 +3342,12 @@ function OLLDaySuite() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Card 7: Account & Cloud Sync */}
+        {isDeckCardMounted(6) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 6 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 7 of 8 • Account</span>
@@ -3294,10 +3405,12 @@ function OLLDaySuite() {
             Restore App Store Purchase
           </button>
         </div>
+        )}
 
         {/* Card 8: Membership Status & Account Deletion */}
+        {isDeckCardMounted(7) && (
         <div
-          className={`absolute inset-x-0 top-0 bg-slate-900/95 ${settingsDeckIdx === 7 ? 'backdrop-blur-2xl' : ''} border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(7)}`}
+          className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(7)}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 8 of 8 • Membership</span>
@@ -3375,20 +3488,19 @@ function OLLDaySuite() {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
 
-  // Unified Case Thumbnail Renderer (Original VisualCube Diagrams with Lazy Async Decoding)
+  // Unified Case Thumbnail Renderer (Original VisualCube Diagrams with In-Memory SVG Caching)
   const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
     if (phaseKey === 'f2l') {
       return (
         <div className={`${sizeClass} flex-shrink-0 flex items-center justify-center pointer-events-none`}>
-          <img
-            src={getF2LImageUrl(item.alg)}
+          <CachedVisualCubeImg
+            url={getF2LImageUrl(item.alg)}
             alt={item.name}
-            loading="lazy"
-            decoding="async"
             className="w-full h-full object-contain f2l-cube-satin"
           />
         </div>
@@ -3397,11 +3509,9 @@ function OLLDaySuite() {
     const imgUrl = phaseKey === 'pll' ? getPLLImageUrl(item.alg) : getOLLImageUrl(item.alg);
     return (
       <div className={`${sizeClass} rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center pointer-events-none`}>
-        <img
-          src={imgUrl}
+        <CachedVisualCubeImg
+          url={imgUrl}
           alt={item.name}
-          loading="lazy"
-          decoding="async"
           className="w-full h-full object-contain"
         />
       </div>
@@ -3469,7 +3579,7 @@ function OLLDaySuite() {
     if (tab === 'grind') {
       return (
         <div className="p-5 pb-10 space-y-4">
-          <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-orange-950/30 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
+          <div className="bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-orange-950/40 border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
                 Day {safeDay} • {dayObj.mode} Mode
@@ -3599,7 +3709,7 @@ function OLLDaySuite() {
                       setSwLastResult(null);
                       setDrillCase(item);
                     }}
-                    className={`relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                    className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       draggedLineupIdx === idx
                         ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl'
                         : locked
@@ -3608,13 +3718,13 @@ function OLLDaySuite() {
                     }`}
                   >
                     {locked && (
-                      <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                      <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
                         <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
                           🔒 {item.name} • Pro
                         </span>
                       </div>
                     )}
-                    <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
+                    <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
                       {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-12 h-12 rounded-xl')}
                       <div className="min-w-0">
                         <span className="text-sm font-black text-white block truncate">{item.name}</span>
@@ -3625,7 +3735,7 @@ function OLLDaySuite() {
                       </div>
                     </div>
 
-                    <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
+                    <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'opacity-35' : ''}`}>
                       {stat?.best && (
                         <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">
                           {stat.best.toFixed(2)}s
@@ -3715,7 +3825,7 @@ function OLLDaySuite() {
                           🔒 Pro
                         </span>
                       )}
-                      <div className={groupLocked ? 'blur-[2.5px] opacity-65' : ''}>
+                      <div className={groupLocked ? 'opacity-45' : ''}>
                         {renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-24 h-24' : 'w-16 h-16')}
                       </div>
                       <div>
@@ -3744,7 +3854,7 @@ function OLLDaySuite() {
                         chunkLocked ? 'border-orange-500/20' : 'border-white/10'
                       }`}
                     >
-                      <div className={chunkLocked ? 'blur-[2.5px] opacity-65' : ''}>
+                      <div className={chunkLocked ? 'opacity-45' : ''}>
                         {renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -3801,18 +3911,18 @@ function OLLDaySuite() {
                         setSwLastResult(null);
                         setDrillCase(item);
                       }}
-                      className={`relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
+                      className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${
                         locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
                       }`}
                     >
                       {locked && (
-                        <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                        <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
                           <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">
                             🔒 {item.name} • Unlock Pro
                           </span>
                         </div>
                       )}
-                      <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
+                      <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
                         {renderCaseThumb(phaseKey, item, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -3922,18 +4032,18 @@ function OLLDaySuite() {
                   setSwLastResult(null);
                   setDrillCase(item);
                 }}
-                className={`relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
+                className={`case-row-opt relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${
                   locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
                 }`}
               >
                 {locked && (
-                  <div className="absolute inset-0 z-10 bg-slate-950/35 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+                  <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
                     <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">
                       🔒 {item.name} • Pro
                     </span>
                   </div>
                 )}
-                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'blur-[3.5px] opacity-55 select-none' : ''}`}>
+                <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
                   {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-11 h-11 rounded-xl')}
                   <div className="min-w-0">
                     <span className="text-xs font-black text-white block truncate">{item.name}</span>
@@ -3961,7 +4071,7 @@ function OLLDaySuite() {
                     </button>
                   </div>
                 </div>
-                <div className={`text-right flex-shrink-0 ${locked ? 'blur-[2.5px] opacity-40' : ''}`}>
+                <div className={`text-right flex-shrink-0 ${locked ? 'opacity-35' : ''}`}>
                   {stat?.best ? (
                     <>
                       <span
@@ -4095,8 +4205,8 @@ function OLLDaySuite() {
             </div>
           ) : (
             <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-              <img
-                src={
+              <CachedVisualCubeImg
+                url={
                   isPLL
                     ? getPLLImageUrl(
                         item.alg,
@@ -4105,7 +4215,7 @@ function OLLDaySuite() {
                     : getOLLImageUrl(item.alg)
                 }
                 alt={item.name}
-                decoding="async"
+                lazy={false}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -4365,8 +4475,8 @@ function OLLDaySuite() {
             </div>
           ) : (
             <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-              <img
-                src={
+              <CachedVisualCubeImg
+                url={
                   isPLL
                     ? getPLLImageUrl(
                         item.alg,
@@ -4375,7 +4485,7 @@ function OLLDaySuite() {
                     : getOLLImageUrl(item.alg)
                 }
                 alt={item.name}
-                decoding="async"
+                lazy={false}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -4549,8 +4659,12 @@ function OLLDaySuite() {
         .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
         .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
         .f2l-cube-satin {
-          filter: contrast(0.92) saturate(0.86) brightness(0.96) drop-shadow(0 12px 18px rgba(0, 0, 0, 0.52));
-          transition: transform 0.25s ease, filter 0.25s ease;
+          filter: contrast(0.92) saturate(0.86) brightness(0.96);
+          transition: transform 0.25s ease;
+        }
+        .case-row-opt {
+          content-visibility: auto;
+          contain-intrinsic-size: auto 76px;
         }
         .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after {
           backdrop-filter: none !important;
@@ -4572,7 +4686,7 @@ function OLLDaySuite() {
 
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
-          <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/90 backdrop-blur-xl flex-shrink-0 z-40">
+          <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/95 flex-shrink-0 z-40">
             <div className="flex items-center gap-2.5 min-w-0">
               {/* Sune Emblem */}
               <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
@@ -4714,12 +4828,13 @@ function OLLDaySuite() {
                             : 'text-slate-400 hover:text-white'
                         }`}
                       >
-                        <span className={!isProUnlocked ? 'blur-[1.5px] opacity-80' : ''}>
+                        <span className={!isProUnlocked ? 'opacity-65' : ''}>
                           Advanced Full Scramble
                         </span>
                         {!isProUnlocked && <span className="ml-1 text-[9px] text-orange-300">🔒</span>}
                       </button>
                     </div>
+
 
                     <div className="grid grid-cols-5 gap-1.5">
                       {activeCrossTierList.map((t) => {
@@ -4749,7 +4864,7 @@ function OLLDaySuite() {
                                 : 'bg-white/5 text-slate-400 hover:text-white'
                             }`}
                           >
-                            <span className={locked ? 'blur-[2px] opacity-60' : ''}>L{t.tier}</span>
+                            <span className={locked ? 'opacity-45' : ''}>L{t.tier}</span>
                             {locked && (
                               <span className="absolute inset-0 flex items-center justify-center text-[10px] text-orange-300">
                                 🔒
@@ -4789,7 +4904,7 @@ function OLLDaySuite() {
                       </button>
                     </div>
 
-                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
+                    <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
@@ -4895,7 +5010,7 @@ function OLLDaySuite() {
                     </div>
 
                     {crossLadderMode === 'efficiency' ? (
-                      <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
+                      <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">
@@ -4961,7 +5076,7 @@ function OLLDaySuite() {
                         </button>
                       </div>
                     ) : (
-                      <div className="relative overflow-hidden bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
+                      <div className="relative overflow-hidden bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                             Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill
@@ -4978,7 +5093,7 @@ function OLLDaySuite() {
                             <span>How It Works</span>
                           </button>
                         </div>
-                        <div className={!isProUnlocked ? 'blur-[2.5px] opacity-65 select-none space-y-2' : 'space-y-2'}>
+                        <div className={!isProUnlocked ? 'opacity-45 select-none space-y-2' : 'space-y-2'}>
                           <h4 className="text-base font-black text-white">Blind Practice Ready</h4>
                           <p className="text-xs text-slate-400">
                             Plan all {activeTierObj.moves} cross moves during inspection, then execute with eyes closed.
@@ -5025,7 +5140,7 @@ function OLLDaySuite() {
                       </div>
                     )}
 
-                    <div className={!isProUnlocked ? 'blur-[4px] opacity-55 pointer-events-none select-none space-y-4' : 'space-y-4'}>
+                    <div className={!isProUnlocked ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'}>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
@@ -5044,7 +5159,7 @@ function OLLDaySuite() {
                         </button>
                       </div>
 
-                      <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
+                      <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
                         <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
                         <p className="text-xs font-bold text-orange-400">
@@ -5203,7 +5318,7 @@ function OLLDaySuite() {
                       ))}
                     </div>
 
-                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
+                    <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
                       <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                         {activeMechanicObj.badge}
                       </span>
@@ -5490,7 +5605,7 @@ function OLLDaySuite() {
         {fullTimerOpen && (
           <div
             onClick={handleFullTimerScreenTap}
-            className="fixed inset-0 z-[290] bg-slate-950/88 backdrop-blur-xl flex flex-col justify-between p-6 select-none cursor-pointer"
+            className="fixed inset-0 z-[290] bg-slate-950/92 backdrop-blur-md flex flex-col justify-between p-6 select-none cursor-pointer"
           >
             <div
               style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }}
@@ -5523,7 +5638,7 @@ function OLLDaySuite() {
               </div>
 
               {fullTimerState !== 'running' && (
-                <div className="rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 p-3.5 text-center shadow-lg">
+                <div className="rounded-2xl bg-slate-900/95 border border-white/15 p-3.5 text-center shadow-lg">
                   <p className="font-mono text-xs sm:text-sm font-bold text-white leading-relaxed">
                     {fullScramble}
                   </p>
@@ -5594,7 +5709,7 @@ function OLLDaySuite() {
               )}
 
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 p-3 text-center">
+                <div className="rounded-2xl bg-slate-900/95 border border-white/15 p-3 text-center">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">
                     Ao5
                   </span>
@@ -5602,7 +5717,7 @@ function OLLDaySuite() {
                     {ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}
                   </span>
                 </div>
-                <div className="rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 p-3 text-center">
+                <div className="rounded-2xl bg-slate-900/95 border border-white/15 p-3 text-center">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">
                     Ao12
                   </span>
@@ -5617,7 +5732,7 @@ function OLLDaySuite() {
 
         {/* 7. GLASSMORPHIC SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-slate-950/80 backdrop-blur-xl flex flex-col items-center justify-center p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-[255] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 overflow-y-auto">
             <div
               style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }}
               className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
@@ -5627,7 +5742,7 @@ function OLLDaySuite() {
               className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full"
             />
 
-            <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-white/[0.08] backdrop-blur-2xl border border-white/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.2)] space-y-5">
+            <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-white/15 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.16)] space-y-5">
               {/* Brand Emblem & Title */}
               <div className="flex flex-col items-center text-center space-y-2">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-2 flex items-center justify-center shadow-lg">
@@ -5974,11 +6089,11 @@ function OLLDaySuite() {
         {activeModal === 'proPaywall' && (
           <div
             onClick={() => setActiveModal(null)}
-            className="fixed inset-0 z-[275] bg-slate-950/75 backdrop-blur-3xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[275] bg-slate-950/88 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-[2.25rem] bg-white/[0.08] backdrop-blur-2xl border border-white/15 p-6 shadow-2xl space-y-4 text-center"
+              className="w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-white/15 p-6 shadow-2xl space-y-4 text-center"
             >
               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
                 One-Time Lifetime Unlock • $3.99
@@ -6083,8 +6198,8 @@ function OLLDaySuite() {
                 </div>
 
                 <div className="flex items-center gap-3 bg-[#050811] border border-white/10 rounded-2xl p-3">
-                  <img
-                    src={
+                  <CachedVisualCubeImg
+                    url={
                       ftPhaseContext === 'f2l'
                         ? getF2LImageUrl(ftCase.alg)
                         : ftPhaseContext === 'pll'
@@ -6092,7 +6207,7 @@ function OLLDaySuite() {
                         : getOLLImageUrl(ftCase.alg)
                     }
                     alt={ftCase.name}
-                    decoding="async"
+                    lazy={false}
                     className={
                       ftPhaseContext === 'f2l'
                         ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0'
