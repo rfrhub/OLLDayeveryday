@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 // Resolve Firebase config from sandbox globals or Vercel Vite environment variables
 function resolveFirebaseConfig() {
@@ -225,9 +225,91 @@ const CROSS_MECHANICS = [
   {
     id: 4,
     title: 'Edge Preservation',
-    badge: 'Mechanic 4 • Lookahead',
-    summary: 'When inserting a middle-layer edge, check if another white edge sits in the adjacent slot so one turn solves both simultaneously.',
-    example: "Setup: U R' F' R  →  Solve: R' F R U'"
+    badge: 'Mechanic 4 • Multi-Edge Lookahead',
+    summary: 'Solve two or more white edges in a single fluid chain by using one face turn to simultaneously insert an active edge and kick a trapped middle/bottom edge into its U-layer setup.',
+    example: "Setup: U R' F' R  →  Solve: R' F R U'",
+    approaches: [
+      {
+        id: 'chained-kick',
+        name: '1. Kicked-Edge Chaining',
+        tag: '2-Edge Flow',
+        rule: 'Before turning R or F to drop an edge, check the back-right (BR) or front-right (FR) middle slot. Turning R\' or F can kick a trapped white edge straight onto U with White facing up.',
+        cases: [
+          {
+            label: 'Case 4A • Front-to-Right Kick',
+            setup: "U R' F' R",
+            solve: "R' F R U'",
+            note: 'F brings the UF white edge down while kicking the FR edge into position so R finishes both before U\' aligns.'
+          },
+          {
+            label: 'Case 4B • Back-Right Un-Trap',
+            setup: "R2 U' R' F R",
+            solve: "R' F' R U R2",
+            note: 'R\' F\' R solves the front-right edge while lifting the trapped BR white edge onto U for an immediate R2 drop.'
+          },
+          {
+            label: 'Case 4C • Left-Front Mirror Chain',
+            setup: "U' L F L'",
+            solve: "L F' L' U",
+            note: 'Left-hand mirror: F\' inserts the front edge and pops the FL white edge into alignment for L.'
+          }
+        ]
+      },
+      {
+        id: 'opposite-sweep',
+        name: '2. Opposite-Edge Double Drop',
+        tag: 'Zero Regrip',
+        rule: 'When two opposite cross edges (Green & Blue, or Red & Orange) sit in the E-slice or U-layer simultaneously, align their relative 180° offset first so both drop down back-to-back without extra U turns.',
+        cases: [
+          {
+            label: 'Case 4D • Parallel E-Slice Drop',
+            setup: "R2 L2 U2",
+            solve: "U2 R2 L2",
+            note: 'A single U2 aligns both opposite top edges over their matching centers for a simultaneous R2 L2 double drop.'
+          },
+          {
+            label: 'Case 4E • Staggered Opposite Kick',
+            setup: "L2 U' R' F R",
+            solve: "R' F' R U L2",
+            note: 'Solve the Front/Right edge with R\' F\' R while preserving the Blue edge on U so U L2 finishes both cleanly.'
+          }
+        ]
+      },
+      {
+        id: 'd-sweep-preserve',
+        name: '3. Relative D-Offset Preservation',
+        tag: 'Sub-6 Pro Technique',
+        rule: 'Ignore center colors temporarily—insert edges in their correct clockwise order (Green → Orange → Blue → Red) onto D, then align all 4 centers at once with a single D, D\', or D2 turn.',
+        cases: [
+          {
+            label: 'Case 4F • 3-Edge Clockwise Shift',
+            setup: "D' R2 F2 L2",
+            solve: "L2 F2 R2 D",
+            note: 'Drop Left, Front, and Right edges 90° off-center, then snap all three onto their centers with a single D.'
+          },
+          {
+            label: 'Case 4G • Keyhole + Kick Combo',
+            setup: "D R' F' R D'",
+            solve: "D R' F R D'",
+            note: 'Shift D first to open the slot, execute R\' F R to preserve the adjacent edge, and restore D\' in 5 total moves.'
+          }
+        ]
+      },
+      {
+        id: 'xcross-corner-safe',
+        name: '4. F2L Corner-Safe Preservation',
+        tag: 'X-Cross Transition',
+        rule: 'When you spot an already-paired White corner + middle edge during inspection, preserve that block by inserting the final cross edge via keyhole D-turns or wide r/u moves instead of breaking the pair.',
+        cases: [
+          {
+            label: 'Case 4H • Preserve Front-Right Pair',
+            setup: "D' F2 D",
+            solve: "D' F2 D",
+            note: 'Instead of U2 R2 (which breaks a solved FR pair), shift D\' to bring the open DF slot under UF, drop F2, and restore D.'
+          }
+        ]
+      }
+    ]
   }
 ];
 
@@ -389,356 +471,31 @@ const OLL_DEFAULT_CHUNKS = [
 ];
 
 const PLL_DATA = [
-  {
-    id: 1,
-    name: 'PLL Ua',
-    group: 'Edges Only (EPLL)',
-    alg: "(R U R' U R') U' R2 U' (R' U R' U R)",
-    inverse: "R' U' R U' R U R2 U R U' R U' R'",
-    recognition: 'Solved bar in Back; 3 edges cycle counter-clockwise.',
-    fingertrick: 'Keep right thumb on front; push all U turns with right index finger.',
-    segments: [
-      { moves: "(R U R' U R')", cue: 'Right wrist up/down while right index pushes U' },
-      { moves: "U' R2 U'", cue: 'Left index flicks U\', roll R2 smoothly, left index U\'' },
-      { moves: "(R' U R' U R)", cue: 'Thumb-down R\' pulls with right index U pushes' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'PLL Ub',
-    group: 'Edges Only (EPLL)',
-    alg: "(R' U) (R' U') (R' U') (R' U) R U R2",
-    inverse: "R2 U' R' U' R U R U R U' R",
-    recognition: 'Solved bar in Back; 3 edges cycle clockwise.',
-    fingertrick: 'Start thumb-up on R\'; alternate right index U and left index U\' without regripping.',
-    segments: [
-      { moves: "(R' U)", cue: 'Thumb-up R\' down, right index U push' },
-      { moves: "(R' U') (R' U')", cue: 'Two crisp R\' pulls paired with left index U\' flicks' },
-      { moves: "(R' U) R U R2", cue: 'Right index U, wrist R, index U, roll R2 finish' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'PLL H',
-    group: 'Edges Only (EPLL)',
-    alg: "M2 (U') M2 (U2) M2 (U') M2",
-    inverse: "M2 U M2 U2 M2 U M2",
-    recognition: 'All corners solved; opposite edge pairs swap.',
-    fingertrick: 'Support outer layers with thumbs; flick M2 with left ring → middle finger.',
-    segments: [
-      { moves: "M2 (U')", cue: 'Left ring + middle finger M2 double-flick, left index U\'' },
-      { moves: "M2 (U2)", cue: 'Left M2 double-flick, left index + middle U2 double-flick' },
-      { moves: "M2 (U') M2", cue: 'Final M2, left index U\', M2 lock' }
-    ]
-  },
-  {
-    id: 4,
-    name: 'PLL Z',
-    group: 'Edges Only (EPLL)',
-    alg: "M' U' (M2 U') (M2 U') M' U2 M2",
-    inverse: "M2 U2 M U M2 U M2 U M",
-    recognition: 'All corners solved; adjacent edge pairs swap (FR-UF & BL-UB).',
-    fingertrick: 'Use left ring finger for single M\' pulls and ring + middle for M2.',
-    segments: [
-      { moves: "M' U'", cue: 'Left ring finger pulls DB up (M\'), left index flicks U\'' },
-      { moves: "(M2 U') (M2 U')", cue: 'Two M2 double-flicks separated by left index U\'' },
-      { moves: "M' U2 M2", cue: 'Left ring M\', left U2 double-flick, M2 finish' }
-    ]
-  },
-  {
-    id: 5,
-    name: 'PLL Aa',
-    group: 'Corners Only (CPLL)',
-    alg: "x (R' U R') D2 (R U' R') D2 R2 x'",
-    inverse: "x R2 D2 R U R' D2 R U' R x'",
-    recognition: '2x2 block in Back-Left; headlights on Back.',
-    fingertrick: 'Tilt x upward so D2 sits under your left ring + middle fingers on the back-bottom.',
-    segments: [
-      { moves: "x (R' U R')", cue: 'Tilt x up; thumb-up R\', right index U, R\'' },
-      { moves: "D2 (R U' R')", cue: 'Left ring + middle D2 double-flick; R, left index U\', R\'' },
-      { moves: "D2 R2 x'", cue: 'Left D2 double-flick, roll R2 up, tilt x\' back' }
-    ]
-  },
-  {
-    id: 6,
-    name: 'PLL Ab',
-    group: 'Corners Only (CPLL)',
-    alg: "x R2 D2 (R U R') D2 (R U' R) x'",
-    inverse: "x R' U R' D2 R U' R' D2 R2 x'",
-    recognition: '2x2 block in Front-Left; headlights on Right.',
-    fingertrick: 'Tilt x upward, start immediately with R2, and keep left thumb anchored during D2.',
-    segments: [
-      { moves: "x R2 D2", cue: 'Tilt x up, roll R2 down, left ring + middle D2' },
-      { moves: "(R U R') D2", cue: 'Right-hand R U R\', second left D2 double-flick' },
-      { moves: "(R U' R) x'", cue: 'Wrist R, left index U\', wrist R, tilt x\' back' }
-    ]
-  },
-  {
-    id: 7,
-    name: 'PLL E',
-    group: 'Corners Only (CPLL)',
-    alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x",
-    inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x",
-    recognition: 'No headlights anywhere; diagonal corner swaps.',
-    fingertrick: 'Tilt x\' downward; push D with left ring finger and pull D\' with right ring finger.',
-    segments: [
-      { moves: "x' (R U' R' D)", cue: 'Tilt x\' down; R, left index U\', R\', left ring D push' },
-      { moves: "(R U R' D')", cue: 'Sexy R U R\', right ring finger D\' pull' },
-      { moves: "(R U R' D) (R U' R' D') x", cue: 'Repeat alternating D / D\' ring-finger rhythm, tilt x' }
-    ]
-  },
-  {
-    id: 8,
-    name: 'PLL T',
-    group: 'Adjacent Swap',
-    alg: "(R U R' U') (R' F R2 U') R' U' (R U R' F')",
-    inverse: "F R U' R' U R U R2 F' R U R U' R'",
-    recognition: 'Headlights on Left; two 1x1x2 blocks on Front-Left and Back-Left.',
-    fingertrick: 'Flow straight from Sexy Move into thumb-down R\' and right-thumb F without regripping.',
-    segments: [
-      { moves: "(R U R' U')", cue: 'Standard Sexy Move — right wrist + right/left index' },
-      { moves: "(R' F R2 U')", cue: 'R\' down, right thumb pushes F, roll R2, left index U\'' },
-      { moves: "R' U' (R U R' F')", cue: 'R\', left index U\', R U R\', right index pulls F\'' }
-    ]
-  },
-  {
-    id: 9,
-    name: 'PLL F',
-    group: 'Adjacent Swap',
-    alg: "(R' U' F') (R U R' U') (R' F R2 U') (R' U' R U) (R' U R)",
-    inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R",
-    recognition: 'Full 1x1x3 solved bar on Left; no headlights on other sides.',
-    fingertrick: 'Start thumb-up for R\' U\' F\', then execute a T-Perm ending with R\' U R.',
-    segments: [
-      { moves: "(R' U' F')", cue: 'Thumb-up R\', left index U\', left index flicks F\'' },
-      { moves: "(R U R' U') (R' F R2 U')", cue: 'Sexy Move into thumb F and R2 roll (T-Perm core)' },
-      { moves: "(R' U' R U) (R' U R)", cue: 'Inverse Sexy + right index U pushes to finish' }
-    ]
-  },
-  {
-    id: 10,
-    name: 'PLL Ja',
-    group: 'Adjacent Swap',
-    alg: "(R' U L' U2) (R U' R' U2) R L",
-    inverse: "L' R' U2 R U R' U2 L U' R",
-    recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Right.',
-    fingertrick: 'Use left index + middle for both U2 double-flicks; finish R and L simultaneously.',
-    segments: [
-      { moves: "(R' U L' U2)", cue: 'Thumb-up R\', right index U, left wrist L\', left U2' },
-      { moves: "(R U' R' U2)", cue: 'Wrist R, left index U\', R\', left U2 double-flick' },
-      { moves: "R L", cue: 'Turn right side up (R) and left side down (L) together' }
-    ]
-  },
-  {
-    id: 11,
-    name: 'PLL Jb',
-    group: 'Adjacent Swap',
-    alg: "(R U R' F') (R U R' U') R' F R2 U' R'",
-    inverse: "R U R2 F' R U R U' R' F R U' R'",
-    recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Left.',
-    fingertrick: 'Completely regripless—flick F\' with right index after R U R\'.',
-    segments: [
-      { moves: "(R U R' F')", cue: 'R U R\' trigger, right index pulls F\' down' },
-      { moves: "(R U R' U')", cue: 'Standard Sexy Move with right thumb still on front' },
-      { moves: "R' F R2 U' R'", cue: 'R\', right thumb F push, roll R2, left index U\', R\'' }
-    ]
-  },
-  {
-    id: 12,
-    name: 'PLL Ra',
-    group: 'Adjacent Swap',
-    alg: "(R U' R' U') (R U R) D (R' U' R) D' (R' U2 R')",
-    inverse: "R U2 R D R' U R D' R' U' R' U R U R'",
-    recognition: 'Headlights on Left; 1x1x2 block in Front-Right.',
-    fingertrick: 'Push D with left ring finger and pull D\' with right ring finger while keeping thumbs front.',
-    segments: [
-      { moves: "(R U' R' U')", cue: 'R, left index U\', R\', left index U\'' },
-      { moves: "(R U R) D", cue: 'R U R upward flow, left ring finger pushes D' },
-      { moves: "(R' U' R) D' (R' U2 R')", cue: 'R\' U\' R, right ring D\', R\', U2 double-flick, R\'' }
-    ]
-  },
-  {
-    id: 13,
-    name: 'PLL Rb',
-    group: 'Adjacent Swap',
-    alg: "(R' U2 R U2') R' F (R U R' U') R' F' R2",
-    inverse: "R2 F R U R U' R' F' R U2 R' U2 R",
-    recognition: 'Headlights on Back; 1x1x2 block on Front-Right.',
-    fingertrick: 'Start thumb-up for R\'; use right thumb for F and right index for F\'.',
-    segments: [
-      { moves: "(R' U2 R U2')", cue: 'Thumb-up R\', right U2, wrist R, left U2\'' },
-      { moves: "R' F (R U R' U')", cue: 'R\', right thumb pushes F into Sexy Move' },
-      { moves: "R' F' R2", cue: 'R\' down, right index pulls F\', roll R2 finish' }
-    ]
-  },
-  {
-    id: 14,
-    name: 'PLL Y',
-    group: 'Diagonal Swap',
-    alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')",
-    inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'",
-    recognition: 'Two 1x1x2 blocks meeting at Front-Left; no headlights.',
-    fingertrick: 'Push opening F with right thumb; flow into Sexy Move + Sledgehammer at the end.',
-    segments: [
-      { moves: "F (R U' R' U')", cue: 'Right thumb F push; R, left index U\', R\', left index U\'' },
-      { moves: "(R U R' F')", cue: 'R U R\', right index pulls F\' down' },
-      { moves: "(R U R' U') (R' F R F')", cue: 'Sexy Move directly into Sledgehammer finish' }
-    ]
-  },
-  {
-    id: 15,
-    name: 'PLL V',
-    group: 'Diagonal Swap',
-    alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F",
-    inverse: "F' R' F' R U' R U R2 F R y' U R U' R",
-    recognition: '2x2 solved block in Front-Left; no headlights anywhere.',
-    fingertrick: 'Start thumb-up R\'; rotate y smoothly during U\' so R2 F flows without a pause.',
-    segments: [
-      { moves: "(R' U R' U') y", cue: 'Thumb-up R\', index U, R\', left U\' while rotating y' },
-      { moves: "(R' F' R2 U')", cue: 'R\', left index F\', roll R2, left index U\'' },
-      { moves: "(R' U R' F) R F", cue: 'R\' U R\', right thumb F, wrist R, thumb F' }
-    ]
-  },
-  {
-    id: 16,
-    name: 'PLL Na',
-    group: 'Diagonal Swap',
-    alg: "(R U R' U) (R U R' F') (R U R' U') R' F (R2 U' R') (U2 R U' R')",
-    inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'",
-    recognition: '1x1x2 blocks on Right of every face (clockwise pinwheel).',
-    fingertrick: 'Think of this as (R U R\' U) + full Jb-Perm + (U2 R U\' R\') — zero regrips needed.',
-    segments: [
-      { moves: "(R U R' U)", cue: '4-move setup trigger with right index U pushes' },
-      { moves: "(R U R' F') (R U R' U') R' F R2 U' R'", cue: 'Full Jb-Perm execution in the middle' },
-      { moves: "(U2 R U' R')", cue: 'Left U2 double-flick into Inverse Sexy finish' }
-    ]
-  },
-  {
-    id: 17,
-    name: 'PLL Nb',
-    group: 'Diagonal Swap',
-    alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)",
-    inverse: "R' U R' F R F' R U' R' F' U F R U R' U' R",
-    recognition: '1x1x2 blocks on Left of every face (counter-clockwise pinwheel).',
-    fingertrick: 'Start thumb-up; use left index for F\' and right thumb for F so right hand stays planted.',
-    segments: [
-      { moves: "(R' U R U')", cue: 'Thumb-up R\', right index U, wrist R, left index U\'' },
-      { moves: "(R' F' U' F)", cue: 'R\', left index F\', left index U\', right thumb F' },
-      { moves: "(R U R' F) R' F' (R U' R)", cue: 'R U R\', thumb F, R\', index F\', R U\' R' }
-    ]
-  },
-  {
-    id: 18,
-    name: 'PLL Ga',
-    group: 'G-Perms',
-    alg: "R2 U (R' U R' U') (R U' R2) D U' (R' U R D')",
-    inverse: "D R' U' R U D' R2 U R' U R U' R U' R2",
-    recognition: 'Headlights on Left; 1x1x2 block on Front-Right.',
-    fingertrick: 'Execute D and U\' simultaneously using left ring (D) + left index (U\').',
-    segments: [
-      { moves: "R2 U (R' U R' U')", cue: 'Roll R2, right index U, R\' U R\' U\' rhythm' },
-      { moves: "(R U' R2) D U'", cue: 'R U\' R2, then simultaneous left-ring D + left-index U\'' },
-      { moves: "(R' U R D')", cue: 'R\' U R, finish with right ring finger D\' pull' }
-    ]
-  },
-  {
-    id: 19,
-    name: 'PLL Gb',
-    group: 'G-Perms',
-    alg: "D (R' U' R U) D' (R2 U R' U) (R U' R U') R2'",
-    inverse: "R2 U R' U R' U' R U' R2 D U' R' U R D'",
-    recognition: 'Headlights on Left; 1x1x2 block on Back-Right.',
-    fingertrick: 'Push opening D with left ring finger and pull D\' with right ring finger before rolling R2.',
-    segments: [
-      { moves: "D (R' U' R U) D'", cue: 'Left ring D, Inverse Sexy (R\' U\' R U), right ring D\'' },
-      { moves: "(R2 U R' U)", cue: 'Roll R2, right index U, R\', right index U' },
-      { moves: "(R U' R U') R2'", cue: 'R, left index U\', R, left index U\', roll R2\' finish' }
-    ]
-  },
-  {
-    id: 20,
-    name: 'PLL Gc',
-    group: 'G-Perms',
-    alg: "R2' F2 (R U2 R U2') R' F (R U R' U') R' F R2",
-    inverse: "R2 F' R U R U' R' F' R U2 R' U2 R' F2 R2",
-    recognition: 'Headlights on Left; 1x1x2 block on Back-Left.',
-    fingertrick: 'Rotationless R2\' F2 variant — use right thumb F into Sexy Move on the back half.',
-    segments: [
-      { moves: "R2' F2 (R U2 R U2')", cue: 'Roll R2\', double-flick F2, R U2 R U2\'' },
-      { moves: "R' F (R U R' U')", cue: 'R\' down, right thumb F push into Sexy Move' },
-      { moves: "R' F R2", cue: 'R\', right thumb F push, roll R2 finish' }
-    ]
-  },
-  {
-    id: 21,
-    name: 'PLL Gd',
-    group: 'G-Perms',
-    alg: "(R U R' U') D (R2 U' R U') (R' U R' U) R2 D'",
-    inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'",
-    recognition: 'Headlights on Left; 1x1x2 block on Front-Left.',
-    fingertrick: 'Sexy Move into left-ring D push; finish with right-ring D\' pull after R2.',
-    segments: [
-      { moves: "(R U R' U') D", cue: 'Sexy Move followed immediately by left ring D push' },
-      { moves: "(R2 U' R U')", cue: 'Roll R2, left index U\', wrist R, left index U\'' },
-      { moves: "(R' U R' U) R2 D'", cue: 'R\' U R\' U, roll R2, right ring finger D\' finish' }
-    ]
-  },
-  {
-    id: 22,
-    name: 'PLL H (Left-Hand M)',
-    group: 'Edges Only (EPLL)',
-    alg: "M2 (U) M2 (U2) M2 (U) M2",
-    inverse: "M2 U' M2 U2 M2 U' M2",
-    recognition: 'H-Perm variant using right-index U pushes.',
-    fingertrick: 'Left ring + middle M2 flicks paired with right index U and right U2 double-flick.',
-    segments: [
-      { moves: "M2 (U) M2", cue: 'Left M2 double-flick, right index U push, M2' },
-      { moves: "(U2) M2", cue: 'Right index + middle U2 double-flick, left M2' },
-      { moves: "(U) M2", cue: 'Right index U push, final left M2 lock' }
-    ]
-  },
-  {
-    id: 23,
-    name: 'PLL Z (Left-Hand M)',
-    group: 'Edges Only (EPLL)',
-    alg: "y M' U (M2 U) (M2 U) M' U2 M2",
-    inverse: "M2 U2 M U' M2 U' M2 U' M y'",
-    recognition: 'Z-Perm variant for swaps on Front-Left & Back-Right.',
-    fingertrick: 'Rotate y, then alternate left-ring M\' / M2 pulls with right-index U pushes.',
-    segments: [
-      { moves: "y M' U", cue: 'Rotate y, left ring pulls M\', right index pushes U' },
-      { moves: "(M2 U) (M2 U)", cue: 'Two left M2 double-flicks paired with right index U' },
-      { moves: "M' U2 M2", cue: 'Left ring M\', right U2 double-flick, M2 finish' }
-    ]
-  },
-  {
-    id: 24,
-    name: 'PLL Ja (Wide Finish)',
-    group: 'Adjacent Swap',
-    alg: "(R' U L' U2) (R U' R' U2) R r",
-    inverse: "r' R' U2 R U R' U2 L U' R",
-    recognition: 'Ja-Perm ending with ergonomic R r instead of R L.',
-    fingertrick: 'Replace the awkward R L finish with right-hand R followed by wide r upward.',
-    segments: [
-      { moves: "(R' U L' U2)", cue: 'Thumb-up R\', right index U, left wrist L\', left U2' },
-      { moves: "(R U' R' U2)", cue: 'Wrist R, left index U\', R\', left U2 double-flick' },
-      { moves: "R r", cue: 'Outer R up, then wide double-layer r up with right hand' }
-    ]
-  },
-  {
-    id: 25,
-    name: 'PLL Jb (Left-Handed)',
-    group: 'Adjacent Swap',
-    alg: "y' (L' U' L F) (L' U' L U) L F' L2' U L",
-    inverse: "L' U' L2 F L' U' L' U L F' L' U L y",
-    recognition: 'Mirror Jb-Perm when 1x1x3 bar is on Right.',
-    fingertrick: 'Exact left-hand mirror of Jb—use left thumb for F\' and left index for F.',
-    segments: [
-      { moves: "y' (L' U' L F)", cue: 'Rotate y\'; left L\' U\' L trigger, left index flicks F' },
-      { moves: "(L' U' L U)", cue: 'Left-Hand Sexy Move with left thumb on front' },
-      { moves: "L F' L2' U L", cue: 'L, left thumb F\', roll L2\', right index U, L' }
-    ]
-  }
+  { id: 1, name: 'PLL Ua', group: 'Edges Only (EPLL)', alg: "(R U R' U R') U' R2 U' (R' U R' U R)", inverse: "R' U' R U' R U R2 U R U' R U' R'", recognition: 'Solved bar in Back; 3 edges cycle counter-clockwise.', fingertrick: 'Keep right thumb on front; push all U turns with right index finger.' },
+  { id: 2, name: 'PLL Ub', group: 'Edges Only (EPLL)', alg: "(R' U) (R' U') (R' U') (R' U) R U R2", inverse: "R2 U' R' U' R U R U R U' R", recognition: 'Solved bar in Back; 3 edges cycle clockwise.', fingertrick: 'Start thumb-up on R\'; alternate right index U and left index U\' without regripping.' },
+  { id: 3, name: 'PLL H', group: 'Edges Only (EPLL)', alg: "M2 (U') M2 (U2) M2 (U') M2", inverse: "M2 U M2 U2 M2 U M2", recognition: 'All corners solved; opposite edge pairs swap.', fingertrick: 'Support outer layers with thumbs; flick M2 with left ring → middle finger.' },
+  { id: 4, name: 'PLL Z', group: 'Edges Only (EPLL)', alg: "M' U' (M2 U') (M2 U') M' U2 M2", inverse: "M2 U2 M U M2 U M2 U M", recognition: 'All corners solved; adjacent edge pairs swap (FR-UF & BL-UB).', fingertrick: 'Use left ring finger for single M\' pulls and ring + middle for M2.' },
+  { id: 5, name: 'PLL Aa', group: 'Corners Only (CPLL)', alg: "x (R' U R') D2 (R U' R') D2 R2 x'", inverse: "x R2 D2 R U R' D2 R U' R x'", recognition: '2x2 block in Back-Left; headlights on Back.', fingertrick: 'Tilt x upward so D2 sits under your left ring + middle fingers on the back-bottom.' },
+  { id: 6, name: 'PLL Ab', group: 'Corners Only (CPLL)', alg: "x R2 D2 (R U R') D2 (R U' R) x'", inverse: "x R' U R' D2 R U' R' D2 R2 x'", recognition: '2x2 block in Front-Left; headlights on Right.', fingertrick: 'Tilt x upward, start immediately with R2, and keep left thumb anchored during D2.' },
+  { id: 7, name: 'PLL E', group: 'Corners Only (CPLL)', alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x", inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x", recognition: 'No headlights anywhere; diagonal corner swaps.', fingertrick: 'Tilt x\' downward; push D with left ring finger and pull D\' with right ring finger.' },
+  { id: 8, name: 'PLL T', group: 'Adjacent Swap', alg: "(R U R' U') (R' F R2 U') R' U' (R U R' F')", inverse: "F R U' R' U R U R2 F' R U R U' R'", recognition: 'Headlights on Left; two 1x1x2 blocks on Front-Left and Back-Left.', fingertrick: 'Flow straight from Sexy Move into thumb-down R\' and right-thumb F without regripping.' },
+  { id: 9, name: 'PLL F', group: 'Adjacent Swap', alg: "(R' U' F') (R U R' U') (R' F R2 U') (R' U' R U) (R' U R)", inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R", recognition: 'Full 1x1x3 solved bar on Left; no headlights on other sides.', fingertrick: 'Start thumb-up for R\' U\' F\', then execute a T-Perm ending with R\' U R.' },
+  { id: 10, name: 'PLL Ja', group: 'Adjacent Swap', alg: "(R' U L' U2) (R U' R' U2) R L", inverse: "L' R' U2 R U R' U2 L U' R", recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Right.', fingertrick: 'Use left index + middle for both U2 double-flicks; finish R and L simultaneously.' },
+  { id: 11, name: 'PLL Jb', group: 'Adjacent Swap', alg: "(R U R' F') (R U R' U') R' F R2 U' R'", inverse: "R U R2 F' R U R U' R' F R U' R'", recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Left.', fingertrick: 'Completely regripless—flick F\' with right index after R U R\'.' },
+  { id: 12, name: 'PLL Ra', group: 'Adjacent Swap', alg: "(R U' R' U') (R U R) D (R' U' R) D' (R' U2 R')", inverse: "R U2 R D R' U R D' R' U' R' U R U R'", recognition: 'Headlights on Left; 1x1x2 block in Front-Right.', fingertrick: 'Push D with left ring finger and pull D\' with right ring finger while keeping thumbs front.' },
+  { id: 13, name: 'PLL Rb', group: 'Adjacent Swap', alg: "(R' U2 R U2') R' F (R U R' U') R' F' R2", inverse: "R2 F R U R U' R' F' R U2 R' U2 R", recognition: 'Headlights on Back; 1x1x2 block on Front-Right.', fingertrick: 'Start thumb-up for R\'; use right thumb for F and right index for F\'.' },
+  { id: 14, name: 'PLL Y', group: 'Diagonal Swap', alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')", inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'", recognition: 'Two 1x1x2 blocks meeting at Front-Left; no headlights.', fingertrick: 'Push opening F with right thumb; flow into Sexy Move + Sledgehammer at the end.' },
+  { id: 15, name: 'PLL V', group: 'Diagonal Swap', alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F", inverse: "F' R' F' R U' R U R2 F R y' U R U' R", recognition: '2x2 solved block in Front-Left; no headlights anywhere.', fingertrick: 'Start thumb-up R\'; rotate y smoothly during U\' so R2 F flows without a pause.' },
+  { id: 16, name: 'PLL Na', group: 'Diagonal Swap', alg: "(R U R' U) (R U R' F') (R U R' U') R' F (R2 U' R') (U2 R U' R')", inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'", recognition: '1x1x2 blocks on Right of every face (clockwise pinwheel).', fingertrick: 'Think of this as (R U R\' U) + full Jb-Perm + (U2 R U\' R\') — zero regrips needed.' },
+  { id: 17, name: 'PLL Nb', group: 'Diagonal Swap', alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)", inverse: "R' U R' F R F' R U' R' F' U F R U R' U' R", recognition: '1x1x2 blocks on Left of every face (counter-clockwise pinwheel).', fingertrick: 'Start thumb-up; use left index for F\' and right thumb for F so right hand stays planted.' },
+  { id: 18, name: 'PLL Ga', group: 'G-Perms', alg: "R2 U (R' U R' U') (R U' R2) D U' (R' U R D')", inverse: "D R' U' R U D' R2 U R' U R U' R U' R2", recognition: 'Headlights on Left; 1x1x2 block on Front-Right.', fingertrick: 'Execute D and U\' simultaneously using left ring (D) + left index (U\').' },
+  { id: 19, name: 'PLL Gb', group: 'G-Perms', alg: "D (R' U' R U) D' (R2 U R' U) (R U' R U') R2'", inverse: "R2 U R' U R' U' R U' R2 D U' R' U R D'", recognition: 'Headlights on Left; 1x1x2 block on Back-Right.', fingertrick: 'Push opening D with left ring finger and pull D\' with right ring finger before rolling R2.' },
+  { id: 20, name: 'PLL Gc', group: 'G-Perms', alg: "R2' F2 (R U2 R U2') R' F (R U R' U') R' F R2", inverse: "R2 F' R U R U' R' F' R U2 R' U2 R' F2 R2", recognition: 'Headlights on Left; 1x1x2 block on Back-Left.', fingertrick: 'Rotationless R2\' F2 variant — use right thumb F into Sexy Move on the back half.' },
+  { id: 21, name: 'PLL Gd', group: 'G-Perms', alg: "(R U R' U') D (R2 U' R U') (R' U R' U) R2 D'", inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'", recognition: 'Headlights on Left; 1x1x2 block on Front-Left.', fingertrick: 'Sexy Move into left-ring D push; finish with right-ring D\' pull after R2.' },
+  { id: 22, name: 'PLL H (Left-Hand M)', group: 'Edges Only (EPLL)', alg: "M2 (U) M2 (U2) M2 (U) M2", inverse: "M2 U' M2 U2 M2 U' M2", recognition: 'H-Perm variant using right-index U pushes.', fingertrick: 'Left ring + middle M2 flicks paired with right index U and right U2 double-flick.' },
+  { id: 23, name: 'PLL Z (Left-Hand M)', group: 'Edges Only (EPLL)', alg: "y M' U (M2 U) (M2 U) M' U2 M2", inverse: "M2 U2 M U' M2 U' M2 U' M y'", recognition: 'Z-Perm variant for swaps on Front-Left & Back-Right.', fingertrick: 'Rotate y, then alternate left-ring M\' / M2 pulls with right-index U pushes.' },
+  { id: 24, name: 'PLL Ja (Wide Finish)', group: 'Adjacent Swap', alg: "(R' U L' U2) (R U' R' U2) R r", inverse: "r' R' U2 R U R' U2 L U' R", recognition: 'Ja-Perm ending with ergonomic R r instead of R L.', fingertrick: 'Replace the awkward R L finish with right-hand R followed by wide r upward.' },
+  { id: 25, name: 'PLL Jb (Left-Handed)', group: 'Adjacent Swap', alg: "y' (L' U' L F) (L' U' L U) L F' L2' U L", inverse: "L' U' L2 F L' U' L' U L F' L' U L y", recognition: 'Mirror Jb-Perm when 1x1x3 bar is on Right.', fingertrick: 'Exact left-hand mirror of Jb—use left thumb for F\' and left index for F.' }
 ];
 
 const PLL_GROUPS = [
@@ -938,7 +695,10 @@ function buildFingertrickBreakdown(item) {
   };
 }
 
+const TRIGGER_TAGS_CACHE = new Map();
+
 function getAlgorithmTriggerTags(alg = '') {
+  if (TRIGGER_TAGS_CACHE.has(alg)) return TRIGGER_TAGS_CACHE.get(alg);
   const normalized = alg.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
   const tags = [];
   if (normalized.includes("R U R' U'")) tags.push({ label: "Sexy Move (R U R' U')", badgeClass: FINGERTRICK_CODEX[0].badgeClass, dotClass: FINGERTRICK_CODEX[0].dotClass });
@@ -950,6 +710,7 @@ function getAlgorithmTriggerTags(alg = '') {
   if (normalized.includes("F R' F' R")) tags.push({ label: "Hedgeslammer (F R' F' R)", badgeClass: FINGERTRICK_CODEX[4].badgeClass, dotClass: FINGERTRICK_CODEX[4].dotClass });
   if (/\bM2?\b|\bM'/.test(normalized)) tags.push({ label: 'M-Slice Flick', badgeClass: FINGERTRICK_CODEX[6].badgeClass, dotClass: FINGERTRICK_CODEX[6].dotClass });
   if (/\bD2?\b|\bD'/.test(normalized)) tags.push({ label: 'Ring-Finger D', badgeClass: FINGERTRICK_CODEX[7].badgeClass, dotClass: FINGERTRICK_CODEX[7].dotClass });
+  TRIGGER_TAGS_CACHE.set(alg, tags);
   return tags;
 }
 
@@ -1131,7 +892,7 @@ function simulateF2LCubeState(setupScramble = '') {
 }
 
 function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
-  const stickers = simulateCrossCubeState(scramble);
+  const stickers = useMemo(() => simulateCrossCubeState(scramble), [scramble]);
   const half = 48;
 
   const isCrossRelevant = (offset, idx) => {
@@ -1255,7 +1016,7 @@ function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging }) {
 }
 
 function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging }) {
-  const stickers = simulateF2LCubeState(setupScramble);
+  const stickers = useMemo(() => simulateF2LCubeState(setupScramble), [setupScramble]);
   const half = 48;
 
   const renderFace = (offset, transform, shadeOpacity) => (
@@ -1439,15 +1200,15 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'How CFOP Solves the 3x3 Cube',
     phase: 'cross',
     tab: 'ladder',
-    desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. This app trains each phase step-by-step with daily sessions, 3D cubes, and millisecond PB tracking.',
-    howToReach: 'Tap the orange phase pill (C / F / O / P) in the top-right header anytime to switch phases.'
+    desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. Instead of solving layer-by-layer slowly, you build a bottom cross, pair corners & edges together, orient the yellow top in one look, and permute the final layer.',
+    howToReach: 'Tap the orange phase pill (C / F / O / P) in the top-right header anytime to jump between phases.'
   },
   {
     badge: 'Step 2 of 6 • Phase C (Cross)',
     title: 'Solve the White Cross on Bottom',
     phase: 'cross',
     tab: 'ladder',
-    desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 8 moves or fewer using the 3D Cross Orbit cube and Ladder levels.',
+    desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6–8 moves or fewer while matching their side colors to the center pieces—use the 3D Cross Orbit cube and Ladder tiers to build efficiency.',
     howToReach: 'Top-right pill → C • Bottom bar: Ladder, Blind Run (dual-thumb mat), Mechanics.'
   },
   {
@@ -1455,7 +1216,7 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'First Two Layers (41 Pairs)',
     phase: 'f2l',
     tab: 'grind',
-    desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—solving the first two layers simultaneously.',
+    desc: 'Keep White on the bottom and Green in front. Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—completing the first two layers at the same time.',
     howToReach: 'Top-right pill → F • Tap Start Day Grind or any pair in Today\'s Lineup for a 3D isolated drill.'
   },
   {
@@ -1463,7 +1224,7 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'Orient Last Layer (57 Cases)',
     phase: 'oll',
     tab: 'grind',
-    desc: 'Recognize the Yellow pattern on top and execute one algorithm to make the entire top face solid Yellow.',
+    desc: 'Recognize the Yellow pattern on the top face and execute one algorithm to make the entire top face solid Yellow.',
     howToReach: 'Top-right pill → O • Use The Grind for daily chunks or Algorithms to browse all 57 OLL shapes.'
   },
   {
@@ -1471,16 +1232,16 @@ const CFOP_AND_APP_TOUR_STEPS = [
     title: 'Permute Last Layer (25 Algorithms)',
     phase: 'pll',
     tab: 'grind',
-    desc: 'With Yellow solid on top, swap the final corners and edges into their solved positions to finish the cube.',
+    desc: 'With Yellow solid on top, swap the final top-layer corners and edges into their solved positions to finish the cube.',
     howToReach: 'Top-right pill → P • Each case highlights inline fingertrick triggers and step-by-step grip cues.'
   },
   {
-    badge: 'Step 6 of 6 • Stats, Timer & Settings',
-    title: 'Track PBs & Full 3x3 Solves',
+    badge: 'Step 6 of 6 • Ready to Train',
+    title: 'Pick Your Starting Phase',
     phase: 'oll',
     tab: 'settings',
-    desc: 'Every phase includes Statistics (with custom per-case Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier.',
-    howToReach: 'Bottom bar → Statistics or Settings (swipe cards or tap dots at top-right of Settings).'
+    desc: 'Every phase includes Statistics (with custom 0.001s Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier. Choose where you want to start training right now:',
+    howToReach: 'Tap a phase button below to jump straight in, or switch anytime using the top-right C • F • O • P pill.'
   }
 ];
 
@@ -1638,6 +1399,11 @@ class AppErrorBoundary extends React.Component {
 }
 
 function OLLDaySuite() {
+  // Foreground Visibility State (Deep-sleep guard for background battery & thermal savings)
+  const [isAppVisible, setIsAppVisible] = useState(() =>
+    typeof document !== 'undefined' ? !document.hidden : true
+  );
+
   // Cloud Auth & Sync State
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
@@ -1733,8 +1499,9 @@ function OLLDaySuite() {
   const [crossUserMoves, setCrossUserMoves] = useState(2);
   const [efficiencyFeedback, setEfficiencyFeedback] = useState(null);
   const [activeMechanicId, setActiveMechanicId] = useState(1);
-
-  // Blind Inspection Trainer State
+  const [activeMechApproachIdx, setActiveMechApproachIdx] = useState(0);
+  const [activeMechCaseIdx, setActiveMechCaseIdx] = useState(0);
+  const [mechCubeRot, setMechCubeRot] = useState({ yaw: -35, pitch: 38 });
   const [blindState, setBlindState] = useState('idle');
   const [inspectionLeft, setInspectionLeft] = useState(15.0);
   const [blindLogs, setBlindLogs] = useState([]);
@@ -1769,7 +1536,6 @@ function OLLDaySuite() {
 
   // Active Modals & Session Runners
   const [activeModal, setActiveModal] = useState(null);
-  const [onboardingSlide, setOnboardingSlide] = useState(0);
   const [ftCase, setFtCase] = useState(null);
   const [ftPhaseContext, setFtPhaseContext] = useState('f2l');
   const [builderPhase, setBuilderPhase] = useState('f2l');
@@ -1842,14 +1608,14 @@ function OLLDaySuite() {
   const [f2lIsDragging, setF2lIsDragging] = useState(false);
   const f2lDragStartRef = useRef(null);
 
-  // Web Audio Acoustic Synthesizer
+  // Web Audio Acoustic Synthesizer (Suspends & releases hardware DSP when backgrounded)
   const audioCtxRef = useRef(null);
   const emitBeep = (freq = 640, type = 'sine', duration = 0.07, vol = 0.12) => {
-    if (!audioEnabled || typeof window === 'undefined') return;
+    if (!audioEnabled || typeof window === 'undefined' || (typeof document !== 'undefined' && document.hidden)) return;
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
-      if (!audioCtxRef.current) {
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
         audioCtxRef.current = new AudioCtx();
       }
       const ctx = audioCtxRef.current;
@@ -1869,30 +1635,6 @@ function OLLDaySuite() {
     } catch {
       // Ignore audio restrictions
     }
-  };
-
-  // Auto-Navigation Helper for Guided Interactive Tours
-  const applyTourNavigation = (stepObj) => {
-    if (!stepObj) return;
-    setActivePhase(stepObj.phase);
-    if (stepObj.phase === 'cross') {
-      setCrossTab(stepObj.tab);
-    } else if (stepObj.phase === 'f2l') {
-      setF2lTab(stepObj.tab);
-    } else if (stepObj.phase === 'oll') {
-      setOllTab(stepObj.tab);
-    } else if (stepObj.phase === 'pll') {
-      setPllTab(stepObj.tab);
-    }
-  };
-
-  const startGuidedTour = (type) => {
-    const steps = type === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
-    setTourType(type);
-    setTourStepIdx(0);
-    applyTourNavigation(steps[0]);
-    setActiveModal('guidedTour');
-    emitBeep(680, 'sine', 0.08);
   };
 
   // Sanitize User Profile Record
@@ -1931,15 +1673,83 @@ function OLLDaySuite() {
     };
   };
 
-  // Persist Users & Active Account to localStorage
-  useEffect(() => {
+  // Auto-Navigation Helper for Guided Interactive Tours
+  const applyTourNavigation = (stepObj) => {
+    if (!stepObj) return;
+    setActivePhase(stepObj.phase);
+    if (stepObj.phase === 'cross') setCrossTab(stepObj.tab);
+    if (stepObj.phase === 'f2l') setF2lTab(stepObj.tab);
+    if (stepObj.phase === 'oll') setOllTab(stepObj.tab);
+    if (stepObj.phase === 'pll') setPllTab(stepObj.tab);
+  };
+
+  const startGuidedTour = (type) => {
+    emitBeep(720, 'sine', 0.08);
+    const steps = type === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
+    setTourType(type);
+    setTourStepIdx(0);
+    applyTourNavigation(steps[0]);
+    setActiveModal('guidedTour');
+  };
+
+  // Debounced Persistence for Users (450ms) + Immediate Flush on pagehide/visibilitychange
+  const latestUsersRef = useRef(users);
+  latestUsersRef.current = users;
+  const pendingCloudSyncRef = useRef(null);
+  const cloudSaveTimerRef = useRef(null);
+  const localSaveTimerRef = useRef(null);
+
+  const flushPendingPersistence = async () => {
+    if (localSaveTimerRef.current) {
+      clearTimeout(localSaveTimerRef.current);
+      localSaveTimerRef.current = null;
+    }
     try {
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(latestUsersRef.current));
       }
     } catch {
       // Ignore storage quota errors
     }
+
+    if (cloudSaveTimerRef.current) {
+      clearTimeout(cloudSaveTimerRef.current);
+      cloudSaveTimerRef.current = null;
+    }
+    const pending = pendingCloudSyncRef.current;
+    if (pending && pending.uKey && resolvedFirebaseConfig && cloudAuthUser) {
+      pendingCloudSyncRef.current = null;
+      try {
+        const svc = await getFirebaseServices();
+        if (svc) {
+          await svc.fsMod.setDoc(
+            svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', pending.uKey),
+            { ...sanitizeUserRecord(pending.record), updatedAt: Date.now() },
+            { merge: true }
+          );
+          setCloudSyncStatus('synced');
+        }
+      } catch {
+        setCloudSyncStatus('local');
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
+    localSaveTimerRef.current = setTimeout(() => {
+      localSaveTimerRef.current = null;
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+        }
+      } catch {
+        // Ignore storage quota errors
+      }
+    }, 450);
+    return () => {
+      if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
+    };
   }, [users]);
 
   useEffect(() => {
@@ -1956,26 +1766,18 @@ function OLLDaySuite() {
     }
   }, [activeUserKey]);
 
-  // Cloud Firestore Sync
-  const saveUserToCloud = async (uKey, record) => {
+  // Debounced Cloud Firestore Sync (Prevents burst writes during millisecond slider adjustments)
+  const saveUserToCloud = (uKey, record) => {
     if (!uKey || !resolvedFirebaseConfig || !cloudAuthUser) return;
-    try {
-      const svc = await getFirebaseServices();
-      if (!svc) return;
-      await svc.fsMod.setDoc(
-        svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles', uKey),
-        { ...sanitizeUserRecord(record), updatedAt: Date.now() },
-        { merge: true }
-      );
-      setCloudSyncStatus('synced');
-    } catch {
-      setCloudSyncStatus('local');
-    }
+    pendingCloudSyncRef.current = { uKey, record };
+    if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
+    cloudSaveTimerRef.current = setTimeout(() => {
+      flushPendingPersistence();
+    }, 450);
   };
 
   useEffect(() => {
     let unsubAuth = null;
-    let unsubSnapshot = null;
     let cancelled = false;
 
     (async () => {
@@ -2004,84 +1806,145 @@ function OLLDaySuite() {
         setCloudAuthUser(fbUser || null);
         if (!fbUser) {
           setCloudSyncStatus('local');
-          return;
+        } else {
+          setCloudSyncStatus('synced');
         }
-        setCloudSyncStatus('synced');
-        const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
-        unsubSnapshot = svc.fsMod.onSnapshot(
-          colRef,
-          (snap) => {
-            if (cancelled) return;
-            setUsers((prev) => {
-              const merged = { ...prev };
-              snap.forEach((docSnap) => {
-                const data = docSnap.data();
-                if (data && data._deleted) {
-                  delete merged[docSnap.id];
-                } else if (data && typeof data === 'object') {
-                  merged[docSnap.id] = sanitizeUserRecord({ ...(merged[docSnap.id] || {}), ...data });
-                }
-              });
-              return Object.keys(merged).length > 0 ? merged : { ...DEFAULT_USERS };
-            });
-          },
-          () => setCloudSyncStatus('local')
-        );
       });
     })();
 
     return () => {
       cancelled = true;
       if (typeof unsubAuth === 'function') unsubAuth();
+    };
+  }, []);
+
+  // Foreground-Only Firestore Snapshot Listener (Disconnects WebSocket while backgrounded)
+  useEffect(() => {
+    if (!resolvedFirebaseConfig || !cloudAuthUser || !isAppVisible) return;
+    let unsubSnapshot = null;
+    let cancelled = false;
+
+    (async () => {
+      const svc = await getFirebaseServices();
+      if (!svc || cancelled) return;
+      setCloudSyncStatus('synced');
+      const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'solver_profiles');
+      unsubSnapshot = svc.fsMod.onSnapshot(
+        colRef,
+        (snap) => {
+          if (cancelled) return;
+          setUsers((prev) => {
+            const merged = { ...prev };
+            snap.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data && data._deleted) {
+                delete merged[docSnap.id];
+              } else if (data && typeof data === 'object') {
+                merged[docSnap.id] = sanitizeUserRecord({ ...(merged[docSnap.id] || {}), ...data });
+              }
+            });
+            return Object.keys(merged).length > 0 ? merged : { ...DEFAULT_USERS };
+          });
+        },
+        () => setCloudSyncStatus('local')
+      );
+    })();
+
+    return () => {
+      cancelled = true;
       if (typeof unsubSnapshot === 'function') unsubSnapshot();
     };
-  }, []);
+  }, [cloudAuthUser, isAppVisible]);
 
-  // Background Power-Save Lifecycle (visibilitychange)
+  // Deep-Sleep Background Power-Save Lifecycle (visibilitychange & pagehide)
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    const enterBackgroundSleep = () => {
+      setIsAppVisible(false);
+      flushPendingPersistence();
+      if (padHoldTimeoutRef.current) {
+        clearTimeout(padHoldTimeoutRef.current);
+        padHoldTimeoutRef.current = null;
+      }
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
+      setLeftPadHeld(false);
+      setRightPadHeld(false);
+      setDraggedLineupIdx(null);
+      setBlindState((prev) => (prev === 'inspecting' || prev === 'readying' || prev === 'armed' ? 'idle' : prev));
+      setSwRunning(false);
+      setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
-          audioCtxRef.current.suspend().catch(() => {});
-        }
-        setSwRunning(false);
-        setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
+        enterBackgroundSleep();
+      } else {
+        setIsAppVisible(true);
       }
     };
+
+    const handlePageHide = () => {
+      enterBackgroundSleep();
+    };
+
+    const handlePageShow = () => {
+      setIsAppVisible(!document.hidden);
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
-  // Zero-Re-Render Case Stopwatch Loop (DOM ref updates)
+  // 30fps Throttled Case Stopwatch Loop (75% fewer 120Hz wakeups; exact ms precision on stop)
   useEffect(() => {
-    if (!swRunning) return;
+    if (!swRunning || !isAppVisible) return;
     let rafId = 0;
-    const tick = () => {
-      const elapsed = performance.now() - swStartRef.current;
-      if (swDisplayRef.current) {
-        swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
+    let lastPaint = 0;
+    const tick = (now) => {
+      if (now - lastPaint >= 33) {
+        lastPaint = now;
+        const elapsed = performance.now() - swStartRef.current;
+        if (swDisplayRef.current) {
+          swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [swRunning]);
+  }, [swRunning, isAppVisible]);
 
-  // Zero-Re-Render Full-Screen 3x3x3 Timer Loop (DOM ref updates)
+  // 30fps Throttled Full-Screen 3x3x3 Timer Loop (75% fewer 120Hz wakeups; exact ms precision on stop)
   useEffect(() => {
-    if (fullTimerState !== 'running') return;
+    if (fullTimerState !== 'running' || !isAppVisible) return;
     let rafId = 0;
-    const tick = () => {
-      const elapsed = performance.now() - fullStartRef.current;
-      if (fullTimerDisplayRef.current) {
-        fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
+    let lastPaint = 0;
+    const tick = (now) => {
+      if (now - lastPaint >= 33) {
+        lastPaint = now;
+        const elapsed = performance.now() - fullStartRef.current;
+        if (fullTimerDisplayRef.current) {
+          fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [fullTimerState]);
+  }, [fullTimerState, isAppVisible]);
 
   // Derived Current User & Curriculum Schedules
   const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
@@ -2322,9 +2185,9 @@ function OLLDaySuite() {
     .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0))
     .filter((n) => Number.isFinite(n));
   const bestFullPbMs = validFullMs.length ? Math.min(...validFullMs) : null;
-
-  // WCA Blind Inspection Countdown Effect
+  // WCA Blind Inspection Countdown Effect (Foreground-only)
   useEffect(() => {
+    if (!isAppVisible) return;
     if (blindState !== 'inspecting' && blindState !== 'readying' && blindState !== 'armed') return;
     const interval = setInterval(() => {
       setInspectionLeft((prev) => {
@@ -2342,7 +2205,7 @@ function OLLDaySuite() {
       });
     }, 100);
     return () => clearInterval(interval);
-  }, [blindState]);
+  }, [blindState, isAppVisible]);
 
   // Multi-touch dual-thumb arming lifecycle
   useEffect(() => {
@@ -3264,7 +3127,7 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Card 6: Beginner's Guide, Custom Builder (Blurred if non-Pro) & Reset Controls */}
+        {/* Card 6: Custom Builder (Blurred if non-Pro) & Reset Controls */}
         <div
           className={`absolute inset-x-0 top-0 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}
         >
@@ -3281,25 +3144,9 @@ function OLLDaySuite() {
               Account →
             </button>
           </div>
-          <h3 className="text-lg font-black text-white">Guides, Chunks &amp; Reset</h3>
+          <h3 className="text-lg font-black text-white">Custom Chunks &amp; Reset</h3>
 
           <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                emitBeep(560);
-                setOnboardingSlide(0);
-                setActiveModal('onboarding');
-              }}
-              className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left cursor-pointer"
-            >
-              <div>
-                <p className="text-xs font-black text-white">CFOP Beginner&apos;s Walkthrough</p>
-                <p className="text-[10px] text-slate-400">4-step interactive overview of C → F → O → P</p>
-              </div>
-              <span className="text-orange-400 font-black text-xs">Open →</span>
-            </button>
-
             <div className="relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
               {!isProUnlocked && (
                 <button
@@ -3522,11 +3369,23 @@ function OLLDaySuite() {
           filter: contrast(0.92) saturate(0.86) brightness(0.96) drop-shadow(0 12px 18px rgba(0, 0, 0, 0.52));
           transition: transform 0.25s ease, filter 0.25s ease;
         }
+        .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          transition: none !important;
+          animation: none !important;
+        }
       `}</style>
 
-      <div className="min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden">
-        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[40vh] bg-orange-600/10 blur-[130px] rounded-full pointer-events-none z-0" />
-        <div className="fixed bottom-0 right-0 w-3/4 h-[35vh] bg-blue-600/10 blur-[110px] rounded-full pointer-events-none z-0" />
+      <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
+        <div
+          style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)' }}
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] pointer-events-none z-0"
+        />
+        <div
+          style={{ background: 'radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)' }}
+          className="fixed bottom-0 right-0 w-3/4 h-[38vh] pointer-events-none z-0"
+        />
 
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
@@ -4172,6 +4031,8 @@ function OLLDaySuite() {
                           onClick={() => {
                             emitBeep(540);
                             setActiveMechanicId(m.id);
+                            setActiveMechApproachIdx(0);
+                            setActiveMechCaseIdx(0);
                           }}
                           className={`py-3 px-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
                             activeMechanicId === m.id
@@ -4184,15 +4045,143 @@ function OLLDaySuite() {
                       ))}
                     </div>
 
-                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3">
+                    <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
                       <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                         {activeMechanicObj.badge}
                       </span>
                       <h3 className="text-lg font-black text-white">{activeMechanicObj.title}</h3>
                       <p className="text-xs text-slate-300 leading-relaxed">{activeMechanicObj.summary}</p>
-                      <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">
-                        {activeMechanicObj.example}
-                      </div>
+
+                      {Array.isArray(activeMechanicObj.approaches) ? (() => {
+                        const approach =
+                          activeMechanicObj.approaches[activeMechApproachIdx % activeMechanicObj.approaches.length] ||
+                          activeMechanicObj.approaches[0];
+                        const activeCase =
+                          approach.cases[activeMechCaseIdx % approach.cases.length] || approach.cases[0];
+
+                        return (
+                          <div className="space-y-3 pt-1">
+                            {/* Approach Selector Pills */}
+                            <div className="space-y-1.5">
+                              <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 block">
+                                Select Fine-Tuning Approach
+                              </span>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {activeMechanicObj.approaches.map((ap, idx) => (
+                                  <button
+                                    key={ap.id}
+                                    type="button"
+                                    onClick={() => {
+                                      emitBeep(520);
+                                      setActiveMechApproachIdx(idx);
+                                      setActiveMechCaseIdx(0);
+                                    }}
+                                    className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                                      activeMechApproachIdx === idx
+                                        ? 'bg-orange-500/20 border-orange-500/50 text-white'
+                                        : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                                    }`}
+                                  >
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-orange-400 block">
+                                      {ap.tag}
+                                    </span>
+                                    <span className="text-[11px] font-black leading-tight block mt-0.5">
+                                      {ap.name}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Approach Principle Card */}
+                            <div className="bg-orange-500/10 border border-orange-500/25 rounded-2xl p-3 space-y-1">
+                              <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-300 block">
+                                Core Rule • {approach.name}
+                              </span>
+                              <p className="text-[11px] text-slate-200 leading-relaxed">{approach.rule}</p>
+                            </div>
+
+                            {/* Case Selector Tabs within Approach */}
+                            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                              {approach.cases.map((cs, cIdx) => (
+                                <button
+                                  key={cs.label}
+                                  type="button"
+                                  onClick={() => {
+                                    emitBeep(560);
+                                    setActiveMechCaseIdx(cIdx);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-[10.5px] font-black whitespace-nowrap cursor-pointer transition-all ${
+                                    activeMechCaseIdx === cIdx
+                                      ? 'bg-orange-500 text-slate-950 shadow-sm'
+                                      : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white'
+                                  }`}
+                                >
+                                  {cs.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Live 3D Spatial Cross Cube for Selected Case */}
+                            <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center space-y-2">
+                              <div className="w-full flex items-center justify-between px-1">
+                                <span className="text-[10px] font-bold text-slate-400">
+                                  {mechCubeRot.pitch > 15 ? '3D Bottom (D) View' : '3D Top-Right (U) View'}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      emitBeep(520);
+                                      setMechCubeRot((r) =>
+                                        r.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 }
+                                      );
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer"
+                                  >
+                                    {mechCubeRot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      emitBeep(520);
+                                      setMechCubeRot((r) => ({ yaw: r.yaw - 90, pitch: r.pitch }));
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                                  >
+                                    Spin 90°
+                                  </button>
+                                </div>
+                              </div>
+
+                              <CrossSpatial3DCube
+                                scramble={activeCase.setup}
+                                yaw={mechCubeRot.yaw}
+                                pitch={mechCubeRot.pitch}
+                                isDragging={false}
+                              />
+
+                              <div className="w-full bg-[#050811] border border-white/10 rounded-xl p-2.5 text-center space-y-1">
+                                <div className="flex items-center justify-between text-[10px] font-mono">
+                                  <span className="text-slate-400">
+                                    Setup: <strong className="text-amber-300">{activeCase.setup}</strong>
+                                  </span>
+                                  <span className="text-slate-400">
+                                    Solve: <strong className="text-green-400">{activeCase.solve}</strong>
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-300 text-left leading-relaxed pt-1 border-t border-white/5">
+                                  {activeCase.note}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })() : (
+                        <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">
+                          {activeMechanicObj.example}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -6367,6 +6356,35 @@ function OLLDaySuite() {
                   <p className="text-[11px] text-slate-200 mt-0.5">{step.howToReach}</p>
                 </div>
 
+                {isLast && (
+                  <div className="space-y-1.5 pt-0.5">
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">
+                      Jump Directly to a Phase:
+                    </span>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { key: 'cross', label: 'C • Cross', tab: 'ladder' },
+                        { key: 'f2l', label: 'F • F2L', tab: 'grind' },
+                        { key: 'oll', label: 'O • OLL', tab: 'grind' },
+                        { key: 'pll', label: 'P • PLL', tab: 'grind' }
+                      ].map((dest) => (
+                        <button
+                          key={dest.key}
+                          type="button"
+                          onClick={() => {
+                            emitBeep(760, 'sine', 0.08);
+                            applyTourNavigation({ phase: dest.key, tab: dest.tab });
+                            setActiveModal(null);
+                          }}
+                          className="py-2 px-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/40 text-[10px] font-black text-orange-200 transition-all active:scale-95 cursor-pointer"
+                        >
+                          {dest.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2 pt-0.5">
                   <button
                     type="button"
@@ -7702,68 +7720,6 @@ function OLLDaySuite() {
                 >
                   Close
                 </button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 9. BEGINNER'S GUIDE MODAL */}
-        {activeModal === 'onboarding' && (() => {
-          const ONBOARDING_SLIDES = [
-            {
-              badge: 'Step 1 of 4 • C (Cross)',
-              title: 'Solve the White Cross on Bottom',
-              desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6 moves or fewer.'
-            },
-            {
-              badge: 'Step 2 of 4 • F (F2L)',
-              title: 'First Two Layers (41 Pairs)',
-              desc: 'Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot.'
-            },
-            {
-              badge: 'Step 3 of 4 • O (OLL)',
-              title: 'Orient Last Layer (57 Cases)',
-              desc: 'Make the entire top face solid Yellow in a single algorithm.'
-            },
-            {
-              badge: 'Step 4 of 4 • P (PLL)',
-              title: 'Permute Last Layer (25 Algs)',
-              desc: 'Swap the final top-layer corners and edges into place to complete the solve.'
-            }
-          ];
-          const slide = ONBOARDING_SLIDES[onboardingSlide] || ONBOARDING_SLIDES[0];
-
-          return (
-            <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
-              <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-                <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-                  {slide.badge}
-                </span>
-                <h3 className="text-xl font-black text-white">{slide.title}</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">{slide.desc}</p>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveModal(null)}
-                    className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      emitBeep(620);
-                      if (onboardingSlide + 1 < ONBOARDING_SLIDES.length) {
-                        setOnboardingSlide((s) => s + 1);
-                      } else {
-                        setActiveModal(null);
-                      }
-                    }}
-                    className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
-                  >
-                    {onboardingSlide + 1 < ONBOARDING_SLIDES.length ? 'Next →' : 'Start Training'}
-                  </button>
-                </div>
               </div>
             </div>
           );
