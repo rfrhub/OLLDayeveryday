@@ -83,11 +83,41 @@ const STORAGE_KEYS = {
   cubePalette: `ollday_cube_palette_${appId}`
 };
 
+const storage = {
+  getJson(key, fallback) {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  setJson(key, value) {
+    try {
+      if (typeof window !== 'undefined') window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  },
+  getStr(key, fallback = '') {
+    try {
+      return (typeof window !== 'undefined' && window.localStorage.getItem(key)) || fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  setStr(key, value) {
+    try {
+      if (typeof window !== 'undefined') {
+        if (value) window.localStorage.setItem(key, value);
+        else window.localStorage.removeItem(key);
+      }
+    } catch {}
+  }
+};
+
 // Free Starter vs. Lifetime Pro ($3.99) Tier Helpers
 const FREE_F2L_CASE_IDS = [1, 2, 3, 4]; // Basic Inserts
 const FREE_OLL_CASE_IDS = [27, 26, 21, 22, 23, 24, 25]; // 2-Look OLL Corners
 const FREE_PLL_CASE_IDS = [1, 2, 3, 4, 5, 6, 7]; // 2-Look PLL (EPLL + CPLL)
-
 function isCaseUnlockedForTier(phase, caseId, isPro) {
   if (isPro) return true;
   if (phase === 'f2l') return FREE_F2L_CASE_IDS.includes(caseId);
@@ -95,6 +125,14 @@ function isCaseUnlockedForTier(phase, caseId, isPro) {
   if (phase === 'pll') return FREE_PLL_CASE_IDS.includes(caseId);
   return true;
 }
+const SOLVED_54_STATE = [
+  ...Array(9).fill('Y'),
+  ...Array(9).fill('O'),
+  ...Array(9).fill('G'),
+  ...Array(9).fill('W'),
+  ...Array(9).fill('R'),
+  ...Array(9).fill('B')
+];
 
 // =========================================================================
 // 2A-3. STATE-SIMULATING FULL CFOP SOLVER & ALGEBRAIC MOVE SIMPLIFIER
@@ -261,69 +299,108 @@ function inspectCrossOn54(s) {
   };
 }
 
-// Iterative-Deepening BFS Solver for the White Cross (Finds real, move-canceled Cross solutions)
+// Cross-Only Solver (Finds real <=8-move White Cross solutions without inverting full 20-move scrambles)
 function solveExactCrossFrom54(startState) {
   const initialInfo = inspectCrossOn54(startState);
   if (initialInfo.solvedCount === 4) {
     return { moves: '', postState: startState, info: initialInfo };
   }
 
-  // Solve missing white edges sequentially with true 3-ply BFS per edge so moves never collide
-  let curState = [...startState];
-  const rawSteps = [];
   const candidateMoves = [
     'U', "U'", 'U2', 'D', "D'", 'D2',
     'F', "F'", 'F2', 'R', "R'", 'R2',
     'B', "B'", 'B2', 'L', "L'", 'L2'
   ];
 
-  for (let pass = 0; pass < 4; pass++) {
-    const beforeCount = inspectCrossOn54(curState).solvedCount;
-    if (beforeCount === 4) break;
+  // Try multiple edge insertion priority orders (opposite pairs first & adjacent chains) to guarantee <=8 moves
+  const edgeOrders = [
+    [0, 2, 1, 3],
+    [1, 3, 0, 2],
+    [0, 1, 2, 3],
+    [2, 3, 1, 0]
+  ];
 
-    let foundSeq = null;
-    const queue = [{ st: curState, seq: [] }];
-    const visited = new Set([curState.join('')]);
+  const isEdgeSolvedAt = (st, edgeIdx) => {
+    if (edgeIdx === 0) return st[28] === 'W' && st[25] === st[22]; // DF
+    if (edgeIdx === 1) return st[32] === 'W' && st[16] === st[13]; // DR
+    if (edgeIdx === 2) return st[34] === 'W' && st[52] === st[49]; // DB
+    return st[30] === 'W' && st[43] === st[40]; // DL
+  };
 
-    while (queue.length > 0 && !foundSeq) {
-      const node = queue.shift();
-      if (node.seq.length >= 3) continue;
-      const lastFace = node.seq.length > 0 ? node.seq[node.seq.length - 1][0] : '';
+  let bestMoves = null;
+  let bestState = startState;
 
-      for (let i = 0; i < candidateMoves.length; i++) {
-        const mv = candidateMoves[i];
-        if (mv[0] === lastFace) continue;
-        const nextSt = applyMovesTo54State(node.st, mv);
-        const afterCount = inspectCrossOn54(nextSt).solvedCount;
-        const nextSeq = [...node.seq, mv];
-        if (afterCount > beforeCount) {
-          foundSeq = { seq: nextSeq, st: nextSt };
-          break;
-        }
-        if (nextSeq.length < 3) {
-          const key = nextSt.join('');
-          if (!visited.has(key)) {
-            visited.add(key);
-            queue.push({ st: nextSt, seq: nextSeq });
+  for (let oIdx = 0; oIdx < edgeOrders.length; oIdx++) {
+    const order = edgeOrders[oIdx];
+    let curState = [...startState];
+    const rawSteps = [];
+    const lockedEdges = [];
+
+    for (let step = 0; step < 4; step++) {
+      const targetEdge = order[step];
+      if (isEdgeSolvedAt(curState, targetEdge)) {
+        lockedEdges.push(targetEdge);
+        continue;
+      }
+
+      let foundSeq = null;
+      const queue = [{ st: curState, seq: [] }];
+      const visited = new Set([curState.join('')]);
+
+      while (queue.length > 0 && !foundSeq) {
+        const node = queue.shift();
+        if (node.seq.length >= 3) continue;
+        const lastFace = node.seq.length > 0 ? node.seq[node.seq.length - 1][0] : '';
+
+        for (let i = 0; i < candidateMoves.length; i++) {
+          const mv = candidateMoves[i];
+          if (mv[0] === lastFace) continue;
+          const nextSt = applyMovesTo54State(node.st, mv);
+          const nextSeq = [...node.seq, mv];
+          if (
+            isEdgeSolvedAt(nextSt, targetEdge) &&
+            lockedEdges.every((le) => isEdgeSolvedAt(nextSt, le))
+          ) {
+            foundSeq = { seq: nextSeq, st: nextSt };
+            break;
+          }
+          if (nextSeq.length < 3) {
+            const key = nextSt.join('');
+            if (!visited.has(key)) {
+              visited.add(key);
+              queue.push({ st: nextSt, seq: nextSeq });
+            }
           }
         }
       }
+
+      if (foundSeq) {
+        rawSteps.push(...foundSeq.seq);
+        curState = foundSeq.st;
+        lockedEdges.push(targetEdge);
+      } else {
+        break;
+      }
     }
 
-    if (foundSeq) {
-      rawSteps.push(...foundSeq.seq);
-      curState = foundSeq.st;
-    } else {
-      break;
+    const cleanMoves = simplifyMoveSequence(rawSteps.join(' '));
+    const verifiedState = applyMovesTo54State(startState, cleanMoves);
+    const verifiedInfo = inspectCrossOn54(verifiedState);
+    if (verifiedInfo.solvedCount === 4) {
+      const len = cleanMoves ? cleanMoves.split(/\s+/).length : 0;
+      if (bestMoves === null || len < bestMoves.split(/\s+/).length) {
+        bestMoves = cleanMoves;
+        bestState = verifiedState;
+      }
     }
   }
 
-  const cleanMoves = simplifyMoveSequence(rawSteps.join(' '));
-  const verifiedState = applyMovesTo54State(startState, cleanMoves);
+  const finalMoves = bestMoves || '';
+  const finalState = bestMoves ? bestState : startState;
   return {
-    moves: cleanMoves,
-    postState: verifiedState,
-    info: inspectCrossOn54(verifiedState)
+    moves: finalMoves,
+    postState: finalState,
+    info: inspectCrossOn54(finalState)
   };
 }
 
@@ -1283,118 +1360,6 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
     };
   }
 
-  // 1. PLL DETECTION (Cross Solved, 0 F2L pairs left, Top face solid Yellow)
-  if (allTopOriented && f2lRowsSolved) {
-    const six = [fGrid[0], fGrid[1], fGrid[2], rGrid[0], rGrid[1], rGrid[2]];
-    const map = {};
-    let idx = 0;
-    const scannedPattern = six
-      .map((c) => {
-        if (!map[c]) map[c] = String(idx++);
-        return map[c];
-      })
-      .join('');
-
-    let bestPll = pllSigs[0].item;
-    let bestScore = -1;
-    pllSigs.forEach(({ item, pattern }) => {
-      let score = 0;
-      for (let i = 0; i < 6; i++) {
-        if (pattern[i] === scannedPattern[i]) score += 2;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestPll = item;
-      }
-    });
-
-    const auf =
-      fGrid[1] === fCenter
-        ? 'No AUF needed'
-        : rGrid[1] === fCenter
-        ? 'U\' AUF after alg'
-        : fGrid[1] === rCenter
-        ? 'U AUF after alg'
-        : 'U2 AUF after alg';
-
-    return {
-      phase: 'pll',
-      crossSolved: true,
-      remainingF2lPairs: 0,
-      phaseLabel: 'Cross Solved ✓ • 0 F2L Left • PLL',
-      confidence: Math.min(99, Math.round(74 + bestScore * 2)),
-      matchedCase: bestPll,
-      aufHint: auf,
-      nextUpTitle: 'Cube Solved! (Final Step)',
-      nextUpBadge: 'Finish & AUF',
-      nextUpCase: null,
-      nextUpSummary: `Cross & all 4 F2L pairs are solved. Execute ${bestPll.name}, then align the top layer (${auf}).`
-    };
-  }
-
-  // 2. OLL DETECTION (Cross Solved, 0 F2L pairs left, Top face has unoriented yellow stickers)
-  if (f2lRowsSolved && !allTopOriented) {
-    let bestOll = ollSigs[0].item;
-    let bestScore = -1;
-    let bestRot = 0;
-
-    let rotU = [...uGrid];
-    for (let rot = 0; rot < 4; rot++) {
-      const uMask = rotU.map((c) => (c === topColor ? '1' : '0')).join('');
-      const sideMask = [...fGrid.slice(0, 3), ...rGrid.slice(0, 3)]
-        .map((c) => (c === topColor ? '1' : '0'))
-        .join('');
-
-      ollSigs.forEach(({ item, uMask: targetU, sideMask: targetSide }) => {
-        let score = 0;
-        for (let i = 0; i < 9; i++) {
-          if (uMask[i] === targetU[i]) score += 3;
-        }
-        if (rot === 0) {
-          for (let j = 0; j < 6; j++) {
-            if (sideMask[j] === targetSide[j]) score += 1;
-          }
-        }
-        if (score > bestScore) {
-          bestScore = score;
-          bestOll = item;
-          bestRot = rot;
-        }
-      });
-      rotU = rotate3x3FaceCW(rotU);
-    }
-
-    const preAuf = bestRot === 0 ? '' : bestRot === 1 ? 'U ' : bestRot === 2 ? 'U2 ' : "U' ";
-    const postState = simulateCrossCubeState(`${invertAlgorithm(bestOll.alg)} ${preAuf}${bestOll.alg}`);
-    const postSix = [...postState.slice(18, 21), ...postState.slice(9, 12)];
-    const pMap = {};
-    let pIdx = 0;
-    const postPattern = postSix
-      .map((c) => {
-        if (!pMap[c]) pMap[c] = String(pIdx++);
-        return pMap[c];
-      })
-      .join('');
-    const predictedPll =
-      pllSigs.find((p) => p.pattern === postPattern)?.item ||
-      PLL_BY_ID.get(8) ||
-      PLL_DATA[0];
-
-    return {
-      phase: 'oll',
-      crossSolved: true,
-      remainingF2lPairs: 0,
-      phaseLabel: 'Cross Solved ✓ • 0 F2L Left • OLL',
-      confidence: Math.min(98, Math.round(68 + bestScore)),
-      matchedCase: bestOll,
-      aufHint: bestRot === 0 ? 'Ready from current angle' : `Pre-AUF: ${preAuf.trim()} before executing`,
-      nextUpTitle: `Follow-Up Case: ${predictedPll.name}`,
-      nextUpBadge: 'Predicted Next PLL',
-      nextUpCase: predictedPll,
-      nextUpSummary: `Cross & all 4 F2L pairs are solved. Once ${bestOll.name} orients the yellow top, look for ${predictedPll.recognition.toLowerCase()}`
-    };
-  }
-
   // 3. F2L DETECTION (Cross Solved, 1–4 F2L pairs left)
   const pairsLeft = Math.max(1, estimatedRemainingPairs);
   const frCornerTop = uGrid[8];
@@ -1448,74 +1413,7 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
 // 2B. 3D SPATIAL CROSS & F2L CUBE STATE SIMULATOR
 // =========================================================================
 function simulateCrossCubeState(scramble = '') {
-  // Face offsets: 0=U(Y), 9=R(O), 18=F(G), 27=D(W), 36=L(R), 45=B(B)
-  const s = [
-    ...Array(9).fill('Y'),
-    ...Array(9).fill('O'),
-    ...Array(9).fill('G'),
-    ...Array(9).fill('W'),
-    ...Array(9).fill('R'),
-    ...Array(9).fill('B')
-  ];
-
-  const rotCW = (o) => {
-    const t = [s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8]];
-    s[o] = t[6]; s[o + 1] = t[3]; s[o + 2] = t[0];
-    s[o + 3] = t[7]; s[o + 4] = t[4]; s[o + 5] = t[1];
-    s[o + 6] = t[8]; s[o + 7] = t[5]; s[o + 8] = t[2];
-  };
-
-  const cyc = (a, b, c, d) => {
-    const tmp = s[a];
-    s[a] = s[d];
-    s[d] = s[c];
-    s[c] = s[b];
-    s[b] = tmp;
-  };
-
-  const turnOnce = (face) => {
-    if (face === 'U') {
-      rotCW(0);
-      cyc(18, 36, 45, 9);
-      cyc(19, 37, 46, 10);
-      cyc(20, 38, 47, 11);
-    } else if (face === 'D') {
-      rotCW(27);
-      cyc(24, 15, 51, 42);
-      cyc(25, 16, 52, 43);
-      cyc(26, 17, 53, 44);
-    } else if (face === 'F') {
-      rotCW(18);
-      cyc(6, 9, 29, 44);
-      cyc(7, 12, 28, 41);
-      cyc(8, 15, 27, 38);
-    } else if (face === 'B') {
-      rotCW(45);
-      cyc(2, 36, 33, 17);
-      cyc(1, 39, 34, 14);
-      cyc(0, 42, 35, 11);
-    } else if (face === 'R') {
-      rotCW(9);
-      cyc(2, 45, 29, 20);
-      cyc(5, 48, 32, 23);
-      cyc(8, 51, 35, 26);
-    } else if (face === 'L') {
-      rotCW(36);
-      cyc(0, 18, 27, 53);
-      cyc(3, 21, 30, 50);
-      cyc(6, 24, 33, 47);
-    }
-  };
-
-  const tokens = (scramble || '').replace(/[()]/g, '').trim().split(/\s+/).filter(Boolean);
-  tokens.forEach((tok) => {
-    const face = tok[0];
-    if (!'UDFBRL'.includes(face)) return;
-    const count = tok.endsWith('2') ? 2 : tok.endsWith("'") ? 3 : 1;
-    for (let i = 0; i < count; i++) turnOnce(face);
-  });
-
-  return s;
+  return applyMovesTo54State(SOLVED_54_STATE, scramble);
 }
 
 const STICKER_HEX = {
@@ -1527,9 +1425,7 @@ const STICKER_HEX = {
   R: '#ef4444'
 };
 
-function simulateF2LCubeState(setupScramble = '') {
-  return simulateCrossCubeState(setupScramble);
-}
+const simulateF2LCubeState = simulateCrossCubeState;
 
 // Unified 3D Spatial Cube Renderer (Used by both Cross & F2L Orbit Cubes)
 function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, isDragging, cubeRef }) {
@@ -2231,29 +2127,54 @@ const CROSS_MECHANICS = [
     id: 4,
     title: '2-Edge Combo & X-Cross',
     badge: 'Mechanic 4 • Sub-10 Transition',
-    summary: 'Pair a white cross edge with a bottom corner during the final 2 cross moves to enter F2L with 1 pair already solved.',
+    summary: 'Pair a white cross edge with a bottom corner during the final 2–3 cross moves so you enter F2L with 1 pair already solved (X-Cross), or solve two cross edges simultaneously in one trigger.',
     example: "R' F R U' R' F' R",
     approaches: [
       {
         id: 'xcross',
         name: 'Free Pair Preservation',
         tag: 'X-Cross Setup',
-        rule: 'Keep an already-formed corner-edge pair in the U-layer while finishing the last cross edge.',
+        rule: 'Spot an already-paired or 1-move corner-edge block in the U-layer, then use keyhole D/D\' turns or wide/F inserts so the final cross edge drops in without breaking the pair.',
         cases: [
-          { label: 'Case A • U-Layer Preserve', setup: "R U' R' F2", solve: "F2 R U R'", note: 'Finishes DF without breaking the UFR pair.' }
+          { label: 'Case A • U-Layer Preserve', setup: "R U' R' F2", solve: "F2 R U R'", note: 'Finishes DF without disturbing the formed Front-Right F2L pair.' },
+          { label: 'Case B • Keyhole D-Shift', setup: "R U R' D' F2 D", solve: "D' F2 D R U' R'", note: 'Shifts D\' to open an empty cross slot, inserts DF, and restores D while keeping the FR pair intact.' },
+          { label: 'Case C • Back-Right Slot Save', setup: "R' U R F2", solve: "F2 R' U' R", note: 'Inserts DF cleanly while preserving an already-joined Back-Right pair.' }
+        ]
+      },
+      {
+        id: 'block-build',
+        name: '2x2x2 Pseudo-Block X-Cross',
+        tag: 'Corner + 2 Edges',
+        rule: 'Build a 2x2x2 block in Back-Left or Back-Right first (2 cross edges + 1 F2L pair), then finish the remaining 2 cross edges with R, U, and F moves.',
+        cases: [
+          { label: 'Case A • Back-Left Block', setup: "F2 R2 U' R2 F2", solve: "F2 R2 U R2 F2", note: 'Locks DL and DB with the DBL pair, leaving only DF and DR to drop in.' },
+          { label: 'Case B • E-Slice Edge Join', setup: "R U' R' U R2", solve: "R2 U' R U R'", note: 'Joins the FR middle edge with the DFR corner while simultaneously seating DR.' },
+          { label: 'Case C • Corner-First Drop', setup: "F' U' F R2", solve: "R2 F' U F", note: 'Seats DR with R2 and immediately pairs the Front-Right F2L block on the way down.' }
+        ]
+      },
+      {
+        id: 'double-edge',
+        name: '2-Edge Simultaneous Combo',
+        tag: 'Dual Cross Insert',
+        rule: 'When two white edges sit in the E-slice or U-layer one turn apart, align their relative orbit first so a single R/F or D2 sequence seats both edges together.',
+        cases: [
+          { label: 'Case A • E-Slice Double Drop', setup: "F' R' D'", solve: "D R F", note: 'R drops DR while F immediately sweeps DF into its adjacent orbit slot.' },
+          { label: 'Case B • Sledgehammer 2-Edge', setup: "R' F R F' D", solve: "D' F R' F' R", note: 'Hedgeslammer flips UF into DF while kicking FR into DR in 4 moves.' },
+          { label: 'Case C • Opposite U2 Double', setup: "R2 L2 U2", solve: "U2 L2 R2", note: 'Aligns both opposite top white edges over their centers for simultaneous 180° drops.' }
+        ]
+      },
+      {
+        id: 'keyhole-xcross',
+        name: 'Keyhole Corner-Edge Pair',
+        tag: 'Advanced X-Cross',
+        rule: 'Leave one cross slot open as a working keyhole to pair an F2L corner and edge in the middle layer before closing the final cross edge.',
+        cases: [
+          { label: 'Case A • Open DF Keyhole', setup: "D R U' R' D' F2", solve: "F2 D R U R' D'", note: 'Uses the open DF slot to pair UFR + FR via D-rotation, then seals DF with F2.' },
+          { label: 'Case B • M-Slice Cross + Pair', setup: "M' U2 M R U R'", solve: "R U' R' M' U2 M", note: 'Inserts the FR pair while using M-slice freedom to align the final cross edge.' }
         ]
       }
     ]
   }
-];
-
-const F2L_GROUPS = [
-  'Basic Inserts',
-  'Corner in Top • Edge in Top',
-  'Corner in Top • Edge in Slot',
-  'Corner in Slot • Edge in Top',
-  'Corner & Edge in Slot',
-  'Connected Pairs'
 ];
 
 const F2L_DATA = [
@@ -2301,6 +2222,7 @@ const F2L_DATA = [
 ];
 
 const F2L_BY_ID = new Map(F2L_DATA.map((item) => [item.id, item]));
+const F2L_GROUPS = Array.from(new Set(F2L_DATA.map((item) => item.group)));
 const F2L_DEFAULT_CHUNKS = [
   { id: 'f2l-c1', title: 'Chunk 1 • Basic Inserts (1–4)', ids: [1, 2, 3, 4] },
   { id: 'f2l-c2', title: 'Chunk 2 • Split Top Pairs (5–10)', ids: [5, 6, 7, 8, 9, 10] },
@@ -2309,15 +2231,6 @@ const F2L_DEFAULT_CHUNKS = [
   { id: 'f2l-c5', title: 'Chunk 5 • Corner in Slot (25–30)', ids: [25, 26, 27, 28, 29, 30] },
   { id: 'f2l-c6', title: 'Chunk 6 • Edge in Slot (31–36)', ids: [31, 32, 33, 34, 35, 36] },
   { id: 'f2l-c7', title: 'Chunk 7 • Trapped Slot Cases (37–41)', ids: [37, 38, 39, 40, 41] }
-];
-
-const OLL_GROUPS = [
-  'All Edges Oriented',
-  'T-Shapes & Squares',
-  'C-Shapes & W-Shapes',
-  'P-Shapes & Fish',
-  'Knight & Lightning',
-  'Dot Cases'
 ];
 
 const OLL_DATA = [
@@ -2381,6 +2294,7 @@ const OLL_DATA = [
 ];
 
 const OLL_BY_ID = new Map(OLL_DATA.map((item) => [item.id, item]));
+const OLL_GROUPS = Array.from(new Set(OLL_DATA.map((item) => item.group)));
 const OLL_DEFAULT_CHUNKS = [
   { id: 'oll-c1', title: 'Chunk 1 • 2-Look OLL Corners (21–27)', ids: [27, 26, 21, 22, 23, 24, 25] },
   { id: 'oll-c2', title: 'Chunk 2 • T, Square & Line (33, 45, 5, 6, 51, 52)', ids: [33, 45, 5, 6, 51, 52] },
@@ -2388,14 +2302,6 @@ const OLL_DEFAULT_CHUNKS = [
   { id: 'oll-c4', title: 'Chunk 4 • Fish & W Shapes (9, 10, 35, 37, 36, 38)', ids: [9, 10, 35, 37, 36, 38] },
   { id: 'oll-c5', title: 'Chunk 5 • Knight & Lightning (7, 8, 11–16, 39, 40)', ids: [7, 8, 11, 12, 13, 14, 15, 16, 39, 40] },
   { id: 'oll-c6', title: 'Chunk 6 • Squeezy, Awkward & Dots (1–4, 17–20)', ids: [1, 2, 3, 4, 17, 18, 19, 20, 47, 48] }
-];
-
-const PLL_GROUPS = [
-  'Edges Only (EPLL)',
-  'Corners Only (CPLL)',
-  'Adjacent Corner Swap',
-  'Diagonal Corner Swap',
-  'G-Permutations'
 ];
 
 const PLL_DATA = [
@@ -2427,6 +2333,7 @@ const PLL_DATA = [
 ];
 
 const PLL_BY_ID = new Map(PLL_DATA.map((item) => [item.id, item]));
+const PLL_GROUPS = Array.from(new Set(PLL_DATA.map((item) => item.group)));
 const PLL_DEFAULT_CHUNKS = [
   { id: 'pll-c1', title: 'Chunk 1 • 2-Look PLL (1–7)', ids: [1, 2, 3, 4, 5, 6, 7] },
   { id: 'pll-c2', title: 'Chunk 2 • T, J & F Perms (8–11)', ids: [8, 9, 10, 11] },
@@ -2548,45 +2455,19 @@ function OLLDaySuite() {
 
   // Persistent User & App Settings
   const [users, setUsers] = useState(() => {
-    try {
-      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.users) : null;
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return mergeDefaultUsersWithStored(parsed);
-        }
-      }
-    } catch {
-      // Fallback to defaults
-    }
-    return { ...DEFAULT_USERS };
+    const saved = storage.getJson(STORAGE_KEYS.users, null);
+    return saved && typeof saved === 'object' && !Array.isArray(saved)
+      ? mergeDefaultUsersWithStored(saved)
+      : { ...DEFAULT_USERS };
   });
-  const [activeUserKey, setActiveUserKey] = useState(() => {
-    try {
-      const savedKey = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
-      if (savedKey) return savedKey;
-    } catch {
-      // Ignore storage error
-    }
-    return '';
-  });
+  const [activeUserKey, setActiveUserKey] = useState(() => storage.getStr(STORAGE_KEYS.activeAccount, ''));
   const [pinnedHomePhase, setPinnedHomePhase] = useState(() => {
-    try {
-      const savedPhase = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.pinnedHomePhase) : null;
-      if (savedPhase && ['cross', 'f2l', 'oll', 'pll'].includes(savedPhase)) return savedPhase;
-    } catch {
-      // Ignore storage error
-    }
-    return '';
+    const saved = storage.getStr(STORAGE_KEYS.pinnedHomePhase, '');
+    return ['cross', 'f2l', 'oll', 'pll'].includes(saved) ? saved : '';
   });
   const [activePhase, setActivePhase] = useState(() => {
-    try {
-      const savedPhase = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.pinnedHomePhase) : null;
-      if (savedPhase && ['cross', 'f2l', 'oll', 'pll'].includes(savedPhase)) return savedPhase;
-    } catch {
-      // Ignore storage error
-    }
-    return 'cross';
+    const saved = storage.getStr(STORAGE_KEYS.pinnedHomePhase, '');
+    return ['cross', 'f2l', 'oll', 'pll'].includes(saved) ? saved : 'cross';
   });
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
@@ -2640,14 +2521,7 @@ function OLLDaySuite() {
     crossSolved: null, // null | true | false
     f2lCompletedStatus: null // null | 'none' | 'some' | 'all'
   });
-  const [savedCubePalette, setSavedCubePalette] = useState(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.cubePalette) : null;
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [savedCubePalette, setSavedCubePalette] = useState(() => storage.getJson(STORAGE_KEYS.cubePalette, null));
   const [scannedFaces, setScannedFaces] = useState(() => ({
     U: ['Y', 'Y', 'G', 'Y', 'Y', 'Y', 'R', 'Y', 'Y'],
     F: ['O', 'B', 'Y', 'G', 'G', 'G', 'G', 'G', 'G'],
@@ -2703,7 +2577,12 @@ function OLLDaySuite() {
     try {
       stopScannerCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 720 }, height: { ideal: 720 } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 480, max: 640 },
+          height: { ideal: 480, max: 640 },
+          frameRate: { ideal: 15, max: 24 }
+        },
         audio: false
       });
       scannerStreamRef.current = stream;
@@ -2871,13 +2750,7 @@ function OLLDaySuite() {
     if (centerCode && sampled9[4]) {
       setSavedCubePalette((prev) => {
         const nextPal = { ...(prev || {}), [centerCode]: sampled9[4] };
-        try {
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem(STORAGE_KEYS.cubePalette, JSON.stringify(nextPal));
-          }
-        } catch {
-          // Ignore storage quota errors
-        }
+        storage.setJson(STORAGE_KEYS.cubePalette, nextPal);
         return nextPal;
       });
     }
@@ -2954,7 +2827,7 @@ function OLLDaySuite() {
         liveStableStreakRef.current = 0;
         captureAndAnalyzeCubeFrame();
       }
-    }, 320);
+    }, 450);
 
     return () => clearInterval(id);
   }, [
@@ -3011,6 +2884,7 @@ function OLLDaySuite() {
   const [crossDifficulty, setCrossDifficulty] = useState('standard'); // 'standard' | 'advanced'
   const [crossTier, setCrossTier] = useState(1);
   const [crossScrambleIdx, setCrossScrambleIdx] = useState(0);
+  const [crossSolutionRevealed, setCrossSolutionRevealed] = useState(false);
   const [crossLadderMode, setCrossLadderMode] = useState('efficiency');
   const [crossDragRot, setCrossDragRot] = useState({ yaw: -35, pitch: 38 });
   const [crossIsDragging, setCrossIsDragging] = useState(false);
@@ -3067,29 +2941,17 @@ function OLLDaySuite() {
   const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
 
   // Glassmorphic Solver Account Auth Gate & Pro Paywall State
-  const [authScreenOpen, setAuthScreenOpen] = useState(() => {
-    try {
-      const savedKey = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
-      return !savedKey;
-    } catch {
-      return true;
-    }
-  });
+  const [authScreenOpen, setAuthScreenOpen] = useState(() => !storage.getStr(STORAGE_KEYS.activeAccount, ''));
   const [authMode, setAuthMode] = useState('signin'); // 'signin' | 'signup'
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
   const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.deviceAccounts) : null;
-      const savedActive = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
-      const parsed = raw ? JSON.parse(raw) : [];
-      const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
-      if (savedActive && !list.includes(savedActive)) list.push(savedActive);
-      return list;
-    } catch {
-      return [];
-    }
+    const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
+    const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
+    const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
+    if (savedActive && !list.includes(savedActive)) list.push(savedActive);
+    return list;
   });
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
@@ -3099,13 +2961,7 @@ function OLLDaySuite() {
     if (!uKey || typeof uKey !== 'string') return;
     setDeviceAccountKeys((prev) => {
       const next = prev.includes(uKey) ? prev : [...prev, uKey];
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEYS.deviceAccounts, JSON.stringify(next));
-        }
-      } catch {
-        // Ignore storage errors
-      }
+      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
       return next;
     });
   };
@@ -3231,13 +3087,7 @@ function OLLDaySuite() {
       clearTimeout(localSaveTimerRef.current);
       localSaveTimerRef.current = null;
     }
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(latestUsersRef.current));
-      }
-    } catch {
-      // Ignore storage quota errors
-    }
+    storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
 
     if (cloudSaveTimerRef.current) {
       clearTimeout(cloudSaveTimerRef.current);
@@ -3266,13 +3116,7 @@ function OLLDaySuite() {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
     localSaveTimerRef.current = setTimeout(() => {
       localSaveTimerRef.current = null;
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
-        }
-      } catch {
-        // Ignore storage quota errors
-      }
+      storage.setJson(STORAGE_KEYS.users, users);
     }, 450);
     return () => {
       if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
@@ -3280,17 +3124,7 @@ function OLLDaySuite() {
   }, [users]);
 
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        if (activeUserKey) {
-          window.localStorage.setItem(STORAGE_KEYS.activeAccount, activeUserKey);
-        } else {
-          window.localStorage.removeItem(STORAGE_KEYS.activeAccount);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
+    storage.setStr(STORAGE_KEYS.activeAccount, activeUserKey);
   }, [activeUserKey]);
 
   // Debounced Cloud Firestore Sync (Prevents burst writes during millisecond slider adjustments)
@@ -3447,7 +3281,7 @@ function OLLDaySuite() {
     };
   }, []);
 
-  // 30Hz Interval Case Stopwatch Loop (Eliminates 120Hz rAF wakeups; exact ms precision on stop)
+  // 20Hz Interval Case Stopwatch Loop (10ms display resolution without GPU/CPU over-polling)
   useEffect(() => {
     if (!swRunning || !isAppVisible) return;
     const id = setInterval(() => {
@@ -3455,11 +3289,11 @@ function OLLDaySuite() {
       if (swDisplayRef.current) {
         swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
       }
-    }, 33);
+    }, 50);
     return () => clearInterval(id);
   }, [swRunning, isAppVisible]);
 
-  // 30Hz Interval Full-Screen 3x3x3 Timer Loop (Eliminates 120Hz rAF wakeups; exact ms precision on stop)
+  // 20Hz Interval Full-Screen 3x3x3 Timer Loop (10ms display resolution; exact ms on tap)
   useEffect(() => {
     if (fullTimerState !== 'running' || !isAppVisible) return;
     const id = setInterval(() => {
@@ -3467,7 +3301,7 @@ function OLLDaySuite() {
       if (fullTimerDisplayRef.current) {
         fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
       }
-    }, 33);
+    }, 50);
     return () => clearInterval(id);
   }, [fullTimerState, isAppVisible]);
 
@@ -3710,6 +3544,7 @@ function OLLDaySuite() {
     .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0))
     .filter((n) => Number.isFinite(n));
   const bestFullPbMs = validFullMs.length ? Math.min(...validFullMs) : null;
+
   // WCA Blind Inspection Countdown Effect (Foreground-only)
   useEffect(() => {
     if (!isAppVisible) return;
@@ -3941,13 +3776,7 @@ function OLLDaySuite() {
     setActiveModal(null);
     setDeviceAccountKeys((prev) => {
       const next = prev.filter((k) => k !== keyToRemove);
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEYS.deviceAccounts, JSON.stringify(next));
-        }
-      } catch {
-        // Ignore storage errors
-      }
+      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
       return next;
     });
     setActiveUserKey('');
@@ -3990,10 +3819,17 @@ function OLLDaySuite() {
     setActiveModal(null);
   };
 
-  // Current Cross Tier Data
+  // Current Cross Tier Data & Optimal Cross-Only Solution (<=8 moves even for Advanced Full Scrambles)
   const activeCrossTierList = crossDifficulty === 'advanced' ? CROSS_ADVANCED_TIERS : CROSS_TIERS;
   const activeTierObj = activeCrossTierList.find((t) => t.tier === crossTier) || activeCrossTierList[0];
   const activeCrossScramble = activeTierObj.scrambles[crossScrambleIdx % activeTierObj.scrambles.length];
+  const activeCrossSolution = useMemo(() => {
+    const scrambled54 = simulateCrossCubeState(activeCrossScramble);
+    const crossOnly = solveExactCrossFrom54(scrambled54);
+    if (crossOnly.moves) return crossOnly.moves;
+    if (crossDifficulty === 'standard') return invertAlgorithm(activeCrossScramble);
+    return 'Cross Solved ✓';
+  }, [activeCrossScramble, crossDifficulty]);
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
   const handleCrossCubePointerDown = (e) => {
@@ -4120,10 +3956,6 @@ function OLLDaySuite() {
       setF2lDragRot({ ...f2lLiveRotRef.current });
     }
   };
-
-  const activeF2LSessionCase = f2lSession ? f2lSession.queue[f2lSession.index] : null;
-  const activeOLLSessionCase = ollSession ? ollSession.queue[ollSession.index] : null;
-  const activePLLSessionCase = pllSession ? pllSession.queue[pllSession.index] : null;
 
   // Settings Deck Touch Swipe Handlers (8 Cards: Card 1 Learn App + Cards 2..8)
   const totalDeckCards = 8;
@@ -4534,13 +4366,7 @@ function OLLDaySuite() {
                       onClick={() => {
                         emitBeep(640);
                         setPinnedHomePhase(item.key);
-                        try {
-                          if (typeof window !== 'undefined') {
-                            window.localStorage.setItem(STORAGE_KEYS.pinnedHomePhase, item.key);
-                          }
-                        } catch {
-                          // Ignore storage errors
-                        }
+                        storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key);
                       }}
                       className={`w-8 h-8 rounded-full text-xs font-black transition-all cursor-pointer ${
                         isPinned
@@ -5522,11 +5348,6 @@ function OLLDaySuite() {
     const isF2L = phaseKey === 'f2l';
     const isPLL = phaseKey === 'pll';
 
-    const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
-    const caseStat = statsMap?.[item.id] || {};
-    const lastResultForThis =
-      swLastResult && swLastResult.phase === phaseKey && swLastResult.caseId === item.id ? swLastResult : null;
-
     const handleSessionScreenTap = (e) => {
       if (!stopwatchEnabled) return;
       if (e.target.closest('button, input, a')) return;
@@ -6216,6 +6037,7 @@ function OLLDaySuite() {
                           setCrossDifficulty('standard');
                           const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
                           setCrossUserMoves(tObj.moves);
+                          setCrossSolutionRevealed(false);
                           setEfficiencyFeedback(null);
                         }}
                         className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
@@ -6237,6 +6059,7 @@ function OLLDaySuite() {
                           setCrossDifficulty('advanced');
                           const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
                           setCrossUserMoves(tObj.moves);
+                          setCrossSolutionRevealed(false);
                           setEfficiencyFeedback(null);
                         }}
                         className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
@@ -6271,6 +6094,7 @@ function OLLDaySuite() {
                               emitBeep(540);
                               setCrossTier(t.tier);
                               setCrossUserMoves(t.moves);
+                              setCrossSolutionRevealed(false);
                               setEfficiencyFeedback(null);
                             }}
                             className={`relative overflow-hidden py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
@@ -6333,6 +6157,7 @@ function OLLDaySuite() {
                           onClick={() => {
                             emitBeep(560);
                             setCrossScrambleIdx((p) => p + 1);
+                            setCrossSolutionRevealed(false);
                             setEfficiencyFeedback(null);
                           }}
                           className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-orange-400 active:scale-95 cursor-pointer"
@@ -6424,6 +6249,35 @@ function OLLDaySuite() {
                       <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">
                         {activeTierObj.hint}
                       </p>
+
+                      {/* Collapsible Cross-Only Solution (Hidden by default until expanded) */}
+                      <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Optimal Cross Solution (≤8 Moves)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              emitBeep(580, 'sine', 0.06);
+                              setCrossSolutionRevealed((v) => !v);
+                            }}
+                            className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
+                          >
+                            {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
+                          </button>
+                        </div>
+                        {crossSolutionRevealed && (
+                          <div className="pt-1 border-t border-white/10 text-center space-y-1">
+                            <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">
+                              {activeCrossSolution}
+                            </p>
+                            <span className="text-[9.5px] text-slate-400 block">
+                              Solves all 4 White Cross edges on D ({activeCrossSolution.split(/\s+/).filter(Boolean).length} moves)
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {crossLadderMode === 'efficiency' ? (
@@ -6735,6 +6589,8 @@ function OLLDaySuite() {
                           onClick={() => {
                             emitBeep(540);
                             setActiveMechanicId(m.id);
+                            setActiveMechApproachIdx(0);
+                            setActiveMechCaseIdx(0);
                           }}
                           className={`py-3 px-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
                             activeMechanicId === m.id
@@ -8033,13 +7889,7 @@ function OLLDaySuite() {
                           onClick={() => {
                             emitBeep(460);
                             setSavedCubePalette(null);
-                            try {
-                              if (typeof window !== 'undefined') {
-                                window.localStorage.removeItem(STORAGE_KEYS.cubePalette);
-                              }
-                            } catch {
-                              // Ignore storage errors
-                            }
+                            storage.setStr(STORAGE_KEYS.cubePalette, '');
                           }}
                           className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9px] font-bold text-slate-300 hover:text-white cursor-pointer"
                         >
@@ -8896,6 +8746,7 @@ function OLLDaySuite() {
                   onClick={() => {
                     emitBeep(620, 'sine', 0.08);
                     setCrossScrambleIdx((p) => p + 1);
+                    setCrossSolutionRevealed(false);
                     setEfficiencyFeedback(null);
                   }}
                   className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer"
@@ -9063,6 +8914,50 @@ function OLLDaySuite() {
             </div>
           );
         })()}
+
+        {/* PRO PAYWALL MODAL */}
+        {activeModal === 'proPaywall' && (
+          <div
+            onClick={() => setActiveModal(null)}
+            className="fixed inset-0 z-[275] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-orange-500/40 rounded-[2.25rem] p-6 max-w-xs w-full space-y-4 shadow-2xl text-center"
+            >
+              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                OLLDay Pro • Lifetime Access
+              </span>
+              <h3 className="text-xl font-black text-white">Unlock All 123 Cases</h3>
+              {proPaywallFeature && (
+                <p className="text-xs font-bold text-amber-300">{proPaywallFeature}</p>
+              )}
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Get full access to all 41 F2L pairs, 57 OLL algorithms, 25 PLLs, Advanced Full-Scramble Cross Ladder, Blindfold Mat, and Custom Chunk Builder.
+              </p>
+              {proPurchaseToast ? (
+                <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={unlockLifetimePro}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                  >
+                    Unlock Lifetime Pro — $3.99
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="w-full py-2.5 rounded-2xl bg-white/5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* UNIFIED DAILY SESSION RUNNER & ISOLATED DRILL MODALS (F2L, OLL, PLL) */}
         {renderUnifiedDailySession()}
