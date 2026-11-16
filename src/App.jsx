@@ -6613,19 +6613,25 @@ function OLLDaySuite() {
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                           <div
-                            onMouseDown={() => handleSingleMousePadDown('left')}
-                            onMouseUp={handleSingleMousePadUp}
-                            onMouseLeave={handleSingleMousePadUp}
-                            onTouchStart={(e) => {
+                            onPointerDown={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadDown('left');
+                                return;
+                              }
+                              e.currentTarget.setPointerCapture?.(e.pointerId);
                               if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
                               setLeftPadHeld(true);
                             }}
-                            onTouchEnd={(e) => {
+                            onPointerUp={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadUp();
+                                return;
+                              }
                               setLeftPadHeld(false);
                             }}
-                            onTouchCancel={() => setLeftPadHeld(false)}
+                            onPointerCancel={() => setLeftPadHeld(false)}
                             className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                               blindState === 'armed'
                                 ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
@@ -6640,19 +6646,25 @@ function OLLDaySuite() {
                             </span>
                           </div>
                           <div
-                            onMouseDown={() => handleSingleMousePadDown('right')}
-                            onMouseUp={handleSingleMousePadUp}
-                            onMouseLeave={handleSingleMousePadUp}
-                            onTouchStart={(e) => {
+                            onPointerDown={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadDown('right');
+                                return;
+                              }
+                              e.currentTarget.setPointerCapture?.(e.pointerId);
                               if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
                               setRightPadHeld(true);
                             }}
-                            onTouchEnd={(e) => {
+                            onPointerUp={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadUp();
+                                return;
+                              }
                               setRightPadHeld(false);
                             }}
-                            onTouchCancel={() => setRightPadHeld(false)}
+                            onPointerCancel={() => setRightPadHeld(false)}
                             className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                               blindState === 'armed'
                                 ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
@@ -9055,6 +9067,44 @@ function OLLDaySuite() {
         {/* UNIFIED DAILY SESSION RUNNER & ISOLATED DRILL MODALS (F2L, OLL, PLL) */}
         {renderUnifiedDailySession()}
         {renderUnifiedDrillModal()}
+
+        {/* FULLSCREEN BLIND EXECUTION VISOR (OPENS WHEN ARMED PADS ARE RELEASED) */}
+        {blindState === 'visor' && (
+          <div
+            onClick={() => {
+              emitBeep(960, 'sine', 0.1);
+              setBlindState('done');
+            }}
+            className="fixed inset-0 z-[295] bg-[#04060d] flex flex-col items-center justify-between p-8 text-center select-none cursor-pointer"
+          >
+            <div className="pt-4">
+              <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                Blind Execution Active • Eyes Closed
+              </span>
+            </div>
+
+            <div className="space-y-4 my-auto">
+              <div className="w-20 h-20 rounded-full bg-orange-500/15 border-2 border-orange-500/40 mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(249,115,22,0.25)]">
+                <svg className="w-9 h-9 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                  <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                  <line x1="2" x2="22" y1="2" y2="22" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black text-white tracking-tight">Execute Your Cross Blindfolded</h3>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                Inspection locked at <strong className="text-orange-300">{(15 - inspectionLeft).toFixed(1)}s</strong>. Tap anywhere on the screen as soon as you finish your last turn.
+              </p>
+            </div>
+
+            <div className="w-full max-w-xs pb-4">
+              <div className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25">
+                Tap Anywhere When Finished ✓
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
