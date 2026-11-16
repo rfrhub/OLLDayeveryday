@@ -7352,9 +7352,9 @@ function OLLDaySuite() {
               accent: '#facc15',
               topEdge: '▲ BLUE (BACK)',
               bottomEdge: '▼ GREEN (FRONT)',
-              leftEdge: '◀ ORANGE',
-              rightEdge: 'RED ▶',
-              instruction: 'Tilt Yellow (U) straight toward camera: Blue edge on TOP, Green edge on BOTTOM, Orange LEFT, Red RIGHT.'
+              leftEdge: '◀ RED',
+              rightEdge: 'ORANGE ▶',
+              instruction: 'Tilt Yellow (U) straight toward camera: Blue edge on TOP, Green edge on BOTTOM, Red LEFT, Orange RIGHT.'
             },
             F: {
               title: 'Front Face (F • Green Center)',
@@ -7362,9 +7362,9 @@ function OLLDaySuite() {
               accent: '#22c55e',
               topEdge: '▲ YELLOW (TOP)',
               bottomEdge: '▼ WHITE (BOTTOM)',
-              leftEdge: '◀ ORANGE',
-              rightEdge: 'RED ▶',
-              instruction: 'Hold Green (F) straight toward camera: Yellow on TOP, White on BOTTOM, Orange LEFT, Red RIGHT.'
+              leftEdge: '◀ RED',
+              rightEdge: 'ORANGE ▶',
+              instruction: 'Hold Green (F) straight toward camera: Yellow on TOP, White on BOTTOM, Red LEFT, Orange RIGHT.'
             },
             R: {
               title: 'Right Face (R • Orange Center)',
@@ -7382,9 +7382,9 @@ function OLLDaySuite() {
               accent: '#f8fafc',
               topEdge: '▲ GREEN (FRONT)',
               bottomEdge: '▼ BLUE (BACK)',
-              leftEdge: '◀ RED',
-              rightEdge: 'ORANGE ▶',
-              instruction: 'Tilt bottom up (x) so White (D) faces camera: Green edge on TOP, Blue edge on BOTTOM, Red LEFT, Orange RIGHT.'
+              leftEdge: '◀ ORANGE',
+              rightEdge: 'RED ▶',
+              instruction: 'Tilt bottom up (x) so White (D) faces camera: Green edge on TOP, Blue edge on BOTTOM, Orange LEFT, Red RIGHT.'
             },
             B: {
               title: 'Back Face (B • Blue Center)',
@@ -7392,9 +7392,9 @@ function OLLDaySuite() {
               accent: '#3b82f6',
               topEdge: '▲ YELLOW (TOP)',
               bottomEdge: '▼ WHITE (BOTTOM)',
-              leftEdge: '◀ RED',
-              rightEdge: 'ORANGE ▶',
-              instruction: 'Turn cube 180° (y2) so Blue (B) faces camera: Yellow TOP, White BOTTOM, Red LEFT, Orange RIGHT.'
+              leftEdge: '◀ ORANGE',
+              rightEdge: 'RED ▶',
+              instruction: 'Turn cube 180° (y2) so Blue (B) faces camera: Yellow TOP, White BOTTOM, Orange LEFT, Red RIGHT.'
             },
             L: {
               title: 'Left Face (L • Red Center)',
@@ -7439,16 +7439,16 @@ function OLLDaySuite() {
           const activePreviewImg = scannerCapturedThumbs[scannerCaptureStep] || null;
           const visibleFaceList = hasFull6Faces
             ? [
-                { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'O', right: 'R' },
-                { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'O', right: 'R' },
+                { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' },
+                { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' },
                 { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' },
-                { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'R', right: 'O' },
-                { key: 'B', title: 'Back (B)', top: 'Y', bottom: 'W', left: 'R', right: 'O' },
+                { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'O', right: 'R' },
+                { key: 'B', title: 'Back (B)', top: 'Y', bottom: 'W', left: 'O', right: 'R' },
                 { key: 'L', title: 'Left (L)', top: 'Y', bottom: 'W', left: 'B', right: 'G' }
               ]
             : [
-                { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'O', right: 'R' },
-                { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'O', right: 'R' },
+                { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' },
+                { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' },
                 { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' }
               ];
 
