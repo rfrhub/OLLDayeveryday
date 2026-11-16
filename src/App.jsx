@@ -7382,9 +7382,9 @@ function OLLDaySuite() {
               accent: '#f8fafc',
               topEdge: '▲ GREEN (FRONT)',
               bottomEdge: '▼ BLUE (BACK)',
-              leftEdge: '◀ ORANGE',
-              rightEdge: 'RED ▶',
-              instruction: 'Tilt bottom up (x) so White (D) faces camera: Green edge on TOP, Blue edge on BOTTOM, Orange LEFT, Red RIGHT.'
+              leftEdge: '◀ RED',
+              rightEdge: 'ORANGE ▶',
+              instruction: 'Tilt bottom up (x) so White (D) faces camera: Green edge on TOP, Blue edge on BOTTOM, Red LEFT, Orange RIGHT.'
             },
             B: {
               title: 'Back Face (B • Blue Center)',
@@ -7442,7 +7442,7 @@ function OLLDaySuite() {
                 { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' },
                 { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' },
                 { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' },
-                { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'O', right: 'R' },
+                { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'R', right: 'O' },
                 { key: 'B', title: 'Back (B)', top: 'Y', bottom: 'W', left: 'O', right: 'R' },
                 { key: 'L', title: 'Left (L)', top: 'Y', bottom: 'W', left: 'B', right: 'G' }
               ]
