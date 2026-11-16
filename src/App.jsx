@@ -6096,17 +6096,17 @@ function OLLDaySuite() {
 
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
-          <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/95 flex-shrink-0 z-40">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <header className="px-4 pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/5 bg-[#090e1c]/95 flex-shrink-0 z-40">
+            <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0">
                 <SuneEmblemSvg className="w-full h-full" />
               </div>
-              <h1 className="text-sm font-black tracking-tight text-white truncate">
+              <h1 className="text-sm font-black tracking-tight text-white whitespace-nowrap">
                 OLLDay <span className="text-orange-400">Everyday</span>
               </h1>
             </div>
 
-            <div className="flex items-center gap-1.5 relative">
+            <div className="flex items-center gap-1.5 flex-shrink-0 relative">
               <button
                 type="button"
                 onClick={() => {
@@ -6131,12 +6131,11 @@ function OLLDaySuite() {
                   setAuthMode('signin');
                   setAuthScreenOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
                 title="Switch Solver Account"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                <span className="max-w-[70px] truncate">{String(activeUserKey || 'Account')}</span>
-                <span className="text-[9px] uppercase tracking-wider text-orange-400 font-black ml-0.5">Account</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                <span className="max-w-[52px] truncate">{String(activeUserKey || 'Account')}</span>
               </button>
 
               {/* C-F-O-P Phase Selector */}
