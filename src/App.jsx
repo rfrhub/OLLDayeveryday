@@ -99,7 +99,7 @@ function isCaseUnlockedForTier(phase, caseId, isPro) {
 // =========================================================================
 // 2A-3. STATE-SIMULATING FULL CFOP SOLVER & ALGEBRAIC MOVE SIMPLIFIER
 // =========================================================================
-function simplifyMoveSequence(algStr = '') {
+function simplifyMoveSequence(algStr = '', preserveParens = false) {
   const rawTokens = (algStr || '')
     .replace(/[()]/g, ' ')
     .trim()
@@ -135,7 +135,38 @@ function simplifyMoveSequence(algStr = '') {
     }
   });
 
-  return stack.map((item) => formatTok(item.face, item.pow)).filter(Boolean).join(' ');
+  const clean = stack.map((item) => formatTok(item.face, item.pow)).filter(Boolean).join(' ');
+  if (!preserveParens || !clean) return clean;
+  return formatAlgWithTriggerBrackets(clean);
+}
+
+// Re-apply familiar fingertrick trigger parentheses onto clean move sequences
+function formatAlgWithTriggerBrackets(algStr = '') {
+  if (!algStr) return '';
+  let out = ` ${algStr.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+  const triggers = [
+    "R U R' U'",
+    "L' U' L U",
+    "R' F R F'",
+    "F R' F' R",
+    "R U2 R'",
+    "F' U2 F",
+    "R U' R'",
+    "U R U' R'",
+    "U' F' U F",
+    "U' R U R'",
+    "U F' U' F",
+    "F' U' F",
+    "R U R'",
+    "M2 U M2",
+    "M' U M2 U"
+  ];
+  triggers.forEach((trig) => {
+    const escaped = trig.replace(/'/g, "\\'");
+    const rx = new RegExp(`(?<!\\()\\b${escaped}\\b(?!\\))`, 'g');
+    out = out.replace(rx, `(${trig})`);
+  });
+  return out.replace(/\s+/g, ' ').trim();
 }
 
 // Convert scanned 6-face object { U, F, R, D, B, L } into 54-sticker simulator array
@@ -309,11 +340,25 @@ function isFrontRightF2LSolved54(s) {
   );
 }
 
+// Count how many of the 4 F2L slots are currently solved (0..4)
+function countSolvedF2LSlots54(s) {
+  let rot = [...s];
+  let count = 0;
+  for (let i = 0; i < 4; i++) {
+    if (isFrontRightF2LSolved54(rot)) count++;
+    rot = applyMovesTo54State(rot, 'y');
+  }
+  return count;
+}
+
 // Match & simulate the optimal F2L algorithm from F2L_DATA for the current Front-Right slot
+// Guarantees: Cross stays 4/4 solved AND previously solved F2L slots are never broken
 function matchBestF2LForFrontRight54(s) {
   const fCenter = s[22];
   const rCenter = s[13];
   const targetColors = new Set(['W', fCenter, rCenter]);
+  const edgeTargetColors = new Set([fCenter, rCenter]);
+  const baseSolvedSlots = countSolvedF2LSlots54(s);
 
   const cornerSlots = [
     { name: 'UFR', stickers: [s[8], s[20], s[9]], extract: '' },
@@ -326,38 +371,82 @@ function matchBestF2LForFrontRight54(s) {
     { name: 'DBL', stickers: [s[33], s[42], s[53]], extract: "L U2 L'" }
   ];
 
+  // Also check if the target middle-layer edge is trapped in another slot (FL, BR, BL)
+  const middleEdgeSlots = [
+    { name: 'FR', stickers: [s[23], s[12]], extract: '' },
+    { name: 'FL', stickers: [s[21], s[41]], extract: "L' U' L" },
+    { name: 'BR', stickers: [s[48], s[14]], extract: "R' U R" },
+    { name: 'BL', stickers: [s[50], s[39]], extract: "L U L'" }
+  ];
+
   const foundCorner = cornerSlots.find(
     (c) => c.stickers.every((col) => targetColors.has(col)) && new Set(c.stickers).size === 3
   );
-  const setupPrefix = foundCorner ? foundCorner.extract : '';
-  const workState = setupPrefix ? applyMovesTo54State(s, setupPrefix) : s;
+  const foundEdge = middleEdgeSlots.find(
+    (e) => e.stickers.every((col) => edgeTargetColors.has(col)) && new Set(e.stickers).size === 2
+  );
 
-  // Test all 41 F2L algorithms (with U, U', U2 pre-alignments) on the real 54-sticker state
+  // Build prioritized setup prefixes (direct, corner-only extract, edge-only extract, or both)
+  const setupCandidates = Array.from(
+    new Set([
+      '',
+      foundCorner?.extract || '',
+      foundEdge?.extract || '',
+      simplifyMoveSequence(`${foundCorner?.extract || ''} ${foundEdge?.extract || ''}`),
+      simplifyMoveSequence(`${foundEdge?.extract || ''} ${foundCorner?.extract || ''}`)
+    ])
+  );
+
   const preUOptions = ['', 'U', "U'", 'U2'];
-  for (let uIdx = 0; uIdx < preUOptions.length; uIdx++) {
-    const preU = preUOptions[uIdx];
-    const uState = preU ? applyMovesTo54State(workState, preU) : workState;
-    for (let i = 0; i < F2L_DATA.length; i++) {
-      const candidate = F2L_DATA[i];
-      const after = applyMovesTo54State(uState, candidate.alg);
-      if (isFrontRightF2LSolved54(after) && inspectCrossOn54(after).solvedCount === 4) {
-        const combined = simplifyMoveSequence(`${setupPrefix} ${preU} ${candidate.alg}`);
-        return {
-          caseObj: candidate,
-          fullAlg: combined,
-          postState: applyMovesTo54State(s, combined)
-        };
+  let bestVerified = null;
+
+  for (let sIdx = 0; sIdx < setupCandidates.length; sIdx++) {
+    const setupPrefix = setupCandidates[sIdx];
+    const workState = setupPrefix ? applyMovesTo54State(s, setupPrefix) : s;
+    // Do not allow setup moves to break already-solved F2L slots
+    if (countSolvedF2LSlots54(workState) < baseSolvedSlots) continue;
+
+    for (let uIdx = 0; uIdx < preUOptions.length; uIdx++) {
+      const preU = preUOptions[uIdx];
+      const uState = preU ? applyMovesTo54State(workState, preU) : workState;
+
+      for (let i = 0; i < F2L_DATA.length; i++) {
+        const candidate = F2L_DATA[i];
+        const after = applyMovesTo54State(uState, candidate.alg);
+        if (
+          isFrontRightF2LSolved54(after) &&
+          inspectCrossOn54(after).solvedCount === 4 &&
+          countSolvedF2LSlots54(after) >= baseSolvedSlots + 1
+        ) {
+          const rawCombined = simplifyMoveSequence(`${setupPrefix} ${preU} ${candidate.alg}`, false);
+          const moveLen = rawCombined ? rawCombined.split(/\s+/).length : 0;
+          if (!bestVerified || moveLen < bestVerified.moveLen) {
+            const bracketed = simplifyMoveSequence(rawCombined, true);
+            bestVerified = {
+              caseObj: candidate,
+              fullAlg: bracketed,
+              rawAlg: rawCombined,
+              moveLen,
+              postState: applyMovesTo54State(s, rawCombined)
+            };
+          }
+        }
       }
     }
+    if (bestVerified) break;
   }
 
-  // Fallback extraction + insert if edge was trapped in another middle slot
+  if (bestVerified) return bestVerified;
+
+  // Fallback extraction + insert if both pieces were deeply locked
   const fallback = F2L_BY_ID.get(4) || F2L_DATA[0];
-  const fallbackAlg = simplifyMoveSequence(`${setupPrefix} ${fallback.alg}`);
+  const fallbackRaw = simplifyMoveSequence(`${foundCorner?.extract || ''} ${fallback.alg}`, false);
   return {
     caseObj: fallback,
-    fullAlg: fallbackAlg,
-    postState: applyMovesTo54State(s, fallbackAlg)
+    fullAlg: simplifyMoveSequence(fallbackRaw, true),
+    rawAlg: fallbackRaw,
+    moveLen: 99,
+    postState: applyMovesTo54State(s, fallbackRaw)
   };
 }
 
@@ -365,6 +454,7 @@ function matchBestF2LForFrontRight54(s) {
 function solveAllF2LPairsFrom54(postCrossState) {
   let curState = [...postCrossState];
   const slotSteps = [];
+  const fullF2LTokens = [];
 
   for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
     if (!isFrontRightF2LSolved54(curState)) {
@@ -373,35 +463,23 @@ function solveAllF2LPairsFrom54(postCrossState) {
         slotNumber: slotSteps.length + 1,
         slotColors: `${curState[22]}/${curState[13]}`,
         caseObj: solvedPair.caseObj,
-        alg: solvedPair.fullAlg
+        alg: solvedPair.fullAlg,
+        rawAlg: solvedPair.rawAlg
       });
+      fullF2LTokens.push(solvedPair.rawAlg);
       curState = solvedPair.postState;
     }
     if (slotIdx < 3) {
+      fullF2LTokens.push('y');
       curState = applyMovesTo54State(curState, 'y');
     }
   }
 
-  // Build clean, move-canceled full F2L sequence across all unsolved slots
-  const fullF2LTokens = [];
-  let simState = [...postCrossState];
-  for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
-    if (!isFrontRightF2LSolved54(simState)) {
-      const res = matchBestF2LForFrontRight54(simState);
-      fullF2LTokens.push(res.fullAlg);
-      simState = res.postState;
-    }
-    if (slotIdx < 3) {
-      fullF2LTokens.push('y');
-      simState = applyMovesTo54State(simState, 'y');
-    }
-  }
-
-  const combinedF2LAlg = simplifyMoveSequence(fullF2LTokens.join(' '));
+  const combinedF2LAlg = simplifyMoveSequence(fullF2LTokens.join(' '), true);
   return {
     steps: slotSteps,
     combinedAlg: combinedF2LAlg || 'All 4 F2L Pairs Solved ✓',
-    postState: simState
+    postState: curState
   };
 }
 
@@ -446,7 +524,8 @@ function analyzeFull54Cube(uGrid, fGrid, rGrid, dGrid, bGrid, lGrid) {
   const matchedOllAlg =
     ollAnalysis.phase === 'oll'
       ? simplifyMoveSequence(
-          `${ollAnalysis.aufHint.startsWith('Pre-AUF:') ? ollAnalysis.aufHint.replace('Pre-AUF:', '').replace('before executing', '').trim() : ''} ${matchedOllCase.alg}`
+          `${ollAnalysis.aufHint.startsWith('Pre-AUF:') ? ollAnalysis.aufHint.replace('Pre-AUF:', '').replace('before executing', '').trim() : ''} ${matchedOllCase.alg}`,
+          true
         )
       : 'Top Yellow Already Oriented ✓';
 
@@ -475,7 +554,7 @@ function analyzeFull54Cube(uGrid, fGrid, rGrid, dGrid, bGrid, lGrid) {
       : pllAnalysis.aufHint?.includes('U AUF')
       ? 'U'
       : '';
-  const matchedPllAlg = simplifyMoveSequence(`${matchedPllCase.alg} ${postPllAuf}`);
+  const matchedPllAlg = simplifyMoveSequence(`${matchedPllCase.alg} ${postPllAuf}`, true);
 
   // Build the 4 complete, verified CFOP stage cards
   const cfopStages = [
@@ -486,7 +565,7 @@ function analyzeFull54Cube(uGrid, fGrid, rGrid, dGrid, bGrid, lGrid) {
         crossCheck.solvedCount === 4
           ? 'Cross Solved ✓ (4/4)'
           : `Solve ${crossCheck.unsolvedNames.length} Edge${crossCheck.unsolvedNames.length === 1 ? '' : 's'}`,
-      alg: crossSol.moves || 'Cross Already Solved ✓',
+      alg: crossSol.moves ? formatAlgWithTriggerBrackets(crossSol.moves) : 'Cross Already Solved ✓',
       fingertrick:
         crossCheck.solvedCount === 4
           ? 'All 4 white cross edges are aligned with their centers—jump straight to F2L Pair 1.'
@@ -1072,9 +1151,8 @@ function getCaseSignatures() {
     return { item, uMask, sideMask: `${fTop}${rTop}` };
   });
 
-  const pllSigs = PLL_DATA.slice(0, 21).map((item) => {
+  const pllSigs = PLL_DATA.map((item) => {
     const st = simulateCrossCubeState(invertAlgorithm(item.alg));
-    // Relative color equivalence pattern across the 6 visible top-row side stickers (FU0,1,2 + RU0,1,2)
     const six = [...st.slice(18, 21), ...st.slice(9, 12)];
     const map = {};
     let idx = 0;
@@ -1084,27 +1162,34 @@ function getCaseSignatures() {
         return map[c];
       })
       .join('');
-    return { item, pattern, six };
+    return { item, pattern };
   });
 
   CACHED_SIGNATURES = { ollSigs, pllSigs };
   return CACHED_SIGNATURES;
 }
 
-function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null) {
+function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints = null) {
   const { ollSigs, pllSigs } = getCaseSignatures();
   const topColor = uGrid[4] || 'Y';
   const fCenter = fGrid[4] || 'G';
   const rCenter = rGrid[4] || 'O';
 
-  // Verify bottom cross edges visible on F & R (index 7) plus full 6-face check when available
+  // Verify bottom cross edges visible on F & R (index 7) plus full 6-face check & user hints
   const greenEdgeSolved = fGrid[7] === fCenter;
   const orangeEdgeSolved = rGrid[7] === rCenter;
   const visibleUnsolved = [
     ...(!greenEdgeSolved ? ['Green (DF)'] : []),
     ...(!orangeEdgeSolved ? ['Orange (DR)'] : [])
   ];
-  const isCrossSolved = fullMeta ? fullMeta.crossSolved : greenEdgeSolved && orangeEdgeSolved;
+  const hintedCrossSolved = userHints?.crossSolved;
+  const isCrossSolved = fullMeta
+    ? fullMeta.crossSolved
+    : hintedCrossSolved === false
+    ? false
+    : hintedCrossSolved === true
+    ? true
+    : greenEdgeSolved && orangeEdgeSolved;
 
   // Check if F2L bottom two rows on F & R match their centers
   const frSlotSolved =
@@ -1112,39 +1197,54 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null) {
   const flVisibleSolved = fGrid[6] === fCenter && fGrid[3] === fCenter;
   const brVisibleSolved = rGrid[8] === rCenter && rGrid[5] === rCenter;
 
+  const hintedF2lStatus = userHints?.f2lCompletedStatus || null; // null | 'none' | 'some' | 'all'
   const f2lRowsSolved = fullMeta
     ? fullMeta.remainingF2lPairs === 0
+    : hintedF2lStatus === 'all'
+    ? true
+    : hintedF2lStatus === 'none' || hintedF2lStatus === 'some'
+    ? false
     : frSlotSolved && flVisibleSolved && brVisibleSolved;
 
   const estimatedRemainingPairs = fullMeta
     ? fullMeta.remainingF2lPairs
+    : hintedF2lStatus === 'all'
+    ? 0
+    : hintedF2lStatus === 'none'
+    ? 4
+    : hintedF2lStatus === 'some'
+    ? Math.max(1, (frSlotSolved ? 0 : 1) + (flVisibleSolved ? 0 : 1) + (brVisibleSolved ? 0 : 1))
     : (frSlotSolved ? 0 : 1) + (flVisibleSolved ? 0 : 1) + (brVisibleSolved ? 0 : 1);
 
   const allTopOriented = uGrid.every((c) => c === topColor);
 
-  // 0. CROSS UNSOLVED IN 3-FACE VIEW (Bottom cross edge out of place on F or R)
+  // 0. CROSS UNSOLVED IN 3-FACE VIEW (Bottom cross edge out of place on F or R, or user confirmed Cross is unsolved)
   if (!isCrossSolved) {
-    const crossAlg = !greenEdgeSolved && !orangeEdgeSolved ? "F R' D' R F2" : !greenEdgeSolved ? "F' R' D' R F" : "R' F D F' R";
+    const missingLabel = visibleUnsolved.length > 0 ? visibleUnsolved.join(' & ') : 'Back/Left Cross Edges';
+    const crossAlg = !greenEdgeSolved && !orangeEdgeSolved ? "F R' D' R F2" : !greenEdgeSolved ? "F' R' D' R F" : !orangeEdgeSolved ? "R' F D F' R" : "D' R' D";
     const firstF2l = F2L_BY_ID.get(4) || F2L_DATA[0];
     return {
       phase: 'cross',
       crossSolved: false,
-      solvedCrossCount: 2 - visibleUnsolved.length,
-      remainingCrossNames: visibleUnsolved,
+      solvedCrossCount: fullMeta ? fullMeta.solvedCrossCount : 2 - visibleUnsolved.length,
+      remainingCrossNames: visibleUnsolved.length > 0 ? visibleUnsolved : ['Blue (DB)', 'Red (DL)'],
       remainingF2lPairs: Math.max(1, estimatedRemainingPairs),
-      phaseLabel: `Cross Unsolved (${visibleUnsolved.join(' & ')} Left) • ${Math.max(1, estimatedRemainingPairs)} F2L Left`,
+      phaseLabel: `Cross Unsolved (${missingLabel}) • ${Math.max(1, estimatedRemainingPairs)} F2L Left`,
       confidence: 94,
       matchedCase: {
         id: 1,
-        name: `Solve Remaining Cross: ${visibleUnsolved.join(' & ')}`,
+        name: `Solve Remaining Cross: ${missingLabel}`,
         alg: crossAlg,
         fingertrick: 'Align white edges to their matching centers on D before inserting F2L pairs.'
       },
-      aufHint: `Remaining Cross Edges: ${visibleUnsolved.join(', ')} (Scan D•B•L to verify back 2)`,
+      aufHint:
+        visibleUnsolved.length > 0
+          ? `Remaining Cross Edges: ${visibleUnsolved.join(', ')} (Scan D•B•L for full 4-edge solve)`
+          : 'Front cross edges look aligned — capture D•B•L to locate hidden back/left cross edges',
       nextUpTitle: `Next Up: F2L (${Math.max(1, estimatedRemainingPairs)} Pairs Left)`,
       nextUpBadge: 'Cross → F2L Transition',
       nextUpCase: firstF2l,
-      nextUpSummary: `Finish ${visibleUnsolved.join(' & ')} (${crossAlg}), then solve the remaining ${Math.max(1, estimatedRemainingPairs)} F2L pairs starting with Front-Right.`
+      nextUpSummary: `Finish ${missingLabel} (${crossAlg}), then solve the remaining ${Math.max(1, estimatedRemainingPairs)} F2L pairs starting with Front-Right.`
     };
   }
 
@@ -2501,6 +2601,10 @@ function OLLDaySuite() {
   const [scannerCompletedStages, setScannerCompletedStages] = useState([]);
   const [scannerF2lPairIdx, setScannerF2lPairIdx] = useState(0);
   const [scannerSurfaceFinish, setScannerSurfaceFinish] = useState('uv'); // 'uv' | 'matte'
+  const [scannerThreeFaceHints, setScannerThreeFaceHints] = useState({
+    crossSolved: null, // null | true | false
+    f2lCompletedStatus: null // null | 'none' | 'some' | 'all'
+  });
   const [savedCubePalette, setSavedCubePalette] = useState(() => {
     try {
       const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.cubePalette) : null;
@@ -2549,6 +2653,7 @@ function OLLDaySuite() {
       setScannerCapturedThumbs({});
       setScannerRawSamples({});
       setScannerLockedFaces({});
+      setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
     } else {
       setScannerCapturedThumbs((prev) => {
         const copy = { ...prev };
@@ -2691,9 +2796,9 @@ function OLLDaySuite() {
 
       candidates.sort((a, b) => b.score - a.score);
       const best = candidates[0];
-      const minValidChroma = isMatte ? 30 : 40;
-      const minWhiteLuma = isMatte ? 132 : 145;
-      if (best.chroma >= minValidChroma || (best.luma >= minWhiteLuma && best.chroma <= (isMatte ? 36 : 46))) {
+      const minValidChroma = isMatte ? 28 : 38;
+      const minWhiteLuma = isMatte ? 105 : 115;
+      if (best.chroma >= minValidChroma || (best.luma >= minWhiteLuma && best.chroma <= (isMatte ? 48 : 56))) {
         validStickerTiles += 1;
       }
       return best.rgb;
@@ -2708,10 +2813,10 @@ function OLLDaySuite() {
     const detectedCenterCode = classifyStickerRgb(sampled9[4], savedCubePalette);
     const centerMatches =
       targetCenterCode === 'W'
-        ? centerLuma >= (isMatte ? 132 : 145) && centerChroma <= (isMatte ? 42 : 48)
-        : centerChroma >= (isMatte ? 34 : 44) && detectedCenterCode === targetCenterCode;
+        ? centerLuma >= (isMatte ? 102 : 112) && centerChroma <= (isMatte ? 54 : 62)
+        : centerChroma >= (isMatte ? 32 : 42) && detectedCenterCode === targetCenterCode;
 
-    const cubeDetected = centerMatches && validStickerTiles >= 7;
+    const cubeDetected = centerMatches && validStickerTiles >= 6;
     const framingText = cubeDetected
       ? `${targetCenterCode} Center Locked ✓ (${validStickerTiles}/9 tiles)`
       : `Point ${targetCenterCode} center into the middle square`;
@@ -2759,6 +2864,8 @@ function OLLDaySuite() {
       setScannerCaptureStep('F');
     } else if (scannerCaptureStep === 'F' && !nextRaw.R) {
       setScannerCaptureStep('R');
+    } else if (scannerCaptureStep === 'R') {
+      stopScannerCamera();
     } else if (scannerCaptureStep === 'D' && !nextRaw.B) {
       setScannerCaptureStep('B');
     } else if (scannerCaptureStep === 'B' && !nextRaw.L) {
@@ -2819,26 +2926,44 @@ function OLLDaySuite() {
     scannerOpen,
     scannerCameraReady,
     isAppVisible,
-    scannerCaptureStep,
     scannerCapturedThumbs,
+    scannerCaptureStep,
     scannerRawSamples,
+    scannedFaces,
     scannerLockedFaces,
     savedCubePalette,
-    scannerAutoSnap,
-    scannerSurfaceFinish
+    scannerAutoSnap
   ]);
 
-  useEffect(() => {
-    if (!scannerOpen) {
-      stopScannerCamera();
-      return;
-    }
-    setScannerCompletedStages([]);
-    setScannerF2lPairIdx(0);
-    setScannerFocusedStageIdx(0);
-    startScannerCamera('U', true);
-    return () => stopScannerCamera();
-  }, [scannerOpen]);
+  // Memoized Scanner CFOP Analysis (Runs only when scanner opens, stickers change, or 3-face hints update)
+  const scannerHasFull6Faces = useMemo(
+    () =>
+      Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
+      [1, 3, 5, 7].some((i) => scannedFaces.D[i] !== 'W') ||
+      scannedFaces.B[7] !== 'B' ||
+      scannedFaces.L[7] !== 'R',
+    [scannerCapturedThumbs, scannedFaces]
+  );
+
+  const scannerAnalysis = useMemo(() => {
+    if (!scannerOpen) return null;
+    return scannerHasFull6Faces
+      ? analyzeFull54Cube(
+          scannedFaces.U,
+          scannedFaces.F,
+          scannedFaces.R,
+          scannedFaces.D,
+          scannedFaces.B,
+          scannedFaces.L
+        )
+      : analyzeScanned3FaceCube(
+          scannedFaces.U,
+          scannedFaces.F,
+          scannedFaces.R,
+          null,
+          scannerThreeFaceHints
+        );
+  }, [scannerOpen, scannerHasFull6Faces, scannedFaces, scannerThreeFaceHints]);
 
   // Full-Screen Glassmorphic 3x3x3 CFOP Timer State (Ao5 & Ao12)
   const [fullTimerOpen, setFullTimerOpen] = useState(false);
@@ -5377,7 +5502,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handleSessionScreenTap}
-        className={`fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto ${
+        className={`fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-md flex flex-col justify-between p-5 max-w-md mx-auto ${
           stopwatchEnabled ? 'cursor-pointer' : ''
         }`}
       >
@@ -5649,7 +5774,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handleModalScreenTap}
-        className={`fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5 ${
+        className={`fixed inset-0 z-[245] bg-black/90 backdrop-blur-md flex items-center justify-center p-5 ${
           stopwatchEnabled ? 'cursor-pointer' : ''
         }`}
       >
@@ -7211,7 +7336,7 @@ function OLLDaySuite() {
 
         {/* NEW ACCOUNT WELCOME PROMPT: ARE YOU NEW TO CFOP? */}
         {activeModal === 'cfopExperienceChoice' && (
-          <div className="fixed inset-0 z-[272] bg-slate-950/80 backdrop-blur-3xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[272] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-5">
             <div className="w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-orange-500/35 p-6 shadow-2xl space-y-4 text-center">
               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">
                 Welcome, {String(activeUserKey || 'Solver')}!
@@ -7249,7 +7374,7 @@ function OLLDaySuite() {
 
           return (
             <div className="fixed inset-x-0 bottom-24 z-[268] px-4 flex justify-center pointer-events-none">
-              <div className="pointer-events-auto w-full max-w-md rounded-[2rem] bg-slate-900/95 backdrop-blur-2xl border border-orange-500/45 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.75)] space-y-3">
+              <div className="pointer-events-auto w-full max-w-md rounded-[2rem] bg-slate-900/95 backdrop-blur-md border border-orange-500/45 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.75)] space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
                     {step.badge}
@@ -7410,22 +7535,18 @@ function OLLDaySuite() {
 
           const currentSpec = FACE_CAPTURE_SPECS[scannerCaptureStep] || FACE_CAPTURE_SPECS.U;
           const capturedCount = Object.keys(scannerCapturedThumbs).length;
-          const hasFull6Faces =
-            Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
-            [1, 3, 5, 7].some((i) => scannedFaces.D[i] !== 'W') ||
-            scannedFaces.B[7] !== 'B' ||
-            scannedFaces.L[7] !== 'R';
+          const hasFull6Faces = scannerHasFull6Faces;
+          const analysis = scannerAnalysis;
+          if (!analysis) return null;
 
-          const analysis = hasFull6Faces
-            ? analyzeFull54Cube(
-                scannedFaces.U,
-                scannedFaces.F,
-                scannedFaces.R,
-                scannedFaces.D,
-                scannedFaces.B,
-                scannedFaces.L
-              )
-            : analyzeScanned3FaceCube(scannedFaces.U, scannedFaces.F, scannedFaces.R);
+          const hasFront3Captured = Boolean(
+            scannerCapturedThumbs.U && scannerCapturedThumbs.F && scannerCapturedThumbs.R
+          );
+          const needsBackFacesRecommendation =
+            !hasFull6Faces &&
+            (scannerThreeFaceHints.crossSolved === false ||
+              scannerThreeFaceHints.f2lCompletedStatus === 'none' ||
+              scannerThreeFaceHints.f2lCompletedStatus === 'some');
 
           const stagesList = Array.isArray(analysis.cfopStages) ? analysis.cfopStages : null;
           const activeFocusedIdx = stagesList ? Math.min(scannerFocusedStageIdx, stagesList.length - 1) : 0;
@@ -7683,55 +7804,130 @@ function OLLDaySuite() {
                   )}
                 </div>
 
-                {/* Flat-Face Capture & Next-Face Controls */}
-                <div className="grid grid-cols-2 gap-2">
-                  {!activePreviewImg ? (
-                    <button
-                      type="button"
-                      onClick={captureAndAnalyzeCubeFrame}
-                      disabled={!scannerCameraReady}
-                      className="col-span-2 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg disabled:opacity-40 cursor-pointer"
-                    >
-                      Capture {currentSpec.short} Face Now
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(520);
-                          startScannerCamera(scannerCaptureStep, false);
-                        }}
-                        className="py-2.5 rounded-xl bg-white/10 border border-white/15 text-xs font-black text-white cursor-pointer"
-                      >
-                        Retake {currentSpec.short} ↻
-                      </button>
-                      {!scannerCapturedThumbs.D ? (
+                {/* 3-Face Clarifying Questions (Asked in Exact Order When Only U, F, R Are Captured) */}
+                {!hasFull6Faces && (
+                  <div className="bg-slate-900/95 border border-orange-500/35 rounded-[1.75rem] p-3.5 space-y-3 shadow-lg">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                        {hasFront3Captured ? '3-Face Quick Check • Refine Solve' : '3-Face State Check'}
+                      </span>
+                      {(scannerThreeFaceHints.crossSolved !== null ||
+                        scannerThreeFaceHints.f2lCompletedStatus !== null) && (
                         <button
                           type="button"
                           onClick={() => {
-                            emitBeep(660);
-                            startScannerCamera('D', false);
+                            emitBeep(460);
+                            setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
                           }}
-                          className="py-2.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-xs font-black text-orange-300 cursor-pointer"
+                          className="text-[9.5px] font-bold text-slate-400 hover:text-white cursor-pointer"
                         >
-                          + Scan D•B•L (Full Scramble)
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            emitBeep(520);
-                            startScannerCamera('U', true);
-                          }}
-                          className="py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-                        >
-                          Reset All Shots
+                          Clear Answers
                         </button>
                       )}
-                    </>
-                  )}
-                </div>
+                    </div>
+
+                    {/* Question 1: Is Cross solved? */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-black text-white">1. Is Cross solved?</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(640, 'sine', 0.05);
+                            setScannerThreeFaceHints((prev) => ({
+                              ...prev,
+                              crossSolved: true
+                            }));
+                          }}
+                          className={`py-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${
+                            scannerThreeFaceHints.crossSolved === true
+                              ? 'bg-green-500/20 border-green-400 text-green-300'
+                              : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'
+                          }`}
+                        >
+                          Yes, Cross Solved ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(520, 'sine', 0.05);
+                            setScannerThreeFaceHints({
+                              crossSolved: false,
+                              f2lCompletedStatus: null
+                            });
+                          }}
+                          className={`py-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${
+                            scannerThreeFaceHints.crossSolved === false
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                              : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'
+                          }`}
+                        >
+                          No, Not Yet ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Question 2 (Only shown if Cross = Yes): Are any F2L pairs completed? */}
+                    {scannerThreeFaceHints.crossSolved === true && (
+                      <div className="space-y-1.5 pt-2 border-t border-white/10">
+                        <p className="text-xs font-black text-white">2. Are any F2L pairs completed?</p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { key: 'none', label: 'None (0/4)' },
+                            { key: 'some', label: 'Some (1–3)' },
+                            { key: 'all', label: 'All 4 Done ✓' }
+                          ].map((opt) => (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              onClick={() => {
+                                emitBeep(660, 'sine', 0.05);
+                                setScannerThreeFaceHints((prev) => ({
+                                  ...prev,
+                                  f2lCompletedStatus: opt.key
+                                }));
+                              }}
+                              className={`py-2 px-1 rounded-xl text-[10.5px] font-black border transition-all cursor-pointer ${
+                                scannerThreeFaceHints.f2lCompletedStatus === opt.key
+                                  ? 'bg-orange-500 text-slate-950 border-orange-400'
+                                  : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Smart Recommendation to Capture Remaining Faces (D, B, L) */}
+                    {needsBackFacesRecommendation && (
+                      <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 space-y-2">
+                        <p className="text-[11px] text-amber-100 leading-snug">
+                          {scannerThreeFaceHints.crossSolved === false ? (
+                            <>
+                              <strong>Recommended:</strong> Because your Cross is still unsolved, hidden edges may be on the <strong>Bottom (D), Back (B), or Left (L)</strong> faces. Capture those 3 faces so the engine can calculate your exact Cross → F2L → OLL → PLL solve.
+                            </>
+                          ) : (
+                            <>
+                              <strong>Recommended:</strong> With open F2L slots on the back/left sides, capturing <strong>D • B • L</strong> lets our engine track hidden corners &amp; edges across all 4 slots for an accurate multi-pair F2L solve.
+                            </>
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(740, 'sine', 0.07);
+                            startScannerCamera('D', false);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md cursor-pointer"
+                        >
+                          Capture Remaining Faces (D • B • L) →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Interactive Sticker Verification Grid + 9-Sticker Count Guard */}
                 <div className="bg-slate-900/90 border border-white/10 rounded-[1.75rem] p-3.5 space-y-2.5">
@@ -7866,32 +8062,33 @@ function OLLDaySuite() {
                           {selectedStickerEdit.faceTitle || selectedStickerEdit.face}
                         </span>
                         <span className="text-[9px] text-slate-400 block truncate">
-                          {selectedStickerEdit.posLabel || `Tile ${selectedStickerEdit.idx + 1}`}
+                          {selectedStickerEdit.posLabel || `Tile #${selectedStickerEdit.idx + 1}`}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {SCANNER_COLOR_CODES.map((cCode) => (
                           <button
                             key={cCode}
                             type="button"
                             onClick={() => {
-                              emitBeep(700, 'sine', 0.05);
-                              const nextFaceArr = [...(scannedFaces[selectedStickerEdit.face] || [])];
-                              nextFaceArr[selectedStickerEdit.idx] = cCode;
-                              setScannedFaces((prev) => ({
-                                ...prev,
-                                [selectedStickerEdit.face]: nextFaceArr
-                              }));
-                              setScannerLockedFaces((prev) => ({
-                                ...prev,
-                                [selectedStickerEdit.face]: nextFaceArr
-                              }));
-                              setSelectedStickerEdit(null);
+                              emitBeep(720, 'sine', 0.05);
+                              const { face, idx } = selectedStickerEdit;
+                              setScannedFaces((prev) => {
+                                const updated = [...(prev[face] || [])];
+                                updated[idx] = cCode;
+                                setScannerLockedFaces((lPrev) => ({
+                                  ...lPrev,
+                                  [face]: updated
+                                }));
+                                return { ...prev, [face]: updated };
+                              });
                             }}
                             style={{ backgroundColor: SCANNER_COLOR_META[cCode].hex }}
-                            className="w-6 h-6 rounded-lg border border-white/25 cursor-pointer active:scale-90 transition-transform"
+                            className="w-6 h-6 rounded-lg border border-black/40 text-[9px] font-black text-slate-950 cursor-pointer active:scale-90"
                             title={SCANNER_COLOR_META[cCode].label}
-                          />
+                          >
+                            {cCode}
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -7899,17 +8096,28 @@ function OLLDaySuite() {
                 </div>
 
                 {/* Identified Current Case + Interactive Stage Focus Card */}
-                <div className="bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-orange-950/35 border border-orange-500/30 rounded-[1.75rem] p-4 space-y-3 shadow-xl">
+                <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/35 border border-orange-500/35 rounded-[1.75rem] p-4 space-y-3 shadow-xl">
                   <div className="flex items-center justify-between gap-2">
                     <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-wider text-orange-300">
                       {analysis.phaseLabel}
                     </span>
-                    <span className="text-[10px] font-bold text-green-400">
-                      {analysis.confidence}% Match
-                    </span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                          analysis.crossSolved
+                            ? 'bg-green-500/15 border-green-500/35 text-green-300'
+                            : 'bg-red-500/15 border-red-500/35 text-red-300'
+                        }`}
+                      >
+                        {analysis.crossSolved ? 'Cross ✓' : 'Cross ✕'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-[9px] font-black uppercase text-slate-200">
+                        {analysis.remainingF2lPairs === 0 ? 'F2L Done ✓' : `${analysis.remainingF2lPairs} F2L Left`}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Top Focused Stage Header Display (Full Untruncated Algorithm + F2L Pair Breakdown) */}
+                  {/* Top Focused Stage Header Display (Full Untruncated Algorithm + Trigger Pills + F2L Pair Breakdown) */}
                   {activeStagePhase === 'cross' ? (
                     <div className="bg-slate-950/90 border border-orange-500/30 rounded-2xl p-3 space-y-1.5">
                       <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">
@@ -7919,6 +8127,19 @@ function OLLDaySuite() {
                       <p className="font-mono text-sm font-black text-amber-300 break-words leading-relaxed select-all">
                         {activeStageAlg}
                       </p>
+                      {getAlgorithmTriggerTags(activeStageAlg).length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {getAlgorithmTriggerTags(activeStageAlg).map((tag) => (
+                            <span
+                              key={tag.label}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <p className="text-[10.5px] text-orange-200/90 leading-snug">
                         <strong>Fingertrick:</strong> {activeStageFingertrick}
                       </p>
@@ -7935,31 +8156,62 @@ function OLLDaySuite() {
                           <p className="font-mono text-sm font-black text-amber-300 break-words leading-relaxed select-all">
                             {activeStageAlg}
                           </p>
+                          {getAlgorithmTriggerTags(activeStageAlg).length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-0.5">
+                              {getAlgorithmTriggerTags(activeStageAlg).map((tag) => (
+                                <span
+                                  key={tag.label}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                  {tag.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-[10.5px] text-orange-200/90 leading-snug">
                             <strong>Fingertrick:</strong> {activeStageFingertrick}
                           </p>
                         </div>
                       </div>
 
-                      {/* Pair-by-Pair F2L Breakdown when Stage 2 (F2L Pairs) is focused */}
+                      {/* Pair-by-Pair F2L Breakdown with Bracketed Fingertricks & Trigger Name Pills */}
                       {focusedStage?.subSteps && focusedStage.subSteps.length > 0 && (
                         <div className="pt-2 border-t border-white/10 space-y-1.5">
                           <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
                             F2L Pair-by-Pair Execution Order (With y Rotations):
                           </span>
-                          {focusedStage.subSteps.map((sub) => (
-                            <div
-                              key={sub.slotNumber}
-                              className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2"
-                            >
-                              <span className="text-[10px] font-black text-white flex-shrink-0">
-                                Pair {sub.slotNumber} ({sub.caseObj.name})
-                              </span>
-                              <span className="font-mono text-[10.5px] font-bold text-amber-300 text-right break-all">
-                                {sub.alg}
-                              </span>
-                            </div>
-                          ))}
+                          {focusedStage.subSteps.map((sub) => {
+                            const subTags = getAlgorithmTriggerTags(sub.alg);
+                            return (
+                              <div
+                                key={sub.slotNumber}
+                                className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 space-y-1"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-black text-white flex-shrink-0">
+                                    Pair {sub.slotNumber} ({sub.caseObj.name})
+                                  </span>
+                                  <span className="font-mono text-[10.5px] font-bold text-amber-300 text-right break-all">
+                                    {sub.alg}
+                                  </span>
+                                </div>
+                                {subTags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {subTags.map((tag) => (
+                                      <span
+                                        key={tag.label}
+                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[8.5px] font-black ${tag.badgeClass}`}
+                                      >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                        {tag.label}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -8151,7 +8403,7 @@ function OLLDaySuite() {
           return (
             <div
               onClick={() => setActiveModal(null)}
-              className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+              className="fixed inset-0 z-[255] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -8237,7 +8489,7 @@ function OLLDaySuite() {
           const currentQ = ORBIT_QUESTIONS[orbitQuizIdx % ORBIT_QUESTIONS.length];
 
           return (
-            <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="fixed inset-0 z-[255] bg-black/90 backdrop-blur-md flex items-center justify-center p-5">
               <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-4 shadow-2xl">
                 <div className="flex items-center justify-between">
                   <div>
@@ -8319,7 +8571,7 @@ function OLLDaySuite() {
 
         {/* 10. CUSTOM CHUNK CURRICULUM BUILDER MODAL */}
         {activeModal === 'curriculum' && (
-          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-md flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl max-h-[88dvh] flex flex-col">
               <div className="flex items-center justify-between">
                 <div>
@@ -8419,7 +8671,7 @@ function OLLDaySuite() {
 
         {/* 11. GRANULAR PHASE-SPECIFIC RESET PROGRESS MODAL */}
         {activeModal === 'reset' && (
-          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-md flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl max-h-[88dvh] overflow-y-auto no-scrollbar">
               <div className="text-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-red-400">
@@ -8568,7 +8820,7 @@ function OLLDaySuite() {
         {activeModal === 'blindHelp' && (
           <div
             onClick={() => setActiveModal(null)}
-            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[265] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -8593,7 +8845,7 @@ function OLLDaySuite() {
         {activeModal === 'blindPracticeHelp' && (
           <div
             onClick={() => setActiveModal(null)}
-            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[265] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -8626,7 +8878,7 @@ function OLLDaySuite() {
           return (
             <div
               onClick={() => setEditingCaseTarget(null)}
-              className="fixed inset-0 z-[280] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+              className="fixed inset-0 z-[280] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
