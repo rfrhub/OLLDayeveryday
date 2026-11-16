@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Camera, ChevronDown, EyeOff, Layers, Settings, Zap, Grid, BarChart3, AlignJustify, X, RotateCw
+  Camera, ChevronDown, EyeOff, Layers, Settings, Zap, Grid, BarChart3, AlignJustify
 } from 'lucide-react';
 
 // =========================================================================
@@ -47,6 +47,7 @@ async function getFirebaseServices() {
         const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
         return { auth: authMod.getAuth(appInstance), db: fsMod.getFirestore(appInstance), authMod, fsMod };
       } catch {
+        firebaseSdkPromise = null;
         return null;
       }
     })();
@@ -203,6 +204,7 @@ function buildOrientationTipForStage(phaseKey, caseObj, algStr = '', aufHint = '
 }
 
 function applyMovesTo54State(stateArr, movesStr) {
+  if (!movesStr) return stateArr;
   const s = [...stateArr];
   const rotCW = (o) => {
     const t = s.slice(o, o + 9);
@@ -806,6 +808,11 @@ const SCANNER_FLAT_GRID_CENTROIDS = Array.from({ length: 9 }, (_, i) => [
   (32 + (136 / 3) * (Math.floor(i / 3) + 0.5)) / 200
 ]);
 
+const SCANNER_SAMPLE_OFFSETS = [
+  [0, 0], [-0.018, -0.018], [0.018, -0.018], [-0.018, 0.018],
+  [0.018, 0.018], [0, -0.026], [0, 0.026], [-0.026, 0], [0.026, 0]
+];
+
 function classifyCapturedFaceBatch(rawFacesMap, fallbackFaces, lockedFaces = {}, savedPalette = null) {
   const entries = Object.entries(rawFacesMap).filter(([, list]) => Array.isArray(list) && list.length === 9);
   if (entries.length === 0) return fallbackFaces;
@@ -1274,11 +1281,21 @@ function verifyFocusedStageState(stagePhase, scannedFaces, hasFull6Faces, curren
 // =========================================================================
 const simulateCrossCubeState = (scramble = '') => applyMovesTo54State(SOLVED_54_STATE, scramble);
 const STICKER_HEX = { Y: '#facc15', W: '#f8fafc', G: '#22c55e', B: '#3b82f6', O: '#f97316', R: '#ef4444' };
+const CUBE_HALF_PX = 48;
+const CUBE_FACES_META = [
+  { offset: 18, transform: `rotateY(0deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.04 },
+  { offset: 45, transform: `rotateY(180deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.14 },
+  { offset: 9, transform: `rotateY(90deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.12 },
+  { offset: 36, transform: `rotateY(-90deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.12 },
+  { offset: 0, transform: `rotateX(90deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0 },
+  { offset: 27, transform: `rotateX(-90deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.22 }
+];
 
 function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, isDragging, cubeRef }) {
-  const half = 48;
-  const renderFace = (offset, transform, shadeOpacity) => (
+  const half = CUBE_HALF_PX;
+  const renderFace = ({ offset, transform, shade }) => (
     <div
+      key={offset}
       style={{
         position: 'absolute', width: `${half * 2}px`, height: `${half * 2}px`, transform,
         backfaceVisibility: 'hidden', backgroundColor: '#070a12', borderRadius: '10px', padding: '4px',
@@ -1301,7 +1318,7 @@ function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, 
               position: 'relative', overflow: 'hidden'
             }}
           >
-            {shadeOpacity > 0 && <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(2, 6, 23, ${shadeOpacity})` }} />}
+            {shade > 0 && <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(2, 6, 23, ${shade})` }} />}
           </div>
         );
       })}
@@ -1326,12 +1343,7 @@ function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, 
           transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
       >
-        {renderFace(18, `rotateY(0deg) translateZ(${half}px)`, 0.04)}
-        {renderFace(45, `rotateY(180deg) translateZ(${half}px)`, 0.14)}
-        {renderFace(9, `rotateY(90deg) translateZ(${half}px)`, 0.12)}
-        {renderFace(36, `rotateY(-90deg) translateZ(${half}px)`, 0.12)}
-        {renderFace(0, `rotateX(90deg) translateZ(${half}px)`, 0)}
-        {renderFace(27, `rotateX(-90deg) translateZ(${half}px)`, 0.22)}
+        {CUBE_FACES_META.map(renderFace)}
       </div>
     </div>
   );
@@ -1483,6 +1495,115 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
         </span>
       </div>
     </div>
+  );
+}
+
+function CasePracticeCard({
+  phaseKey, item, f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
+  f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
+  swRunning, swElapsedMs, swDisplayRef, timerLabel, showInlineGroup = false,
+  lastResultForThis = null, recordedBest = null, onOpenGrip, onToggleStopwatch, emitBeep, children
+}) {
+  const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
+  const triggerTags = fingertricksEnabled ? getAlgorithmTriggerTags(item.alg) : [];
+
+  return (
+    <>
+      {isF2L ? (
+        <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} />
+      ) : (
+        <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+          <CachedVisualCubeImg
+            url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
+            alt={item.name} lazy={false} className="w-full h-full object-contain"
+          />
+        </div>
+      )}
+
+      <div className="text-center">
+        {showInlineGroup && <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>}
+        <h3 className="text-xl font-black text-white">{item.name}</h3>
+        {item.recognition && <p className="text-[11px] text-slate-300 mt-0.5">{item.recognition}</p>}
+      </div>
+
+      {(isF2L || isPLL) && (
+        <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+              {isF2L ? `Setup (${f2lSetupMode})` : showInlineGroup ? 'Setup Scramble' : 'Setup Scramble (From Solved Cube)'}
+            </span>
+            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer">
+              {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
+            </button>
+          </div>
+          <p className="font-mono text-xs font-black text-amber-300 select-all">
+            {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
+          </p>
+        </div>
+      )}
+
+      <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}</span>
+          {fingertricksEnabled && (
+            <button type="button" onClick={onOpenGrip} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer">
+              Grip Guide →
+            </button>
+          )}
+        </div>
+        <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+        {fingertricksEnabled && (
+          <div className="space-y-1.5 text-left">
+            {triggerTags.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-1">
+                {triggerTags.map((tag) => (
+                  <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+              <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+            </p>
+          </div>
+        )}
+        {isF2L && <p className="text-[11px] text-slate-300 text-left pt-1">• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
+      </div>
+
+      {stopwatchEnabled && (
+        <button
+          onClick={onToggleStopwatch}
+          className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
+            swRunning ? 'bg-green-500/20 border-green-400 text-green-300' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'bg-slate-950 border-white/10 text-slate-200'
+          }`}
+        >
+          {swRunning ? (
+            <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+          ) : lastResultForThis ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-black text-white">Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
+                {lastResultForThis.isNewPb ? (
+                  <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">★ New PB!</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">PB: {recordedBest?.toFixed(3)}s</span>
+                )}
+              </div>
+              <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Tap Anywhere to Time Again</span>
+            </>
+          ) : (
+            <div className="flex flex-col items-center">
+              <span className="text-base font-black">{timerLabel}</span>
+              {!showInlineGroup && <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">or Tap Anywhere on Screen</span>}
+              {!showInlineGroup && typeof recordedBest === 'number' && <span className="text-[10px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
+            </div>
+          )}
+        </button>
+      )}
+      {children}
+    </>
   );
 }
 
@@ -1866,6 +1987,18 @@ const DEFAULT_USERS = {
   }
 };
 
+const APP_GLOBAL_CSS = `
+  html, body { background-color: #060913; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
+  .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
+  .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
+  .f2l-cube-satin { filter: contrast(0.92) saturate(0.86) brightness(0.96); transition: transform 0.25s ease; }
+  .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
+  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
+`;
+
 function sanitizeUserRecord(raw) {
   const base = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -2122,33 +2255,41 @@ function OLLDaySuite() {
     if (!ctx) return null;
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
 
-    // Single GPU->CPU pixel buffer readback (replaces 81 separate getImageData calls per frame)
+    // Single GPU->CPU pixel buffer readback with zero-allocation glare/shadow rejection
     const frameBuf = ctx.getImageData(0, 0, outW, outH).data;
     const isMatte = scannerSurfaceFinish === 'matte';
     const readPatch = (nx, ny) => {
       const px = Math.max(4, Math.min(outW - 5, Math.round(nx * outW)));
       const py = Math.max(4, Math.min(outH - 5, Math.round(ny * outH)));
-      const pixels = [];
+      let rSum = 0, gSum = 0, bSum = 0, validCount = 0;
+      let rawR = 0, rawG = 0, rawB = 0;
       for (let oy = -3; oy <= 3; oy++) {
         const rowOff = (py + oy) * outW;
         for (let ox = -3; ox <= 3; ox++) {
           const idx = (rowOff + px + ox) * 4;
           const r = frameBuf[idx], g = frameBuf[idx + 1], b = frameBuf[idx + 2];
-          pixels.push({ r, g, b, chroma: Math.max(r, g, b) - Math.min(r, g, b), luma: 0.299 * r + 0.587 * g + 0.114 * b });
+          rawR += r; rawG += g; rawB += b;
+          const maxC = r > g ? (r > b ? r : b) : (g > b ? g : b);
+          const minC = r < g ? (r < b ? r : b) : (g < b ? g : b);
+          const chroma = maxC - minC;
+          const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+          const isGlare = !isMatte && luma > 232 && chroma < 46;
+          const isShadow = luma < 42;
+          if (!isGlare && !isShadow) {
+            rSum += r; gSum += g; bSum += b;
+            validCount++;
+          }
         }
       }
-      pixels.sort((a, b) => a.luma - b.luma);
-      const trimmed = isMatte ? pixels.slice(4, pixels.length - 4) : pixels.slice(4, Math.max(12, Math.floor(pixels.length * 0.72)));
-      const pool = trimmed.length > 0 ? trimmed : pixels;
-      let rSum = 0, gSum = 0, bSum = 0;
-      pool.forEach((p) => { rSum += p.r; gSum += p.g; bSum += p.b; });
-      return [Math.round(rSum / pool.length), Math.round(gSum / pool.length), Math.round(bSum / pool.length)];
+      if (validCount >= 8) {
+        return [Math.round(rSum / validCount), Math.round(gSum / validCount), Math.round(bSum / validCount)];
+      }
+      return [Math.round(rawR / 49), Math.round(rawG / 49), Math.round(rawB / 49)];
     };
 
-    const offsets = [[0, 0], [-0.018, -0.018], [0.018, -0.018], [-0.018, 0.018], [0.018, 0.018], [0, -0.026], [0, 0.026], [-0.026, 0], [0.026, 0]];
     let validStickerTiles = 0;
     const sampled9 = SCANNER_FLAT_GRID_CENTROIDS.map(([nx, ny]) => {
-      const candidates = offsets.map(([dx, dy]) => {
+      const candidates = SCANNER_SAMPLE_OFFSETS.map(([dx, dy]) => {
         const [r, g, b] = readPatch(nx + dx, ny + dy);
         const chroma = Math.max(r, g, b) - Math.min(r, g, b);
         const luma = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -2212,21 +2353,26 @@ function OLLDaySuite() {
     else stopScannerCamera();
   };
 
+  const scannerLiveRef = useRef({ scannerRawSamples, scannedFaces, scannerLockedFaces, savedCubePalette });
+  scannerLiveRef.current = { scannerRawSamples, scannedFaces, scannerLockedFaces, savedCubePalette };
+  const currentFaceAlreadyCaptured = Boolean(scannerCapturedThumbs[scannerCaptureStep]);
+
   useEffect(() => {
-    if (!scannerOpen || !scannerCameraReady || !isAppVisible || scannerCapturedThumbs[scannerCaptureStep]) return;
+    if (!scannerOpen || !scannerCameraReady || !isAppVisible || currentFaceAlreadyCaptured) return;
     const id = setInterval(() => {
       const res = sampleVideoGridAntiGlare();
       if (!res) return;
       setScannerFramingHint((prev) => (prev === res.framingText ? prev : res.framingText));
       setScannerCubeDetected((prev) => (prev === res.cubeDetected ? prev : res.cubeDetected));
       if (!res.cubeDetected) {
-        setScannerLivePreviewCodes((prev) => (prev === null ? null : null));
+        setScannerLivePreviewCodes(null);
         liveStableSignatureRef.current = '';
         liveStableStreakRef.current = 0;
-        setScannerStabilityCount((prev) => (prev === 0 ? 0 : 0));
+        setScannerStabilityCount(0);
         return;
       }
-      const codes = classifyCapturedFaceBatch({ ...scannerRawSamples, [scannerCaptureStep]: res.sampled9 }, scannedFaces, scannerLockedFaces, savedCubePalette)[scannerCaptureStep];
+      const snap = scannerLiveRef.current;
+      const codes = classifyCapturedFaceBatch({ ...snap.scannerRawSamples, [scannerCaptureStep]: res.sampled9 }, snap.scannedFaces, snap.scannerLockedFaces, snap.savedCubePalette)[scannerCaptureStep];
       if (!Array.isArray(codes) || codes.length !== 9) return;
       const sig = codes.join('');
       if (sig !== liveStableSignatureRef.current) setScannerLivePreviewCodes(codes);
@@ -2241,7 +2387,7 @@ function OLLDaySuite() {
       }
     }, scannerAutoSnap ? 450 : 1100);
     return () => clearInterval(id);
-  }, [scannerOpen, scannerCameraReady, isAppVisible, scannerCapturedThumbs, scannerCaptureStep, scannerRawSamples, scannedFaces, scannerLockedFaces, savedCubePalette, scannerAutoSnap]);
+  }, [scannerOpen, scannerCameraReady, isAppVisible, currentFaceAlreadyCaptured, scannerCaptureStep, scannerAutoSnap]);
 
   const scannerHasFull6Faces = useMemo(
     () => Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
@@ -2373,8 +2519,10 @@ function OLLDaySuite() {
   // Persistence & Cloud Sync (Private user-scoped Firestore path + echo/quota protection)
   const latestUsersRef = useRef(users);
   latestUsersRef.current = users;
+  const cloudAuthUserRef = useRef(cloudAuthUser);
+  cloudAuthUserRef.current = cloudAuthUser;
   const pendingCloudSyncRef = useRef(null);
-  const lastCloudWriteAtRef = useRef(0);
+  const lastCloudWriteRef = useRef({ uKey: '', ts: 0 });
   const cloudSaveTimerRef = useRef(null);
   const localSaveTimerRef = useRef(null);
 
@@ -2383,26 +2531,32 @@ function OLLDaySuite() {
     storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
     if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
     const pending = pendingCloudSyncRef.current;
-    const uid = cloudAuthUser?.uid;
+    const uid = cloudAuthUserRef.current?.uid;
     if (pending?.uKey && resolvedFirebaseConfig && uid) {
       pendingCloudSyncRef.current = null;
       try {
         const svc = await getFirebaseServices();
-        if (svc) {
-          const writeTs = Date.now();
-          lastCloudWriteAtRef.current = writeTs;
-          await svc.fsMod.setDoc(
-            svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
-            { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
-            { merge: true }
-          );
-          setCloudSyncStatus('synced');
+        if (!svc) {
+          if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
+          setCloudSyncStatus('local');
+          return;
         }
+        const writeTs = Date.now();
+        lastCloudWriteRef.current = { uKey: pending.uKey, ts: writeTs };
+        await svc.fsMod.setDoc(
+          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
+          { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
+          { merge: true }
+        );
+        setCloudSyncStatus('synced');
       } catch {
+        if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
         setCloudSyncStatus('local');
       }
     }
   };
+
+  useEffect(() => () => { if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current); }, []);
 
   useEffect(() => {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
@@ -2413,33 +2567,40 @@ function OLLDaySuite() {
   useEffect(() => { storage.setStr(STORAGE_KEYS.activeAccount, activeUserKey); }, [activeUserKey]);
 
   const saveUserToCloud = (uKey, record) => {
-    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUser?.uid) return;
+    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUserRef.current?.uid) return;
     pendingCloudSyncRef.current = { uKey, record };
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
     cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 1200);
   };
 
   useEffect(() => {
-    if (!resolvedFirebaseConfig || !activeUserKey || activeUserKey === 'Demo') { setCloudSyncStatus('local'); return; }
+    if (!resolvedFirebaseConfig) { setCloudSyncStatus('local'); return; }
     let unsubAuth = null, cancelled = false;
     (async () => {
       const svc = await getFirebaseServices();
       if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
-      try {
-        const g = typeof globalThis !== 'undefined' ? globalThis : {};
-        if (g.__initial_auth_token) await svc.authMod.signInWithCustomToken(svc.auth, g.__initial_auth_token);
-        else await svc.authMod.signInAnonymously(svc.auth);
-      } catch { setCloudSyncStatus('local'); }
       unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
         if (!cancelled) { setCloudAuthUser(fbUser || null); setCloudSyncStatus(fbUser ? 'synced' : 'local'); }
       });
+      if (!svc.auth.currentUser) {
+        try {
+          const g = typeof globalThis !== 'undefined' ? globalThis : {};
+          if (g.__initial_auth_token) await svc.authMod.signInWithCustomToken(svc.auth, g.__initial_auth_token);
+          else await svc.authMod.signInAnonymously(svc.auth);
+        } catch {
+          if (!cancelled) setCloudSyncStatus('local');
+        }
+      }
     })();
     return () => { cancelled = true; unsubAuth?.(); };
-  }, [activeUserKey]);
+  }, []);
 
   useEffect(() => {
     const uid = cloudAuthUser?.uid;
-    if (!resolvedFirebaseConfig || !uid || !isAppVisible || !activeUserKey || activeUserKey === 'Demo') return;
+    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
+      setCloudSyncStatus('local');
+      return;
+    }
     let unsubSnapshot = null, cancelled = false;
     (async () => {
       const svc = await getFirebaseServices();
@@ -2451,7 +2612,7 @@ function OLLDaySuite() {
           if (cancelled || !docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
           const data = docSnap.data();
           if (!data || typeof data !== 'object') return;
-          if (data.updatedAt && data.updatedAt === lastCloudWriteAtRef.current) return;
+          if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
           setUsers((prev) => ({
             ...prev,
             [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
@@ -2461,7 +2622,7 @@ function OLLDaySuite() {
       );
     })();
     return () => { cancelled = true; unsubSnapshot?.(); };
-  }, [cloudAuthUser, isAppVisible, activeUserKey]);
+  }, [cloudAuthUser?.uid, activeUserKey]);
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
@@ -2506,7 +2667,10 @@ function OLLDaySuite() {
 
   // Derived User Data & Memoized Mastered Counts
   const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
-  const currentUser = sanitizeUserRecord(users[resolvedUserKey] || DEFAULT_USERS.Demo);
+  const currentUser = useMemo(
+    () => sanitizeUserRecord(users[resolvedUserKey] || DEFAULT_USERS.Demo),
+    [users, resolvedUserKey]
+  );
   const isProUnlocked = Boolean(currentUser.isPro);
 
   const f2lChunks = currentUser.f2lCustomChunks?.length ? currentUser.f2lCustomChunks : F2L_DEFAULT_CHUNKS;
@@ -2680,10 +2844,18 @@ function OLLDaySuite() {
     setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 900);
   };
 
-  const ao5Full = computeWcaAverage(currentUser.fullSolveHistory, 5);
-  const ao12Full = computeWcaAverage(currentUser.fullSolveHistory, 12);
-  const validFullMs = (currentUser.fullSolveHistory || []).filter((s) => s.penalty !== 'DNF').map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0)).filter(Number.isFinite);
-  const bestFullPbMs = validFullMs.length ? Math.min(...validFullMs) : null;
+  const { ao5Full, ao12Full, bestFullPbMs } = useMemo(() => {
+    const hist = currentUser.fullSolveHistory || [];
+    const validMs = hist
+      .filter((s) => s.penalty !== 'DNF')
+      .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0))
+      .filter(Number.isFinite);
+    return {
+      ao5Full: computeWcaAverage(hist, 5),
+      ao12Full: computeWcaAverage(hist, 12),
+      bestFullPbMs: validMs.length ? Math.min(...validMs) : null
+    };
+  }, [currentUser.fullSolveHistory]);
 
   // Blind Inspection & Touch Pad Effects
   useEffect(() => {
@@ -2824,8 +2996,10 @@ function OLLDaySuite() {
     }
     setUsers((prev) => { const copy = { ...prev }; delete copy[keyToRemove]; return copy; });
     if (resolvedFirebaseConfig && cloudAuthUser?.uid) {
-      const svc = await getFirebaseServices();
-      svc?.fsMod.deleteDoc(svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', cloudAuthUser.uid, 'solver_profiles', keyToRemove)).catch(() => {});
+      try {
+        const svc = await getFirebaseServices();
+        await svc?.fsMod.deleteDoc(svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', cloudAuthUser.uid, 'solver_profiles', keyToRemove));
+      } catch {}
     }
     setDeleteAccountConfirm(false); setActiveModal(null);
     setDeviceAccountKeys((prev) => { const next = prev.filter((k) => k !== keyToRemove); storage.setJson(STORAGE_KEYS.deviceAccounts, next); return next; });
@@ -3526,6 +3700,7 @@ function OLLDaySuite() {
                 ).map((item) => {
                   const stat = statsMap?.[item.id];
                   const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+                  const itemTags = fingertricksEnabled ? getAlgorithmTriggerTags(item.alg) : [];
                   return (
                     <div
                       key={item.id}
@@ -3551,9 +3726,9 @@ function OLLDaySuite() {
                           {item.recognition && <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>}
                           {fingertricksEnabled && (
                             <div className="mt-1.5 space-y-1">
-                              {getAlgorithmTriggerTags(item.alg).length > 0 && (
+                              {itemTags.length > 0 && (
                                 <div className="flex flex-wrap gap-1">
-                                  {getAlgorithmTriggerTags(item.alg).map((tag) => (
+                                  {itemTags.map((tag) => (
                                     <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}>
                                       <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
                                       {tag.label}
@@ -3587,7 +3762,6 @@ function OLLDaySuite() {
       );
     }
 
-    // Statistics Tab
     return (
       <div className="p-5 pb-10 space-y-4">
         <div>
@@ -3667,6 +3841,18 @@ function OLLDaySuite() {
     );
   };
 
+  const handlePracticeTap = (phaseKey, itemId) => (e) => {
+    if (!stopwatchEnabled || e.target.closest('button, input, a')) return;
+    if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
+    toggleStopwatch((sec) => recordCaseTime(phaseKey, itemId, sec));
+  };
+
+  const sharedPracticeProps = {
+    f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
+    f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
+    swRunning, swElapsedMs, swDisplayRef, emitBeep
+  };
+
   // Unified Daily Session Runner
   const renderUnifiedDailySession = () => {
     const activePhaseSession = f2lSession
@@ -3681,119 +3867,56 @@ function OLLDaySuite() {
     const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, itemLabel, timerLabel } = activePhaseSession;
     const item = session.queue[session.index];
     if (!item) return null;
-    const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
 
     return (
       <div
-        onClick={(e) => {
-          if (!stopwatchEnabled || e.target.closest('button, input, a')) return;
-          if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
-          toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec));
-        }}
-        className={`fixed inset-0 z-[240] bg-[#060913]/98 flex flex-col justify-between p-5 max-w-md mx-auto ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        onClick={handlePracticeTap(phaseKey, item.id)}
+        className={`fixed inset-0 z-[240] bg-[#060913] flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
-        <div data-no-timer-start="true" className="flex items-center justify-between">
-          <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-            {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
-          </span>
-          <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
-        </div>
-
-        <div className="bg-slate-900/80 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
-          {isF2L ? (
-            <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} />
-          ) : (
-            <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-              <CachedVisualCubeImg
-                url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
-                alt={item.name} lazy={false} className="w-full h-full object-contain"
-              />
-            </div>
-          )}
-
-          <div className="text-center">
-            {!isF2L && <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>}
-            <h3 className="text-xl font-black text-white">{item.name}</h3>
-            {item.recognition && <p className="text-[11px] text-slate-300 mt-0.5">{item.recognition}</p>}
+        <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/10 shadow-2xl flex flex-col justify-between p-5 overflow-y-auto no-scrollbar">
+          <div data-no-timer-start="true" className="flex items-center justify-between">
+            <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
+              {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
+            </span>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
           </div>
 
-          {(isF2L || isPLL) && (
-            <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}</span>
-                <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className="text-[10px] font-bold text-orange-400 cursor-pointer">
-                  {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
-                </button>
-              </div>
-              <p className="font-mono text-xs font-black text-amber-300 select-all">
-                {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
-              </p>
-            </div>
-          )}
-
-          <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase text-slate-400">{isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}</span>
-              {fingertricksEnabled && (
-                <button type="button" onClick={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer">
-                  Grip Guide →
-                </button>
-              )}
-            </div>
-            <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-            {fingertricksEnabled && (
-              <div className="space-y-1.5 text-left">
-                {isF2L && getAlgorithmTriggerTags(item.alg).length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-1">
-                    {getAlgorithmTriggerTags(item.alg).map((tag) => (
-                      <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                        {tag.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
-                  <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-                </p>
-              </div>
-            )}
-            {isF2L && <p className="text-[11px] text-slate-300 text-left pt-1">• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
+          <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
+            <CasePracticeCard
+              {...sharedPracticeProps}
+              phaseKey={phaseKey}
+              item={item}
+              timerLabel={timerLabel}
+              showInlineGroup={phaseKey !== 'f2l'}
+              onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+              onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+            />
           </div>
 
-          {stopwatchEnabled && (
+          <div className="grid grid-cols-2 gap-2.5">
             <button
-              onClick={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-              className={`w-full py-3 rounded-2xl border font-mono text-base font-black cursor-pointer ${swRunning ? 'bg-green-500/20 border-green-400 text-green-300' : 'bg-slate-950 border-white/10 text-slate-200'}`}
+              onClick={() => { emitBeep(460); setSwRunning(false); setSwElapsedMs(0); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
+              disabled={session.index === 0}
+              className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
             >
-              {swRunning ? <span ref={swDisplayRef}>{(swElapsedMs / 1000).toFixed(2)}s — Stop</span> : timerLabel}
+              ← Previous
             </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            onClick={() => { emitBeep(460); setSwRunning(false); setSwElapsedMs(0); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
-            disabled={session.index === 0}
-            className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-          >
-            ← Previous
-          </button>
-          <button
-            onClick={() => {
-              emitBeep(760); setSwRunning(false); setSwElapsedMs(0);
-              if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
-              else {
-                const updated = { ...currentUser, [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1 };
-                setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
-                saveUserToCloud(activeUserKey, updated);
-                setSession(null);
-              }
-            }}
-            className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
-          >
-            {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
-          </button>
+            <button
+              onClick={() => {
+                emitBeep(760); setSwRunning(false); setSwElapsedMs(0);
+                if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
+                else {
+                  const updated = { ...currentUser, [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1 };
+                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                  saveUserToCloud(activeUserKey, updated);
+                  setSession(null);
+                }
+              }}
+              className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+            >
+              {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -3811,18 +3934,13 @@ function OLLDaySuite() {
 
     if (!activeDrill) return null;
     const { phaseKey, item, close, statsMap, timerLabel } = activeDrill;
-    const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
     const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
 
     return (
       <div
-        onClick={(e) => {
-          if (!stopwatchEnabled || e.target.closest('button, input, a')) return;
-          if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
-          toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec));
-        }}
+        onClick={handlePracticeTap(phaseKey, item.id)}
         className={`fixed inset-0 z-[245] bg-[#040711]/95 flex items-center justify-center p-5 ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar">
@@ -3831,105 +3949,25 @@ function OLLDaySuite() {
             <button onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
           </div>
 
-          {isF2L ? (
-            <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} />
-          ) : (
-            <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
-              <CachedVisualCubeImg
-                url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
-                alt={item.name} lazy={false} className="w-full h-full object-contain"
-              />
-            </div>
-          )}
-
-          <div className="text-center">
-            <h3 className="text-xl font-black text-white">{item.name}</h3>
-            {item.recognition && <p className="text-[11px] text-slate-300 mt-0.5">{item.recognition}</p>}
-          </div>
-
-          {(isF2L || isPLL) && (
-            <div className="bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble (From Solved Cube)'}</span>
-                <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer">
-                  {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
-                </button>
-              </div>
-              <p className="font-mono text-xs font-black text-amber-300 select-all">
-                {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
-              </p>
-            </div>
-          )}
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}</span>
-              {fingertricksEnabled && (
-                <button type="button" onClick={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer">
-                  Grip Guide →
-                </button>
-              )}
-            </div>
-            <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-            {fingertricksEnabled && (
-              <div className="space-y-1.5 text-left">
-                {getAlgorithmTriggerTags(item.alg).length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-1">
-                    {getAlgorithmTriggerTags(item.alg).map((tag) => (
-                      <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                        {tag.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
-                  <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-                </p>
-              </div>
-            )}
-            {isF2L && <p className="text-[11px] text-slate-300 text-left pt-1">• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
-          </div>
-
-          {stopwatchEnabled && (
-            <button
-              onClick={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-              className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                swRunning ? 'bg-green-500/20 border-green-400 text-green-300' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'bg-slate-950 border-white/10 text-slate-200'
-              }`}
-            >
-              {swRunning ? (
-                <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
-              ) : lastResultForThis ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black text-white">Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
-                    {lastResultForThis.isNewPb ? (
-                      <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">★ New PB!</span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">PB: {caseStat.best?.toFixed(3)}s</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Tap Anywhere to Time Again</span>
-                </>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <span className="text-base font-black">{timerLabel}</span>
-                  <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">or Tap Anywhere on Screen</span>
-                  {typeof caseStat.best === 'number' && <span className="text-[10px] font-bold text-amber-300 mt-0.5">Recorded PB: {caseStat.best.toFixed(3)}s</span>}
+          <CasePracticeCard
+            {...sharedPracticeProps}
+            phaseKey={phaseKey}
+            item={item}
+            timerLabel={timerLabel}
+            lastResultForThis={lastResultForThis}
+            recordedBest={caseStat.best}
+            onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+            onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+          >
+            <div className="grid grid-cols-3 gap-1.5">
+              {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
+                <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">{w.label}</span>
+                  <span className={`font-mono text-xs font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
                 </div>
-              )}
-            </button>
-          )}
-
-          <div className="grid grid-cols-3 gap-1.5">
-            {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-              <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                <span className="text-[9px] font-black uppercase text-slate-400 block">{w.label}</span>
-                <span className={`font-mono text-xs font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </CasePracticeCard>
         </div>
       </div>
     );
@@ -3937,17 +3975,7 @@ function OLLDaySuite() {
 
   return (
     <>
-      <style>{`
-        html, body { background-color: #060913; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
-        .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
-        .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
-        .f2l-cube-satin { filter: contrast(0.92) saturate(0.86) brightness(0.96); transition: transform 0.25s ease; }
-        .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
-        .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
-      `}</style>
+      <style>{APP_GLOBAL_CSS}</style>
 
       <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
         <div style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)' }} className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] pointer-events-none z-0" />
@@ -4672,7 +4700,7 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* CUBE SCANNER & SOLVER MODAL */}
+        {/* CUBE SCANNER MODAL */}
         {scannerOpen && (() => {
           const FACE_CAPTURE_SPECS = {
             U: { title: 'Top Face (U • Yellow Center)', short: 'Top (U)', accent: '#facc15', topEdge: '▲ BLUE (BACK)', bottomEdge: '▼ GREEN (FRONT)', leftEdge: '◀ RED', rightEdge: 'ORANGE ▶', instruction: 'Tilt Yellow (U) straight toward camera: Blue edge on TOP, Green edge on BOTTOM, Red LEFT, Orange RIGHT.' },
@@ -4702,6 +4730,7 @@ function OLLDaySuite() {
           const activeStageAlg = activeVerification?.alg || (focusedStage ? focusedStage.alg : matched.alg);
           const activeStageFingertrick = activeVerification?.caseObj?.fingertrick || (focusedStage ? focusedStage.fingertrick : matched.fingertrick);
           const activeStageOrientationTip = activeVerification?.orientationTip || focusedStage?.orientationTip || analysis.orientationTip || buildOrientationTipForStage(activeStagePhase, matched, activeStageAlg, analysis.aufHint);
+          const activeStageTags = getAlgorithmTriggerTags(activeStageAlg);
           const activeSubSteps = activeVerification?.subSteps || focusedStage?.subSteps;
           const nextCase = analysis.nextUpCase;
           const activePreviewImg = scannerCapturedThumbs[scannerCaptureStep] || null;
@@ -5027,9 +5056,9 @@ function OLLDaySuite() {
                           <p className="text-[10.5px] text-sky-200 bg-sky-500/10 border border-sky-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
                             <strong className="text-sky-300">Cube Hold &amp; Orientation:</strong> {activeStageOrientationTip}
                           </p>
-                          {getAlgorithmTriggerTags(activeStageAlg).length > 0 && (
+                          {activeStageTags.length > 0 && (
                             <div className="flex flex-wrap gap-1 pt-0.5">
-                              {getAlgorithmTriggerTags(activeStageAlg).map((tag) => (
+                              {activeStageTags.map((tag) => (
                                 <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}><span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />{tag.label}</span>
                               ))}
                             </div>
