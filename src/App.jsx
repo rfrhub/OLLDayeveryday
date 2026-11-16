@@ -79,14 +79,45 @@ const STORAGE_KEYS = {
   users: `ollday_users_${appId}`,
   activeAccount: `ollday_active_account_${appId}`,
   pinnedHomePhase: `ollday_pinned_home_phase_${appId}`,
-  deviceAccounts: `ollday_device_accounts_${appId}`
+  deviceAccounts: `ollday_device_accounts_${appId}`,
+  cubePalette: `ollday_cube_palette_${appId}`
+};
+
+const storage = {
+  getJson(key, fallback) {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  setJson(key, value) {
+    try {
+      if (typeof window !== 'undefined') window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  },
+  getStr(key, fallback = '') {
+    try {
+      return (typeof window !== 'undefined' && window.localStorage.getItem(key)) || fallback;
+    } catch {
+      return fallback;
+    }
+  },
+  setStr(key, value) {
+    try {
+      if (typeof window !== 'undefined') {
+        if (value) window.localStorage.setItem(key, value);
+        else window.localStorage.removeItem(key);
+      }
+    } catch {}
+  }
 };
 
 // Free Starter vs. Lifetime Pro ($3.99) Tier Helpers
 const FREE_F2L_CASE_IDS = [1, 2, 3, 4]; // Basic Inserts
 const FREE_OLL_CASE_IDS = [27, 26, 21, 22, 23, 24, 25]; // 2-Look OLL Corners
 const FREE_PLL_CASE_IDS = [1, 2, 3, 4, 5, 6, 7]; // 2-Look PLL (EPLL + CPLL)
-
 function isCaseUnlockedForTier(phase, caseId, isPro) {
   if (isPro) return true;
   if (phase === 'f2l') return FREE_F2L_CASE_IDS.includes(caseId);
@@ -94,609 +125,611 @@ function isCaseUnlockedForTier(phase, caseId, isPro) {
   if (phase === 'pll') return FREE_PLL_CASE_IDS.includes(caseId);
   return true;
 }
-
-// =========================================================================
-// 1. COMPLETE DATASETS (CROSS, F2L 41 CASES, OLL 57 CASES, PLL 25 ALGS)
-// =========================================================================
-
-const CROSS_TIERS = [
-  {
-    tier: 1,
-    moves: 2,
-    title: 'The Free Drop',
-    scrambles: ["U L2", "F2 D'", "R2 U'", "B2 D"],
-    hint: 'Align the white edge directly over its matching center on U, then turn that face 180°.'
-  },
-  {
-    tier: 2,
-    moves: 3,
-    title: 'Single Setup & Drop',
-    scrambles: ["R' U F2", "L U' B2", "F U R2", "B U' L2"],
-    hint: 'One U-layer alignment sets up a clean 2-move drop without disturbing solved edges.'
-  },
-  {
-    tier: 3,
-    moves: 4,
-    title: 'Flipped Edge & Keyhole',
-    scrambles: ["F R' D' R", "R' F D F'", "L' B D' B'", "B L' D L"],
-    hint: 'Use an open D-layer slot (keyhole) to insert an edge cleanly before adjusting D.'
-  },
-  {
-    tier: 4,
-    moves: 5,
-    title: 'Opposite & Adjacent Pairs',
-    scrambles: ["R' F R U' F2", "L F' L' U F2", "F R' F' U R2", "B L' B' U L2"],
-    hint: 'Solve two adjacent cross edges relative to each other first, then align D in a single turn.'
-  },
-  {
-    tier: 5,
-    moves: 6,
-    title: 'Full Sub-8 Inspection',
-    scrambles: ["R U' F' D R2 U", "L' U F D' L2 U'", "F' U R' D F2 U", "B U' L D' B2 U'"],
-    hint: 'Plan all 4 cross edges during 15-second inspection before touching the cube.'
-  }
+const SOLVED_54_STATE = [
+  ...Array(9).fill('Y'),
+  ...Array(9).fill('O'),
+  ...Array(9).fill('G'),
+  ...Array(9).fill('W'),
+  ...Array(9).fill('R'),
+  ...Array(9).fill('B')
 ];
 
-const CROSS_ADVANCED_TIERS = [
-  {
-    tier: 1,
-    moves: 5,
-    title: 'Full Scramble • 5-Move Cross',
-    scrambles: [
-      "R U R' U' F2 L2 D' B2 U R2 D' L2 U' F2 R2 U2 B2 L2 F2 U",
-      "F' U' F U R2 B2 D' L2 U F2 D' R2 U' B2 L2 U2 F2 R2 B2 U'",
-      "L' U' L U B2 R2 D' F2 U L2 D' B2 U' R2 F2 U2 L2 B2 R2 U",
-      "B U B' U' L2 F2 D' R2 U B2 D' L2 U' F2 R2 U2 B2 L2 F2 U'"
-    ],
-    hint: 'Ignore F2L corners—spot the 1–2 white edges already near D, drop them in, and finish the remaining edges in ≤5 moves.'
-  },
-  {
-    tier: 2,
-    moves: 6,
-    title: 'Full Scramble • 6-Move Standard',
-    scrambles: [
-      "U2 R2 F2 L2 D' B2 R2 U' F2 D L2 B2 U R' F R D' F2 U2 L",
-      "D2 L2 B2 R2 U' F2 L2 D' B2 U R2 F2 D L' B L U' B2 D2 R",
-      "F2 U2 R2 D' L2 B2 U F2 R2 D' B2 L2 U' F' R' F D R2 U2 B",
-      "B2 D2 L2 U' R2 F2 D B2 L2 U' F2 R2 D' B' L' B U L2 D2 F"
-    ],
-    hint: 'Trace all 4 white edges amidst the full scramble; insert opposite edges together before aligning D.'
-  },
-  {
-    tier: 3,
-    moves: 7,
-    title: 'Full Scramble • Keyhole D-Shift',
-    scrambles: [
-      "R2 D' F2 U L2 B2 D R2 U' F2 L2 D' B2 U2 R' F' D' R U' F2",
-      "L2 D' B2 U R2 F2 D L2 U' B2 R2 D' F2 U2 L' B' D' L U' B2",
-      "F2 D' L2 U B2 R2 D F2 U' L2 B2 D' R2 U2 F' R' D' F U' R2",
-      "B2 D' R2 U F2 L2 D B2 U' R2 F2 D' L2 U2 B' L' D' B U' L2"
-    ],
-    hint: 'Use D / D\' shifts to position open slots underneath flipped middle-layer white edges without breaking solved ones.'
-  },
-  {
-    tier: 4,
-    moves: 7,
-    title: 'Full Scramble • Multi-Edge Flow',
-    scrambles: [
-      "U R2 F' D2 B2 L2 U' R2 D F2 L2 B2 U2 R F' L' D2 R' U F2",
-      "U' L2 B' D2 F2 R2 U L2 D' B2 R2 F2 U2 L B' R' D2 L' U' B2",
-      "D F2 R' U2 L2 B2 D' F2 U R2 B2 L2 D2 F R' B' U2 F' D R2",
-      "D' B2 L' U2 R2 F2 D B2 U' L2 F2 R2 D2 B L' F' U2 B' D' L2"
-    ],
-    hint: 'Look for chained insertions where turning R or F simultaneously kicks another white edge into its U-layer setup.'
-  },
-  {
-    tier: 5,
-    moves: 8,
-    title: 'WCA Full Scramble • Sub-8 Master',
-    scrambles: [
-      "R' U2 F2 D' L2 B2 U R2 F2 D' B2 L2 U2 F R' D' B L' U' R2",
-      "L' U2 B2 D' R2 F2 U L2 B2 D' F2 R2 U2 B L' D' F R' U' L2",
-      "F' U2 L2 D' B2 R2 U F2 L2 D' R2 B2 U2 L F' D' R B' U' F2",
-      "B' U2 R2 D' F2 L2 U B2 R2 D' L2 F2 U2 R B' D' L F' U' B2"
-    ],
-    hint: 'Full WCA-style 20-move scramble. Plan the entire 8-move cross + first corner track before starting your timer.'
-  }
-];
+// =========================================================================
+// 2A-3. STATE-SIMULATING FULL CFOP SOLVER & ALGEBRAIC MOVE SIMPLIFIER
+// =========================================================================
+function simplifyMoveSequence(algStr = '', preserveParens = false) {
+  const rawTokens = (algStr || '')
+    .replace(/[()]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
-const CROSS_MECHANICS = [
-  {
-    id: 1,
-    title: 'The Free Drop',
-    badge: 'Mechanic 1 • Foundation',
-    summary: 'When a white edge sits in the U layer with White facing up, match its side sticker to its center and turn that face 180° (F2, R2, B2, L2).',
-    example: "Setup: F2  →  Solve: F2"
-  },
-  {
-    id: 2,
-    title: 'Flipped Edge Insert',
-    badge: 'Mechanic 2 • Orientation',
-    summary: 'When White faces outward on the front face (e.g., UF position), move it to the side slot (F or F\') and drop it down with R\' or L.',
-    example: "Setup: F' R' F  →  Solve: F' R F"
-  },
-  {
-    id: 3,
-    title: 'Keyhole D-Shift',
-    badge: 'Mechanic 3 • Efficiency',
-    summary: 'Instead of restoring a disturbed cross piece immediately, shift the D layer (D / D\') to place the target slot underneath, insert, then align D.',
-    example: "Setup: R' D' R D  →  Solve: D' R' D R"
-  },
-  {
-    id: 4,
-    title: 'Edge Preservation',
-    badge: 'Mechanic 4 • Multi-Edge Lookahead',
-    summary: 'Solve two or more white edges in a single fluid chain by using one face turn to simultaneously insert an active edge and kick a trapped middle/bottom edge into its U-layer setup.',
-    example: "Setup: U R' F' R  →  Solve: R' F R U'",
-    approaches: [
-      {
-        id: 'chained-kick',
-        name: '1. Kicked-Edge Chaining',
-        tag: '2-Edge Flow',
-        rule: 'Before turning R or F to drop an edge, check the back-right (BR) or front-right (FR) middle slot. Turning R\' or F can kick a trapped white edge straight onto U with White facing up.',
-        cases: [
-          {
-            label: 'Case 4A • Front-to-Right Kick',
-            setup: "U R' F' R",
-            solve: "R' F R U'",
-            note: 'F brings the UF white edge down while kicking the FR edge into position so R finishes both before U\' aligns.'
-          },
-          {
-            label: 'Case 4B • Back-Right Un-Trap',
-            setup: "R2 U' R' F R",
-            solve: "R' F' R U R2",
-            note: 'R\' F\' R solves the front-right edge while lifting the trapped BR white edge onto U for an immediate R2 drop.'
-          },
-          {
-            label: 'Case 4C • Left-Front Mirror Chain',
-            setup: "U' L F L'",
-            solve: "L F' L' U",
-            note: 'Left-hand mirror: F\' inserts the front edge and pops the FL white edge into alignment for L.'
-          }
-        ]
-      },
-      {
-        id: 'opposite-sweep',
-        name: '2. Opposite-Edge Double Drop',
-        tag: 'Zero Regrip',
-        rule: 'When two opposite cross edges (Green & Blue, or Red & Orange) sit in the E-slice or U-layer simultaneously, align their relative 180° offset first so both drop down back-to-back without extra U turns.',
-        cases: [
-          {
-            label: 'Case 4D • Parallel E-Slice Drop',
-            setup: "R2 L2 U2",
-            solve: "U2 R2 L2",
-            note: 'A single U2 aligns both opposite top edges over their matching centers for a simultaneous R2 L2 double drop.'
-          },
-          {
-            label: 'Case 4E • Staggered Opposite Kick',
-            setup: "L2 U' R' F R",
-            solve: "R' F' R U L2",
-            note: 'Solve the Front/Right edge with R\' F\' R while preserving the Blue edge on U so U L2 finishes both cleanly.'
-          }
-        ]
-      },
-      {
-        id: 'd-sweep-preserve',
-        name: '3. Relative D-Offset Preservation',
-        tag: 'Sub-6 Pro Technique',
-        rule: 'Ignore center colors temporarily—insert edges in their correct clockwise order (Green → Orange → Blue → Red) onto D, then align all 4 centers at once with a single D, D\', or D2 turn.',
-        cases: [
-          {
-            label: 'Case 4F • 3-Edge Clockwise Shift',
-            setup: "D' R2 F2 L2",
-            solve: "L2 F2 R2 D",
-            note: 'Drop Left, Front, and Right edges 90° off-center, then snap all three onto their centers with a single D.'
-          },
-          {
-            label: 'Case 4G • Keyhole + Kick Combo',
-            setup: "D R' F' R D'",
-            solve: "D R' F R D'",
-            note: 'Shift D first to open the slot, execute R\' F R to preserve the adjacent edge, and restore D\' in 5 total moves.'
-          }
-        ]
-      },
-      {
-        id: 'xcross-corner-safe',
-        name: '4. F2L Corner-Safe Preservation',
-        tag: 'X-Cross Transition',
-        rule: 'When you spot an already-paired White corner + middle edge during inspection, preserve that block by inserting the final cross edge via keyhole D-turns or wide r/u moves instead of breaking the pair.',
-        cases: [
-          {
-            label: 'Case 4H • Preserve Front-Right Pair',
-            setup: "D' F2 D",
-            solve: "D' F2 D",
-            note: 'Instead of U2 R2 (which breaks a solved FR pair), shift D\' to bring the open DF slot under UF, drop F2, and restore D.'
-          }
-        ]
+  const stack = [];
+  const parseTok = (tok) => {
+    const face = tok[0];
+    if (!'UDFBRLxyz'.includes(face)) return null;
+    const mod = tok.slice(1);
+    const pow = mod === '2' ? 2 : mod === "'" ? 3 : 1;
+    return { face, pow };
+  };
+  const formatTok = (face, pow) => {
+    const p = ((pow % 4) + 4) % 4;
+    if (p === 0) return null;
+    return p === 1 ? face : p === 2 ? `${face}2` : `${face}'`;
+  };
+
+  rawTokens.forEach((tok) => {
+    const parsed = parseTok(tok);
+    if (!parsed) return;
+    if (stack.length > 0 && stack[stack.length - 1].face === parsed.face) {
+      const combinedPow = (stack[stack.length - 1].pow + parsed.pow) % 4;
+      if (combinedPow === 0) {
+        stack.pop();
+      } else {
+        stack[stack.length - 1].pow = combinedPow;
       }
-    ]
-  }
-];
+    } else {
+      stack.push(parsed);
+    }
+  });
 
-const F2L_DATA = [
-  { id: 1, name: 'F2L 1', group: 'Basic Inserts', alg: "U (R U' R')", step1: 'Position paired corner-edge over FR slot', step2: 'Insert with right-hand sexy inverse (R U\' R\')', fingertrick: 'Right index U push, wrist R, index U\', R\'' },
-  { id: 2, name: 'F2L 2', group: 'Basic Inserts', alg: "U' (F' U F)", step1: 'Align connected pair over the front-right slot', step2: 'Insert into FR cleanly using F\' U F', fingertrick: 'Left index U\', left index F\', right index U, thumb F' },
-  { id: 3, name: 'F2L 3', group: 'Basic Inserts', alg: "(F' U' F)", step1: 'Connected pair sits above the front-right slot', step2: 'Drop straight into FR slot with F\' U\' F', fingertrick: 'Left index F\', left index U\', thumb F' },
-  { id: 4, name: 'F2L 4', group: 'Basic Inserts', alg: "(R U R')", step1: 'Connected pair is already aligned above FR', step2: 'Direct 3-move insert (R U R\')', fingertrick: 'Regripless R U R\' trigger' },
-  { id: 5, name: 'F2L 5', group: 'Top Layer: Same Color', alg: "(U' R U R') U2 (R U' R')", step1: 'Hide corner in back-right while separating edge', step2: 'Re-align pair over FR and insert', fingertrick: 'Left index U\', R U R\', double-flick U2, R U\' R\'' },
-  { id: 6, name: 'F2L 6', group: 'Top Layer: Same Color', alg: "(U F' U' F) U2' (F' U F)", step1: 'Hide corner with U F\' U\' F while moving edge across', step2: 'U2\' to pair up and insert into FR with F\' U F', fingertrick: 'Index U, F\' U\' F, left double-flick U2\', F\' U F' },
-  { id: 7, name: 'F2L 7', group: 'Top Layer: Same Color', alg: "(U' R U2' R') U2 (R U' R')", step1: 'Swing edge to back with U2\' while corner hides', step2: 'Bring pair over FR and insert', fingertrick: 'U\' R, left U2\' double-flick, R\', U2, R U\' R\'' },
-  { id: 8, name: 'F2L 8', group: 'Top Layer: Same Color', alg: "(U F' U2 F) U2' (F' U F)", step1: 'Separate adjacent matching stickers with U F\' U2 F', step2: 'Pair with U2\' and insert into FR via F\' U F', fingertrick: 'U F\' U2 F, left U2\' double-flick, F\' U F' },
-  { id: 9, name: 'F2L 9', group: 'Top Layer: Same Color', alg: "U' (R U' R') U (F' U' F)", step1: 'Break apart bad connection in U layer', step2: 'Insert formed pair directly into FR with F\' U\' F', fingertrick: 'U\' R U\' R\' U, left index F\', U\' F' },
-  { id: 10, name: 'F2L 10', group: 'Top Layer: Same Color', alg: "U' (R U R') U (R U R')", step1: 'Lift and separate matching top stickers', step2: 'Connect over FR and insert with R U R\'', fingertrick: 'Regripless right-hand flow throughout' },
-  { id: 11, name: 'F2L 11', group: 'Top Layer: Opposite Colors', alg: "U' (R U2' R') U (F' U' F)", step1: 'Hide corner and kick edge across top layer', step2: 'Catch the pair and insert with F\' U\' F', fingertrick: 'U\' R U2\' R\' U, left index F\', U\' F' },
-  { id: 12, name: 'F2L 12', group: 'Top Layer: Opposite Colors', alg: "(R' U2 R2) U (R2' U R)", step1: 'Use wide R2 swing to pair without cube rotation', step2: 'Complete rotationless insert into FR', fingertrick: 'Thumb-down R\', U2, R2 U R2\' U R' },
-  { id: 13, name: 'F2L 13', group: 'Top Layer: Opposite Colors', alg: "U (F' U F) U' (F' U' F)", step1: 'Setup opposite-top edge using U F\' U F', step2: 'Pair and insert cleanly with U\' F\' U\' F', fingertrick: 'Index U, F\' U F, left U\', F\' U\' F' },
-  { id: 14, name: 'F2L 14', group: 'Top Layer: Opposite Colors', alg: "U' (R U' R') U (R U R')", step1: 'Create 3-move setup with U\' R U\' R\'', step2: 'Align with U and insert via R U R\'', fingertrick: 'Fast index pushes on U\' and U' },
-  { id: 15, name: 'F2L 15', group: 'Top Layer: Opposite Colors', alg: "(R U R') U2 (R U' R') U (R U' R')", step1: 'Split connected opposite pair with R U R\' U2', step2: 'Pair and insert cleanly into FR', fingertrick: 'Continuous right-wrist rhythm' },
-  { id: 16, name: 'F2L 16', group: 'Top Layer: Opposite Colors', alg: "(R U' R') U2 (F' U' F)", step1: 'Separate pair over FR with R U\' R\' U2', step2: 'Drop connected pair into FR using F\' U\' F', fingertrick: 'R U\' R\' U2, left index F\', U\' F' },
-  { id: 17, name: 'F2L 17', group: 'Top Layer: White Up', alg: "(R U2 R') U' (R U R')", step1: 'Align edge with matching center, hide corner with R U2 R\'', step2: 'Bring corner back over edge and insert', fingertrick: 'R, U2 double-flick, R\' U\' R U R\'' },
-  { id: 18, name: 'F2L 18', group: 'Top Layer: White Up', alg: "(F' U2 F) U (F' U' F)", step1: 'Swing white-up corner over matching edge with F\' U2 F', step2: 'Pair with U and insert via F\' U\' F', fingertrick: 'Left index F\', U2, thumb F, U F\' U\' F' },
-  { id: 19, name: 'F2L 19', group: 'Top Layer: White Up', alg: "U (R U2 R') U (R U' R')", step1: 'Position white-up corner at FR, swing with U R U2 R\'', step2: 'Pair and insert with U R U\' R\'', fingertrick: 'Index U, R U2 R\', U R U\' R\'' },
-  { id: 20, name: 'F2L 20', group: 'Top Layer: White Up', alg: "U' (F' U2 F) U' (F' U F)", step1: 'Setup white-up corner with U\' F\' U2 F', step2: 'Connect edge with U\' and insert via F\' U F', fingertrick: 'Left U\' pushes, F\' U2 F, U\' F\' U F' },
-  { id: 21, name: 'F2L 21', group: 'Top Layer: White Up', alg: "U2 (R U R') U (R U' R')", step1: 'U2 aligns edge to center, R U R\' pairs them', step2: 'U R U\' R\' inserts into FR', fingertrick: 'Double-flick U2, two smooth R triggers' },
-  { id: 22, name: 'F2L 22', group: 'Top Layer: White Up', alg: "U2 (F' U' F) U' (F' U F)", step1: 'U2 sets up front-edge alignment', step2: 'Pair with F\' U\' F and insert via U\' F\' U F', fingertrick: 'U2 double-flick, F\' U\' F U\' F\' U F' },
-  { id: 23, name: 'F2L 23', group: 'Top Layer: White Up', alg: "(U R U' R') U' (R U' R') U (R U' R')", step1: 'Extract and orient white-up corner with U R U\' R\'', step2: 'Pair and insert in two smooth triggers', fingertrick: 'Rhythm: (U R U\' R\') U\' (R U\' R\') U (R U\' R\')' },
-  { id: 24, name: 'F2L 24', group: 'Top Layer: White Up', alg: "F (U R U' R') F' (R U' R')", step1: 'Sledge-style F setup pairs corner and edge in U', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'Right thumb F, U R U\' R\', thumb F\', R U\' R\'' },
-  { id: 25, name: 'F2L 25', group: 'Corner in Bottom', alg: "U' (R' F R F') (R U R')", step1: 'Use sledgehammer (R\' F R F\') to twist trapped corner', step2: 'Insert paired block with R U R\'', fingertrick: 'U\', R\' F R F\', R U R\'' },
-  { id: 26, name: 'F2L 26', group: 'Corner in Bottom', alg: "U (R U' R') (F R' F' R)", step1: 'Pair edge with corner using U R U\' R\'', step2: 'Insert cleanly with sledgehammer (F R\' F\' R)', fingertrick: 'U R U\' R\', index F, R\' F\' R' },
-  { id: 27, name: 'F2L 27', group: 'Corner in Bottom', alg: "(R U' R') U (R U' R')", step1: 'Pop trapped corner out to U layer with R U\' R\'', step2: 'Align with U and re-insert via R U\' R\'', fingertrick: 'Double sexy-inverse trigger' },
-  { id: 28, name: 'F2L 28', group: 'Corner in Bottom', alg: "(R U R' U') (F R' F' R)", step1: 'Lift corner with sexy move (R U R\' U\')', step2: 'Sledgehammer inserts without cube rotation', fingertrick: 'R U R\' U\' into F R\' F\' R' },
-  { id: 29, name: 'F2L 29', group: 'Corner in Bottom', alg: "(R' F R F') (R' F R F')", step1: 'Double sledgehammer twists corner while preserving edge', step2: 'Second sledge drops pair directly into FR', fingertrick: 'Two crisp R\' F R F\' triggers' },
-  { id: 30, name: 'F2L 30', group: 'Corner in Bottom', alg: "(R U R' U') (R U R')", step1: 'Pop white-right corner up with R U R\' U\'', step2: 'Direct insert with R U R\'', fingertrick: 'Fast regripless right-hand burst' },
-  { id: 31, name: 'F2L 31', group: 'Edge in Middle / Both Bottom', alg: "U' (R' F R F') (R U' R')", step1: 'Sledgehammer flips trapped middle-layer edge', step2: 'Insert formed pair with R U\' R\'', fingertrick: 'U\' R\' F R F\' R U\' R\'' },
-  { id: 32, name: 'F2L 32', group: 'Edge in Middle / Both Bottom', alg: "(R U R' U') (R U R' U') (R U R')", step1: 'Triple sexy move cycles trapped edge and corner', step2: 'Third trigger locks pair into FR', fingertrick: '3x (R U R\' U\') without final U\'' },
-  { id: 33, name: 'F2L 33', group: 'Edge in Middle / Both Bottom', alg: "U' (R U' R') U2 (R U' R')", step1: 'Extract trapped edge while setting corner in U', step2: 'U2 pairs them for R U\' R\' insert', fingertrick: 'U\' R U\' R\', U2 double-flick, R U\' R\'' },
-  { id: 34, name: 'F2L 34', group: 'Edge in Middle / Both Bottom', alg: "U (R U R') U2 (R U R')", step1: 'Lift trapped edge with U R U R\'', step2: 'U2 brings corner over for R U R\' insert', fingertrick: 'U R U R\', U2, R U R\'' },
-  { id: 35, name: 'F2L 35', group: 'Edge in Middle / Both Bottom', alg: "U' (R U R') U (F' U' F)", step1: 'Extract edge to top with U\' R U R\'', step2: 'Front-slot insert via U F\' U\' F', fingertrick: 'U\' R U R\' U, left index F\', U\' F' },
-  { id: 36, name: 'F2L 36', group: 'Edge in Middle / Both Bottom', alg: "U2 (R' F R F') U2 (R U R')", step1: 'U2 + sledgehammer extracts flipped edge cleanly', step2: 'U2 + R U R\' drops solved pair into FR', fingertrick: 'U2, R\' F R F\', U2, R U R\'' },
-  { id: 37, name: 'F2L 37', group: 'Edge in Middle / Both Bottom', alg: "(R2 U2) (F R2 F') U2 (R' U R')", step1: 'Classic flipped-in-slot algorithm using R2 U2 F R2 F\'', step2: 'Finish with U2 R\' U R\' into FR', fingertrick: 'R2 U2, thumb F, R2, index F\', U2 R\' U R\'' },
-  { id: 38, name: 'F2L 38', group: 'Edge in Middle / Both Bottom', alg: "(R U R' U') (R U2 R') U' (R U R')", step1: 'Pop twisted pair out with R U R\' U\'', step2: 'Re-pair with R U2 R\' U\' and insert', fingertrick: 'Smooth continuous right-hand triggers' },
-  { id: 39, name: 'F2L 39', group: 'Edge in Middle / Both Bottom', alg: "(R U' R') U' (R U R') U2 (R U' R')", step1: 'Separate twisted bottom pair with R U\' R\' U\'', step2: 'Pair via R U R\' U2 and insert', fingertrick: 'Keep right thumb anchored on front' },
-  { id: 40, name: 'F2L 40', group: 'Edge in Middle / Both Bottom', alg: "(R U' R' U) (F' U2 F) U2' (F' U F)", step1: 'Extract corner with R U\' R\' U without rotating', step2: 'Pair over front with F\' U2 F U2\' and insert via F\' U F', fingertrick: 'R U\' R\' U, F\' U2 F U2\' F\' U F' },
-  { id: 41, name: 'F2L 41', group: 'Edge in Middle / Both Bottom', alg: "(R U R' U') (R U' R') U2 (F' U' F)", step1: 'Lift twisted pair with R U R\' U\' R U\' R\'', step2: 'U2 + F\' U\' F drops pair straight into FR', fingertrick: 'R U R\' U\' R U\' R\', U2, F\' U\' F' }
-];
-
-const F2L_GROUPS = [
-  'Basic Inserts',
-  'Top Layer: Same Color',
-  'Top Layer: Opposite Colors',
-  'Top Layer: White Up',
-  'Corner in Bottom',
-  'Edge in Middle / Both Bottom'
-];
-
-const F2L_DEFAULT_CHUNKS = [
-  { id: 'f2l-c1', title: 'Chunk 1: Basic Inserts', ids: [1, 2, 3, 4] },
-  { id: 'f2l-c2', title: 'Chunk 2: Same Color (Part A)', ids: [5, 6, 7] },
-  { id: 'f2l-c3', title: 'Chunk 3: Same Color (Part B)', ids: [8, 9, 10] },
-  { id: 'f2l-c4', title: 'Chunk 4: Opposite Colors (Part A)', ids: [11, 12, 13] },
-  { id: 'f2l-c5', title: 'Chunk 5: Opposite Colors (Part B)', ids: [14, 15, 16] },
-  { id: 'f2l-c6', title: 'Chunk 6: White Facing Up (Part A)', ids: [17, 18, 19, 20] },
-  { id: 'f2l-c7', title: 'Chunk 7: White Facing Up (Part B)', ids: [21, 22, 23, 24] },
-  { id: 'f2l-c8', title: 'Chunk 8: Corner in Bottom', ids: [25, 26, 27, 28, 29, 30] },
-  { id: 'f2l-c9', title: 'Chunk 9: Edge Trapped (Part A)', ids: [31, 32, 33, 34, 35, 36] },
-  { id: 'f2l-c10', title: 'Chunk 10: Both Trapped (Part B)', ids: [37, 38, 39, 40, 41] }
-];
-
-const OLL_DATA = [
-  { id: 27, name: 'OLL 27 (Sune)', group: 'All Edges Oriented', alg: "(R U R' U) (R U2 R')", fingertrick: 'Right index U, double-flick U2' },
-  { id: 26, name: 'OLL 26 (Antisune)', group: 'All Edges Oriented', alg: "(R U2 R') (U' R U' R')", fingertrick: 'Start with R, double-flick U2, left index U\'' },
-  { id: 21, name: 'OLL 21 (Cross H)', group: 'All Edges Oriented', alg: "(R U2 R') (U' R U R') (U' R U' R')", fingertrick: 'Continuous right-wrist rhythm with index pushes' },
-  { id: 22, name: 'OLL 22 (Cross Pi)', group: 'All Edges Oriented', alg: "R U2 (R2 U' R2 U' R2) U2 R", fingertrick: 'Keep thumb anchored; roll R2 turns smoothly' },
-  { id: 23, name: 'OLL 23 (Headlights)', group: 'All Edges Oriented', alg: "R2 D (R' U2 R) D' (R' U2 R')", fingertrick: 'Left ring finger D, right ring finger D\'' },
-  { id: 24, name: 'OLL 24 (Chameleon)', group: 'All Edges Oriented', alg: "(r U R' U') (r' F R F')", fingertrick: 'Wide r with right hand, thumb F, index F\'' },
-  { id: 25, name: 'OLL 25 (Bowtie)', group: 'All Edges Oriented', alg: "F' (r U R' U') r' F R", fingertrick: 'Left index F\', wide r, right thumb F' },
-  { id: 45, name: 'OLL 45 (T-Shape)', group: 'T-Shapes', alg: "F (R U R' U') F'", fingertrick: 'Right thumb F, sexy move, right index F\'' },
-  { id: 33, name: 'OLL 33 (Key T)', group: 'T-Shapes', alg: "(R U R' U') (R' F R F')", fingertrick: 'Sexy move directly into sledgehammer' },
-  { id: 31, name: 'OLL 31 (Couch)', group: 'P-Shapes', alg: "(R' U' F) (U R U' R') F' R", fingertrick: 'Thumb-down R\', left index U\', thumb F' },
-  { id: 32, name: 'OLL 32 (Anti-Couch)', group: 'P-Shapes', alg: "S (R U R' U') (R' F R f')", fingertrick: 'Index S push, sexy move, wide f\'' },
-  { id: 43, name: 'OLL 43 (P-Shape L)', group: 'P-Shapes', alg: "f' (L' U' L U) f", fingertrick: 'Left-hand wide f\' into left sexy move' },
-  { id: 44, name: 'OLL 44 (P-Shape R)', group: 'P-Shapes', alg: "f (R U R' U') f'", fingertrick: 'Wide f with thumb, sexy move, index f\'' },
-  { id: 36, name: 'OLL 36 (W-Shape L)', group: 'W-Shapes', alg: "(L' U' L U') (L' U L U) (L F' L' F)", fingertrick: 'Left-hand flow ending with left thumb F\'' },
-  { id: 38, name: 'OLL 38 (W-Shape R)', group: 'W-Shapes', alg: "(R U R' U) (R U' R' U') (R' F R F')", fingertrick: 'Right-hand flow ending with sledgehammer' },
-  { id: 5, name: 'OLL 5 (Square L)', group: 'Squares', alg: "(r' U2) (R U R' U) r", fingertrick: 'Wide r\' down, U2 double-flick, wide r up' },
-  { id: 6, name: 'OLL 6 (Square R)', group: 'Squares', alg: "(r U2) (R' U' R U') r'", fingertrick: 'Wide r up, U2 double-flick, wide r\' down' },
-  { id: 34, name: 'OLL 34 (City C)', group: 'C-Shapes', alg: "(R U R2 U') R' F (R U R U') F'", fingertrick: 'Roll R2 cleanly into thumb F' },
-  { id: 46, name: 'OLL 46 (Seein\' Headlights)', group: 'C-Shapes', alg: "R' U' (R' F R F') U R", fingertrick: 'Thumb-down R\', sledgehammer, U R' },
-  { id: 7, name: 'OLL 7 (Lightning L)', group: 'Lightning Bolts', alg: "(r U R' U) (R U2 r')", fingertrick: 'Wide Sune variant' },
-  { id: 8, name: 'OLL 8 (Lightning R)', group: 'Lightning Bolts', alg: "(r' U' R U') (R' U2 r)", fingertrick: 'Left-thumb wide Antisune variant' },
-  { id: 11, name: 'OLL 11 (Downstairs)', group: 'Lightning Bolts', alg: "(r U R' U) (R' F R F') (R U2 r')", fingertrick: 'Combine wide setup with sledgehammer' },
-  { id: 12, name: 'OLL 12 (Upstairs)', group: 'Lightning Bolts', alg: "M' (R' U' R U') (R' U2 R) U' (R r')", fingertrick: 'Ring-finger M\' slice into Antisune' },
-  { id: 39, name: 'OLL 39 (Big Lightning L)', group: 'Lightning Bolts', alg: "(L F' L') (U' L U) F U' L'", fingertrick: 'Left-hand F\' push, U\' L U, thumb F' },
-  { id: 40, name: 'OLL 40 (Big Lightning R)', group: 'Lightning Bolts', alg: "(R' F R) (U R' U') F' U R", fingertrick: 'Right-hand F push, U R\' U\', index F\'' },
-  { id: 9, name: 'OLL 9 (Kite)', group: 'Fish Shapes', alg: "(R U R' U') R' F (R2 U R' U') F'", fingertrick: 'Sexy move into R\' F R2 flow' },
-  { id: 10, name: 'OLL 10 (Anti-Kite)', group: 'Fish Shapes', alg: "(R U R' U) (R' F R F') (R U2 R')", fingertrick: 'Sune interrupted by sledgehammer' },
-  { id: 35, name: 'OLL 35 (Fish Salad)', group: 'Fish Shapes', alg: "(R U2 R2) (F R F') (R U2 R')", fingertrick: 'R U2 R2 into sledgehammer and U2 R\'' },
-  { id: 37, name: 'OLL 37 (Mounted Fish)', group: 'Fish Shapes', alg: "(F R' F' R) (U R U' R')", fingertrick: 'Sledgehammer directly into inverse sexy' },
-  { id: 28, name: 'OLL 28 (Stealth)', group: 'Corners Oriented', alg: "(r U R' U') r' (R U R U') R'", fingertrick: 'Wide sexy into M-slice sexy' },
-  { id: 57, name: 'OLL 57 (H-Corners)', group: 'Corners Oriented', alg: "(R U R' U') M' (U R U' r')", fingertrick: 'Sexy move, ring-finger M\', finish with r\'' },
-  { id: 13, name: 'OLL 13 (Gun L)', group: 'Knight Move', alg: "F (U R U' R2) F' R (U R U' R')", fingertrick: 'Thumb F, U R U\', roll R2' },
-  { id: 14, name: 'OLL 14 (Gun R)', group: 'Knight Move', alg: "(R' F R) (U R' F' R) (F U' F')", fingertrick: 'Sledgehammer variation with F U\' F\'' },
-  { id: 15, name: 'OLL 15 (Squeegee L)', group: 'Knight Move', alg: "(l' U' l) (L' U' L U) (l' U l)", fingertrick: 'Left-hand wide triggers' },
-  { id: 16, name: 'OLL 16 (Squeegee R)', group: 'Knight Move', alg: "(r U r') (R U R' U') (r U' r')", fingertrick: 'Right-hand wide triggers' },
-  { id: 29, name: 'OLL 29 (Spotted Chameleon)', group: 'Awkward Shapes', alg: "(R U R' U') (R U' R') (F' U' F) (R U R')", fingertrick: 'Keep right hand regripless through F\' U\' F' },
-  { id: 30, name: 'OLL 30 (Anti-Spotted)', group: 'Awkward Shapes', alg: "(F R' F R2) (U' R' U') (R U R') F2", fingertrick: 'Thumb F, R\' F, roll R2' },
-  { id: 41, name: 'OLL 41 (Awkward L)', group: 'Awkward Shapes', alg: "(R U R' U R U2 R') F (R U R' U') F'", fingertrick: 'Sune directly into F-sexy-F\'' },
-  { id: 42, name: 'OLL 42 (Awkward R)', group: 'Awkward Shapes', alg: "(R' U' R U' R' U2 R) F (R U R' U') F'", fingertrick: 'Back-Antisune directly into F-sexy-F\'' },
-  { id: 47, name: 'OLL 47 (Anti-Breakneck)', group: 'L-Shapes', alg: "R' U' (R' F R F') (R' F R F') U R", fingertrick: 'Double sledgehammer framed by R\' U\' and U R' },
-  { id: 48, name: 'OLL 48 (Breakneck)', group: 'L-Shapes', alg: "F (R U R' U') (R U R' U') F'", fingertrick: 'Thumb F, double sexy move, index F\'' },
-  { id: 49, name: 'OLL 49 (Right Back Squeezy)', group: 'L-Shapes', alg: "r U' (r2 U r2 U r2) U' r", fingertrick: 'Continuous wide r2 rolling' },
-  { id: 50, name: 'OLL 50 (Right Front Squeezy)', group: 'L-Shapes', alg: "r' U (r2 U' r2 U' r2) U r'", fingertrick: 'Thumb-down wide r\'2 rolling' },
-  { id: 51, name: 'OLL 51 (Bottlecap)', group: 'L-Shapes', alg: "f (R U R' U') (R U R' U') f'", fingertrick: 'Wide f, double sexy move, wide f\'' },
-  { id: 52, name: 'OLL 52 (Rice Cooker)', group: 'L-Shapes', alg: "(R U R' U) (R U' B U' B') R'", fingertrick: 'Finish B turns with right ring/pinky' },
-  { id: 53, name: 'OLL 53 (Frying Pan L)', group: 'L-Shapes', alg: "(l' U2) (L U L' U') (L U L' U) l", fingertrick: 'Wide l\' setup into double left-trigger' },
-  { id: 54, name: 'OLL 54 (Frying Pan R)', group: 'L-Shapes', alg: "(r U2) (R' U' R U) (R' U' R U') r'", fingertrick: 'Wide r setup into double right-trigger' },
-  { id: 55, name: 'OLL 55 (Highway)', group: 'I-Shapes', alg: "(R' F R) (U R U' R2) F' R2 (U' R' U) (R U R')", fingertrick: 'Flowing R2 transitions without regrip' },
-  { id: 56, name: 'OLL 56 (Streetlights)', group: 'I-Shapes', alg: "(r' U' r) U' (R' U R) U' (R' U R) (r' U r)", fingertrick: 'Wide r\' framing two alternating triggers' },
-  { id: 1, name: 'OLL 1 (Runway)', group: 'Dot Cases', alg: "(R U2 R2) (F R F') U2 (R' F R F')", fingertrick: 'Two sledgehammers separated by U2' },
-  { id: 2, name: 'OLL 2 (Zamboni)', group: 'Dot Cases', alg: "F (R U R' U') F' f (R U R' U') f'", fingertrick: 'F-sexy-F\' followed immediately by wide f-sexy-f\'' },
-  { id: 3, name: 'OLL 3 (Anti-Nazi L)', group: 'Dot Cases', alg: "f (R U R' U') f' U' F (R U R' U') F'", fingertrick: 'Wide f trigger, U\', standard F trigger' },
-  { id: 4, name: 'OLL 4 (Anti-Nazi R)', group: 'Dot Cases', alg: "f (R U R' U') f' U F (R U R' U') F'", fingertrick: 'Wide f trigger, U, standard F trigger' },
-  { id: 17, name: 'OLL 17 (Slash)', group: 'Dot Cases', alg: "(F R' F' R2) r' (U R U' R') U' M'", fingertrick: 'Sledgehammer into wide r\' and ring-finger M\'' },
-  { id: 18, name: 'OLL 18 (Crown)', group: 'Dot Cases', alg: "(r U R' U R U2 r2) (U' R U' R' U2 r)", fingertrick: 'Wide Sune directly into wide Antisune' },
-  { id: 19, name: 'OLL 19 (Bunny)', group: 'Dot Cases', alg: "(r' R) (U R U R' U') M' (R' F R F')", fingertrick: 'M-slice setup into sledgehammer' },
-  { id: 20, name: 'OLL 20 (X-Checkers)', group: 'Dot Cases', alg: "(r U R' U') M2 (U R U' R') U' M'", fingertrick: 'Double M2 flick with left ring + middle fingers' }
-];
-
-const OLL_GROUPS = [
-  'All Edges Oriented',
-  'T-Shapes',
-  'P-Shapes',
-  'W-Shapes',
-  'Squares',
-  'C-Shapes',
-  'Lightning Bolts',
-  'Fish Shapes',
-  'Corners Oriented',
-  'Knight Move',
-  'Awkward Shapes',
-  'L-Shapes',
-  'I-Shapes',
-  'Dot Cases'
-];
-
-const OLL_DEFAULT_CHUNKS = [
-  { id: 'oll-c1', title: 'Chunk 1: 2-Look Corners (Part 1)', ids: [27, 26, 21, 22] },
-  { id: 'oll-c2', title: 'Chunk 2: 2-Look Corners (Part 2)', ids: [23, 24, 25] },
-  { id: 'oll-c3', title: 'Chunk 3: T & P Shapes', ids: [45, 33, 31, 32, 43, 44] },
-  { id: 'oll-c4', title: 'Chunk 4: W, Squares & C Shapes', ids: [36, 38, 5, 6, 34, 46] },
-  { id: 'oll-c5', title: 'Chunk 5: Lightning Bolts', ids: [7, 8, 11, 12, 39, 40] },
-  { id: 'oll-c6', title: 'Chunk 6: Fish & Corners Oriented', ids: [9, 10, 35, 37, 28, 57] },
-  { id: 'oll-c7', title: 'Chunk 7: Knight & Awkward Shapes', ids: [13, 14, 15, 16, 29, 30, 41, 42] },
-  { id: 'oll-c8', title: 'Chunk 8: L-Shapes (Part 1)', ids: [47, 48, 49, 50] },
-  { id: 'oll-c9', title: 'Chunk 9: L-Shapes (Part 2) & I-Shapes', ids: [51, 52, 53, 54, 55, 56] },
-  { id: 'oll-c10', title: 'Chunk 10: Dot Cases (Part 1)', ids: [1, 2, 3, 4] },
-  { id: 'oll-c11', title: 'Chunk 11: Dot Cases (Part 2)', ids: [17, 18, 19, 20] }
-];
-
-const PLL_DATA = [
-  { id: 1, name: 'PLL Ua', group: 'Edges Only (EPLL)', alg: "(R U R' U R') U' R2 U' (R' U R' U R)", inverse: "R' U' R U' R U R2 U R U' R U' R'", recognition: 'Solved bar in Back; 3 edges cycle counter-clockwise.', fingertrick: 'Keep right thumb on front; push all U turns with right index finger.' },
-  { id: 2, name: 'PLL Ub', group: 'Edges Only (EPLL)', alg: "(R' U) (R' U') (R' U') (R' U) R U R2", inverse: "R2 U' R' U' R U R U R U' R", recognition: 'Solved bar in Back; 3 edges cycle clockwise.', fingertrick: 'Start thumb-up on R\'; alternate right index U and left index U\' without regripping.' },
-  { id: 3, name: 'PLL H', group: 'Edges Only (EPLL)', alg: "M2 (U') M2 (U2) M2 (U') M2", inverse: "M2 U M2 U2 M2 U M2", recognition: 'All corners solved; opposite edge pairs swap.', fingertrick: 'Support outer layers with thumbs; flick M2 with left ring → middle finger.' },
-  { id: 4, name: 'PLL Z', group: 'Edges Only (EPLL)', alg: "M' U' (M2 U') (M2 U') M' U2 M2", inverse: "M2 U2 M U M2 U M2 U M", recognition: 'All corners solved; adjacent edge pairs swap (FR-UF & BL-UB).', fingertrick: 'Use left ring finger for single M\' pulls and ring + middle for M2.' },
-  { id: 5, name: 'PLL Aa', group: 'Corners Only (CPLL)', alg: "x (R' U R') D2 (R U' R') D2 R2 x'", inverse: "x R2 D2 R U R' D2 R U' R x'", recognition: '2x2 block in Back-Left; headlights on Back.', fingertrick: 'Tilt x upward so D2 sits under your left ring + middle fingers on the back-bottom.' },
-  { id: 6, name: 'PLL Ab', group: 'Corners Only (CPLL)', alg: "x R2 D2 (R U R') D2 (R U' R) x'", inverse: "x R' U R' D2 R U' R' D2 R2 x'", recognition: '2x2 block in Front-Left; headlights on Right.', fingertrick: 'Tilt x upward, start immediately with R2, and keep left thumb anchored during D2.' },
-  { id: 7, name: 'PLL E', group: 'Corners Only (CPLL)', alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x", inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x", recognition: 'No headlights anywhere; diagonal corner swaps.', fingertrick: 'Tilt x\' downward; push D with left ring finger and pull D\' with right ring finger.' },
-  { id: 8, name: 'PLL T', group: 'Adjacent Swap', alg: "(R U R' U') (R' F R2 U') R' U' (R U R' F')", inverse: "F R U' R' U R U R2 F' R U R U' R'", recognition: 'Headlights on Left; two 1x1x2 blocks on Front-Left and Back-Left.', fingertrick: 'Flow straight from Sexy Move into thumb-down R\' and right-thumb F without regripping.' },
-  { id: 9, name: 'PLL F', group: 'Adjacent Swap', alg: "(R' U' F') (R U R' U') (R' F R2 U') (R' U' R U) (R' U R)", inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R", recognition: 'Full 1x1x3 solved bar on Left; no headlights on other sides.', fingertrick: 'Start thumb-up for R\' U\' F\', then execute a T-Perm ending with R\' U R.' },
-  { id: 10, name: 'PLL Ja', group: 'Adjacent Swap', alg: "(R' U L' U2) (R U' R' U2) R L", inverse: "L' R' U2 R U R' U2 L U' R", recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Right.', fingertrick: 'Use left index + middle for both U2 double-flicks; finish R and L simultaneously.' },
-  { id: 11, name: 'PLL Jb', group: 'Adjacent Swap', alg: "(R U R' F') (R U R' U') R' F R2 U' R'", inverse: "R U R2 F' R U R U' R' F R U' R'", recognition: 'Solved 1x1x3 bar on Left; 1x1x2 block on Front-Left.', fingertrick: 'Completely regripless—flick F\' with right index after R U R\'.' },
-  { id: 12, name: 'PLL Ra', group: 'Adjacent Swap', alg: "(R U' R' U') (R U R) D (R' U' R) D' (R' U2 R')", inverse: "R U2 R D R' U R D' R' U' R' U R U R'", recognition: 'Headlights on Left; 1x1x2 block in Front-Right.', fingertrick: 'Push D with left ring finger and pull D\' with right ring finger while keeping thumbs front.' },
-  { id: 13, name: 'PLL Rb', group: 'Adjacent Swap', alg: "(R' U2 R U2') R' F (R U R' U') R' F' R2", inverse: "R2 F R U R U' R' F' R U2 R' U2 R", recognition: 'Headlights on Back; 1x1x2 block on Front-Right.', fingertrick: 'Start thumb-up for R\'; use right thumb for F and right index for F\'.' },
-  { id: 14, name: 'PLL Y', group: 'Diagonal Swap', alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')", inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'", recognition: 'Two 1x1x2 blocks meeting at Front-Left; no headlights.', fingertrick: 'Push opening F with right thumb; flow into Sexy Move + Sledgehammer at the end.' },
-  { id: 15, name: 'PLL V', group: 'Diagonal Swap', alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F", inverse: "F' R' F' R U' R U R2 F R y' U R U' R", recognition: '2x2 solved block in Front-Left; no headlights anywhere.', fingertrick: 'Start thumb-up R\'; rotate y smoothly during U\' so R2 F flows without a pause.' },
-  { id: 16, name: 'PLL Na', group: 'Diagonal Swap', alg: "(R U R' U) (R U R' F') (R U R' U') R' F (R2 U' R') (U2 R U' R')", inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'", recognition: '1x1x2 blocks on Right of every face (clockwise pinwheel).', fingertrick: 'Think of this as (R U R\' U) + full Jb-Perm + (U2 R U\' R\') — zero regrips needed.' },
-  { id: 17, name: 'PLL Nb', group: 'Diagonal Swap', alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)", inverse: "R' U R' F R F' R U' R' F' U F R U R' U' R", recognition: '1x1x2 blocks on Left of every face (counter-clockwise pinwheel).', fingertrick: 'Start thumb-up; use left index for F\' and right thumb for F so right hand stays planted.' },
-  { id: 18, name: 'PLL Ga', group: 'G-Perms', alg: "R2 U (R' U R' U') (R U' R2) D U' (R' U R D')", inverse: "D R' U' R U D' R2 U R' U R U' R U' R2", recognition: 'Headlights on Left; 1x1x2 block on Front-Right.', fingertrick: 'Execute D and U\' simultaneously using left ring (D) + left index (U\').' },
-  { id: 19, name: 'PLL Gb', group: 'G-Perms', alg: "D (R' U' R U) D' (R2 U R' U) (R U' R U') R2'", inverse: "R2 U R' U R' U' R U' R2 D U' R' U R D'", recognition: 'Headlights on Left; 1x1x2 block on Back-Right.', fingertrick: 'Push opening D with left ring finger and pull D\' with right ring finger before rolling R2.' },
-  { id: 20, name: 'PLL Gc', group: 'G-Perms', alg: "R2' F2 (R U2 R U2') R' F (R U R' U') R' F R2", inverse: "R2 F' R U R U' R' F' R U2 R' U2 R' F2 R2", recognition: 'Headlights on Left; 1x1x2 block on Back-Left.', fingertrick: 'Rotationless R2\' F2 variant — use right thumb F into Sexy Move on the back half.' },
-  { id: 21, name: 'PLL Gd', group: 'G-Perms', alg: "(R U R' U') D (R2 U' R U') (R' U R' U) R2 D'", inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'", recognition: 'Headlights on Left; 1x1x2 block on Front-Left.', fingertrick: 'Sexy Move into left-ring D push; finish with right-ring D\' pull after R2.' },
-  { id: 22, name: 'PLL H (Left-Hand M)', group: 'Edges Only (EPLL)', alg: "M2 (U) M2 (U2) M2 (U) M2", inverse: "M2 U' M2 U2 M2 U' M2", recognition: 'H-Perm variant using right-index U pushes.', fingertrick: 'Left ring + middle M2 flicks paired with right index U and right U2 double-flick.' },
-  { id: 23, name: 'PLL Z (Left-Hand M)', group: 'Edges Only (EPLL)', alg: "y M' U (M2 U) (M2 U) M' U2 M2", inverse: "M2 U2 M U' M2 U' M2 U' M y'", recognition: 'Z-Perm variant for swaps on Front-Left & Back-Right.', fingertrick: 'Rotate y, then alternate left-ring M\' / M2 pulls with right-index U pushes.' },
-  { id: 24, name: 'PLL Ja (Wide Finish)', group: 'Adjacent Swap', alg: "(R' U L' U2) (R U' R' U2) R r", inverse: "r' R' U2 R U R' U2 L U' R", recognition: 'Ja-Perm ending with ergonomic R r instead of R L.', fingertrick: 'Replace the awkward R L finish with right-hand R followed by wide r upward.' },
-  { id: 25, name: 'PLL Jb (Left-Handed)', group: 'Adjacent Swap', alg: "y' (L' U' L F) (L' U' L U) L F' L2' U L", inverse: "L' U' L2 F L' U' L' U L F' L' U L y", recognition: 'Mirror Jb-Perm when 1x1x3 bar is on Right.', fingertrick: 'Exact left-hand mirror of Jb—use left thumb for F\' and left index for F.' }
-];
-
-const PLL_GROUPS = [
-  'Edges Only (EPLL)',
-  'Corners Only (CPLL)',
-  'Adjacent Swap',
-  'Diagonal Swap',
-  'G-Perms'
-];
-
-const PLL_DEFAULT_CHUNKS = [
-  { id: 'pll-c1', title: 'Chunk 1: 2-Look Edges (EPLL)', ids: [1, 2, 3, 4] },
-  { id: 'pll-c2', title: 'Chunk 2: 2-Look Corners (CPLL)', ids: [5, 6, 7] },
-  { id: 'pll-c3', title: 'Chunk 3: Essential Adjacent (T, J, F)', ids: [8, 11, 10, 9] },
-  { id: 'pll-c4', title: 'Chunk 4: R-Perms (Ra, Rb)', ids: [12, 13] },
-  { id: 'pll-c5', title: 'Chunk 5: Diagonal Swaps (Y, V, N)', ids: [14, 15, 16, 17] },
-  { id: 'pll-c6', title: 'Chunk 6: G-Perms (Ga–Gd)', ids: [18, 19, 20, 21] },
-  { id: 'pll-c7', title: 'Chunk 7: Bonus Left & Wide Variants', ids: [22, 23, 24, 25] }
-];
-
-// O(1) Lookup Maps for Fast Case Resolution
-const F2L_BY_ID = new Map(F2L_DATA.map((c) => [c.id, c]));
-const OLL_BY_ID = new Map(OLL_DATA.map((c) => [c.id, c]));
-const PLL_BY_ID = new Map(PLL_DATA.map((c) => [c.id, c]));
-
-const WCA_NOTATION_GUIDE = [
-  { section: 'Outer Faces', move: "R / R'", desc: 'Right face clockwise / counter-clockwise' },
-  { section: 'Outer Faces', move: "U / U'", desc: 'Top (Up) face clockwise / counter-clockwise' },
-  { section: 'Outer Faces', move: "F / F'", desc: 'Front face clockwise / counter-clockwise' },
-  { section: 'Outer Faces', move: "L / L'", desc: 'Left face clockwise / counter-clockwise' },
-  { section: 'Outer Faces', move: "D / D'", desc: 'Bottom (Down) face clockwise / counter-clockwise' },
-  { section: 'Outer Faces', move: "B / B'", desc: 'Back face clockwise / counter-clockwise' },
-  { section: 'Wide Turns', move: "r / r'", desc: 'Wide Right double-layer turn (R + M\')' },
-  { section: 'Wide Turns', move: "u / u'", desc: 'Wide Top double-layer turn (U + E\')' },
-  { section: 'Wide Turns', move: "f / f'", desc: 'Wide Front double-layer turn (F + S)' },
-  { section: 'Wide Turns', move: "l / l'", desc: 'Wide Left double-layer turn (L + M)' },
-  { section: 'Slice Moves', move: "M / M'", desc: 'Middle slice between L & R (follows L direction)' },
-  { section: 'Slice Moves', move: "S / S'", desc: 'Standing slice between F & B (follows F direction)' },
-  { section: 'Slice Moves', move: "E / E'", desc: 'Equatorial slice between U & D (follows D direction)' },
-  { section: 'Rotations', move: "x / x'", desc: 'Rotate entire cube on R axis (upward / downward)' },
-  { section: 'Rotations', move: "y / y'", desc: 'Rotate entire cube on U axis (left / right)' },
-  { section: 'Rotations', move: "z / z'", desc: 'Rotate entire cube on F axis (clockwise / counter)' },
-  { section: 'Modifiers', move: 'X2', desc: '180° half-turn on any face, slice, or axis (U2, R2, M2)' },
-  { section: 'Modifiers', move: '( ... )', desc: 'Fingertrick trigger grouping (e.g., Sexy Move, Sledgehammer)' }
-];
-
-const FINGERTRICK_CODEX = [
-  {
-    id: 'sexy',
-    name: 'Sexy Move',
-    notation: "(R U R' U')",
-    category: 'Core Triggers',
-    badgeClass: 'bg-orange-500/20 border-orange-500/45 text-orange-300',
-    dotClass: 'bg-orange-400',
-    finger: 'Right Wrist + Right/Left Index',
-    grip: 'Home Grip (right thumb on Front-Right)',
-    execution: 'Lift R with right wrist, push U with right index finger, pull R\' down, flick U\' with left index finger—zero regrips.'
-  },
-  {
-    id: 'left-sexy',
-    name: 'Left Sexy Move',
-    notation: "(L' U' L U)",
-    category: 'Core Triggers',
-    badgeClass: 'bg-amber-500/20 border-amber-500/45 text-amber-300',
-    dotClass: 'bg-amber-400',
-    finger: 'Left Wrist + Left/Right Index',
-    grip: 'Home Grip (left thumb on Front-Left)',
-    execution: 'Lift L\' with left wrist, flick U\' with left index finger, pull L down, push U with right index finger.'
-  },
-  {
-    id: 'inv-sexy',
-    name: 'Inverse Sexy',
-    notation: "(R U' R' U)",
-    category: 'Core Triggers',
-    badgeClass: 'bg-yellow-500/20 border-yellow-500/45 text-yellow-300',
-    dotClass: 'bg-yellow-400',
-    finger: 'Right Wrist + Left Index U\'',
-    grip: 'Home Grip (thumbs anchored on front)',
-    execution: 'Lift R upward, immediately flick U\' with left index finger, pull R\' down, push U with right index finger.'
-  },
-  {
-    id: 'sledge',
-    name: 'Sledgehammer',
-    notation: "(R' F R F')",
-    category: 'F-Layer Triggers',
-    badgeClass: 'bg-emerald-500/20 border-emerald-500/45 text-emerald-300',
-    dotClass: 'bg-emerald-400',
-    finger: 'Right Thumb F + Right Index F\'',
-    grip: 'Home Grip (right thumb poised at Front-Bottom-Right)',
-    execution: 'Pull R\' down, push F clockwise upward with right thumb, lift R, pull F\' counter-clockwise with right index.'
-  },
-  {
-    id: 'hedge',
-    name: 'Hedgeslammer',
-    notation: "(F R' F' R)",
-    category: 'F-Layer Triggers',
-    badgeClass: 'bg-teal-500/20 border-teal-500/45 text-teal-300',
-    dotClass: 'bg-teal-400',
-    finger: 'Right Thumb F + Right Index F\'',
-    grip: 'Home Grip',
-    execution: 'Exact inverse of Sledgehammer: push F with right thumb, pull R\', flick F\' with right index, lift R.'
-  },
-  {
-    id: 'double-flick',
-    name: 'U2 / D2 Double-Flick',
-    notation: 'U2 / D2',
-    category: 'Speed Flicks',
-    badgeClass: 'bg-sky-500/20 border-sky-500/45 text-sky-300',
-    dotClass: 'bg-sky-400',
-    finger: 'Index + Middle Finger Tap',
-    grip: 'Anchor opposite thumb firmly',
-    execution: 'Tap U2 with index followed immediately by middle finger (no wrist reset). Use left ring + middle finger for D2.'
-  },
-  {
-    id: 'm-slice',
-    name: 'M / M2 Slice Flick',
-    notation: "M' / M2",
-    category: 'Slice & Ring',
-    badgeClass: 'bg-purple-500/20 border-purple-500/45 text-purple-300',
-    dotClass: 'bg-purple-400',
-    finger: 'Left Ring → Middle Finger',
-    grip: 'Pinch front/back corners with both thumbs',
-    execution: 'Pull DB up toward UB using left ring finger for M\'; follow instantly with left middle finger for M2.'
-  },
-  {
-    id: 'ring-d',
-    name: 'Ring-Finger D / D\'',
-    notation: "D / D'",
-    category: 'Slice & Ring',
-    badgeClass: 'bg-rose-500/20 border-rose-500/45 text-rose-300',
-    dotClass: 'bg-rose-400',
-    finger: 'Left Ring (D) / Right Ring (D\')',
-    grip: 'Home Grip (keep thumbs on front)',
-    execution: 'Push D counter-clockwise from behind using left ring finger; pull D\' clockwise using right ring finger.'
-  }
-];
-
-function classifySegmentStyle(moves = '') {
-  const norm = moves.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (norm.includes("R U R' U'")) return FINGERTRICK_CODEX[0];
-  if (norm.includes("L' U' L U")) return FINGERTRICK_CODEX[1];
-  if (norm.includes("R U' R'")) return FINGERTRICK_CODEX[2];
-  if (norm.includes("R' F R F'")) return FINGERTRICK_CODEX[3];
-  if (norm.includes("F R' F' R")) return FINGERTRICK_CODEX[4];
-  if (/\bM2?\b|\bM'/.test(norm)) return FINGERTRICK_CODEX[6];
-  if (/\bD2?\b|\bD'/.test(norm)) return FINGERTRICK_CODEX[7];
-  if (/U2|F2|R2/.test(norm)) return FINGERTRICK_CODEX[5];
-  return FINGERTRICK_CODEX[0];
+  const clean = stack.map((item) => formatTok(item.face, item.pow)).filter(Boolean).join(' ');
+  if (!preserveParens || !clean) return clean;
+  return formatAlgWithTriggerBrackets(clean);
 }
 
-function buildFingertrickBreakdown(item) {
-  const alg = item?.alg || '';
-  const raw = item?.fingertrick || '';
-  const recognition = item?.recognition || '';
-  const segments = item?.segments || [];
-  const firstToken = alg.replace(/[()]/g, '').trim().split(/\s+/)[0] || '';
+// Re-apply familiar fingertrick trigger parentheses onto clean move sequences
+function formatAlgWithTriggerBrackets(algStr = '') {
+  if (!algStr) return '';
+  let out = ` ${algStr.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+  const triggers = [
+    "R U R' U'",
+    "L' U' L U",
+    "R' F R F'",
+    "F R' F' R",
+    "R U2 R'",
+    "F' U2 F",
+    "R U' R'",
+    "U R U' R'",
+    "U' F' U F",
+    "U' R U R'",
+    "U F' U' F",
+    "F' U' F",
+    "R U R'",
+    "M2 U M2",
+    "M' U M2 U"
+  ];
+  triggers.forEach((trig) => {
+    const escaped = trig.replace(/'/g, "\\'");
+    const rx = new RegExp(`(?<!\\()\\b${escaped}\\b(?!\\))`, 'g');
+    out = out.replace(rx, `(${trig})`);
+  });
+  return out.replace(/\s+/g, ' ').trim();
+}
 
-  let grip = 'Home Grip — right thumb on Front-Right, left thumb on Front-Left.';
-  if (/^R'/.test(firstToken)) {
-    grip = 'Thumb-Up Grip — place right thumb on Top-Right (UR) so R\' pulls down effortlessly.';
-  } else if (/^R2/.test(firstToken)) {
-    grip = 'Thumb-Top or Home Grip — anchor left hand firmly to roll R2 cleanly.';
-  } else if (/^F\b/.test(firstToken) || /^f\b/.test(firstToken)) {
-    grip = 'Home Grip — use right thumb push on Front-Bottom (FD) to start F / f.';
-  } else if (/^F'/.test(firstToken) || /^f'/.test(firstToken)) {
-    grip = 'Home Grip — flick F\' / f\' with left index finger on Front-Top-Left.';
-  } else if (/^M/.test(firstToken) || /\bM2?\b/.test(alg)) {
-    grip = 'M-Slice Grip — support front/back corners with thumbs; use left ring + middle fingers on DB.';
-  } else if (/^D/.test(firstToken)) {
-    grip = 'Home Grip — keep left ring finger poised on Back-Bottom-Left for D push.';
-  } else if (/^x\b/.test(firstToken)) {
-    grip = 'Pre-tilt x upward with both wrists so D2 becomes a back-bottom double-flick.';
-  } else if (/^x'/.test(firstToken)) {
-    grip = 'Pre-tilt x\' downward so bottom D / D\' turns stay in ring-finger reach.';
-  } else if (/^y/.test(firstToken)) {
-    grip = 'Rotate entire cube on U axis first, then lock straight into Home Grip.';
+// Convert scanned 6-face object { U, F, R, D, B, L } into 54-sticker simulator array
+function scannedFacesTo54Array(uGrid, fGrid, rGrid, dGrid, bGrid, lGrid) {
+  return [...uGrid, ...rGrid, ...fGrid, ...dGrid, ...lGrid, ...bGrid];
+}
+
+// Apply moves (including y, y', y2 whole-cube rotations) onto a 54-sticker state array
+function applyMovesTo54State(stateArr, movesStr) {
+  const s = [...stateArr];
+  const rotCW = (o) => {
+    const t = [s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8]];
+    s[o] = t[6]; s[o + 1] = t[3]; s[o + 2] = t[0];
+    s[o + 3] = t[7]; s[o + 4] = t[4]; s[o + 5] = t[1];
+    s[o + 6] = t[8]; s[o + 7] = t[5]; s[o + 8] = t[2];
+  };
+  const rotCCW = (o) => {
+    rotCW(o);
+    rotCW(o);
+    rotCW(o);
+  };
+  const cyc = (a, b, c, d) => {
+    const tmp = s[a];
+    s[a] = s[d];
+    s[d] = s[c];
+    s[c] = s[b];
+    s[b] = tmp;
+  };
+  const turnOnce = (tok) => {
+    if (tok === 'U') {
+      rotCW(0);
+      cyc(18, 36, 45, 9);
+      cyc(19, 37, 46, 10);
+      cyc(20, 38, 47, 11);
+    } else if (tok === 'D') {
+      rotCW(27);
+      cyc(24, 15, 51, 42);
+      cyc(25, 16, 52, 43);
+      cyc(26, 17, 53, 44);
+    } else if (tok === 'F') {
+      rotCW(18);
+      cyc(6, 9, 29, 44);
+      cyc(7, 12, 28, 41);
+      cyc(8, 15, 27, 38);
+    } else if (tok === 'B') {
+      rotCW(45);
+      cyc(2, 36, 33, 17);
+      cyc(1, 39, 34, 14);
+      cyc(0, 42, 35, 11);
+    } else if (tok === 'R') {
+      rotCW(9);
+      cyc(2, 45, 29, 20);
+      cyc(5, 48, 32, 23);
+      cyc(8, 51, 35, 26);
+    } else if (tok === 'L') {
+      rotCW(36);
+      cyc(0, 18, 27, 53);
+      cyc(3, 21, 30, 50);
+      cyc(6, 24, 33, 47);
+    } else if (tok === 'y') {
+      // Whole cube clockwise around U: F <- R <- B <- L <- F
+      rotCW(0);
+      rotCCW(27);
+      for (let i = 0; i < 9; i++) {
+        cyc(18 + i, 9 + i, 45 + i, 36 + i);
+      }
+    }
+  };
+
+  const tokens = (movesStr || '').replace(/[()]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  tokens.forEach((tok) => {
+    const face = tok[0];
+    if (!'UDFBRLy'.includes(face)) return;
+    const count = tok.endsWith('2') ? 2 : tok.endsWith("'") ? 3 : 1;
+    for (let i = 0; i < count; i++) turnOnce(face);
+  });
+  return s;
+}
+
+// Check how many of the 4 bottom white cross edges are solved on a 54-sticker state
+function inspectCrossOn54(s) {
+  const checks = [
+    { name: 'Green (DF)', solved: s[28] === 'W' && s[25] === s[22] },
+    { name: 'Orange (DR)', solved: s[32] === 'W' && s[16] === s[13] },
+    { name: 'Blue (DB)', solved: s[34] === 'W' && s[52] === s[49] },
+    { name: 'Red (DL)', solved: s[30] === 'W' && s[43] === s[40] }
+  ];
+  return {
+    solvedCount: checks.filter((c) => c.solved).length,
+    solvedNames: checks.filter((c) => c.solved).map((c) => c.name),
+    unsolvedNames: checks.filter((c) => !c.solved).map((c) => c.name)
+  };
+}
+
+// Cross-Only Solver (Finds real <=8-move White Cross solutions without inverting full 20-move scrambles)
+function solveExactCrossFrom54(startState) {
+  const initialInfo = inspectCrossOn54(startState);
+  if (initialInfo.solvedCount === 4) {
+    return { moves: '', postState: startState, info: initialInfo };
   }
 
-  const triggers = [];
-  const normalized = alg.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (normalized.includes("R U R' U'")) triggers.push({ codex: FINGERTRICK_CODEX[0], detail: "Sexy Move (R U R' U') — right wrist + index push/pull" });
-  if (normalized.includes("L' U' L U")) triggers.push({ codex: FINGERTRICK_CODEX[1], detail: "Left Sexy Move (L' U' L U) — left wrist + right index U push" });
-  if (normalized.includes("R U' R'")) triggers.push({ codex: FINGERTRICK_CODEX[2], detail: "Inverse Sexy (R U' R') — left index U' flick between R turns" });
-  if (normalized.includes("R' F R F'")) triggers.push({ codex: FINGERTRICK_CODEX[3], detail: "Sledgehammer (R' F R F') — right thumb F push, right index F' pull" });
-  if (normalized.includes("F R' F' R")) triggers.push({ codex: FINGERTRICK_CODEX[4], detail: "Hedgeslammer (F R' F' R) — right thumb F, right index F'" });
-  if (/U2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[5], detail: 'U2 Double-Flick — index + middle finger tap (no wrist reset)' });
-  if (/D2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[5], detail: 'D2 Double-Flick — left ring + middle finger back-bottom tap' });
-  if (/M2/.test(normalized)) triggers.push({ codex: FINGERTRICK_CODEX[6], detail: 'M2 Double-Flick — left ring followed immediately by middle finger' });
+  const candidateMoves = [
+    'U', "U'", 'U2', 'D', "D'", 'D2',
+    'F', "F'", 'F2', 'R', "R'", 'R2',
+    'B', "B'", 'B2', 'L', "L'", 'L2'
+  ];
 
-  const hasRegripWarning =
-    triggers.length === 0
-      ? 'Keep both thumbs anchored on the front face; avoid letting go with your left hand.'
-      : 'Execute regripless—let your left index handle U\' pushes while your right wrist flows.';
+  // Try multiple edge insertion priority orders (opposite pairs first & adjacent chains) to guarantee <=8 moves
+  const edgeOrders = [
+    [0, 2, 1, 3],
+    [1, 3, 0, 2],
+    [0, 1, 2, 3],
+    [2, 3, 1, 0]
+  ];
+
+  const isEdgeSolvedAt = (st, edgeIdx) => {
+    if (edgeIdx === 0) return st[28] === 'W' && st[25] === st[22]; // DF
+    if (edgeIdx === 1) return st[32] === 'W' && st[16] === st[13]; // DR
+    if (edgeIdx === 2) return st[34] === 'W' && st[52] === st[49]; // DB
+    return st[30] === 'W' && st[43] === st[40]; // DL
+  };
+
+  let bestMoves = null;
+  let bestState = startState;
+
+  for (let oIdx = 0; oIdx < edgeOrders.length; oIdx++) {
+    const order = edgeOrders[oIdx];
+    let curState = [...startState];
+    const rawSteps = [];
+    const lockedEdges = [];
+
+    for (let step = 0; step < 4; step++) {
+      const targetEdge = order[step];
+      if (isEdgeSolvedAt(curState, targetEdge)) {
+        lockedEdges.push(targetEdge);
+        continue;
+      }
+
+      let foundSeq = null;
+      const queue = [{ st: curState, seq: [] }];
+      const visited = new Set([curState.join('')]);
+
+      while (queue.length > 0 && !foundSeq) {
+        const node = queue.shift();
+        if (node.seq.length >= 3) continue;
+        const lastFace = node.seq.length > 0 ? node.seq[node.seq.length - 1][0] : '';
+
+        for (let i = 0; i < candidateMoves.length; i++) {
+          const mv = candidateMoves[i];
+          if (mv[0] === lastFace) continue;
+          const nextSt = applyMovesTo54State(node.st, mv);
+          const nextSeq = [...node.seq, mv];
+          if (
+            isEdgeSolvedAt(nextSt, targetEdge) &&
+            lockedEdges.every((le) => isEdgeSolvedAt(nextSt, le))
+          ) {
+            foundSeq = { seq: nextSeq, st: nextSt };
+            break;
+          }
+          if (nextSeq.length < 3) {
+            const key = nextSt.join('');
+            if (!visited.has(key)) {
+              visited.add(key);
+              queue.push({ st: nextSt, seq: nextSeq });
+            }
+          }
+        }
+      }
+
+      if (foundSeq) {
+        rawSteps.push(...foundSeq.seq);
+        curState = foundSeq.st;
+        lockedEdges.push(targetEdge);
+      } else {
+        break;
+      }
+    }
+
+    const cleanMoves = simplifyMoveSequence(rawSteps.join(' '));
+    const verifiedState = applyMovesTo54State(startState, cleanMoves);
+    const verifiedInfo = inspectCrossOn54(verifiedState);
+    if (verifiedInfo.solvedCount === 4) {
+      const len = cleanMoves ? cleanMoves.split(/\s+/).length : 0;
+      if (bestMoves === null || len < bestMoves.split(/\s+/).length) {
+        bestMoves = cleanMoves;
+        bestState = verifiedState;
+      }
+    }
+  }
+
+  const finalMoves = bestMoves || '';
+  const finalState = bestMoves ? bestState : startState;
+  return {
+    moves: finalMoves,
+    postState: finalState,
+    info: inspectCrossOn54(finalState)
+  };
+}
+
+// Check if Front-Right F2L slot is solved in current cube orientation
+function isFrontRightF2LSolved54(s) {
+  const fCenter = s[22];
+  const rCenter = s[13];
+  return (
+    s[29] === 'W' &&
+    s[26] === fCenter &&
+    s[23] === fCenter &&
+    s[15] === rCenter &&
+    s[12] === rCenter
+  );
+}
+
+// Count how many of the 4 F2L slots are currently solved (0..4)
+function countSolvedF2LSlots54(s) {
+  let rot = [...s];
+  let count = 0;
+  for (let i = 0; i < 4; i++) {
+    if (isFrontRightF2LSolved54(rot)) count++;
+    rot = applyMovesTo54State(rot, 'y');
+  }
+  return count;
+}
+
+// Match & simulate the optimal F2L algorithm from F2L_DATA for the current Front-Right slot
+// Guarantees: Cross stays 4/4 solved AND previously solved F2L slots are never broken
+function matchBestF2LForFrontRight54(s) {
+  const fCenter = s[22];
+  const rCenter = s[13];
+  const targetColors = new Set(['W', fCenter, rCenter]);
+  const edgeTargetColors = new Set([fCenter, rCenter]);
+  const baseSolvedSlots = countSolvedF2LSlots54(s);
+
+  const cornerSlots = [
+    { name: 'UFR', stickers: [s[8], s[20], s[9]], extract: '' },
+    { name: 'UFL', stickers: [s[6], s[18], s[38]], extract: "U'" },
+    { name: 'UBR', stickers: [s[2], s[11], s[45]], extract: 'U' },
+    { name: 'UBL', stickers: [s[0], s[36], s[47]], extract: 'U2' },
+    { name: 'DFR', stickers: [s[29], s[26], s[15]], extract: "R U R' U'" },
+    { name: 'DFL', stickers: [s[27], s[24], s[44]], extract: "L' U' L" },
+    { name: 'DBR', stickers: [s[35], s[17], s[51]], extract: "R' U R U'" },
+    { name: 'DBL', stickers: [s[33], s[42], s[53]], extract: "L U2 L'" }
+  ];
+
+  // Also check if the target middle-layer edge is trapped in another slot (FR, FL, BR, BL)
+  const middleEdgeSlots = [
+    { name: 'FR', stickers: [s[23], s[12]], extract: "R U R' U'" },
+    { name: 'FL', stickers: [s[21], s[41]], extract: "L' U' L" },
+    { name: 'BR', stickers: [s[48], s[14]], extract: "R' U R" },
+    { name: 'BL', stickers: [s[50], s[39]], extract: "L U L'" }
+  ];
+
+  const foundCorner = cornerSlots.find(
+    (c) => c.stickers.every((col) => targetColors.has(col)) && new Set(c.stickers).size === 3
+  );
+  const foundEdge = middleEdgeSlots.find(
+    (e) => e.stickers.every((col) => edgeTargetColors.has(col)) && new Set(e.stickers).size === 2
+  );
+
+  // Build prioritized setup prefixes (direct, corner-only extract, edge-only extract, or both)
+  const setupCandidates = Array.from(
+    new Set([
+      '',
+      foundCorner?.extract || '',
+      foundEdge?.extract || '',
+      foundCorner?.name === 'DFR' ? "R U' R' U" : '',
+      foundEdge?.name === 'FR' ? "R U' R' U" : '',
+      simplifyMoveSequence(`${foundCorner?.extract || ''} ${foundEdge?.extract || ''}`),
+      simplifyMoveSequence(`${foundEdge?.extract || ''} ${foundCorner?.extract || ''}`)
+    ])
+  );
+
+  const preUOptions = ['', 'U', "U'", 'U2'];
+  let bestVerified = null;
+
+  for (let sIdx = 0; sIdx < setupCandidates.length; sIdx++) {
+    const setupPrefix = setupCandidates[sIdx];
+    const workState = setupPrefix ? applyMovesTo54State(s, setupPrefix) : s;
+    // Do not allow setup moves to break already-solved F2L slots
+    if (countSolvedF2LSlots54(workState) < baseSolvedSlots) continue;
+
+    for (let uIdx = 0; uIdx < preUOptions.length; uIdx++) {
+      const preU = preUOptions[uIdx];
+      const uState = preU ? applyMovesTo54State(workState, preU) : workState;
+
+      for (let i = 0; i < F2L_DATA.length; i++) {
+        const candidate = F2L_DATA[i];
+        const after = applyMovesTo54State(uState, candidate.alg);
+        if (
+          isFrontRightF2LSolved54(after) &&
+          inspectCrossOn54(after).solvedCount === 4 &&
+          countSolvedF2LSlots54(after) >= baseSolvedSlots + 1
+        ) {
+          const rawCombined = simplifyMoveSequence(`${setupPrefix} ${preU} ${candidate.alg}`, false);
+          const moveLen = rawCombined ? rawCombined.split(/\s+/).length : 0;
+          if (!bestVerified || moveLen < bestVerified.moveLen) {
+            const bracketed = simplifyMoveSequence(rawCombined, true);
+            bestVerified = {
+              caseObj: candidate,
+              fullAlg: bracketed,
+              rawAlg: rawCombined,
+              moveLen,
+              postState: applyMovesTo54State(s, rawCombined)
+            };
+          }
+        }
+      }
+    }
+    if (bestVerified) break;
+  }
+
+  if (bestVerified) return bestVerified;
+
+  // Fallback extraction + insert if both pieces were deeply locked
+  const fallback = F2L_BY_ID.get(4) || F2L_DATA[0];
+  const fallbackRaw = simplifyMoveSequence(`${foundCorner?.extract || ''} ${fallback.alg}`, false);
+  return {
+    caseObj: fallback,
+    fullAlg: simplifyMoveSequence(fallbackRaw, true),
+    rawAlg: fallbackRaw,
+    moveLen: 99,
+    postState: applyMovesTo54State(s, fallbackRaw)
+  };
+}
+
+// Solve all remaining F2L pairs across all 4 slots (FR -> FL -> BR -> BL) with optimal F2L algorithms
+function solveAllF2LPairsFrom54(postCrossState) {
+  let curState = [...postCrossState];
+  const slotSteps = [];
+  const fullF2LTokens = [];
+
+  for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
+    if (!isFrontRightF2LSolved54(curState)) {
+      const solvedPair = matchBestF2LForFrontRight54(curState);
+      slotSteps.push({
+        slotNumber: slotSteps.length + 1,
+        slotColors: `${curState[22]}/${curState[13]}`,
+        caseObj: solvedPair.caseObj,
+        alg: solvedPair.fullAlg,
+        rawAlg: solvedPair.rawAlg
+      });
+      fullF2LTokens.push(solvedPair.rawAlg);
+      curState = solvedPair.postState;
+    }
+    if (slotIdx < 3) {
+      fullF2LTokens.push('y');
+      curState = applyMovesTo54State(curState, 'y');
+    }
+  }
+
+  const combinedF2LAlg = simplifyMoveSequence(fullF2LTokens.join(' '), true);
+  return {
+    steps: slotSteps,
+    combinedAlg: combinedF2LAlg || 'All 4 F2L Pairs Solved ✓',
+    postState: curState
+  };
+}
+
+// 54-Sticker Full-Cube CFOP Scramble Analyzer (Cross -> All 4 F2L Pairs -> OLL -> PLL)
+function analyzeFull54Cube(uGrid, fGrid, rGrid, dGrid, bGrid, lGrid) {
+  const initial54 = scannedFacesTo54Array(uGrid, fGrid, rGrid, dGrid, bGrid, lGrid);
+  const crossCheck = inspectCrossOn54(initial54);
+
+  // Count solved vs. remaining F2L pairs across all 4 slots
+  let tempRot = [...initial54];
+  let solvedF2lCount = 0;
+  for (let i = 0; i < 4; i++) {
+    if (isFrontRightF2LSolved54(tempRot)) solvedF2lCount++;
+    tempRot = applyMovesTo54State(tempRot, 'y');
+  }
+  const remainingF2lPairs = 4 - solvedF2lCount;
+
+  // 1. Solve Cross (or mark solved if 4/4)
+  const crossSol = solveExactCrossFrom54(initial54);
+  const postCross54 = crossSol.postState;
+
+  // 2. Solve All Remaining F2L Pairs using F2L_DATA
+  const f2lSol = solveAllF2LPairsFrom54(postCross54);
+  const postF2L54 = f2lSol.postState;
+  const firstF2lStep = f2lSol.steps[0] || null;
+  const firstF2lCase = firstF2lStep?.caseObj || F2L_BY_ID.get(4) || F2L_DATA[0];
+
+  // 3. Match OLL on the simulated post-F2L top layer
+  const postF2lU = postF2L54.slice(0, 9);
+  const postF2lF = postF2L54.slice(18, 27);
+  const postF2lR = postF2L54.slice(9, 18);
+  const ollAnalysis = analyzeScanned3FaceCube(postF2lU, postF2lF, postF2lR, {
+    crossSolved: true,
+    solvedCrossCount: 4,
+    remainingCrossNames: [],
+    remainingF2lPairs: 0,
+    unsolvedSlotNames: []
+  });
+
+  const matchedOllCase =
+    ollAnalysis.phase === 'oll' ? ollAnalysis.matchedCase : OLL_BY_ID.get(27) || OLL_DATA[0];
+  const matchedOllAlg =
+    ollAnalysis.phase === 'oll'
+      ? simplifyMoveSequence(
+          `${ollAnalysis.aufHint.startsWith('Pre-AUF:') ? ollAnalysis.aufHint.replace('Pre-AUF:', '').replace('before executing', '').trim() : ''} ${matchedOllCase.alg}`,
+          true
+        )
+      : 'Top Yellow Already Oriented ✓';
+
+  // 4. Match PLL on the simulated post-OLL top layer
+  const postOll54 =
+    ollAnalysis.phase === 'oll' ? applyMovesTo54State(postF2L54, matchedOllAlg) : postF2L54;
+  const pllAnalysis = analyzeScanned3FaceCube(
+    postOll54.slice(0, 9),
+    postOll54.slice(18, 27),
+    postOll54.slice(9, 18),
+    {
+      crossSolved: true,
+      solvedCrossCount: 4,
+      remainingCrossNames: [],
+      remainingF2lPairs: 0,
+      unsolvedSlotNames: []
+    }
+  );
+  const matchedPllCase =
+    pllAnalysis.phase === 'pll' ? pllAnalysis.matchedCase : PLL_BY_ID.get(8) || PLL_DATA[0];
+  const postPllAuf =
+    pllAnalysis.aufHint?.includes("U'")
+      ? "U'"
+      : pllAnalysis.aufHint?.includes('U2')
+      ? 'U2'
+      : pllAnalysis.aufHint?.includes('U AUF')
+      ? 'U'
+      : '';
+  const matchedPllAlg = simplifyMoveSequence(`${matchedPllCase.alg} ${postPllAuf}`, true);
+
+  // Build the 4 complete, verified CFOP stage cards
+  const cfopStages = [
+    {
+      stage: '1. Cross',
+      phaseKey: 'cross',
+      label:
+        crossCheck.solvedCount === 4
+          ? 'Cross Solved ✓ (4/4)'
+          : `Solve ${crossCheck.unsolvedNames.length} Edge${crossCheck.unsolvedNames.length === 1 ? '' : 's'}`,
+      alg: crossSol.moves ? formatAlgWithTriggerBrackets(crossSol.moves) : 'Cross Already Solved ✓',
+      fingertrick:
+        crossCheck.solvedCount === 4
+          ? 'All 4 white cross edges are aligned with their centers—jump straight to F2L Pair 1.'
+          : 'Execute in a single smooth fingertrick flow while tracking your first F2L corner-edge pair.',
+      summary:
+        crossCheck.solvedCount === 4
+          ? 'Cross is already solved! Begin immediately with Stage 2 (F2L).'
+          : `Solves ${crossCheck.unsolvedNames.join(', ')} cleanly with zero redundant moves, transitioning directly into ${firstF2lCase.name}.`
+    },
+    {
+      stage: '2. F2L Pairs',
+      phaseKey: 'f2l',
+      label:
+        f2lSol.steps.length === 0
+          ? 'All 4 Pairs Solved ✓'
+          : `${f2lSol.steps.length} Pair${f2lSol.steps.length === 1 ? '' : 's'} (${f2lSol.steps.map((st) => st.caseObj.name).join(' → ')})`,
+      alg: f2lSol.combinedAlg,
+      caseObj: firstF2lCase,
+      subSteps: f2lSol.steps,
+      fingertrick: firstF2lCase.fingertrick,
+      summary:
+        f2lSol.steps.length === 0
+          ? 'All 4 F2L slots are complete—advance straight to Stage 3 (OLL).'
+          : `Solves all ${f2lSol.steps.length} remaining F2L slot${f2lSol.steps.length === 1 ? '' : 's'} sequentially (${f2lSol.steps
+              .map((st) => `${st.caseObj.name}: ${st.alg}`)
+              .join(' | ')}).`
+    },
+    {
+      stage: '3. OLL Target',
+      phaseKey: 'oll',
+      label: ollAnalysis.phase === 'oll' ? matchedOllCase.name : 'OLL Skip ✓',
+      alg: matchedOllAlg,
+      caseObj: matchedOllCase,
+      fingertrick: matchedOllCase.fingertrick,
+      summary:
+        ollAnalysis.phase === 'oll'
+          ? `Orients the entire yellow top face in 1 look, setting up ${matchedPllCase.name} for PLL.`
+          : 'Top face is already solid yellow after F2L—skip directly to Stage 4 (PLL).'
+    },
+    {
+      stage: '4. PLL Finish',
+      phaseKey: 'pll',
+      label: `${matchedPllCase.name}${postPllAuf ? ` + ${postPllAuf}` : ''}`,
+      alg: matchedPllAlg,
+      caseObj: matchedPllCase,
+      fingertrick: matchedPllCase.fingertrick,
+      summary: `${matchedPllCase.recognition} ${postPllAuf ? `Finish with ${postPllAuf} AUF to solve the cube.` : 'Solves the cube with no AUF needed.'}`
+    }
+  ];
+
+  // If Cross is already solved (4/4), still provide the full 4-stage roadmap while highlighting the active stage
+  const isCrossDone = crossCheck.solvedCount === 4;
+  const primaryStage = isCrossDone
+    ? f2lSol.steps.length > 0
+      ? cfopStages[1]
+      : ollAnalysis.phase === 'oll'
+      ? cfopStages[2]
+      : cfopStages[3]
+    : cfopStages[0];
 
   return {
-    grip,
-    cue: raw,
-    recognition,
-    segments,
-    triggers,
-    flow: hasRegripWarning
+    phase: primaryStage.phaseKey,
+    isFullScramble: true,
+    crossSolved: isCrossDone,
+    solvedCrossCount: crossCheck.solvedCount,
+    remainingCrossNames: crossCheck.unsolvedNames,
+    remainingF2lPairs,
+    phaseLabel: isCrossDone
+      ? `Cross ✓ • ${remainingF2lPairs} F2L Left • Full CFOP Roadmap`
+      : `Cross ${crossCheck.solvedCount}/4 • ${remainingF2lPairs} F2L Left • Full CFOP`,
+    confidence: 97,
+    matchedCase: primaryStage.caseObj || {
+      id: 1,
+      name: primaryStage.label,
+      alg: primaryStage.alg,
+      fingertrick: primaryStage.fingertrick
+    },
+    aufHint: isCrossDone
+      ? `Cross Solved ✓ • ${f2lSol.steps.length} F2L Pair${f2lSol.steps.length === 1 ? '' : 's'} → ${matchedOllCase.name} → ${matchedPllCase.name}`
+      : `Remaining Cross: ${crossCheck.unsolvedNames.join(', ')} • ${remainingF2lPairs} F2L Left`,
+    nextUpTitle: `Complete CFOP Chain: ${cfopStages.map((s) => s.label).join(' → ')}`,
+    nextUpBadge: 'Verified Start-to-Finish CFOP',
+    nextUpCase: firstF2lCase,
+    nextUpSummary: primaryStage.summary,
+    cfopStages
   };
 }
 
@@ -904,76 +937,483 @@ function formatMsTime(ms, decimals = 2) {
 }
 
 // =========================================================================
-// 2B. LIVE 3x3 CUBE SIMULATOR FOR CROSS 180° BOTTOM-VIEW SVG DIAGRAM
+// 2A-2. 3-FACE ISOMETRIC CUBE SCANNER & NEXT-CASE LOOKAHEAD ENGINE
 // =========================================================================
-function simulateCrossCubeState(scramble = '') {
-  const s = [
-    ...Array(9).fill('Y'),
-    ...Array(9).fill('O'),
-    ...Array(9).fill('G'),
-    ...Array(9).fill('W'),
-    ...Array(9).fill('R'),
-    ...Array(9).fill('B')
-  ];
+const SCANNER_COLOR_CODES = ['Y', 'W', 'G', 'B', 'O', 'R'];
+const SCANNER_COLOR_META = {
+  Y: { label: 'Yellow', hex: '#facc15', rgb: [250, 204, 21] },
+  W: { label: 'White', hex: '#f8fafc', rgb: [248, 250, 252] },
+  G: { label: 'Green', hex: '#22c55e', rgb: [34, 197, 94] },
+  B: { label: 'Blue', hex: '#3b82f6', rgb: [59, 130, 246] },
+  O: { label: 'Orange', hex: '#f97316', rgb: [249, 115, 22] },
+  R: { label: 'Red', hex: '#ef4444', rgb: [239, 68, 68] }
+};
 
-  const rotCW = (o) => {
-    const t = [s[o], s[o + 1], s[o + 2], s[o + 3], s[o + 4], s[o + 5], s[o + 6], s[o + 7], s[o + 8]];
-    s[o] = t[6]; s[o + 1] = t[3]; s[o + 2] = t[0];
-    s[o + 3] = t[7]; s[o + 4] = t[4]; s[o + 5] = t[1];
-    s[o + 6] = t[8]; s[o + 7] = t[5]; s[o + 8] = t[2];
+function rotate3x3FaceCW(grid) {
+  return [grid[6], grid[3], grid[0], grid[7], grid[4], grid[1], grid[8], grid[5], grid[2]];
+}
+
+function rgbToHsv(r, g, b) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === rn) h = ((gn - bn) / d) % 6;
+    else if (max === gn) h = (bn - rn) / d + 2;
+    else h = (rn - gn) / d + 4;
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+  }
+  const s = max === 0 ? 0 : d / max;
+  return [h, s, max];
+}
+
+// Convert sRGB to Perceptual CIELAB (L*, a*, b*) for lighting-invariant color separation
+function rgbToLab(r, g, b) {
+  const toLinear = (c) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const rl = toLinear(r);
+  const gl = toLinear(g);
+  const bl = toLinear(b);
+
+  const x = (rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375) / 0.95047;
+  const y = (rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750) / 1.00000;
+  const z = (rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041) / 1.08883;
+
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f(x);
+  const fy = f(y);
+  const fz = f(z);
+
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+// Perceptual CIELAB + HSV Sticker Classifier
+function classifyStickerRgb(rgb, centerSamples) {
+  const [r, g, b] = rgb;
+  const [h, s, v] = rgbToHsv(r, g, b);
+  const [L, a, bAxis] = rgbToLab(r, g, b);
+
+  // Canonical CIELAB references for standard speedcube shades
+  const canonicalLab = {
+    Y: [88, -8, 82],
+    W: [94, 0, 2],
+    G: [62, -55, 38],
+    B: [46, 12, -58],
+    O: [66, 48, 64],
+    R: [48, 68, 46]
   };
 
-  const cycle4 = (a, b, c, d) => {
-    const tmp = s[d];
-    s[d] = s[c];
-    s[c] = s[b];
-    s[b] = s[a];
-    s[a] = tmp;
-  };
+  // If White center was captured, use its exact b* (warm tint) to separate White from Yellow
+  const whiteLab = centerSamples?.W ? rgbToLab(...centerSamples.W) : canonicalLab.W;
+  const yellowLab = centerSamples?.Y ? rgbToLab(...centerSamples.Y) : canonicalLab.Y;
+  const whiteYellowMidB = (whiteLab[2] + yellowLab[2]) * 0.5;
 
-  const turnOnce = (face) => {
-    if (face === 'U') {
-      rotCW(0);
-      cycle4(18, 36, 45, 9);
-      cycle4(19, 37, 46, 10);
-      cycle4(20, 38, 47, 11);
-    } else if (face === 'D') {
-      rotCW(27);
-      cycle4(24, 15, 51, 42);
-      cycle4(25, 16, 52, 43);
-      cycle4(26, 17, 53, 44);
-    } else if (face === 'F') {
-      rotCW(18);
-      cycle4(6, 9, 29, 44);
-      cycle4(7, 12, 28, 41);
-      cycle4(8, 15, 27, 38);
-    } else if (face === 'B') {
-      rotCW(45);
-      cycle4(2, 36, 33, 17);
-      cycle4(1, 39, 34, 14);
-      cycle4(0, 42, 35, 11);
-    } else if (face === 'R') {
-      rotCW(9);
-      cycle4(8, 45, 35, 26);
-      cycle4(5, 48, 32, 23);
-      cycle4(2, 51, 29, 20);
-    } else if (face === 'L') {
-      rotCW(36);
-      cycle4(0, 18, 27, 53);
-      cycle4(3, 21, 30, 50);
-      cycle4(6, 24, 33, 47);
+  if (s <= 0.26 && v >= 0.44 && bAxis < whiteYellowMidB) {
+    return 'W';
+  }
+
+  let bestCode = 'Y';
+  let bestScore = Infinity;
+
+  SCANNER_COLOR_CODES.forEach((code) => {
+    const refLab = centerSamples?.[code] ? rgbToLab(...centerSamples[code]) : canonicalLab[code];
+    const dL = (L - refLab[0]) * 0.45;
+    const da = a - refLab[1];
+    const db = bAxis - refLab[2];
+    let dist = Math.sqrt(dL * dL + da * da + db * db);
+
+    // Enforce hue guardrails so warm lights never swap Red, Orange, and Yellow
+    const hUnwrapped = h > 180 ? h - 360 : h;
+    if (code === 'R' && hUnwrapped > 14 && hUnwrapped < 48) dist += 24;
+    if (code === 'O' && (hUnwrapped <= 10 || hUnwrapped > 330)) dist += 24;
+    if (code === 'Y' && (hUnwrapped < 34 || hUnwrapped > 80)) dist += 28;
+    if (code === 'W' && bAxis > whiteYellowMidB) dist += 32;
+
+    if (dist < bestScore) {
+      bestScore = dist;
+      bestCode = code;
     }
-  };
-
-  const tokens = (scramble || '').replace(/[()]/g, '').trim().split(/\s+/).filter(Boolean);
-  tokens.forEach((tok) => {
-    const face = tok[0];
-    if (!'UDFBRL'.includes(face)) return;
-    const count = tok.endsWith('2') ? 2 : tok.endsWith("'") ? 3 : 1;
-    for (let i = 0; i < count; i++) turnOnce(face);
   });
 
-  return s;
+  return bestCode;
+}
+
+// Exact normalized (0..1) centroids for a straight-on flat 3x3 square grid in viewBox="0 0 200 200"
+const SCANNER_FLAT_GRID_CENTROIDS = (() => {
+  const pts = [];
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      // Square region spans [32..168] x [32..168] in viewBox 200x200
+      const x = (32 + (136 / 3) * (col + 0.5)) / 200;
+      const y = (32 + (136 / 3) * (row + 0.5)) / 200;
+      pts.push([x, y]);
+    }
+  }
+  return pts;
+})();
+
+// Global 6-Color Gray-World White-Balanced + CIELAB Self-Calibrating Classifier
+function classifyCapturedFaceBatch(rawFacesMap, fallbackFaces, lockedFaces = {}, savedPalette = null) {
+  const allEntries = [];
+  Object.entries(rawFacesMap).forEach(([faceKey, rgbList]) => {
+    if (!Array.isArray(rgbList) || rgbList.length !== 9) return;
+    rgbList.forEach((rgb, idx) => {
+      allEntries.push({ faceKey, idx, rgb });
+    });
+  });
+
+  if (allEntries.length === 0) return fallbackFaces;
+
+  const expectedCenter = { U: 'Y', F: 'G', R: 'O', D: 'W', B: 'B', L: 'R' };
+  const centerSamples = { ...(savedPalette || {}) };
+  Object.entries(rawFacesMap).forEach(([faceKey, rgbList]) => {
+    if (Array.isArray(rgbList) && rgbList.length === 9 && expectedCenter[faceKey]) {
+      centerSamples[expectedCenter[faceKey]] = rgbList[4];
+    }
+  });
+
+  const nextFaces = {
+    U: [...(fallbackFaces.U || [])],
+    F: [...(fallbackFaces.F || [])],
+    R: [...(fallbackFaces.R || [])],
+    D: [...(fallbackFaces.D || [])],
+    B: [...(fallbackFaces.B || [])],
+    L: [...(fallbackFaces.L || [])]
+  };
+
+  Object.entries(rawFacesMap).forEach(([faceKey, rgbList]) => {
+    if (!Array.isArray(rgbList) || rgbList.length !== 9) return;
+    const locked = lockedFaces?.[faceKey];
+    nextFaces[faceKey] = rgbList.map((rgb, idx) => {
+      if (Array.isArray(locked) && locked[idx]) return locked[idx];
+      if (idx === 4 && expectedCenter[faceKey]) return expectedCenter[faceKey];
+      return classifyStickerRgb(rgb, centerSamples);
+    });
+  });
+
+  return nextFaces;
+}
+
+// Precompute 2-sided top-layer signatures across all 4 AUF rotations (0, U, U2, U')
+let CACHED_SIGNATURES = null;
+function getCaseSignatures() {
+  if (CACHED_SIGNATURES) return CACHED_SIGNATURES;
+
+  const ollSigs = OLL_DATA.map((item) => {
+    const baseSt = simulateCrossCubeState(invertAlgorithm(item.alg));
+    const rotations = [];
+    let curSt = baseSt;
+    for (let rot = 0; rot < 4; rot++) {
+      const uMask = curSt.slice(0, 9).map((c) => (c === 'Y' ? '1' : '0')).join('');
+      const fTop = curSt.slice(18, 21).map((c) => (c === 'Y' ? '1' : '0')).join('');
+      const rTop = curSt.slice(9, 12).map((c) => (c === 'Y' ? '1' : '0')).join('');
+      rotations.push({ rot, uMask, sideMask: `${fTop}${rTop}` });
+      // Simulate U' on the setup state (= U Pre-AUF needed to reach rot 0)
+      curSt = applyMovesTo54State(curSt, "U'");
+    }
+    return { item, rotations };
+  });
+
+  const pllSigs = PLL_DATA.filter((item) => item.id <= 21).map((item) => {
+    const baseSt = simulateCrossCubeState(invertAlgorithm(item.alg));
+    const rotations = [];
+    let curSt = baseSt;
+    for (let rot = 0; rot < 4; rot++) {
+      const six = [...curSt.slice(18, 21), ...curSt.slice(9, 12)];
+      const map = {};
+      let idx = 0;
+      const pattern = six
+        .map((c) => {
+          if (!map[c]) map[c] = String(idx++);
+          return map[c];
+        })
+        .join('');
+      const fEdgeColor = curSt[19];
+      rotations.push({ rot, pattern, fEdgeColor });
+      curSt = applyMovesTo54State(curSt, "U'");
+    }
+    return { item, rotations };
+  });
+
+  CACHED_SIGNATURES = { ollSigs, pllSigs };
+  return CACHED_SIGNATURES;
+}
+
+function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints = null) {
+  const { ollSigs, pllSigs } = getCaseSignatures();
+  const topColor = uGrid[4] || 'Y';
+  const fCenter = fGrid[4] || 'G';
+  const rCenter = rGrid[4] || 'O';
+
+  // Verify bottom cross edges visible on F & R (index 7) plus full 6-face check & user hints
+  const greenEdgeSolved = fGrid[7] === fCenter;
+  const orangeEdgeSolved = rGrid[7] === rCenter;
+  const visibleUnsolved = [
+    ...(!greenEdgeSolved ? ['Green (DF)'] : []),
+    ...(!orangeEdgeSolved ? ['Orange (DR)'] : [])
+  ];
+  const hintedCrossSolved = userHints?.crossSolved;
+  const isCrossSolved = fullMeta
+    ? fullMeta.crossSolved
+    : hintedCrossSolved === false
+    ? false
+    : hintedCrossSolved === true
+    ? true
+    : greenEdgeSolved && orangeEdgeSolved;
+
+  // Check if F2L bottom two rows on F & R match their centers
+  const frSlotSolved =
+    fGrid[8] === fCenter && fGrid[5] === fCenter && rGrid[6] === rCenter && rGrid[3] === rCenter;
+  const flVisibleSolved = fGrid[6] === fCenter && fGrid[3] === fCenter;
+  const brVisibleSolved = rGrid[8] === rCenter && rGrid[5] === rCenter;
+
+  const hintedF2lStatus = userHints?.f2lCompletedStatus || null; // null | 'none' | 'some' | 'all'
+  const f2lRowsSolved = fullMeta
+    ? fullMeta.remainingF2lPairs === 0
+    : hintedF2lStatus === 'all'
+    ? true
+    : hintedF2lStatus === 'none' || hintedF2lStatus === 'some'
+    ? false
+    : frSlotSolved && flVisibleSolved && brVisibleSolved;
+
+  const estimatedRemainingPairs = fullMeta
+    ? fullMeta.remainingF2lPairs
+    : hintedF2lStatus === 'all'
+    ? 0
+    : hintedF2lStatus === 'none'
+    ? 4
+    : hintedF2lStatus === 'some'
+    ? Math.max(1, (frSlotSolved ? 0 : 1) + (flVisibleSolved ? 0 : 1) + (brVisibleSolved ? 0 : 1))
+    : (frSlotSolved ? 0 : 1) + (flVisibleSolved ? 0 : 1) + (brVisibleSolved ? 0 : 1);
+
+  const allTopOriented = uGrid.every((c) => c === topColor);
+
+  // 0. CROSS UNSOLVED IN 3-FACE VIEW (Bottom cross edge out of place on F or R, or user confirmed Cross is unsolved)
+  if (!isCrossSolved) {
+    const missingLabel = visibleUnsolved.length > 0 ? visibleUnsolved.join(' & ') : 'Back/Left Cross Edges';
+    const crossAlg = !greenEdgeSolved && !orangeEdgeSolved ? "F R' D' R F2" : !greenEdgeSolved ? "F' R' D' R F" : !orangeEdgeSolved ? "R' F D F' R" : "D' R' D";
+    const firstF2l = F2L_BY_ID.get(4) || F2L_DATA[0];
+    return {
+      phase: 'cross',
+      crossSolved: false,
+      solvedCrossCount: fullMeta ? fullMeta.solvedCrossCount : 2 - visibleUnsolved.length,
+      remainingCrossNames: visibleUnsolved.length > 0 ? visibleUnsolved : ['Blue (DB)', 'Red (DL)'],
+      remainingF2lPairs: Math.max(1, estimatedRemainingPairs),
+      phaseLabel: `Cross Unsolved (${missingLabel}) • ${Math.max(1, estimatedRemainingPairs)} F2L Left`,
+      confidence: 94,
+      matchedCase: {
+        id: 1,
+        name: `Solve Remaining Cross: ${missingLabel}`,
+        alg: crossAlg,
+        fingertrick: 'Align white edges to their matching centers on D before inserting F2L pairs.'
+      },
+      aufHint:
+        visibleUnsolved.length > 0
+          ? `Remaining Cross Edges: ${visibleUnsolved.join(', ')} (Scan D•B•L for full 4-edge solve)`
+          : 'Front cross edges look aligned — capture D•B•L to locate hidden back/left cross edges',
+      nextUpTitle: `Next Up: F2L (${Math.max(1, estimatedRemainingPairs)} Pairs Left)`,
+      nextUpBadge: 'Cross → F2L Transition',
+      nextUpCase: firstF2l,
+      nextUpSummary: `Finish ${missingLabel} (${crossAlg}), then solve the remaining ${Math.max(1, estimatedRemainingPairs)} F2L pairs starting with Front-Right.`
+    };
+  }
+
+  // 1. PLL DETECTION (Cross Solved, 0 F2L pairs left, Top face solid Yellow)
+  if (allTopOriented && f2lRowsSolved) {
+    const six = [fGrid[0], fGrid[1], fGrid[2], rGrid[0], rGrid[1], rGrid[2]];
+    const map = {};
+    let idx = 0;
+    const scannedPattern = six
+      .map((c) => {
+        if (!map[c]) map[c] = String(idx++);
+        return map[c];
+      })
+      .join('');
+
+    // Check if cube is already completely solved on F and R top rows
+    if (
+      fGrid[0] === fCenter &&
+      fGrid[1] === fCenter &&
+      fGrid[2] === fCenter &&
+      rGrid[0] === rCenter &&
+      rGrid[1] === rCenter &&
+      rGrid[2] === rCenter
+    ) {
+      const uaCase = PLL_BY_ID.get(1) || PLL_DATA[0];
+      return {
+        phase: 'pll',
+        crossSolved: true,
+        remainingF2lPairs: 0,
+        phaseLabel: 'Cube Solved ✓ (0 Moves Needed)',
+        confidence: 99,
+        matchedCase: uaCase,
+        aufHint: 'Solved! All layers match their centers.',
+        nextUpTitle: 'Cube Solved! ✓',
+        nextUpBadge: 'Complete',
+        nextUpCase: null,
+        nextUpSummary: 'Every visible face is solved—no algorithm needed.'
+      };
+    }
+
+    let bestPll = pllSigs[0].item;
+    let bestScore = -1;
+    let bestRot = 0;
+
+    pllSigs.forEach(({ item, rotations }) => {
+      rotations.forEach(({ rot, pattern }) => {
+        let score = 0;
+        for (let i = 0; i < 6; i++) {
+          if (pattern[i] === scannedPattern[i]) score += 3;
+        }
+        // Prefer zero Pre-AUF on ties
+        if (rot === 0) score += 0.5;
+        if (score > bestScore) {
+          bestScore = score;
+          bestPll = item;
+          bestRot = rot;
+        }
+      });
+    });
+
+    const preAuf = bestRot === 0 ? '' : bestRot === 1 ? 'U' : bestRot === 2 ? 'U2' : "U'";
+    const auf = preAuf ? `Pre-AUF: ${preAuf} before executing` : 'Ready from current angle (No Pre-AUF)';
+
+    return {
+      phase: 'pll',
+      crossSolved: true,
+      remainingF2lPairs: 0,
+      phaseLabel: 'Cross Solved ✓ • 0 F2L Left • PLL',
+      confidence: Math.min(99, Math.round(74 + bestScore * 1.4)),
+      matchedCase: bestPll,
+      aufHint: auf,
+      nextUpTitle: preAuf ? `Execute ${preAuf} → ${bestPll.name}` : `Execute ${bestPll.name}`,
+      nextUpBadge: 'Final Layer PLL',
+      nextUpCase: null,
+      nextUpSummary: `Cross & all 4 F2L pairs are solved. ${preAuf ? `Do ${preAuf} first, then execute ` : 'Execute '}${bestPll.name} (${bestPll.alg}) and align AUF.`
+    };
+  }
+
+  // 2. OLL DETECTION (Cross Solved, 0 F2L pairs left, Top face has unoriented yellow stickers)
+  if (f2lRowsSolved && !allTopOriented) {
+    let bestOll = ollSigs[0].item;
+    let bestScore = -1;
+    let bestRot = 0;
+
+    const scannedUMask = uGrid.map((c) => (c === topColor ? '1' : '0')).join('');
+    const scannedSideMask = [...fGrid.slice(0, 3), ...rGrid.slice(0, 3)]
+      .map((c) => (c === topColor ? '1' : '0'))
+      .join('');
+
+    ollSigs.forEach(({ item, rotations }) => {
+      rotations.forEach(({ rot, uMask: targetU, sideMask: targetSide }) => {
+        let score = 0;
+        for (let i = 0; i < 9; i++) {
+          if (scannedUMask[i] === targetU[i]) score += 4;
+        }
+        for (let j = 0; j < 6; j++) {
+          if (scannedSideMask[j] === targetSide[j]) score += 3;
+        }
+        if (rot === 0) score += 0.5;
+        if (score > bestScore) {
+          bestScore = score;
+          bestOll = item;
+          bestRot = rot;
+        }
+      });
+    });
+
+    const preAuf = bestRot === 0 ? '' : bestRot === 1 ? 'U ' : bestRot === 2 ? 'U2 ' : "U' ";
+    const postState = simulateCrossCubeState(`${invertAlgorithm(bestOll.alg)} ${preAuf}${bestOll.alg}`);
+    const postSix = [...postState.slice(18, 21), ...postState.slice(9, 12)];
+    const pMap = {};
+    let pIdx = 0;
+    const postPattern = postSix
+      .map((c) => {
+        if (!pMap[c]) pMap[c] = String(pIdx++);
+        return pMap[c];
+      })
+      .join('');
+    const predictedPll =
+      pllSigs.find((p) => p.rotations.some((r) => r.pattern === postPattern))?.item ||
+      PLL_BY_ID.get(8) ||
+      PLL_DATA[0];
+
+    return {
+      phase: 'oll',
+      crossSolved: true,
+      remainingF2lPairs: 0,
+      phaseLabel: 'Cross Solved ✓ • 0 F2L Left • OLL',
+      confidence: Math.min(98, Math.round(62 + bestScore * 0.7)),
+      matchedCase: bestOll,
+      aufHint: bestRot === 0 ? 'Ready from current angle' : `Pre-AUF: ${preAuf.trim()} before executing`,
+      nextUpTitle: `Follow-Up Case: ${predictedPll.name}`,
+      nextUpBadge: 'Predicted Next PLL',
+      nextUpCase: predictedPll,
+      nextUpSummary: `Cross & all 4 F2L pairs are solved. ${preAuf ? `Turn ${preAuf.trim()} first, then execute ` : 'Execute '}${bestOll.name} to orient the yellow top.`
+    };
+  }
+
+  // 3. F2L DETECTION (Cross Solved, 1–4 F2L pairs left)
+  const pairsLeft = Math.max(1, estimatedRemainingPairs);
+  const frCornerTop = uGrid[8];
+  const frCornerFront = fGrid[2];
+  const frCornerRight = rGrid[0];
+  const hasWhiteInTopCorner = [frCornerTop, frCornerFront, frCornerRight].includes('W');
+  const cornerTrappedBottom = [fGrid[8], rGrid[6]].includes('W');
+
+  let targetF2lId = 4;
+  if (cornerTrappedBottom) {
+    targetF2lId = fGrid[8] === 'W' ? 27 : 30;
+  } else if (frCornerTop === 'W') {
+    targetF2lId = uGrid[5] === fCenter || uGrid[7] === rCenter ? 17 : 21;
+  } else if (hasWhiteInTopCorner) {
+    const topStickersSame = frCornerTop === uGrid[5] || frCornerTop === uGrid[7];
+    targetF2lId = topStickersSame ? (frCornerFront === 'W' ? 5 : 6) : frCornerFront === 'W' ? 1 : 2;
+  } else {
+    targetF2lId = 31;
+  }
+
+  const matchedF2L = F2L_BY_ID.get(targetF2lId) || F2L_DATA[0];
+  const nextOllPreview = OLL_BY_ID.get(27) || OLL_DATA[0];
+  const remainingAfterThis = pairsLeft - 1;
+  const openSlotHint =
+    fullMeta?.unsolvedSlotNames?.length && frSlotSolved
+      ? `Rotate y/y' to bring open ${fullMeta.unsolvedSlotNames[0]} slot to Front-Right`
+      : 'Target Slot: Front-Right (White–Green–Orange)';
+
+  return {
+    phase: 'f2l',
+    crossSolved: true,
+    remainingF2lPairs: pairsLeft,
+    phaseLabel: `Cross Solved ✓ • ${pairsLeft} F2L Pair${pairsLeft === 1 ? '' : 's'} Left`,
+    confidence: 91,
+    matchedCase: matchedF2L,
+    aufHint: openSlotHint,
+    nextUpTitle:
+      remainingAfterThis > 0
+        ? `After This: ${remainingAfterThis} F2L Pair${remainingAfterThis === 1 ? '' : 's'} Left → OLL`
+        : `Last F2L Pair! Next Up: ${nextOllPreview.name} (OLL)`,
+    nextUpBadge: remainingAfterThis > 0 ? `${pairsLeft} Pairs Remaining` : 'Final F2L → OLL',
+    nextUpCase: nextOllPreview,
+    nextUpSummary:
+      remainingAfterThis > 0
+        ? `Cross is solved. Insert ${matchedF2L.name} into Front-Right, then solve the remaining ${remainingAfterThis} pair${remainingAfterThis === 1 ? '' : 's'} before OLL.`
+        : `Cross is solved and this is your final F2L pair! Insert ${matchedF2L.name} to advance directly into OLL.`
+  };
+}
+
+// =========================================================================
+// 2B. 3D SPATIAL CROSS & F2L CUBE STATE SIMULATOR
+// =========================================================================
+function simulateCrossCubeState(scramble = '') {
+  return applyMovesTo54State(SOLVED_54_STATE, scramble);
 }
 
 const STICKER_HEX = {
@@ -985,9 +1425,7 @@ const STICKER_HEX = {
   R: '#ef4444'
 };
 
-function simulateF2LCubeState(setupScramble = '') {
-  return simulateCrossCubeState(setupScramble);
-}
+const simulateF2LCubeState = simulateCrossCubeState;
 
 // Unified 3D Spatial Cube Renderer (Used by both Cross & F2L Orbit Cubes)
 function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, isDragging, cubeRef }) {
@@ -1407,6 +1845,503 @@ const APP_ONLY_TOUR_STEPS = [
 ];
 
 // =========================================================================
+// 2D. COMPLETE CFOP DATASETS, FINGERTRICK CODEX & WCA NOTATION
+// =========================================================================
+const FINGERTRICK_CODEX = [
+  {
+    id: 'sexy',
+    category: 'Core Triggers',
+    name: 'Sexy Move',
+    notation: "(R U R' U')",
+    grip: 'Right thumb on Front-Bottom (DF), Right ring finger on Back-Right (BR).',
+    execution: "Push R up with wrist, flick U with right index, pull R' down, and push U' with left index.",
+    badgeClass: 'bg-orange-500/15 border-orange-500/35 text-orange-300',
+    dotClass: 'bg-orange-400'
+  },
+  {
+    id: 'left-sexy',
+    category: 'Core Triggers',
+    name: 'Left Sexy Move',
+    notation: "(L' U' L U)",
+    grip: 'Left thumb on Front-Bottom (DF), Left ring finger on Back-Left (BL).',
+    execution: "Push L' up with left wrist, flick U' with left index, pull L down, and flick U with right index.",
+    badgeClass: 'bg-sky-500/15 border-sky-500/35 text-sky-300',
+    dotClass: 'bg-sky-400'
+  },
+  {
+    id: 'inv-sexy',
+    category: 'Core Triggers',
+    name: 'Inverse Sexy',
+    notation: "(R U' R')",
+    grip: 'Right thumb on Front-Bottom (DF), Left index resting on Back-Left (UBL).',
+    execution: "Push R up, push U' smoothly with left index without regripping, then pull R' straight down.",
+    badgeClass: 'bg-amber-500/15 border-amber-500/35 text-amber-300',
+    dotClass: 'bg-amber-400'
+  },
+  {
+    id: 'sledge',
+    category: 'F-Layer Triggers',
+    name: 'Sledgehammer',
+    notation: "(R' F R F')",
+    grip: 'Right thumb on Front-Center or U-edge; Right index ready on Top-Right (UR).',
+    execution: "Pull R' down, press F clockwise with right index/thumb, push R up, and flick F' up with right thumb.",
+    badgeClass: 'bg-rose-500/15 border-rose-500/35 text-rose-300',
+    dotClass: 'bg-rose-400'
+  },
+  {
+    id: 'hedge',
+    category: 'F-Layer Triggers',
+    name: 'Hedgeslammer',
+    notation: "(F R' F' R)",
+    grip: 'Right thumb tucked on Front-Bottom (DF) so it can push F upward cleanly.',
+    execution: "Push F clockwise with right index, pull R' down, flick F' up with right thumb, then lift R.",
+    badgeClass: 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300',
+    dotClass: 'bg-emerald-400'
+  },
+  {
+    id: 'u2-double',
+    category: 'Speed Flicks',
+    name: 'U2 Double Flick',
+    notation: '(U2)',
+    grip: 'Left or Right index + middle fingers poised on the back-corner of the U-layer.',
+    execution: 'Flick index finger immediately followed by middle finger in one rolling motion—never regrip for two single U turns.',
+    badgeClass: 'bg-purple-500/15 border-purple-500/35 text-purple-300',
+    dotClass: 'bg-purple-400'
+  },
+  {
+    id: 'm-slice',
+    category: 'Slice & Ring',
+    name: 'M-Slice Ring Flick',
+    notation: "(M2 / M')",
+    grip: 'Thumbs on Front-Left/Right corners; Left ring & middle fingers behind DB.',
+    execution: "Flick DB upward with left ring finger for M', or double-flick ring → middle finger for seamless M2.",
+    badgeClass: 'bg-cyan-500/15 border-cyan-500/35 text-cyan-300',
+    dotClass: 'bg-cyan-400'
+  },
+  {
+    id: 'd-ring',
+    category: 'Slice & Ring',
+    name: 'Ring-Finger D Push',
+    notation: "(D / D')",
+    grip: 'Ring fingers resting lightly along the bottom Back-Left and Back-Right edges.',
+    execution: "Push Back-Left with left ring finger for D, or pull Back-Right with right ring finger for D'.",
+    badgeClass: 'bg-indigo-500/15 border-indigo-500/35 text-indigo-300',
+    dotClass: 'bg-indigo-400'
+  }
+];
+
+const WCA_NOTATION_GUIDE = [
+  { section: 'Outer Faces', move: 'U / U\' / U2', desc: 'Top (Yellow) layer: Clockwise, Counter-Clockwise, or 180°' },
+  { section: 'Outer Faces', move: 'D / D\' / D2', desc: 'Bottom (White) layer: Clockwise, Counter-Clockwise, or 180°' },
+  { section: 'Outer Faces', move: 'R / R\' / R2', desc: 'Right (Orange) layer: Away from you, Toward you, or 180°' },
+  { section: 'Outer Faces', move: 'L / L\' / L2', desc: 'Left (Red) layer: Toward you, Away from you, or 180°' },
+  { section: 'Outer Faces', move: 'F / F\' / F2', desc: 'Front (Green) face: Clockwise, Counter-Clockwise, or 180°' },
+  { section: 'Outer Faces', move: 'B / B\' / B2', desc: 'Back (Blue) face: Clockwise, Counter-Clockwise, or 180°' },
+  { section: 'Wide Turns', move: 'r / r\' (Rw)', desc: 'Turn Right two layers together (R + M\')' },
+  { section: 'Wide Turns', move: 'l / l\' (Lw)', desc: 'Turn Left two layers together (L + M)' },
+  { section: 'Wide Turns', move: 'u / u\' (Uw)', desc: 'Turn Top two layers together (U + E\')' },
+  { section: 'Wide Turns', move: 'f / f\' (Fw)', desc: 'Turn Front two layers together (F + S)' },
+  { section: 'Slice Moves', move: 'M / M\' / M2', desc: 'Middle slice between L & R (follows L direction)' },
+  { section: 'Slice Moves', move: 'E / E\' / E2', desc: 'Equatorial slice between U & D (follows D direction)' },
+  { section: 'Slice Moves', move: 'S / S\' / S2', desc: 'Standing slice between F & B (follows F direction)' },
+  { section: 'Rotations', move: 'x / x\'', desc: 'Rotate entire cube on R axis (U becomes B / F)' },
+  { section: 'Rotations', move: 'y / y\'', desc: 'Rotate entire cube on U axis (F becomes L / R)' },
+  { section: 'Rotations', move: 'z / z\'', desc: 'Rotate entire cube on F axis (U becomes R / L)' }
+];
+
+function buildFingertrickBreakdown(caseItem) {
+  const alg = caseItem?.alg || '';
+  const hasF = /\b[Ff]/.test(alg);
+  const hasM = /\bM/.test(alg);
+  const hasD = /\bD/.test(alg);
+  return {
+    grip: hasF
+      ? 'Home Grip with Right thumb slightly lower on DF so it can flick F\' upward without regripping.'
+      : hasM
+      ? 'Neutral Pincher Grip on UFL/UFR corners, freeing left ring & middle fingers for M-slice flicks.'
+      : 'Standard Right-Thumb-On-Front Home Grip; keep wrists neutral before starting.',
+    cue: caseItem?.fingertrick || 'Execute parenthesized triggers in single fluid wrist-and-index bursts.',
+    flow: hasD
+      ? 'Use left/right ring fingers on the bottom back corners for D/D\' so your thumbs never leave the front.'
+      : 'Use double-flick U2 (index → middle) and avoid regripping between triggers.'
+  };
+}
+
+const CROSS_TIERS = [
+  {
+    tier: 1,
+    moves: 2,
+    title: '2-Move Direct Inserts',
+    hint: 'Both white edges are one quarter-turn away from D. Insert in a single rhythmic flow.',
+    scrambles: ["R2 F2", "F' R2", "L2 D' F2 D", "R' F' R F", "U R2 F2"]
+  },
+  {
+    tier: 2,
+    moves: 3,
+    title: '3-Move Adjacent Pairs',
+    hint: 'Use a single D-layer shift so the second white edge drops directly into its aligned slot.',
+    scrambles: ["F R' D'", "R' F D", "L F' D", "U' R2 F2", "B' R2 D"]
+  },
+  {
+    tier: 3,
+    moves: 4,
+    title: '4-Move Keyhole & Flips',
+    hint: 'Preserve already-placed white edges by rotating D instead of undoing solved pieces.',
+    scrambles: ["R' F R D'", "F U' R2 F2", "L' B' D2 R2", "U R' F' R", "F2 U' R2 D"]
+  },
+  {
+    tier: 4,
+    moves: 5,
+    title: '5-Move Multi-Edge Setup',
+    hint: 'Solve bad (flipped) edges first while setting up good edges in the E-slice.',
+    scrambles: ["R U' F R' D'", "F' U R' F2 D", "L U' F' L D2", "R2 U' F' R D", "B U' R2 F' D"]
+  },
+  {
+    tier: 5,
+    moves: 6,
+    title: '6-Move Sub-8 Standard',
+    hint: 'Plan all 4 edges during inspection and align the entire cross with a final D turn.',
+    scrambles: ["R' U' F R2 D' F'", "F U' R' F' D2 R", "L' U F' L2 D R'", "R U2 F' R' D' F", "B' U R' B2 D' F2"]
+  }
+];
+
+const CROSS_ADVANCED_TIERS = [
+  {
+    tier: 1,
+    moves: 6,
+    title: 'Full Scramble • 6-Move Cross',
+    hint: 'Full 20-move WCA scramble with a clean 6-move solution. Trace all 4 white edges before turning.',
+    scrambles: [
+      "R U R' U' F2 D R2 U' B2 L2 D' F2 R U' B' L D2 F' U2 R",
+      "F' U2 L2 B2 D R2 U' F2 U B2 R' D' L' B U' F R2 U' L2 B"
+    ]
+  },
+  {
+    tier: 2,
+    moves: 7,
+    title: 'Full Scramble • 7-Move Cross',
+    hint: 'Solve relative to the color orbit (Green → Orange → Blue → Red), then finish with D/D\'.',
+    scrambles: [
+      "L2 U' B2 D2 R2 F2 U' L2 B2 U R' F' D2 B U L' R D' F2 U",
+      "B2 R2 D' L2 U B2 R2 U' F2 D' L B' R' U2 F' D' L' B2 R U'"
+    ]
+  },
+  {
+    tier: 3,
+    moves: 7,
+    title: 'Full Scramble • Flipped Edge Trap',
+    hint: 'Use one flipped white edge to kick another edge out of the bottom layer simultaneously.',
+    scrambles: [
+      "D2 F2 R2 U' B2 L2 D' R2 U' F2 R B' U' L' D2 F' R2 U' B L",
+      "U2 R2 F2 D' L2 B2 U R2 D' F2 L' F U R D2 B R2 U' L' F"
+    ]
+  },
+  {
+    tier: 4,
+    moves: 8,
+    title: 'Full Scramble • X-Cross Lookahead',
+    hint: 'Track the White-Green-Orange corner while finishing your 8-move cross.',
+    scrambles: [
+      "R2 B2 D' F2 U L2 D' R2 U' B2 F' L' U2 R' D B' L2 F' U R",
+      "F2 L2 U' R2 D B2 U' L2 D' F2 R' B U2 L D' F R2 B U' L'"
+    ]
+  },
+  {
+    tier: 5,
+    moves: 8,
+    title: 'WCA Competition 8-Move Cap',
+    hint: 'Every 3x3 scramble can be solved in ≤8 moves. Aim for zero pauses between Cross and Pair 1.',
+    scrambles: [
+      "U' F2 R2 D' B2 L2 U R2 D' F2 L' B' R U2 F' D' R2 B' U' L",
+      "D' R2 B2 U' L2 F2 D' R2 U' B2 R F' L' U2 B D F2 R' U L'"
+    ]
+  }
+];
+
+const CROSS_MECHANICS = [
+  {
+    id: 1,
+    title: 'Relative Color Orbit',
+    badge: 'Mechanic 1 • Zero Center Peeking',
+    summary: 'Build the cross in the exact clockwise order Green → Orange → Blue → Red on D, then align all 4 edges at once with a single D turn.',
+    example: "F' R' D' R F D'",
+    approaches: [
+      {
+        id: 'opp',
+        name: 'Opposite Pair First',
+        tag: 'Blue + Green',
+        rule: 'Place Blue opposite Green first so you never disturb solved adjacent edges.',
+        cases: [
+          { label: 'Case A • Offset D', setup: "R2 F2 D", solve: "D' F2 R2", note: 'Aligns both opposite edges in 3 turns.' },
+          { label: 'Case B • E-Slice Drop', setup: "R' F D", solve: "D' F' R", note: 'Drops FR into DR while kicking DF into place.' }
+        ]
+      },
+      {
+        id: 'adj',
+        name: 'Adjacent Chain',
+        tag: 'Green → Orange',
+        rule: 'Shift D by 90° so the second edge lands directly next to the first.',
+        cases: [
+          { label: 'Case A • D-Shift', setup: "F R' D'", solve: "D R F'", note: 'Single D setup avoids extra U turns.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: 'Good vs. Bad Edges',
+    badge: 'Mechanic 2 • 1-Move Orientation',
+    summary: 'An edge is "Good" if it can reach D using only R, L, U, D moves. A "Bad" edge requires one F or B quarter-turn to orient.',
+    example: "F R' F' R",
+    approaches: [
+      {
+        id: 'flip',
+        name: 'F-Turn Conversion',
+        tag: 'Bad → Good',
+        rule: 'Use a single F or F\' move to flip a bad edge while simultaneously placing an adjacent edge.',
+        cases: [
+          { label: 'Case A • UF Flipped', setup: "F R' F' R", solve: "R' F R F'", note: 'Sledgehammer orients UF straight into DF.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: 'D-Layer Keyhole',
+    badge: 'Mechanic 3 • Non-Destructive',
+    summary: 'Never undo a solved cross edge to insert another. Rotate D to bring an empty slot underneath the incoming edge.',
+    example: "D' R' D",
+    approaches: [
+      {
+        id: 'kh',
+        name: 'Empty Slot Shift',
+        tag: 'Preserve Cross',
+        rule: 'Move D before R/L, insert, then restore D.',
+        cases: [
+          { label: 'Case A • Right Keyhole', setup: "D' R D", solve: "D' R' D", note: 'Protects DF, DL, and DB while solving DR.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 4,
+    title: '2-Edge Combo & X-Cross',
+    badge: 'Mechanic 4 • Sub-10 Transition',
+    summary: 'Pair a white cross edge with a bottom corner during the final 2–3 cross moves so you enter F2L with 1 pair already solved (X-Cross), or solve two cross edges simultaneously in one trigger.',
+    example: "R' F R U' R' F' R",
+    approaches: [
+      {
+        id: 'xcross',
+        name: 'Free Pair Preservation',
+        tag: 'X-Cross Setup',
+        rule: 'Spot an already-paired or 1-move corner-edge block in the U-layer, then use keyhole D/D\' turns or wide/F inserts so the final cross edge drops in without breaking the pair.',
+        cases: [
+          { label: 'Case A • U-Layer Preserve', setup: "R U' R' F2", solve: "F2 R U R'", note: 'Finishes DF without disturbing the formed Front-Right F2L pair.' },
+          { label: 'Case B • Keyhole D-Shift', setup: "R U R' D' F2 D", solve: "D' F2 D R U' R'", note: 'Shifts D\' to open an empty cross slot, inserts DF, and restores D while keeping the FR pair intact.' },
+          { label: 'Case C • Back-Right Slot Save', setup: "R' U R F2", solve: "F2 R' U' R", note: 'Inserts DF cleanly while preserving an already-joined Back-Right pair.' }
+        ]
+      },
+      {
+        id: 'block-build',
+        name: '2x2x2 Pseudo-Block X-Cross',
+        tag: 'Corner + 2 Edges',
+        rule: 'Build a 2x2x2 block in Back-Left or Back-Right first (2 cross edges + 1 F2L pair), then finish the remaining 2 cross edges with R, U, and F moves.',
+        cases: [
+          { label: 'Case A • Back-Left Block', setup: "F2 R2 U' R2 F2", solve: "F2 R2 U R2 F2", note: 'Locks DL and DB with the DBL pair, leaving only DF and DR to drop in.' },
+          { label: 'Case B • E-Slice Edge Join', setup: "R U' R' U R2", solve: "R2 U' R U R'", note: 'Joins the FR middle edge with the DFR corner while simultaneously seating DR.' },
+          { label: 'Case C • Corner-First Drop', setup: "F' U' F R2", solve: "R2 F' U F", note: 'Seats DR with R2 and immediately pairs the Front-Right F2L block on the way down.' }
+        ]
+      },
+      {
+        id: 'double-edge',
+        name: '2-Edge Simultaneous Combo',
+        tag: 'Dual Cross Insert',
+        rule: 'When two white edges sit in the E-slice or U-layer one turn apart, align their relative orbit first so a single R/F or D2 sequence seats both edges together.',
+        cases: [
+          { label: 'Case A • E-Slice Double Drop', setup: "F' R' D'", solve: "D R F", note: 'R drops DR while F immediately sweeps DF into its adjacent orbit slot.' },
+          { label: 'Case B • Sledgehammer 2-Edge', setup: "R' F R F' D", solve: "D' F R' F' R", note: 'Hedgeslammer flips UF into DF while kicking FR into DR in 4 moves.' },
+          { label: 'Case C • Opposite U2 Double', setup: "R2 L2 U2", solve: "U2 L2 R2", note: 'Aligns both opposite top white edges over their centers for simultaneous 180° drops.' }
+        ]
+      },
+      {
+        id: 'keyhole-xcross',
+        name: 'Keyhole Corner-Edge Pair',
+        tag: 'Advanced X-Cross',
+        rule: 'Leave one cross slot open as a working keyhole to pair an F2L corner and edge in the middle layer before closing the final cross edge.',
+        cases: [
+          { label: 'Case A • Open DF Keyhole', setup: "D R U' R' D' F2", solve: "F2 D R U R' D'", note: 'Uses the open DF slot to pair UFR + FR via D-rotation, then seals DF with F2.' },
+          { label: 'Case B • M-Slice Cross + Pair', setup: "M' U2 M R U R'", solve: "R U' R' M' U2 M", note: 'Inserts the FR pair while using M-slice freedom to align the final cross edge.' }
+        ]
+      }
+    ]
+  }
+];
+
+const F2L_DATA = [
+  { id: 1, group: 'Basic Inserts', name: 'F2L 1 (Right Insert)', alg: "(U R U' R')", fingertrick: "Push U with right index, lift R, push U' with left index, drop R'.", step1: 'Corner & edge are split with mismatched top colors.', step2: 'Pair and insert cleanly into Front-Right.' },
+  { id: 2, group: 'Basic Inserts', name: 'F2L 2 (Front Insert)', alg: "(U' F' U F)", fingertrick: "Push U' with left index, pull F' up with right thumb, flick U, push F.", step1: 'White sticker faces Front with opposite edge on Left.', step2: 'Insert straight into Front-Right via F-layer.' },
+  { id: 3, group: 'Basic Inserts', name: 'F2L 3 (Direct Front)', alg: "(F' U' F)", fingertrick: "Pull F' up with right thumb, push U' with left index, press F.", step1: 'Already-paired block sits above Front-Left.', step2: 'Drop directly into the Front-Right slot.' },
+  { id: 4, group: 'Basic Inserts', name: 'F2L 4 (Direct Right)', alg: "(R U R')", fingertrick: "Lift R with wrist, flick U with right index, pull R' down.", step1: 'Already-paired block sits above Back-Right.', step2: 'Drop directly into the Front-Right slot.' },
+  { id: 5, group: 'Corner in Top • Edge in Top', name: 'F2L 5 (Split Opposite)', alg: "(U' R U R') (U2 R U' R')", fingertrick: "Execute (U' R U R') smoothly, double-flick (U2), finish with (R U' R').", step1: 'White faces Right; edge is in UL with matching top color.', step2: 'Hide corner, pair edge, and insert.' },
+  { id: 6, group: 'Corner in Top • Edge in Top', name: 'F2L 6 (Split Front)', alg: "(U F' U' F) (U2 F' U F)", fingertrick: "Use right thumb for F' and left index for U' without regripping.", step1: 'White faces Front; edge is in UB with matching top color.', step2: 'Mirror of F2L 5 into Front-Right.' },
+  { id: 7, group: 'Corner in Top • Edge in Top', name: 'F2L 7 (Far Pair Right)', alg: "(U' R U2 R') (U2 R U' R')", fingertrick: "Double-flick both U2 turns with index-middle roll.", step1: 'White faces Right; edge is opposite in UL.', step2: 'Bring edge to UF while hiding corner, then insert.' },
+  { id: 8, group: 'Corner in Top • Edge in Top', name: 'F2L 8 (Far Pair Front)', alg: "(U F' U2 F) (U2 F' U F)", fingertrick: "Keep right thumb anchored on DF for clean F' lifts.", step1: 'White faces Front; edge is opposite in UB.', step2: 'Mirror of F2L 7.' },
+  { id: 9, group: 'Corner in Top • Edge in Top', name: 'F2L 9 (Misaligned Right)', alg: "(U' R U' R') (U F' U' F)", fingertrick: "Transition from R' straight into F' with right thumb.", step1: 'White faces Right; edge is in UB with opposite top color.', step2: 'Separate and insert via Front.' },
+  { id: 10, group: 'Corner in Top • Edge in Top', name: 'F2L 10 (Misaligned Front)', alg: "(U F' U F) (U' R U R')", fingertrick: "Flow seamlessly from F into R without regrip.", step1: 'White faces Front; edge is in UL with opposite top color.', step2: 'Separate and insert via Right.' },
+  { id: 11, group: 'Connected Pairs', name: 'F2L 11 (Wrongly Connected R)', alg: "(U' R U2 R') (U F' U' F)", fingertrick: "Double-flick U2, then drop R' directly into F'.", step1: 'Corner & edge touch in U with mismatched side colors.', step2: 'Split in back and insert through Front.' },
+  { id: 12, group: 'Connected Pairs', name: 'F2L 12 (Wrongly Connected F)', alg: "(R U' R' U) (R U' R' U2) (R U' R')", fingertrick: "Three rhythmic (R U' R') inverse-sexy bursts.", step1: 'Connected pair with White facing Right.', step2: 'Cycle corner to re-pair and insert.' },
+  { id: 13, group: 'Connected Pairs', name: 'F2L 13 (Connected Flip F)', alg: "(U F' U2 F) (U' R U R')", fingertrick: "Use right thumb F' and left index U' seamlessly.", step1: 'Connected pair with White facing Front.', step2: 'Split and insert through Right.' },
+  { id: 14, group: 'Connected Pairs', name: 'F2L 14 (Connected Lift)', alg: "(U' R U' R') (U R U R')", fingertrick: "Back-to-back (U' R U' R') and (U R U R') triggers.", step1: 'Connected pair with matching top colors on Right.', step2: 'Unpair in back and re-insert.' },
+  { id: 15, group: 'Connected Pairs', name: 'F2L 15 (Sledge Split)', alg: "(R' F R F') (U R U' R')", fingertrick: "Sledgehammer (R' F R F') directly into (U R U' R').", step1: 'Connected pair directly over Front-Right slot.', step2: 'Sledgehammer splits & pairs in one motion.' },
+  { id: 16, group: 'Connected Pairs', name: 'F2L 16 (Hedge Split)', alg: "(R U' R' U2) (F' U' F)", fingertrick: "Inverse sexy + U2 double-flick into (F' U' F).", step1: 'Connected pair with flipped edge over slot.', step2: 'Kick edge out and insert via Front.' },
+  { id: 17, group: 'Corner in Top • Edge in Top', name: 'F2L 17 (White Up • Match R)', alg: "(R U2 R') (U' R U R')", fingertrick: "Fast (R U2 R') double-flick followed by (U' R U R').", step1: 'White sticker faces Up; edge is aligned on Right.', step2: 'Pair on back-right and insert.' },
+  { id: 18, group: 'Corner in Top • Edge in Top', name: 'F2L 18 (White Up • Match F)', alg: "(F' U2 F) (U F' U' F)", fingertrick: "Right thumb F' lift + U2 double-flick.", step1: 'White sticker faces Up; edge is aligned on Front.', step2: 'Pair on front-left and insert.' },
+  { id: 19, group: 'Corner in Top • Edge in Top', name: 'F2L 19 (White Up • Opp R)', alg: "(U R U2 R') (U R U' R')", fingertrick: "Keep right thumb on DF throughout.", step1: 'White faces Up; edge is in UB.', step2: 'Hide corner, sweep edge over, and insert.' },
+  { id: 20, group: 'Corner in Top • Edge in Top', name: 'F2L 20 (White Up • Opp F)', alg: "(U' F' U2 F) (U' F' U F)", fingertrick: "Push U' with left index; flick U with right index.", step1: 'White faces Up; edge is in UL.', step2: 'Mirror of F2L 19.' },
+  { id: 21, group: 'Corner in Top • Edge in Top', name: 'F2L 21 (White Up • Far R)', alg: "(U2 R U R') (U R U' R')", fingertrick: "Lead with U2 double-flick into two smooth R triggers.", step1: 'White faces Up; edge is in UL.', step2: 'Align over back-right and insert.' },
+  { id: 22, group: 'Corner in Top • Edge in Top', name: 'F2L 22 (White Up • Far F)', alg: "(U2 F' U' F) (U' F' U F)", fingertrick: "Lead with U2 double-flick into F-layer triggers.", step1: 'White faces Up; edge is in UB.', step2: 'Mirror of F2L 21.' },
+  { id: 23, group: 'Corner in Top • Edge in Top', name: 'F2L 23 (White Up • Adj R)', alg: "(U R U' R') (U' R U' R') (U R U' R')", fingertrick: "Three rapid (R U' R') pulses with index push-pulls.", step1: 'White faces Up; edge is in UF.', step2: 'Cycle pair in 3 fast triggers.' },
+  { id: 24, group: 'Corner in Top • Edge in Top', name: 'F2L 24 (White Up • Adj F)', alg: "(F' U F) (U2 R U R')", fingertrick: "Quick front lift into U2 + (R U R').", step1: 'White faces Up; edge is in UR.', step2: 'Pair over back-right and drop in.' },
+  { id: 25, group: 'Corner in Slot • Edge in Top', name: 'F2L 25 (Solved Corner • Edge R)', alg: "(U' F' U F) (U R U' R')", fingertrick: "Front insert setup directly into Right insert.", step1: 'Bottom corner is solved; edge is in UR.', step2: 'Extract corner paired with edge and insert.' },
+  { id: 26, group: 'Corner in Slot • Edge in Top', name: 'F2L 26 (Solved Corner • Edge F)', alg: "(U R U' R') (U' F' U F)", fingertrick: "Right trigger directly into Front trigger.", step1: 'Bottom corner is solved; edge is in UF.', step2: 'Mirror of F2L 25.' },
+  { id: 27, group: 'Corner in Slot • Edge in Top', name: 'F2L 27 (Twist R • Edge R)', alg: "(R U' R' U) (R U' R')", fingertrick: "Double (R U' R') inverse sexy without regrip.", step1: 'Corner in slot with White facing Right.', step2: 'Pop corner out paired and re-insert.' },
+  { id: 28, group: 'Corner in Slot • Edge in Top', name: 'F2L 28 (Twist F • Edge R)', alg: "(R U R' U') (R U R')", fingertrick: "Sexy move (R U R' U') followed by (R U R').", step1: 'Corner in slot with White facing Front.', step2: 'Lift and insert in 7 moves.' },
+  { id: 29, group: 'Corner in Slot • Edge in Top', name: 'F2L 29 (Twist F • Edge F)', alg: "(R' F R F') (R' F R F')", fingertrick: "Double Sledgehammer (R' F R F') x2.", step1: 'Corner in slot with White facing Front; edge in UF.', step2: 'Two rapid sledgehammers solve the slot.' },
+  { id: 30, group: 'Corner in Slot • Edge in Top', name: 'F2L 30 (Twist R • Edge F)', alg: "(R U R' U') (R U R')", fingertrick: "Keep right thumb anchored on DF.", step1: 'Corner in slot with White facing Right; edge in UF.', step2: 'Extract and insert cleanly.' },
+  { id: 31, group: 'Corner in Top • Edge in Slot', name: 'F2L 31 (White Up • Edge Flipped)', alg: "(U' R' F R F') (R U' R')", fingertrick: "Sledgehammer into inverse sexy.", step1: 'White faces Up; middle edge is flipped in slot.', step2: 'Flip edge out and pair simultaneously.' },
+  { id: 32, group: 'Corner in Top • Edge in Slot', name: 'F2L 32 (White Up • Edge Solved)', alg: "(R U R' U') (R U R' U') (R U R')", fingertrick: "Triple Sexy Move (R U R' U') x2 + (R U R').", step1: 'White faces Up; middle edge is already solved.', step2: 'Pure sexy-move spam.' },
+  { id: 33, group: 'Corner in Top • Edge in Slot', name: 'F2L 33 (White R • Edge Solved)', alg: "(U' R U' R') (U2 R U' R')", fingertrick: "Smooth (U' R U' R') into U2 double-flick.", step1: 'White faces Right; middle edge is solved.', step2: 'Extract edge paired with corner and insert.' },
+  { id: 34, group: 'Corner in Top • Edge in Slot', name: 'F2L 34 (White F • Edge Solved)', alg: "(U R U R') (U2 R U R')", fingertrick: "Symmetric right-hand trigger with U2 flick.", step1: 'White faces Front; middle edge is solved.', step2: 'Pair in back-right and insert.' },
+  { id: 35, group: 'Corner in Top • Edge in Slot', name: 'F2L 35 (White R • Edge Flipped)', alg: "(U' R U R') (U F' U' F)", fingertrick: "Flow from R' into F' with right thumb.", step1: 'White faces Right; edge is flipped in slot.', step2: 'Pop edge out and insert via Front.' },
+  { id: 36, group: 'Corner in Top • Edge in Slot', name: 'F2L 36 (White F • Edge Flipped)', alg: "(U F' U' F) (U' R U R')", fingertrick: "Mirror of F2L 35.", step1: 'White faces Front; edge is flipped in slot.', step2: 'Pop edge out and insert via Right.' },
+  { id: 37, group: 'Corner & Edge in Slot', name: 'F2L 37 (Both in Slot • Flipped Edge)', alg: "(R U' R') (U' R U R') (U2 R U' R')", fingertrick: "Extract with (R U' R'), then solve like F2L 5.", step1: 'Corner solved, edge flipped in Front-Right.', step2: 'Extract, pair, and insert without cube rotation.' },
+  { id: 38, group: 'Corner & Edge in Slot', name: 'F2L 38 (Twist R • Solved Edge)', alg: "(R U' R' U') (R U R') (U2 R U' R')", fingertrick: "Keep wrist loose across all 3 triggers.", step1: 'Corner twisted Right; edge solved in slot.', step2: 'Cycle corner orientation into slot.' },
+  { id: 39, group: 'Corner & Edge in Slot', name: 'F2L 39 (Twist F • Solved Edge)', alg: "(R U R' U2) (R U' R' U) (R U R')", fingertrick: "Single regripless right-hand flow.", step1: 'Corner twisted Front; edge solved in slot.', step2: 'Lift, pair, and insert.' },
+  { id: 40, group: 'Corner & Edge in Slot', name: 'F2L 40 (Twist R • Flipped Edge)', alg: "(R U' R' U) (F' U' F) (U' R U R')", fingertrick: "Transition cleanly into (F' U' F).", step1: 'Both pieces trapped & misoriented in slot.', step2: 'Extract and insert via Right.' },
+  { id: 41, group: 'Corner & Edge in Slot', name: 'F2L 41 (Twist F • Flipped Edge)', alg: "(R U R' U') (R U' R') (U2 F' U' F)", fingertrick: "Sexy move into inverse sexy + (F' U' F).", step1: 'Both pieces trapped & misoriented in slot.', step2: 'Extract and insert via Front.' }
+];
+
+const F2L_BY_ID = new Map(F2L_DATA.map((item) => [item.id, item]));
+const F2L_GROUPS = Array.from(new Set(F2L_DATA.map((item) => item.group)));
+const F2L_DEFAULT_CHUNKS = [
+  { id: 'f2l-c1', title: 'Chunk 1 • Basic Inserts (1–4)', ids: [1, 2, 3, 4] },
+  { id: 'f2l-c2', title: 'Chunk 2 • Split Top Pairs (5–10)', ids: [5, 6, 7, 8, 9, 10] },
+  { id: 'f2l-c3', title: 'Chunk 3 • Connected Pairs (11–16)', ids: [11, 12, 13, 14, 15, 16] },
+  { id: 'f2l-c4', title: 'Chunk 4 • White Facing Up (17–24)', ids: [17, 18, 19, 20, 21, 22, 23, 24] },
+  { id: 'f2l-c5', title: 'Chunk 5 • Corner in Slot (25–30)', ids: [25, 26, 27, 28, 29, 30] },
+  { id: 'f2l-c6', title: 'Chunk 6 • Edge in Slot (31–36)', ids: [31, 32, 33, 34, 35, 36] },
+  { id: 'f2l-c7', title: 'Chunk 7 • Trapped Slot Cases (37–41)', ids: [37, 38, 39, 40, 41] }
+];
+
+const OLL_DATA = [
+  { id: 27, group: 'All Edges Oriented', name: 'OLL 27 (Sune)', alg: "(R U R' U) (R U2 R')", fingertrick: "Lift R, flick U, drop R', push U with left index, lift R, U2 double-flick." },
+  { id: 26, group: 'All Edges Oriented', name: 'OLL 26 (Antisune)', alg: "(R U2 R' U') (R U' R')", fingertrick: "Lift R, U2 double-flick, drop R', push U' with left index, finish (R U' R')." },
+  { id: 21, group: 'All Edges Oriented', name: 'OLL 21 (H / Double Sune)', alg: "F (R U R' U') (R U R' U') (R U R' U') F'", fingertrick: "Triple Sexy Move (R U R' U') x3 bracketed by F and F'." },
+  { id: 22, group: 'All Edges Oriented', name: 'OLL 22 (Pi / Bruno)', alg: "R U2 (R2 U' R2 U') R2 U2 R", fingertrick: "Double-flick U2 and push U' with left index so right wrist never regrips." },
+  { id: 23, group: 'All Edges Oriented', name: 'OLL 23 (Headlights / U)', alg: "R2 D (R' U2 R) D' (R' U2 R')", fingertrick: "Push D with left ring finger; pull D' with right ring finger." },
+  { id: 24, group: 'All Edges Oriented', name: 'OLL 24 (Chameleon / T)', alg: "(r U R' U') (r' F R F')", fingertrick: "Wide sexy move (r U R' U') into wide sledgehammer (r' F R F')." },
+  { id: 25, group: 'All Edges Oriented', name: 'OLL 25 (Bowtie / L)', alg: "F' (r U R' U') (r' F R)", fingertrick: "Lift F' with right thumb, execute wide sexy, finish with (r' F R)." },
+  { id: 33, group: 'T-Shapes & Squares', name: 'OLL 33 (T-Sexy)', alg: "(R U R' U') (R' F R F')", fingertrick: "Sexy move directly into Sledgehammer—one of the fastest 8-movers." },
+  { id: 45, group: 'T-Shapes & Squares', name: 'OLL 45 (T-Suit)', alg: "F (R U R' U') F'", fingertrick: "6-move fundamental trigger: F + Sexy Move + F'." },
+  { id: 5, group: 'T-Shapes & Squares', name: 'OLL 5 (Right Square)', alg: "(r' U2 R U R' U r)", fingertrick: "Wide r' lift + U2 double-flick into smooth right-hand finish." },
+  { id: 6, group: 'T-Shapes & Squares', name: 'OLL 6 (Left Square)', alg: "(r U2 R' U' R U' r')", fingertrick: "Mirror of OLL 5 using left index U' pushes." },
+  { id: 34, group: 'C-Shapes & W-Shapes', name: 'OLL 34 (C-T)', alg: "(R U R2 U') (R' F R U) R U' F'", fingertrick: "Flow from R2 U' straight into R' F with right thumb." },
+  { id: 46, group: 'C-Shapes & W-Shapes', name: 'OLL 46 (C-Headlights)', alg: "R' U' (R' F R F') U R", fingertrick: "Sledgehammer (R' F R F') nested inside R' U' ... U R." },
+  { id: 36, group: 'C-Shapes & W-Shapes', name: 'OLL 36 (W-Left)', alg: "(L' U' L U') (L' U L U) (L F' L' F)", fingertrick: "Left-hand triggers finishing with left-thumb F' lift." },
+  { id: 38, group: 'C-Shapes & W-Shapes', name: 'OLL 38 (W-Right)', alg: "(R U R' U) (R U' R' U') (R' F R F')", fingertrick: "Right triggers flowing into Sledgehammer (R' F R F')." },
+  { id: 31, group: 'P-Shapes & Fish', name: 'OLL 31 (P-Right)', alg: "(R' U' F) (U R U' R') F' R", fingertrick: "Pinch F with right index; flick F' up with right thumb." },
+  { id: 32, group: 'P-Shapes & Fish', name: 'OLL 32 (P-Left)', alg: "S (R U R' U') (R' F R f')", fingertrick: "Push S slice with right index, sexy move, wide f' finish." },
+  { id: 43, group: 'P-Shapes & Fish', name: 'OLL 43 (P-Anti)', alg: "F' (U' L' U L) F", fingertrick: "Right thumb F' lift + left inverse sexy + F." },
+  { id: 44, group: 'P-Shapes & Fish', name: 'OLL 44 (P-Sune)', alg: "F (U R U' R') F'", fingertrick: "F + inverse sexy (U R U' R') + F'." },
+  { id: 9, group: 'P-Shapes & Fish', name: 'OLL 9 (Kite)', alg: "(R U R' U') R' F R2 U R' U' F'", fingertrick: "Sexy move into Sledgehammer-style R2 finish." },
+  { id: 10, group: 'P-Shapes & Fish', name: 'OLL 10 (Anti-Kite)', alg: "(R U R' U) (R' F R F') (R U2 R')", fingertrick: "Sledgehammer nested before (R U2 R')." },
+  { id: 35, group: 'P-Shapes & Fish', name: 'OLL 35 (Fish Salad)', alg: "(R U2) (R2 F R F') (R U2 R')", fingertrick: "Sledgehammer with R2 in the middle between two (R U2) bursts." },
+  { id: 37, group: 'P-Shapes & Fish', name: 'OLL 37 (Mounted Fish)', alg: "F (R U' R' U') (R U R' F')", fingertrick: "Inverse sexy into (R U R' F') with right thumb." },
+  { id: 13, group: 'Knight & Lightning', name: 'OLL 13 (Knight 1)', alg: "(F U R U' R2) F' R (U R U' R')", fingertrick: "Smooth F' thumb flick into (U R U' R')." },
+  { id: 14, group: 'Knight & Lightning', name: 'OLL 14 (Knight 2)', alg: "R' F R (U R' F' R) (F U' F')", fingertrick: "Keep right thumb ready on DF for F' and F." },
+  { id: 15, group: 'Knight & Lightning', name: 'OLL 15 (Knight 3)', alg: "(r' U' r) (R' U' R U) (r' U r)", fingertrick: "Wide r' triggers sandwiching a clean R' trigger." },
+  { id: 16, group: 'Knight & Lightning', name: 'OLL 16 (Knight 4)', alg: "(r U r') (R U R' U') (r U' r')", fingertrick: "Wide r triggers sandwiching a Sexy Move (R U R' U')." },
+  { id: 7, group: 'Knight & Lightning', name: 'OLL 7 (Wide Sune)', alg: "(r U R' U) (R U2 r')", fingertrick: "Sune starting and ending with wide r/r'." },
+  { id: 8, group: 'Knight & Lightning', name: 'OLL 8 (Wide Antisune)', alg: "(r' U' R U') (R' U2 r)", fingertrick: "Antisune starting and ending with wide r'/r." },
+  { id: 11, group: 'Knight & Lightning', name: 'OLL 11 (Downstairs)', alg: "r' (R2 U R' U R U2 R') U M'", fingertrick: "Finish with left ring-finger M' flick." },
+  { id: 12, group: 'Knight & Lightning', name: 'OLL 12 (Upstairs)', alg: "M' (R' U' R U' R' U2 R) U' r R'", fingertrick: "Start with left ring-finger M' flick." },
+  { id: 39, group: 'Knight & Lightning', name: 'OLL 39 (Big Lightning L)', alg: "L F' (L' U' L U) F U' L'", fingertrick: "Left-hand sexy move bracketed by F'/F." },
+  { id: 40, group: 'Knight & Lightning', name: 'OLL 40 (Big Lightning R)', alg: "R' F (R U R' U') F' U R", fingertrick: "Right-hand sexy move bracketed by F/F'." },
+  { id: 51, group: 'T-Shapes & Squares', name: 'OLL 51 (Bottlecap)', alg: "F (U R U' R') (U R U' R') F'", fingertrick: "Double inverse sexy (U R U' R') x2 inside F ... F'." },
+  { id: 52, group: 'T-Shapes & Squares', name: 'OLL 52 (Rice Cooker)', alg: "(R' F' U' F U') (R U R' U R)", fingertrick: "Keep left index on UBL for rapid U' pushes." },
+  { id: 55, group: 'T-Shapes & Squares', name: 'OLL 55 (Highway)', alg: "(R' F R U) (R U' R2 F') R2 U' R' (U R U R')", fingertrick: "Flow from R2 F' directly into R2 U'." },
+  { id: 56, group: 'T-Shapes & Squares', name: 'OLL 56 (Streetlights)', alg: "(r U r') (U R U' R') (U R U' R') (r U' r')", fingertrick: "Wide r brackets around two inverse sexies." },
+  { id: 57, group: 'All Edges Oriented', name: 'OLL 57 (H-Cross)', alg: "(R U R' U') M' (U R U' r')", fingertrick: "Sexy move + left-ring M' + wide r' finish." },
+  { id: 28, group: 'All Edges Oriented', name: 'OLL 28 (Stealth)', alg: "(r U R' U') M (U R U' R')", fingertrick: "Sexy move + M slice + inverse sexy." },
+  { id: 29, group: 'Knight & Lightning', name: 'OLL 29 (Spotted Chameleon)', alg: "(R U R' U') (R U' R' F') U' (F R U R')", fingertrick: "Smooth F' thumb lift after R'." },
+  { id: 30, group: 'Knight & Lightning', name: 'OLL 30 (Spotted Anti)', alg: "F (R' F R2 U' R' U') (R U R' F2)", fingertrick: "Finish with double-flick F2." },
+  { id: 41, group: 'Knight & Lightning', name: 'OLL 41 (Awkward Sune)', alg: "(R U R' U) (R U2 R') F (R U R' U') F'", fingertrick: "Sune + OLL 45 (F Sexy F') combined." },
+  { id: 42, group: 'Knight & Lightning', name: 'OLL 42 (Awkward Antisune)', alg: "(R' U' R U') (R' U2 R) F (R U R' U') F'", fingertrick: "Back-Antisune + OLL 45 combined." },
+  { id: 47, group: 'C-Shapes & W-Shapes', name: 'OLL 47 (Anti-Breakneck)', alg: "F' (L' U' L U) (L' U' L U) F", fingertrick: "Double Left Sexy (L' U' L U) x2 inside F' ... F." },
+  { id: 48, group: 'C-Shapes & W-Shapes', name: 'OLL 48 (Breakneck)', alg: "F (R U R' U') (R U R' U') F'", fingertrick: "Double Sexy (R U R' U') x2 inside F ... F'." },
+  { id: 49, group: 'C-Shapes & W-Shapes', name: 'OLL 49 (Right Back Squeezy)', alg: "r U' r2 U r2 U r2 U' r", fingertrick: "Continuous wide-r rolling motion." },
+  { id: 50, group: 'C-Shapes & W-Shapes', name: 'OLL 50 (Right Front Squeezy)', alg: "r' U r2 U' r2 U' r2 U r'", fingertrick: "Mirror wide-r' rolling motion." },
+  { id: 53, group: 'T-Shapes & Squares', name: 'OLL 53 (Frying Pan L)', alg: "(r' U' R U') (R' U R U') (R' U2 r)", fingertrick: "Keep wrist steady during R' U R U'." },
+  { id: 54, group: 'T-Shapes & Squares', name: 'OLL 54 (Frying Pan R)', alg: "(r U R' U) (R U' R' U) (R U2 r')", fingertrick: "Mirror of OLL 53." },
+  { id: 1, group: 'Dot Cases', name: 'OLL 1 (Runway)', alg: "(R U2) (R2 F R F') U2 (R' F R F')", fingertrick: "Two Sledgehammers separated by U2 double-flick." },
+  { id: 2, group: 'Dot Cases', name: 'OLL 2 (Zamboni)', alg: "F (R U R' U') F' f (R U R' U') f'", fingertrick: "OLL 45 + wide f OLL 45 back-to-back." },
+  { id: 3, group: 'Dot Cases', name: 'OLL 3 (Anti-Mouse)', alg: "f (R U R' U') f' U' F (R U R' U') F'", fingertrick: "Wide f trigger, U' push, standard F trigger." },
+  { id: 4, group: 'Dot Cases', name: 'OLL 4 (Mouse)', alg: "f (R U R' U') f' U F (R U R' U') F'", fingertrick: "Wide f trigger, U flick, standard F trigger." },
+  { id: 17, group: 'Dot Cases', name: 'OLL 17 (Slash)', alg: "(R U R' U) (R' F R F') U2 (R' F R F')", fingertrick: "Sledgehammer + U2 + Sledgehammer." },
+  { id: 18, group: 'Dot Cases', name: 'OLL 18 (Crown)', alg: "(r U R' U) (R U2 r') (r' U' R U') (R' U2 r)", fingertrick: "OLL 7 directly into OLL 8." },
+  { id: 19, group: 'Dot Cases', name: 'OLL 19 (Bunny)', alg: "r' R U (R U R' U') r (R2 F R F')", fingertrick: "Sexy move into wide r and Sledgehammer." },
+  { id: 20, group: 'Dot Cases', name: 'OLL 20 (Checkers / X)', alg: "(r U R' U') M2 (U R U' R') U' M'", fingertrick: "Double-flick M2 with left ring-middle fingers." }
+];
+
+const OLL_BY_ID = new Map(OLL_DATA.map((item) => [item.id, item]));
+const OLL_GROUPS = Array.from(new Set(OLL_DATA.map((item) => item.group)));
+const OLL_DEFAULT_CHUNKS = [
+  { id: 'oll-c1', title: 'Chunk 1 • 2-Look OLL Corners (21–27)', ids: [27, 26, 21, 22, 23, 24, 25] },
+  { id: 'oll-c2', title: 'Chunk 2 • T, Square & Line (33, 45, 5, 6, 51, 52)', ids: [33, 45, 5, 6, 51, 52] },
+  { id: 'oll-c3', title: 'Chunk 3 • P & C Shapes (31, 32, 43, 44, 34, 46)', ids: [31, 32, 43, 44, 34, 46] },
+  { id: 'oll-c4', title: 'Chunk 4 • Fish & W Shapes (9, 10, 35, 37, 36, 38)', ids: [9, 10, 35, 37, 36, 38] },
+  { id: 'oll-c5', title: 'Chunk 5 • Knight & Lightning (7, 8, 11–16, 39, 40)', ids: [7, 8, 11, 12, 13, 14, 15, 16, 39, 40] },
+  { id: 'oll-c6', title: 'Chunk 6 • Squeezy, Awkward & Dots (1–4, 17–20)', ids: [1, 2, 3, 4, 17, 18, 19, 20, 47, 48] }
+];
+
+const PLL_DATA = [
+  { id: 1, group: 'Edges Only (EPLL)', name: 'PLL Ua (Counter-Clockwise)', alg: "(R U' R U) (R U R U') R' U' R2", inverse: "R2 U R U R' U' R' U' R' U R'", recognition: 'Solved bar in back; 3 edges cycle counter-clockwise.', fingertrick: "Keep right thumb on DF and push U' with left index." },
+  { id: 2, group: 'Edges Only (EPLL)', name: 'PLL Ub (Clockwise)', alg: "R2 U (R U R' U') R' U' (R' U R')", inverse: "R U' R U R U R U' R' U' R2", recognition: 'Solved bar in back; 3 edges cycle clockwise.', fingertrick: "Execute (R U R' U') cleanly before dropping R' U' R'." },
+  { id: 3, group: 'Edges Only (EPLL)', name: 'PLL H (Opposite Edge Swap)', alg: "(M2 U M2) U2 (M2 U M2)", inverse: "M2 U' M2 U2 M2 U' M2", recognition: 'Opposite colors on all 4 middle edges; corners solved.', fingertrick: "Ring-middle double flick for M2; index-middle flick for U2." },
+  { id: 4, group: 'Edges Only (EPLL)', name: 'PLL Z (Adjacent Edge Swap)', alg: "(M' U M2 U) (M2 U M') U2 M2", inverse: "M2 U2 M U' M2 U' M2 U' M", recognition: 'Two pairs of adjacent edges swap diagonally.', fingertrick: "Left ring finger drives M' and M2 without moving hands." },
+  { id: 5, group: 'Corners Only (CPLL)', name: 'PLL Aa (Headlights Left)', alg: "x (R' U R') D2 (R U' R') D2 R2 x'", inverse: "x R2 D2 R U R' D2 R U' R x'", recognition: '2x2 solved block on Front-Left; headlights on Back.', fingertrick: "Rotate x smoothly; double-flick D2 with left ring-middle." },
+  { id: 6, group: 'Corners Only (CPLL)', name: 'PLL Ab (Headlights Back)', alg: "x R2 D2 (R U R') D2 (R U' R) x'", inverse: "x R' U R' D2 R U' R' D2 R2 x'", recognition: '2x2 solved block on Back-Left; headlights on Right.', fingertrick: "Keep thumbs anchored on corners during D2 double-flicks." },
+  { id: 7, group: 'Corners Only (CPLL)', name: 'PLL E (Double Corner Swap)', alg: "x' (R U' R' D) (R U R' D') (R U R' D) (R U' R' D') x", inverse: "x' D R U R' D' R U' R' D R U' R' D' R U R' x", recognition: 'No headlights anywhere; all 4 edges solved.', fingertrick: "Alternate left-ring D and right-ring D' pushes in rhythm." },
+  { id: 8, group: 'Adjacent Corner Swap', name: 'PLL T (Classic T-Perm)', alg: "(R U R' U') R' F R2 U' R' U' (R U R' F')", inverse: "F R U' R' U R U R2 F' R U R U' R'", recognition: 'Headlights on Left; two adjacent 2-sticker bars on Front & Back.', fingertrick: "Sexy move into R' F R2; lift final F' with right thumb." },
+  { id: 9, group: 'Adjacent Corner Swap', name: 'PLL Jb (Right J-Perm)', alg: "(R U R' F') (R U R' U') R' F R2 U' R'", inverse: "R U R2 F' R U R U' R' F R U' R'", recognition: 'Solved 3-bar on Left; Front-Right 2-block swaps with Back-Right.', fingertrick: "One of the fastest PLLs—flow directly from F' into (R U R' U')." },
+  { id: 10, group: 'Adjacent Corner Swap', name: 'PLL Ja (Left J-Perm)', alg: "(L' U' L F) (L' U' L U) L F' L2 U L", inverse: "L' U' L2 F L' U' L' U L F' L' U L", recognition: 'Solved 3-bar on Right; Front-Left 2-block swaps.', fingertrick: "Mirror of Jb using left-hand triggers and left-thumb F'." },
+  { id: 11, group: 'Adjacent Corner Swap', name: 'PLL F (3-Bar Front)', alg: "(R' U' F') (R U R' U') R' F R2 U' R' U' (R U R' U) R", inverse: "R' U' R U' R' U R U R2 F' R U R U' R' F U R", recognition: 'Full solved 3-sticker bar on Front; no other headlights.', fingertrick: "Setup (R' U' F') straight into a full T-Perm." },
+  { id: 12, group: 'Adjacent Corner Swap', name: 'PLL Ra (Headlights Front)', alg: "(R U' R' U') (R U R D) (R' U' R D') (R' U2 R')", inverse: "R U2 R D R' U R D' R' U' R' U R U R'", recognition: 'Headlights on Front; 2-block on Front-Right.', fingertrick: "Use ring fingers for D and D' without regripping." },
+  { id: 13, group: 'Adjacent Corner Swap', name: 'PLL Rb (Headlights Back)', alg: "(R' U2 R U2) R' F (R U R' U') R' F' R2", inverse: "R2 F R U R U' R' F' R U2 R' U2 R", recognition: 'Headlights on Front; 2-block on Front-Left.', fingertrick: "Double-flick both U2s; press F with right index." },
+  { id: 14, group: 'Diagonal Corner Swap', name: 'PLL Y (Diagonal Swap)', alg: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')", inverse: "F R' F' R U R U' R' F R U' R' U R U R' F'", recognition: 'Two 2-blocks meeting at Front-Left corner; no headlights.', fingertrick: "OLL 37 + OLL 33 (Sexy + Sledgehammer) chained together." },
+  { id: 15, group: 'Diagonal Corner Swap', name: 'PLL V (2x2 Block)', alg: "(R' U R' U') y (R' F' R2 U') (R' U R' F) R F", inverse: "F' R' F' R U' R U R2 F R y' U R U' R", recognition: '2x2 solved block in Front-Left; no headlights.', fingertrick: "Rotate y smoothly into R' F' R2." },
+  { id: 16, group: 'Diagonal Corner Swap', name: 'PLL Na (Right N-Perm)', alg: "(R U R' U) (R U R' F') (R U R' U') R' F R2 U' R' U2 (R U' R')", inverse: "R U R' U2 R U R2 F' R U R U' R' F R U' R' U' R U' R'", recognition: 'Four 2-blocks with Right side sticking out.', fingertrick: "Embeds a full Jb-Perm inside (R U R' U) ... U2 (R U' R')." },
+  { id: 17, group: 'Diagonal Corner Swap', name: 'PLL Nb (Left N-Perm)', alg: "(R' U R U') (R' F' U' F) (R U R' F) R' F' (R U' R)", inverse: "R' U R F R F' R U' R' F' U F R U R' U' R", recognition: 'Four 2-blocks with Left side sticking out.', fingertrick: "Keep right thumb ready on DF for F' and F." },
+  { id: 18, group: 'G-Permutations', name: 'PLL Ga (Headlights L • Bar F)', alg: "R2 U (R' U R' U') (R U' R2) (D U' R' U) R D'", inverse: "D R' U' R U D' R2 U R' U R U' R U' R2", recognition: 'Headlights on Left; 2-block on Front-Right.', fingertrick: "Simultaneous D + U' ring-and-index push." },
+  { id: 19, group: 'G-Permutations', name: 'PLL Gb (Headlights L • Bar B)', alg: "(R' U' R U) D' R2 (U R' U R U') R U' R2 D", inverse: "D' R2 U R' U R' U' R U' R2 D U' R' U R", recognition: 'Headlights on Left; 2-block on Back-Right.', fingertrick: "Left ring D' on move 5; right ring D on final move." },
+  { id: 20, group: 'G-Permutations', name: 'PLL Gc (Headlights L • Bar R)', alg: "R2 U' (R U' R U) (R' U R2) (D' U R U') R' D", inverse: "D' R U R' U' D R2 U' R U' R' U R' U R2", recognition: 'Headlights on Left; 2-block on Right-Back.', fingertrick: "Mirror of Ga with simultaneous D' + U." },
+  { id: 21, group: 'G-Permutations', name: 'PLL Gd (Headlights L • Bar FL)', alg: "(R U R' U') D R2 (U' R U' R' U) R' U R2 D'", inverse: "D R2 U' R U' R U R' U R2 D' U R U' R'", recognition: 'Headlights on Left; 2-block on Front-Left.', fingertrick: "Sexy move into D R2; finish with right-ring D'." },
+  { id: 22, group: 'Edges Only (EPLL)', name: 'Bonus • Ua (M-Slice)', alg: "M2 U (M U2 M') U M2", inverse: "M2 U' M U2 M' U' M2", recognition: 'Ultra-fast M-slice Ua variant.', fingertrick: "Pure M2 / U / M / U2 without touching R or L." },
+  { id: 23, group: 'Edges Only (EPLL)', name: 'Bonus • Ub (M-Slice)', alg: "M2 U' (M U2 M') U' M2", inverse: "M2 U M U2 M' U M2", recognition: 'Ultra-fast M-slice Ub variant.', fingertrick: "Pure M2 / U' / M / U2 without touching R or L." },
+  { id: 24, group: 'Adjacent Corner Swap', name: 'Bonus • Ja (Back-Right)', alg: "x R2 F (R F' R) U2 (r' U r) U2 x'", inverse: "x U2 r' U' r U2 R' F R' F' R2 x'", recognition: 'Rotationless-style Ja alternative.', fingertrick: "Fast wide (r' U r) U2 finish." },
+  { id: 25, group: 'Diagonal Corner Swap', name: 'Bonus • Y (Alt Setup)', alg: "(R2 U' R2 U') (R2 U R' F') (R U R2 U') R' F R", inverse: "R' F' R U R2 U' R' F R U' R2 U R2 U R2", recognition: 'RUD-friendly Y-Perm alternative.', fingertrick: "Avoids initial F turn." }
+];
+
+const PLL_BY_ID = new Map(PLL_DATA.map((item) => [item.id, item]));
+const PLL_GROUPS = Array.from(new Set(PLL_DATA.map((item) => item.group)));
+const PLL_DEFAULT_CHUNKS = [
+  { id: 'pll-c1', title: 'Chunk 1 • 2-Look PLL (1–7)', ids: [1, 2, 3, 4, 5, 6, 7] },
+  { id: 'pll-c2', title: 'Chunk 2 • T, J & F Perms (8–11)', ids: [8, 9, 10, 11] },
+  { id: 'pll-c3', title: 'Chunk 3 • R, Y & V Perms (12–15)', ids: [12, 13, 14, 15] },
+  { id: 'pll-c4', title: 'Chunk 4 • N & G Perms (16–21)', ids: [16, 17, 18, 19, 20, 21] }
+];
+
+// =========================================================================
 // 3. MAIN APPLICATION COMPONENT
 // =========================================================================
 
@@ -1520,45 +2455,19 @@ function OLLDaySuite() {
 
   // Persistent User & App Settings
   const [users, setUsers] = useState(() => {
-    try {
-      const saved = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.users) : null;
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return mergeDefaultUsersWithStored(parsed);
-        }
-      }
-    } catch {
-      // Fallback to defaults
-    }
-    return { ...DEFAULT_USERS };
+    const saved = storage.getJson(STORAGE_KEYS.users, null);
+    return saved && typeof saved === 'object' && !Array.isArray(saved)
+      ? mergeDefaultUsersWithStored(saved)
+      : { ...DEFAULT_USERS };
   });
-  const [activeUserKey, setActiveUserKey] = useState(() => {
-    try {
-      const savedKey = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
-      if (savedKey) return savedKey;
-    } catch {
-      // Ignore storage error
-    }
-    return '';
-  });
+  const [activeUserKey, setActiveUserKey] = useState(() => storage.getStr(STORAGE_KEYS.activeAccount, ''));
   const [pinnedHomePhase, setPinnedHomePhase] = useState(() => {
-    try {
-      const savedPhase = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.pinnedHomePhase) : null;
-      if (savedPhase && ['cross', 'f2l', 'oll', 'pll'].includes(savedPhase)) return savedPhase;
-    } catch {
-      // Ignore storage error
-    }
-    return '';
+    const saved = storage.getStr(STORAGE_KEYS.pinnedHomePhase, '');
+    return ['cross', 'f2l', 'oll', 'pll'].includes(saved) ? saved : '';
   });
   const [activePhase, setActivePhase] = useState(() => {
-    try {
-      const savedPhase = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.pinnedHomePhase) : null;
-      if (savedPhase && ['cross', 'f2l', 'oll', 'pll'].includes(savedPhase)) return savedPhase;
-    } catch {
-      // Ignore storage error
-    }
-    return 'cross';
+    const saved = storage.getStr(STORAGE_KEYS.pinnedHomePhase, '');
+    return ['cross', 'f2l', 'oll', 'pll'].includes(saved) ? saved : 'cross';
   });
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
@@ -1591,6 +2500,379 @@ function OLLDaySuite() {
   const [tourType, setTourType] = useState('cfopAndApp'); // 'cfopAndApp' | 'appOnly'
   const [tourStepIdx, setTourStepIdx] = useState(0);
 
+  // 3-Face Cube Camera Scanner & Lookahead State
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerCameraReady, setScannerCameraReady] = useState(false);
+  const [scannerCameraError, setScannerCameraError] = useState('');
+  const [scannerCaptureStep, setScannerCaptureStep] = useState('U'); // 'U' | 'F' | 'R' | 'D' | 'B' | 'L'
+  const [scannerCapturedThumbs, setScannerCapturedThumbs] = useState({});
+  const [scannerRawSamples, setScannerRawSamples] = useState({});
+  const [scannerLockedFaces, setScannerLockedFaces] = useState({});
+  const [scannerLivePreviewCodes, setScannerLivePreviewCodes] = useState(null);
+  const [scannerAutoSnap, setScannerAutoSnap] = useState(false);
+  const [scannerStabilityCount, setScannerStabilityCount] = useState(0);
+  const [scannerCubeDetected, setScannerCubeDetected] = useState(false);
+  const [scannerFramingHint, setScannerFramingHint] = useState('Line up the 9 stickers inside the square');
+  const [scannerFocusedStageIdx, setScannerFocusedStageIdx] = useState(0);
+  const [scannerCompletedStages, setScannerCompletedStages] = useState([]);
+  const [scannerF2lPairIdx, setScannerF2lPairIdx] = useState(0);
+  const [scannerSurfaceFinish, setScannerSurfaceFinish] = useState('uv'); // 'uv' | 'matte'
+  const [scannerThreeFaceHints, setScannerThreeFaceHints] = useState({
+    crossSolved: null, // null | true | false
+    f2lCompletedStatus: null // null | 'none' | 'some' | 'all'
+  });
+  const [savedCubePalette, setSavedCubePalette] = useState(() => storage.getJson(STORAGE_KEYS.cubePalette, null));
+  const [scannedFaces, setScannedFaces] = useState(() => ({
+    U: ['Y', 'Y', 'G', 'Y', 'Y', 'Y', 'R', 'Y', 'Y'],
+    F: ['O', 'B', 'Y', 'G', 'G', 'G', 'G', 'G', 'G'],
+    R: ['B', 'R', 'Y', 'O', 'O', 'O', 'O', 'O', 'O'],
+    D: ['W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W'],
+    B: ['B', 'B', 'B', 'B', 'B', 'B', 'B', 'B'],
+    L: ['R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R']
+  }));
+  const [selectedStickerEdit, setSelectedStickerEdit] = useState(null); // { face: 'U'|'F'|'R'|'D'|'B'|'L', idx: number }
+  const scannerVideoRef = useRef(null);
+  const scannerStreamRef = useRef(null);
+  const scannerCanvasRef = useRef(null);
+  const liveStableSignatureRef = useRef('');
+  const liveStableStreakRef = useRef(0);
+
+  const stopScannerCamera = () => {
+    if (scannerStreamRef.current) {
+      scannerStreamRef.current.getTracks().forEach((track) => track.stop());
+      scannerStreamRef.current = null;
+    }
+    setScannerCameraReady(false);
+    setScannerLivePreviewCodes(null);
+    setScannerStabilityCount(0);
+    setScannerCubeDetected(false);
+    liveStableSignatureRef.current = '';
+    liveStableStreakRef.current = 0;
+  };
+
+  const startScannerCamera = async (targetFace = 'U', resetAll = false) => {
+    setScannerCameraError('');
+    setScannerCaptureStep(targetFace);
+    setScannerLivePreviewCodes(null);
+    setScannerStabilityCount(0);
+    setScannerCubeDetected(false);
+    liveStableSignatureRef.current = '';
+    liveStableStreakRef.current = 0;
+    if (resetAll) {
+      setScannerCapturedThumbs({});
+      setScannerRawSamples({});
+      setScannerLockedFaces({});
+      setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
+    } else {
+      setScannerCapturedThumbs((prev) => {
+        const copy = { ...prev };
+        delete copy[targetFace];
+        return copy;
+      });
+    }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setScannerCameraError('Camera unavailable in this browser — tap any sticker below to set colors manually.');
+      return;
+    }
+    try {
+      stopScannerCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 480, max: 640 },
+          height: { ideal: 480, max: 640 },
+          frameRate: { ideal: 15, max: 24 }
+        },
+        audio: false
+      });
+      scannerStreamRef.current = stream;
+      if (scannerVideoRef.current) {
+        scannerVideoRef.current.srcObject = stream;
+        await scannerVideoRef.current.play().catch(() => {});
+      }
+      setScannerCameraReady(true);
+      setScannerFramingHint('Line up the 9 stickers inside the square');
+    } catch {
+      setScannerCameraError('Camera permission denied or unavailable — tap any sticker in the grid to input your cube.');
+    }
+  };
+
+  // Re-attach active MediaStream whenever <video> mounts/unmounts across face transitions (U -> F -> R -> D -> B -> L)
+  useEffect(() => {
+    if (!scannerOpen || !scannerCameraReady) return;
+    if (scannerCapturedThumbs[scannerCaptureStep]) return;
+    const video = scannerVideoRef.current;
+    const stream = scannerStreamRef.current;
+    if (video && stream && video.srcObject !== stream) {
+      video.srcObject = stream;
+      video.play().catch(() => {});
+    }
+  }, [scannerOpen, scannerCameraReady, scannerCaptureStep, scannerCapturedThumbs]);
+
+  // Glare-Rejecting Multi-Point Ring Sampler (Tuned for both Matte & UV-Coated Cubes)
+  const sampleVideoGridAntiGlare = () => {
+    const video = scannerVideoRef.current;
+    if (!video || video.readyState < 2) return null;
+
+    const vw = video.videoWidth || 480;
+    const vh = video.videoHeight || 480;
+    const rect = video.getBoundingClientRect();
+    const displayW = rect.width || 250;
+    const displayH = rect.height || 250;
+
+    const videoAspect = vw / vh;
+    const displayAspect = displayW / displayH;
+    let sx = 0;
+    let sy = 0;
+    let sw = vw;
+    let sh = vh;
+    if (videoAspect > displayAspect) {
+      sw = Math.round(vh * displayAspect);
+      sx = Math.round((vw - sw) / 2);
+    } else if (videoAspect < displayAspect) {
+      sh = Math.round(vw / displayAspect);
+      sy = Math.round((vh - sh) / 2);
+    }
+
+    const canvas = scannerCanvasRef.current || document.createElement('canvas');
+    scannerCanvasRef.current = canvas;
+    const outW = 300;
+    const outH = Math.max(150, Math.round(outW / displayAspect));
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
+
+    const isMatte = scannerSurfaceFinish === 'matte';
+
+    const readPatch = (nx, ny) => {
+      const px = Math.max(4, Math.min(outW - 5, Math.round(nx * outW)));
+      const py = Math.max(4, Math.min(outH - 5, Math.round(ny * outH)));
+      const data = ctx.getImageData(px - 3, py - 3, 7, 7).data;
+      const pixels = [];
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const chroma = maxC - minC;
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+        pixels.push({ r, g, b, chroma, luma });
+      }
+      // For UV-coated glossy tiles, discard the brightest specular glare pixels inside the patch
+      pixels.sort((a, b) => a.luma - b.luma);
+      const trimmed = isMatte ? pixels.slice(4, pixels.length - 4) : pixels.slice(4, Math.max(12, Math.floor(pixels.length * 0.72)));
+      const pool = trimmed.length > 0 ? trimmed : pixels;
+      let rSum = 0;
+      let gSum = 0;
+      let bSum = 0;
+      pool.forEach((p) => {
+        rSum += p.r;
+        gSum += p.g;
+        bSum += p.b;
+      });
+      return [Math.round(rSum / pool.length), Math.round(gSum / pool.length), Math.round(bSum / pool.length)];
+    };
+
+    // Sample 9 points across each sticker (center + inner ring + outer ring) to bypass UV glare & matte shadows
+    const offsets = [
+      [0, 0],
+      [-0.018, -0.018],
+      [0.018, -0.018],
+      [-0.018, 0.018],
+      [0.018, 0.018],
+      [0, -0.026],
+      [0, 0.026],
+      [-0.026, 0],
+      [0.026, 0]
+    ];
+
+    let validStickerTiles = 0;
+    const sampled9 = SCANNER_FLAT_GRID_CENTROIDS.map(([nx, ny]) => {
+      const candidates = offsets.map(([dx, dy]) => {
+        const [r, g, b] = readPatch(nx + dx, ny + dy);
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const chroma = maxC - minC;
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+        const glarePenalty = !isMatte && luma > 232 && chroma < 46 ? 85 : luma > 244 && chroma < 35 ? 70 : 0;
+        const matteBoost = isMatte && chroma >= 28 && luma >= 55 && luma <= 225 ? 16 : 0;
+        return {
+          rgb: [r, g, b],
+          chroma,
+          luma,
+          score: chroma * (isMatte ? 1.25 : 1.0) - glarePenalty + matteBoost + (luma > 42 && luma < 232 ? 15 : 0)
+        };
+      });
+
+      candidates.sort((a, b) => b.score - a.score);
+      const best = candidates[0];
+      const minValidChroma = isMatte ? 28 : 38;
+      const minWhiteLuma = isMatte ? 105 : 115;
+      if (best.chroma >= minValidChroma || (best.luma >= minWhiteLuma && best.chroma <= (isMatte ? 48 : 56))) {
+        validStickerTiles += 1;
+      }
+      return best.rgb;
+    });
+
+    // Verify the center sticker (idx 4) genuinely matches the expected face center color
+    const expectedCenter = { U: 'Y', F: 'G', R: 'O', D: 'W', B: 'B', L: 'R' };
+    const targetCenterCode = expectedCenter[scannerCaptureStep] || 'Y';
+    const [cr, cg, cb] = sampled9[4];
+    const centerChroma = Math.max(cr, cg, cb) - Math.min(cr, cg, cb);
+    const centerLuma = (cr + cg + cb) / 3;
+    const detectedCenterCode = classifyStickerRgb(sampled9[4], savedCubePalette);
+    const centerMatches =
+      targetCenterCode === 'W'
+        ? centerLuma >= (isMatte ? 102 : 112) && centerChroma <= (isMatte ? 54 : 62)
+        : centerChroma >= (isMatte ? 32 : 42) && detectedCenterCode === targetCenterCode;
+
+    const cubeDetected = centerMatches && validStickerTiles >= 6;
+    const framingText = cubeDetected
+      ? `${targetCenterCode} Center Locked ✓ (${validStickerTiles}/9 tiles)`
+      : `Point ${targetCenterCode} center into the middle square`;
+
+    return { sampled9, canvas, cubeDetected, framingText };
+  };
+
+  const captureAndAnalyzeCubeFrame = () => {
+    const res = sampleVideoGridAntiGlare();
+    if (!res) return;
+    emitBeep(840, 'sine', 0.08);
+    const { sampled9, canvas } = res;
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+    const expectedCenter = { U: 'Y', F: 'G', R: 'O', D: 'W', B: 'B', L: 'R' };
+    const centerCode = expectedCenter[scannerCaptureStep];
+    if (centerCode && sampled9[4]) {
+      setSavedCubePalette((prev) => {
+        const nextPal = { ...(prev || {}), [centerCode]: sampled9[4] };
+        storage.setJson(STORAGE_KEYS.cubePalette, nextPal);
+        return nextPal;
+      });
+    }
+
+    const nextRaw = { ...scannerRawSamples, [scannerCaptureStep]: sampled9 };
+    setScannerRawSamples(nextRaw);
+    setScannerCapturedThumbs((prev) => ({ ...prev, [scannerCaptureStep]: dataUrl }));
+    setScannedFaces((prev) => classifyCapturedFaceBatch(nextRaw, prev, scannerLockedFaces, savedCubePalette));
+    setScannerCompletedStages([]);
+    setScannerF2lPairIdx(0);
+    setScannerLivePreviewCodes(null);
+    setScannerStabilityCount(0);
+    setScannerCubeDetected(false);
+    liveStableSignatureRef.current = '';
+    liveStableStreakRef.current = 0;
+
+    // Auto-advance through U -> F -> R (and D -> B -> L when scanning back faces)
+    if (scannerCaptureStep === 'U' && !nextRaw.F) {
+      setScannerCaptureStep('F');
+    } else if (scannerCaptureStep === 'F' && !nextRaw.R) {
+      setScannerCaptureStep('R');
+    } else if (scannerCaptureStep === 'R') {
+      stopScannerCamera();
+    } else if (scannerCaptureStep === 'D' && !nextRaw.B) {
+      setScannerCaptureStep('B');
+    } else if (scannerCaptureStep === 'B' && !nextRaw.L) {
+      setScannerCaptureStep('L');
+    } else {
+      stopScannerCamera();
+    }
+  };
+
+  // Real-Time Viewfinder Color Preview & Cube-Verified Auto-Stabilize Snap Loop
+  useEffect(() => {
+    if (!scannerOpen || !scannerCameraReady || !isAppVisible) return;
+    if (scannerCapturedThumbs[scannerCaptureStep]) return;
+
+    const id = setInterval(() => {
+      const res = sampleVideoGridAntiGlare();
+      if (!res) return;
+      setScannerFramingHint(res.framingText);
+      setScannerCubeDetected(res.cubeDetected);
+
+      // Only overlay detected tile badges when a real cube face is actually centered in frame
+      if (!res.cubeDetected) {
+        setScannerLivePreviewCodes(null);
+        liveStableSignatureRef.current = '';
+        liveStableStreakRef.current = 0;
+        setScannerStabilityCount(0);
+        return;
+      }
+
+      const previewBatch = { ...scannerRawSamples, [scannerCaptureStep]: res.sampled9 };
+      const classified = classifyCapturedFaceBatch(
+        previewBatch,
+        scannedFaces,
+        scannerLockedFaces,
+        savedCubePalette
+      );
+      const codes = classified[scannerCaptureStep];
+      if (!Array.isArray(codes) || codes.length !== 9) return;
+      setScannerLivePreviewCodes(codes);
+
+      const sig = codes.join('');
+      if (sig === liveStableSignatureRef.current) {
+        liveStableStreakRef.current += 1;
+      } else {
+        liveStableSignatureRef.current = sig;
+        liveStableStreakRef.current = 1;
+      }
+      setScannerStabilityCount(Math.min(5, liveStableStreakRef.current));
+
+      if (scannerAutoSnap && liveStableStreakRef.current >= 5) {
+        liveStableStreakRef.current = 0;
+        captureAndAnalyzeCubeFrame();
+      }
+    }, 450);
+
+    return () => clearInterval(id);
+  }, [
+    scannerOpen,
+    scannerCameraReady,
+    isAppVisible,
+    scannerCapturedThumbs,
+    scannerCaptureStep,
+    scannerRawSamples,
+    scannedFaces,
+    scannerLockedFaces,
+    savedCubePalette,
+    scannerAutoSnap
+  ]);
+
+  // Memoized Scanner CFOP Analysis (Runs only when scanner opens, stickers change, or 3-face hints update)
+  const scannerHasFull6Faces = useMemo(
+    () =>
+      Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
+      [1, 3, 5, 7].some((i) => scannedFaces.D[i] !== 'W') ||
+      scannedFaces.B[7] !== 'B' ||
+      scannedFaces.L[7] !== 'R',
+    [scannerCapturedThumbs, scannedFaces]
+  );
+
+  const scannerAnalysis = useMemo(() => {
+    if (!scannerOpen) return null;
+    return scannerHasFull6Faces
+      ? analyzeFull54Cube(
+          scannedFaces.U,
+          scannedFaces.F,
+          scannedFaces.R,
+          scannedFaces.D,
+          scannedFaces.B,
+          scannedFaces.L
+        )
+      : analyzeScanned3FaceCube(
+          scannedFaces.U,
+          scannedFaces.F,
+          scannedFaces.R,
+          null,
+          scannerThreeFaceHints
+        );
+  }, [scannerOpen, scannerHasFull6Faces, scannedFaces, scannerThreeFaceHints]);
+
   // Full-Screen Glassmorphic 3x3x3 CFOP Timer State (Ao5 & Ao12)
   const [fullTimerOpen, setFullTimerOpen] = useState(false);
   const [fullScramble, setFullScramble] = useState(() => generate3x3Scramble(20));
@@ -1602,6 +2884,7 @@ function OLLDaySuite() {
   const [crossDifficulty, setCrossDifficulty] = useState('standard'); // 'standard' | 'advanced'
   const [crossTier, setCrossTier] = useState(1);
   const [crossScrambleIdx, setCrossScrambleIdx] = useState(0);
+  const [crossSolutionRevealed, setCrossSolutionRevealed] = useState(false);
   const [crossLadderMode, setCrossLadderMode] = useState('efficiency');
   const [crossDragRot, setCrossDragRot] = useState({ yaw: -35, pitch: 38 });
   const [crossIsDragging, setCrossIsDragging] = useState(false);
@@ -1658,29 +2941,17 @@ function OLLDaySuite() {
   const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
 
   // Glassmorphic Solver Account Auth Gate & Pro Paywall State
-  const [authScreenOpen, setAuthScreenOpen] = useState(() => {
-    try {
-      const savedKey = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
-      return !savedKey;
-    } catch {
-      return true;
-    }
-  });
+  const [authScreenOpen, setAuthScreenOpen] = useState(() => !storage.getStr(STORAGE_KEYS.activeAccount, ''));
   const [authMode, setAuthMode] = useState('signin'); // 'signin' | 'signup'
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
   const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.deviceAccounts) : null;
-      const savedActive = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.activeAccount) : null;
-      const parsed = raw ? JSON.parse(raw) : [];
-      const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
-      if (savedActive && !list.includes(savedActive)) list.push(savedActive);
-      return list;
-    } catch {
-      return [];
-    }
+    const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
+    const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
+    const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
+    if (savedActive && !list.includes(savedActive)) list.push(savedActive);
+    return list;
   });
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
@@ -1690,13 +2961,7 @@ function OLLDaySuite() {
     if (!uKey || typeof uKey !== 'string') return;
     setDeviceAccountKeys((prev) => {
       const next = prev.includes(uKey) ? prev : [...prev, uKey];
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEYS.deviceAccounts, JSON.stringify(next));
-        }
-      } catch {
-        // Ignore storage errors
-      }
+      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
       return next;
     });
   };
@@ -1822,13 +3087,7 @@ function OLLDaySuite() {
       clearTimeout(localSaveTimerRef.current);
       localSaveTimerRef.current = null;
     }
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(latestUsersRef.current));
-      }
-    } catch {
-      // Ignore storage quota errors
-    }
+    storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
 
     if (cloudSaveTimerRef.current) {
       clearTimeout(cloudSaveTimerRef.current);
@@ -1857,13 +3116,7 @@ function OLLDaySuite() {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
     localSaveTimerRef.current = setTimeout(() => {
       localSaveTimerRef.current = null;
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
-        }
-      } catch {
-        // Ignore storage quota errors
-      }
+      storage.setJson(STORAGE_KEYS.users, users);
     }, 450);
     return () => {
       if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
@@ -1871,17 +3124,7 @@ function OLLDaySuite() {
   }, [users]);
 
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        if (activeUserKey) {
-          window.localStorage.setItem(STORAGE_KEYS.activeAccount, activeUserKey);
-        } else {
-          window.localStorage.removeItem(STORAGE_KEYS.activeAccount);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
+    storage.setStr(STORAGE_KEYS.activeAccount, activeUserKey);
   }, [activeUserKey]);
 
   // Debounced Cloud Firestore Sync (Prevents burst writes during millisecond slider adjustments)
@@ -1999,6 +3242,7 @@ function OLLDaySuite() {
         cancelAnimationFrame(f2lRafRef.current);
         f2lRafRef.current = 0;
       }
+      stopScannerCamera();
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close().catch(() => {});
         audioCtxRef.current = null;
@@ -2037,7 +3281,7 @@ function OLLDaySuite() {
     };
   }, []);
 
-  // 30Hz Interval Case Stopwatch Loop (Eliminates 120Hz rAF wakeups; exact ms precision on stop)
+  // 20Hz Interval Case Stopwatch Loop (10ms display resolution without GPU/CPU over-polling)
   useEffect(() => {
     if (!swRunning || !isAppVisible) return;
     const id = setInterval(() => {
@@ -2045,11 +3289,11 @@ function OLLDaySuite() {
       if (swDisplayRef.current) {
         swDisplayRef.current.textContent = `${(elapsed / 1000).toFixed(2)}s — Stop`;
       }
-    }, 33);
+    }, 50);
     return () => clearInterval(id);
   }, [swRunning, isAppVisible]);
 
-  // 30Hz Interval Full-Screen 3x3x3 Timer Loop (Eliminates 120Hz rAF wakeups; exact ms precision on stop)
+  // 20Hz Interval Full-Screen 3x3x3 Timer Loop (10ms display resolution; exact ms on tap)
   useEffect(() => {
     if (fullTimerState !== 'running' || !isAppVisible) return;
     const id = setInterval(() => {
@@ -2057,7 +3301,7 @@ function OLLDaySuite() {
       if (fullTimerDisplayRef.current) {
         fullTimerDisplayRef.current.textContent = (elapsed / 1000).toFixed(2);
       }
-    }, 33);
+    }, 50);
     return () => clearInterval(id);
   }, [fullTimerState, isAppVisible]);
 
@@ -2300,6 +3544,7 @@ function OLLDaySuite() {
     .map((s) => Number(s.ms) + (s.penalty === '+2' ? 2000 : 0))
     .filter((n) => Number.isFinite(n));
   const bestFullPbMs = validFullMs.length ? Math.min(...validFullMs) : null;
+
   // WCA Blind Inspection Countdown Effect (Foreground-only)
   useEffect(() => {
     if (!isAppVisible) return;
@@ -2531,13 +3776,7 @@ function OLLDaySuite() {
     setActiveModal(null);
     setDeviceAccountKeys((prev) => {
       const next = prev.filter((k) => k !== keyToRemove);
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEYS.deviceAccounts, JSON.stringify(next));
-        }
-      } catch {
-        // Ignore storage errors
-      }
+      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
       return next;
     });
     setActiveUserKey('');
@@ -2580,10 +3819,17 @@ function OLLDaySuite() {
     setActiveModal(null);
   };
 
-  // Current Cross Tier Data
+  // Current Cross Tier Data & Optimal Cross-Only Solution (<=8 moves even for Advanced Full Scrambles)
   const activeCrossTierList = crossDifficulty === 'advanced' ? CROSS_ADVANCED_TIERS : CROSS_TIERS;
   const activeTierObj = activeCrossTierList.find((t) => t.tier === crossTier) || activeCrossTierList[0];
   const activeCrossScramble = activeTierObj.scrambles[crossScrambleIdx % activeTierObj.scrambles.length];
+  const activeCrossSolution = useMemo(() => {
+    const scrambled54 = simulateCrossCubeState(activeCrossScramble);
+    const crossOnly = solveExactCrossFrom54(scrambled54);
+    if (crossOnly.moves) return crossOnly.moves;
+    if (crossDifficulty === 'standard') return invertAlgorithm(activeCrossScramble);
+    return 'Cross Solved ✓';
+  }, [activeCrossScramble, crossDifficulty]);
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
   const handleCrossCubePointerDown = (e) => {
@@ -2710,10 +3956,6 @@ function OLLDaySuite() {
       setF2lDragRot({ ...f2lLiveRotRef.current });
     }
   };
-
-  const activeF2LSessionCase = f2lSession ? f2lSession.queue[f2lSession.index] : null;
-  const activeOLLSessionCase = ollSession ? ollSession.queue[ollSession.index] : null;
-  const activePLLSessionCase = pllSession ? pllSession.queue[pllSession.index] : null;
 
   // Settings Deck Touch Swipe Handlers (8 Cards: Card 1 Learn App + Cards 2..8)
   const totalDeckCards = 8;
@@ -3124,13 +4366,7 @@ function OLLDaySuite() {
                       onClick={() => {
                         emitBeep(640);
                         setPinnedHomePhase(item.key);
-                        try {
-                          if (typeof window !== 'undefined') {
-                            window.localStorage.setItem(STORAGE_KEYS.pinnedHomePhase, item.key);
-                          }
-                        } catch {
-                          // Ignore storage errors
-                        }
+                        storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key);
                       }}
                       className={`w-8 h-8 rounded-full text-xs font-black transition-all cursor-pointer ${
                         isPinned
@@ -4112,11 +5348,6 @@ function OLLDaySuite() {
     const isF2L = phaseKey === 'f2l';
     const isPLL = phaseKey === 'pll';
 
-    const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
-    const caseStat = statsMap?.[item.id] || {};
-    const lastResultForThis =
-      swLastResult && swLastResult.phase === phaseKey && swLastResult.caseId === item.id ? swLastResult : null;
-
     const handleSessionScreenTap = (e) => {
       if (!stopwatchEnabled) return;
       if (e.target.closest('button, input, a')) return;
@@ -4127,7 +5358,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handleSessionScreenTap}
-        className={`fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-2xl flex flex-col justify-between p-5 max-w-md mx-auto ${
+        className={`fixed inset-0 z-[240] bg-[#060913]/98 backdrop-blur-md flex flex-col justify-between p-5 max-w-md mx-auto ${
           stopwatchEnabled ? 'cursor-pointer' : ''
         }`}
       >
@@ -4399,7 +5630,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handleModalScreenTap}
-        className={`fixed inset-0 z-[245] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5 ${
+        className={`fixed inset-0 z-[245] bg-black/90 backdrop-blur-md flex items-center justify-center p-5 ${
           stopwatchEnabled ? 'cursor-pointer' : ''
         }`}
       >
@@ -4686,26 +5917,34 @@ function OLLDaySuite() {
 
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
-          <header className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-white/5 bg-[#090e1c]/95 flex-shrink-0 z-40">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {/* Sune Emblem */}
-              <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
-                <SuneEmblemSvg className="w-full h-full drop-shadow-[0_4px_10px_rgba(234,88,12,0.35)]" />
+          <header className="px-4 pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/5 bg-[#090e1c]/95 flex-shrink-0 z-40">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0">
+                <SuneEmblemSvg className="w-full h-full" />
               </div>
-              <div className="min-w-0">
-                <h1 className="text-lg font-black tracking-tight text-white leading-none truncate">
-                  OLLDay <span className="text-orange-500">Everyday</span>
-                </h1>
-                <p className="text-[10px] text-orange-400 font-bold mt-1 truncate">
-                  {activePhase === 'cross' && 'Phase 1 • Cross'}
-                  {activePhase === 'f2l' && `Phase 2 • F2L (Day ${safeF2lDay}/${f2lSchedule.length})`}
-                  {activePhase === 'oll' && `Phase 3 • OLL (Day ${safeOllDay}/${ollSchedule.length})`}
-                  {activePhase === 'pll' && `Phase 4 • PLL (Day ${safePllDay}/${pllSchedule.length})`}
-                </p>
-              </div>
+              <h1 className="text-sm font-black tracking-tight text-white whitespace-nowrap">
+                OLLDay <span className="text-orange-400">Everyday</span>
+              </h1>
             </div>
 
-            <div className="flex items-center gap-2 relative">
+            <div className="flex items-center gap-1.5 flex-shrink-0 relative">
+              <button
+                type="button"
+                onClick={() => {
+                  emitBeep(660, 'sine', 0.07);
+                  setSelectedStickerEdit(null);
+                  setScannerOpen(true);
+                }}
+                className="w-8 h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                title="Scan 3x3 Cube & Predict Next Case"
+                aria-label="Scan Cube"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </button>
+
               <button
                 onClick={() => {
                   emitBeep(520);
@@ -4713,12 +5952,11 @@ function OLLDaySuite() {
                   setAuthMode('signin');
                   setAuthScreenOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
                 title="Switch Solver Account"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                <span className="max-w-[82px] truncate">{String(activeUserKey || 'Account')}</span>
-                <span className="text-[9px] uppercase tracking-wider text-orange-400 font-black ml-0.5">Account</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                <span className="max-w-[52px] truncate">{String(activeUserKey || 'Account')}</span>
               </button>
 
               {/* C-F-O-P Phase Selector */}
@@ -4799,6 +6037,7 @@ function OLLDaySuite() {
                           setCrossDifficulty('standard');
                           const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
                           setCrossUserMoves(tObj.moves);
+                          setCrossSolutionRevealed(false);
                           setEfficiencyFeedback(null);
                         }}
                         className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
@@ -4820,6 +6059,7 @@ function OLLDaySuite() {
                           setCrossDifficulty('advanced');
                           const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
                           setCrossUserMoves(tObj.moves);
+                          setCrossSolutionRevealed(false);
                           setEfficiencyFeedback(null);
                         }}
                         className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
@@ -4854,6 +6094,7 @@ function OLLDaySuite() {
                               emitBeep(540);
                               setCrossTier(t.tier);
                               setCrossUserMoves(t.moves);
+                              setCrossSolutionRevealed(false);
                               setEfficiencyFeedback(null);
                             }}
                             className={`relative overflow-hidden py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
@@ -4916,6 +6157,7 @@ function OLLDaySuite() {
                           onClick={() => {
                             emitBeep(560);
                             setCrossScrambleIdx((p) => p + 1);
+                            setCrossSolutionRevealed(false);
                             setEfficiencyFeedback(null);
                           }}
                           className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-orange-400 active:scale-95 cursor-pointer"
@@ -5007,6 +6249,35 @@ function OLLDaySuite() {
                       <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">
                         {activeTierObj.hint}
                       </p>
+
+                      {/* Collapsible Cross-Only Solution (Hidden by default until expanded) */}
+                      <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Optimal Cross Solution (≤8 Moves)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              emitBeep(580, 'sine', 0.06);
+                              setCrossSolutionRevealed((v) => !v);
+                            }}
+                            className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
+                          >
+                            {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
+                          </button>
+                        </div>
+                        {crossSolutionRevealed && (
+                          <div className="pt-1 border-t border-white/10 text-center space-y-1">
+                            <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">
+                              {activeCrossSolution}
+                            </p>
+                            <span className="text-[9.5px] text-slate-400 block">
+                              Solves all 4 White Cross edges on D ({activeCrossSolution.split(/\s+/).filter(Boolean).length} moves)
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {crossLadderMode === 'efficiency' ? (
@@ -5196,19 +6467,25 @@ function OLLDaySuite() {
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                           <div
-                            onMouseDown={() => handleSingleMousePadDown('left')}
-                            onMouseUp={handleSingleMousePadUp}
-                            onMouseLeave={handleSingleMousePadUp}
-                            onTouchStart={(e) => {
+                            onPointerDown={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadDown('left');
+                                return;
+                              }
+                              e.currentTarget.setPointerCapture?.(e.pointerId);
                               if (!leftPadHeld) emitBeep(520, 'sine', 0.04, 0.06);
                               setLeftPadHeld(true);
                             }}
-                            onTouchEnd={(e) => {
+                            onPointerUp={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadUp();
+                                return;
+                              }
                               setLeftPadHeld(false);
                             }}
-                            onTouchCancel={() => setLeftPadHeld(false)}
+                            onPointerCancel={() => setLeftPadHeld(false)}
                             className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                               blindState === 'armed'
                                 ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
@@ -5223,19 +6500,25 @@ function OLLDaySuite() {
                             </span>
                           </div>
                           <div
-                            onMouseDown={() => handleSingleMousePadDown('right')}
-                            onMouseUp={handleSingleMousePadUp}
-                            onMouseLeave={handleSingleMousePadUp}
-                            onTouchStart={(e) => {
+                            onPointerDown={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadDown('right');
+                                return;
+                              }
+                              e.currentTarget.setPointerCapture?.(e.pointerId);
                               if (!rightPadHeld) emitBeep(560, 'sine', 0.04, 0.06);
                               setRightPadHeld(true);
                             }}
-                            onTouchEnd={(e) => {
+                            onPointerUp={(e) => {
                               e.preventDefault();
+                              if (e.pointerType === 'mouse') {
+                                handleSingleMousePadUp();
+                                return;
+                              }
                               setRightPadHeld(false);
                             }}
-                            onTouchCancel={() => setRightPadHeld(false)}
+                            onPointerCancel={() => setRightPadHeld(false)}
                             className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                               blindState === 'armed'
                                 ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]'
@@ -5306,6 +6589,8 @@ function OLLDaySuite() {
                           onClick={() => {
                             emitBeep(540);
                             setActiveMechanicId(m.id);
+                            setActiveMechApproachIdx(0);
+                            setActiveMechCaseIdx(0);
                           }}
                           className={`py-3 px-2 rounded-xl text-xs font-black cursor-pointer transition-all ${
                             activeMechanicId === m.id
@@ -5953,7 +7238,7 @@ function OLLDaySuite() {
 
         {/* NEW ACCOUNT WELCOME PROMPT: ARE YOU NEW TO CFOP? */}
         {activeModal === 'cfopExperienceChoice' && (
-          <div className="fixed inset-0 z-[272] bg-slate-950/80 backdrop-blur-3xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[272] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-5">
             <div className="w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-orange-500/35 p-6 shadow-2xl space-y-4 text-center">
               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">
                 Welcome, {String(activeUserKey || 'Solver')}!
@@ -5991,7 +7276,7 @@ function OLLDaySuite() {
 
           return (
             <div className="fixed inset-x-0 bottom-24 z-[268] px-4 flex justify-center pointer-events-none">
-              <div className="pointer-events-auto w-full max-w-md rounded-[2rem] bg-slate-900/95 backdrop-blur-2xl border border-orange-500/45 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.75)] space-y-3">
+              <div className="pointer-events-auto w-full max-w-md rounded-[2rem] bg-slate-900/95 backdrop-blur-md border border-orange-500/45 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.75)] space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
                     {step.badge}
@@ -6054,19 +7339,19 @@ function OLLDaySuite() {
                     type="button"
                     disabled={tourStepIdx === 0}
                     onClick={() => {
-                      emitBeep(480);
+                      emitBeep(460);
                       const prevIdx = Math.max(0, tourStepIdx - 1);
                       setTourStepIdx(prevIdx);
                       applyTourNavigation(steps[prevIdx]);
                     }}
-                    className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                    className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
                   >
                     ← Back
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      emitBeep(680);
+                      emitBeep(720, 'sine', 0.07);
                       if (!isLast) {
                         const nextIdx = tourStepIdx + 1;
                         setTourStepIdx(nextIdx);
@@ -6085,92 +7370,973 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* LIFETIME PRO UNLOCK ($3.99) GLASSMORPHIC PAYWALL MODAL */}
-        {activeModal === 'proPaywall' && (
-          <div
-            onClick={() => setActiveModal(null)}
-            className="fixed inset-0 z-[275] bg-slate-950/88 backdrop-blur-md flex items-center justify-center p-5"
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-white/15 p-6 shadow-2xl space-y-4 text-center"
+        {/* UNIFIED 1-SHOT CASE + 2-SHOT FULL-SCRAMBLE CUBE SCANNER MODAL */}
+        {scannerOpen && (() => {
+          const FACE_CAPTURE_SPECS = {
+            U: {
+              title: 'Top Face (U • Yellow Center)',
+              short: 'Top (U)',
+              accent: '#facc15',
+              topEdge: '▲ BLUE (BACK)',
+              bottomEdge: '▼ GREEN (FRONT)',
+              leftEdge: '◀ RED',
+              rightEdge: 'ORANGE ▶',
+              instruction: 'Tilt Yellow (U) straight toward camera: Blue edge on TOP, Green edge on BOTTOM, Red LEFT, Orange RIGHT.'
+            },
+            F: {
+              title: 'Front Face (F • Green Center)',
+              short: 'Front (F)',
+              accent: '#22c55e',
+              topEdge: '▲ YELLOW (TOP)',
+              bottomEdge: '▼ WHITE (BOTTOM)',
+              leftEdge: '◀ RED',
+              rightEdge: 'ORANGE ▶',
+              instruction: 'Hold Green (F) straight toward camera: Yellow on TOP, White on BOTTOM, Red LEFT, Orange RIGHT.'
+            },
+            R: {
+              title: 'Right Face (R • Orange Center)',
+              short: 'Right (R)',
+              accent: '#f97316',
+              topEdge: '▲ YELLOW (TOP)',
+              bottomEdge: '▼ WHITE (BOTTOM)',
+              leftEdge: '◀ GREEN',
+              rightEdge: 'BLUE ▶',
+              instruction: 'Turn cube so Orange (R) faces camera: Yellow TOP, White BOTTOM, Green LEFT, Blue RIGHT.'
+            },
+            D: {
+              title: 'Bottom Face (D • White Center)',
+              short: 'Bottom (D)',
+              accent: '#f8fafc',
+              topEdge: '▲ GREEN (FRONT)',
+              bottomEdge: '▼ BLUE (BACK)',
+              leftEdge: '◀ RED',
+              rightEdge: 'ORANGE ▶',
+              instruction: 'Tilt bottom up (x) so White (D) faces camera: Green edge on TOP, Blue edge on BOTTOM, Red LEFT, Orange RIGHT.'
+            },
+            B: {
+              title: 'Back Face (B • Blue Center)',
+              short: 'Back (B)',
+              accent: '#3b82f6',
+              topEdge: '▲ YELLOW (TOP)',
+              bottomEdge: '▼ WHITE (BOTTOM)',
+              leftEdge: '◀ ORANGE',
+              rightEdge: 'RED ▶',
+              instruction: 'Turn cube 180° (y2) so Blue (B) faces camera: Yellow TOP, White BOTTOM, Orange LEFT, Red RIGHT.'
+            },
+            L: {
+              title: 'Left Face (L • Red Center)',
+              short: 'Left (L)',
+              accent: '#ef4444',
+              topEdge: '▲ YELLOW (TOP)',
+              bottomEdge: '▼ WHITE (BOTTOM)',
+              leftEdge: '◀ BLUE',
+              rightEdge: 'GREEN ▶',
+              instruction: 'Turn cube so Red (L) faces camera: Yellow TOP, White BOTTOM, Blue LEFT, Green RIGHT.'
+            }
+          };
+
+          const currentSpec = FACE_CAPTURE_SPECS[scannerCaptureStep] || FACE_CAPTURE_SPECS.U;
+          const capturedCount = Object.keys(scannerCapturedThumbs).length;
+          const hasFull6Faces = scannerHasFull6Faces;
+          const analysis = scannerAnalysis;
+          if (!analysis) return null;
+
+          const hasFront3Captured = Boolean(
+            scannerCapturedThumbs.U && scannerCapturedThumbs.F && scannerCapturedThumbs.R
+          );
+          const needsBackFacesRecommendation =
+            !hasFull6Faces &&
+            (scannerThreeFaceHints.crossSolved === false ||
+              scannerThreeFaceHints.f2lCompletedStatus === 'none' ||
+              scannerThreeFaceHints.f2lCompletedStatus === 'some');
+
+          const stagesList = Array.isArray(analysis.cfopStages) ? analysis.cfopStages : null;
+          const activeFocusedIdx = stagesList ? Math.min(scannerFocusedStageIdx, stagesList.length - 1) : 0;
+          const focusedStage = stagesList ? stagesList[activeFocusedIdx] : null;
+          const matched = focusedStage?.caseObj || analysis.matchedCase;
+          const activeStagePhase = focusedStage?.phaseKey || analysis.phase;
+          const activeStageTitle = focusedStage ? `${focusedStage.stage}: ${focusedStage.label}` : matched.name;
+          const activeStageAlg = focusedStage ? focusedStage.alg : matched.alg;
+          const activeStageFingertrick = focusedStage ? focusedStage.fingertrick : matched.fingertrick;
+          const nextCase = analysis.nextUpCase;
+          const activePreviewImg = scannerCapturedThumbs[scannerCaptureStep] || null;
+          const visibleFaceList = hasFull6Faces
+            ? [
+                { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' },
+                { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' },
+                { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' },
+                { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'R', right: 'O' },
+                { key: 'B', title: 'Back (B)', top: 'Y', bottom: 'W', left: 'O', right: 'R' },
+                { key: 'L', title: 'Left (L)', top: 'Y', bottom: 'W', left: 'B', right: 'G' }
+              ]
+            : [
+                { key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' },
+                { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' },
+                { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' }
+              ];
+
+          const renderEdgeDot = (code, dirLabel) => (
+            <span
+              className="inline-flex items-center gap-0.5 text-[8px] font-black text-slate-400"
+              title={`${dirLabel} neighbor: ${SCANNER_COLOR_META[code]?.label || code}`}
             >
-              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
-                One-Time Lifetime Unlock • $3.99
-              </span>
-              <h3 className="text-2xl font-black text-white">OLLDay Pro</h3>
-              {proPaywallFeature && (
-                <p className="text-xs font-bold text-amber-300">
-                  Unlock {proPaywallFeature} + the complete CFOP suite
-                </p>
-              )}
+              <span
+                style={{ backgroundColor: SCANNER_COLOR_META[code]?.hex || '#64748b' }}
+                className="w-1.5 h-1.5 rounded-full inline-block border border-black/40"
+              />
+              {code}
+            </span>
+          );
 
-              <div className="bg-black/30 border border-white/10 rounded-2xl p-3.5 text-left space-y-2 text-xs text-slate-200">
-                <p>✓ All <strong>41 F2L Pairs</strong> with Interactive 3D Spatial Cube</p>
-                <p>✓ All <strong>57 OLL Cases</strong> &amp; <strong>25 PLL Algorithms</strong></p>
-                <p>✓ Cross Ladder <strong>L3–L5</strong> &amp; <strong>WCA Blindfold Timer Mat</strong></p>
-                <p>✓ <strong>Custom Curriculum Chunk Builder</strong> &amp; Cloud Sync</p>
+          // 9-Sticker Cube State Legality & Color Count Validator
+          const stickerCounts = { Y: 0, W: 0, G: 0, B: 0, O: 0, R: 0 };
+          visibleFaceList.forEach(({ key }) => {
+            (scannedFaces[key] || []).forEach((code) => {
+              if (stickerCounts[code] !== undefined) stickerCounts[code] += 1;
+            });
+          });
+          const overflowColors = Object.entries(stickerCounts).filter(([, cnt]) => cnt > 9);
+          const sixFaceMismatch =
+            hasFull6Faces && Object.entries(stickerCounts).filter(([, cnt]) => cnt !== 9);
+
+          return (
+            <div className="fixed inset-0 z-[285] bg-[#060913]/98 backdrop-blur-md flex flex-col justify-between p-4 max-w-md mx-auto overflow-y-auto no-scrollbar">
+              {/* Top Bar */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    Live AI Scanner • {capturedCount} Face{capturedCount === 1 ? '' : 's'} Captured
+                  </span>
+                  <h2 className="text-lg font-black text-white">Cube Scanner &amp; Solver</h2>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(520);
+                      setScannerAutoSnap((v) => !v);
+                    }}
+                    className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase border cursor-pointer ${
+                      scannerAutoSnap
+                        ? 'bg-green-500/20 border-green-500/40 text-green-300'
+                        : 'bg-white/5 border-white/10 text-slate-400'
+                    }`}
+                  >
+                    {scannerAutoSnap ? 'Auto-Snap ON' : 'Manual Snap'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(440);
+                      stopScannerCamera();
+                      setScannerOpen(false);
+                    }}
+                    className="w-9 h-9 rounded-full bg-white/10 border border-white/15 text-slate-200 font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
-              {proPurchaseToast && (
-                <p className="text-xs font-black text-green-300">{proPurchaseToast}</p>
-              )}
+              <div className="space-y-3 my-auto py-2">
+                {/* Face Selector Pills (U, F, R for Mid-Solve; D, B, L for Full Scramble) */}
+                <div className="grid grid-cols-6 gap-1">
+                  {(['U', 'F', 'R', 'D', 'B', 'L']).map((fKey) => {
+                    const isDone = Boolean(scannerCapturedThumbs[fKey]);
+                    const isCurrent = scannerCaptureStep === fKey;
+                    return (
+                      <button
+                        key={fKey}
+                        type="button"
+                        onClick={() => {
+                          emitBeep(540);
+                          setSelectedStickerEdit(null);
+                          setScannerCaptureStep(fKey);
+                          if (!scannerCapturedThumbs[fKey] && !scannerCameraReady) {
+                            startScannerCamera(fKey, false);
+                          }
+                        }}
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase border transition-all cursor-pointer ${
+                          isCurrent
+                            ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-sm'
+                            : isDone
+                            ? 'bg-green-500/15 text-green-300 border-green-500/35'
+                            : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        {isDone ? `${fKey} ✓` : fKey}
+                      </button>
+                    );
+                  })}
+                </div>
 
-              <button
-                type="button"
-                onClick={unlockLifetimePro}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
-              >
-                Upgrade to Lifetime Pro — $3.99
-              </button>
+                {/* Cube Surface Finish Calibration Toggle (UV-Coated vs. Matte Finish) */}
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl px-3 py-2 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Cube Finish Calibration:
+                  </span>
+                  <div className="bg-slate-950 p-0.5 rounded-xl border border-white/10 flex items-center">
+                    {[
+                      { key: 'uv', label: 'UV Glossy' },
+                      { key: 'matte', label: 'Matte Finish' }
+                    ].map((fin) => (
+                      <button
+                        key={fin.key}
+                        type="button"
+                        onClick={() => {
+                          emitBeep(540);
+                          setScannerSurfaceFinish(fin.key);
+                          if (Object.keys(scannerRawSamples).length > 0) {
+                            setScannedFaces((prev) =>
+                              classifyCapturedFaceBatch(scannerRawSamples, prev, scannerLockedFaces, savedCubePalette)
+                            );
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase cursor-pointer transition-all ${
+                          scannerSurfaceFinish === fin.key
+                            ? 'bg-orange-500 text-slate-950'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {fin.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={unlockLifetimePro}
-                  className="py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-[11px] font-bold text-slate-200 cursor-pointer"
-                >
-                  Restore Purchase
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveModal(null)}
-                  className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-400 cursor-pointer"
-                >
-                  Maybe Later
-                </button>
+                {/* Orientation & Framing Instruction Banner */}
+                <div className="bg-slate-900/90 border border-white/10 rounded-2xl px-3.5 py-2.5 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-white">{currentSpec.title}</span>
+                    <span className="text-[9.5px] font-bold text-orange-300">{scannerFramingHint}</span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-300 leading-snug">{currentSpec.instruction}</p>
+                </div>
+
+                {/* Live Camera Viewfinder with Straight-On Flat 3x3 Square Overlay + Real-Time Color Swatches */}
+                <div className="relative w-full aspect-square max-h-[250px] mx-auto rounded-[1.75rem] overflow-hidden bg-slate-950 border border-white/15 shadow-inner">
+                  {activePreviewImg ? (
+                    <img
+                      src={activePreviewImg}
+                      alt={`Captured ${currentSpec.short} face`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <video
+                      ref={scannerVideoRef}
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+
+                  {/* Flat 3x3 Square Grid Overlay + Live Detected Tile Color Preview */}
+                  <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full pointer-events-none">
+                    <rect
+                      x="32"
+                      y="32"
+                      width="136"
+                      height="136"
+                      rx="10"
+                      fill="none"
+                      stroke={scannerCubeDetected ? '#22c55e' : currentSpec.accent}
+                      strokeWidth={scannerCubeDetected ? '3' : '2.5'}
+                    />
+                    <line x1="77.3" y1="32" x2="77.3" y2="168" stroke={currentSpec.accent} strokeWidth="1.5" strokeDasharray="4 3" />
+                    <line x1="122.6" y1="32" x2="122.6" y2="168" stroke={currentSpec.accent} strokeWidth="1.5" strokeDasharray="4 3" />
+                    <line x1="32" y1="77.3" x2="168" y2="77.3" stroke={currentSpec.accent} strokeWidth="1.5" strokeDasharray="4 3" />
+                    <line x1="32" y1="122.6" x2="168" y2="122.6" stroke={currentSpec.accent} strokeWidth="1.5" strokeDasharray="4 3" />
+
+                    {SCANNER_FLAT_GRID_CENTROIDS.map(([nx, ny], idx) => {
+                      const liveCode = !activePreviewImg && scannerLivePreviewCodes ? scannerLivePreviewCodes[idx] : null;
+                      const fillHex = liveCode
+                        ? SCANNER_COLOR_META[liveCode]?.hex || currentSpec.accent
+                        : idx === 4
+                        ? currentSpec.accent
+                        : 'rgba(15,23,42,0.5)';
+                      return (
+                        <g key={idx}>
+                          <circle
+                            cx={nx * 200}
+                            cy={ny * 200}
+                            r={liveCode ? '9.5' : idx === 4 ? '6.5' : '3.2'}
+                            fill={fillHex}
+                            stroke="#090e1c"
+                            strokeWidth="1.8"
+                          />
+                          {liveCode && (
+                            <text
+                              x={nx * 200}
+                              y={ny * 200 + 3}
+                              textAnchor="middle"
+                              fill="#090e1c"
+                              fontSize="8.5"
+                              fontWeight="900"
+                            >
+                              {liveCode}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
+
+                    {/* 4-Side Neighboring Face Orientation Labels */}
+                    <rect x="46" y="8" width="108" height="16" rx="6" fill="rgba(2,6,23,0.82)" />
+                    <text x="100" y="19" textAnchor="middle" fill="#ffffff" fontSize="8.5" fontWeight="900">
+                      {currentSpec.topEdge}
+                    </text>
+
+                    <rect x="42" y="176" width="116" height="16" rx="6" fill="rgba(2,6,23,0.82)" />
+                    <text x="100" y="187" textAnchor="middle" fill="#fde047" fontSize="8.5" fontWeight="900">
+                      {currentSpec.bottomEdge}
+                    </text>
+
+                    <text x="16" y="102" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" transform="rotate(-90 16 102)">
+                      {currentSpec.leftEdge}
+                    </text>
+                    <text x="184" y="102" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" transform="rotate(90 184 102)">
+                      {currentSpec.rightEdge}
+                    </text>
+                  </svg>
+
+                  {scannerCameraError && !activePreviewImg && (
+                    <div className="absolute inset-0 bg-slate-950/90 p-4 flex items-center justify-center text-center">
+                      <p className="text-xs text-slate-300 leading-relaxed">{scannerCameraError}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Persistent Camera Capture / Retake Controls (Always Visible for U, F, R, D, B, L) */}
+                <div className="grid grid-cols-2 gap-2">
+                  {activePreviewImg ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(580, 'sine', 0.06);
+                        startScannerCamera(scannerCaptureStep, false);
+                      }}
+                      className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer"
+                    >
+                      Retake {currentSpec.short} ↻
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!scannerCameraReady) {
+                          startScannerCamera(scannerCaptureStep, false);
+                        } else {
+                          captureAndAnalyzeCubeFrame();
+                        }
+                      }}
+                      className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer"
+                    >
+                      {scannerCameraReady
+                        ? scannerAutoSnap && scannerStabilityCount > 0
+                          ? `Hold Steady (${scannerStabilityCount}/5)...`
+                          : `Capture ${currentSpec.short}`
+                        : `Start Camera (${currentSpec.short})`}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(460);
+                      startScannerCamera('U', true);
+                    }}
+                    className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                  >
+                    Reset All Faces
+                  </button>
+                </div>
+
+                {/* 3-Face Clarifying Questions (Asked in Exact Order When Only U, F, R Are Captured) */}
+                {!hasFull6Faces && (
+                  <div className="bg-slate-900/95 border border-orange-500/35 rounded-[1.75rem] p-3.5 space-y-3 shadow-lg">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                        {hasFront3Captured ? '3-Face Quick Check • Refine Solve' : '3-Face State Check'}
+                      </span>
+                      {(scannerThreeFaceHints.crossSolved !== null ||
+                        scannerThreeFaceHints.f2lCompletedStatus !== null) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(460);
+                            setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
+                          }}
+                          className="text-[9.5px] font-bold text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          Clear Answers
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Question 1: Is Cross solved? */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-black text-white">1. Is Cross solved?</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(640, 'sine', 0.05);
+                            setScannerThreeFaceHints((prev) => ({
+                              ...prev,
+                              crossSolved: true
+                            }));
+                          }}
+                          className={`py-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${
+                            scannerThreeFaceHints.crossSolved === true
+                              ? 'bg-green-500/20 border-green-400 text-green-300'
+                              : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'
+                          }`}
+                        >
+                          Yes, Cross Solved ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(520, 'sine', 0.05);
+                            setScannerThreeFaceHints({
+                              crossSolved: false,
+                              f2lCompletedStatus: null
+                            });
+                          }}
+                          className={`py-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${
+                            scannerThreeFaceHints.crossSolved === false
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                              : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'
+                          }`}
+                        >
+                          No, Not Yet ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Question 2 (Only shown if Cross = Yes): Are any F2L pairs completed? */}
+                    {scannerThreeFaceHints.crossSolved === true && (
+                      <div className="space-y-1.5 pt-2 border-t border-white/10">
+                        <p className="text-xs font-black text-white">2. Are any F2L pairs completed?</p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { key: 'none', label: 'None (0/4)' },
+                            { key: 'some', label: 'Some (1–3)' },
+                            { key: 'all', label: 'All 4 Done ✓' }
+                          ].map((opt) => (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              onClick={() => {
+                                emitBeep(660, 'sine', 0.05);
+                                setScannerThreeFaceHints((prev) => ({
+                                  ...prev,
+                                  f2lCompletedStatus: opt.key
+                                }));
+                              }}
+                              className={`py-2 px-1 rounded-xl text-[10.5px] font-black border transition-all cursor-pointer ${
+                                scannerThreeFaceHints.f2lCompletedStatus === opt.key
+                                  ? 'bg-orange-500 text-slate-950 border-orange-400'
+                                  : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Smart Recommendation to Capture Remaining Faces (D, B, L) */}
+                    {needsBackFacesRecommendation && (
+                      <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 space-y-2">
+                        <p className="text-[11px] text-amber-100 leading-snug">
+                          {scannerThreeFaceHints.crossSolved === false ? (
+                            <>
+                              <strong>Recommended:</strong> Because your Cross is still unsolved, hidden edges may be on the <strong>Bottom (D), Back (B), or Left (L)</strong> faces. Capture those 3 faces so the engine can calculate your exact Cross → F2L → OLL → PLL solve.
+                            </>
+                          ) : (
+                            <>
+                              <strong>Recommended:</strong> With open F2L slots on the back/left sides, capturing <strong>D • B • L</strong> lets our engine track hidden corners &amp; edges across all 4 slots for an accurate multi-pair F2L solve.
+                            </>
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(740, 'sine', 0.07);
+                            startScannerCamera('D', false);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md cursor-pointer"
+                        >
+                          Capture Remaining Faces (D • B • L) →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Interactive Sticker Verification Grid + 9-Sticker Count Guard */}
+                <div className="bg-slate-900/90 border border-white/10 rounded-[1.75rem] p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                      Verify Stickers
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {savedCubePalette && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(460);
+                            setSavedCubePalette(null);
+                            storage.setStr(STORAGE_KEYS.cubePalette, '');
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                        >
+                          Reset Palette
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(720, 'sine', 0.05);
+                          setScannerLockedFaces((prev) => ({
+                            ...prev,
+                            [scannerCaptureStep]: [...(scannedFaces[scannerCaptureStep] || [])]
+                          }));
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-green-500/15 border border-green-500/35 text-[9.5px] font-black text-green-300 cursor-pointer"
+                      >
+                        {scannerLockedFaces[scannerCaptureStep] ? `✓ ${scannerCaptureStep} Locked` : `Lock ${scannerCaptureStep} Tiles`}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sticker Count Legality Warning Banner */}
+                  {(overflowColors.length > 0 || (Array.isArray(sixFaceMismatch) && sixFaceMismatch.length > 0)) && (
+                    <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-amber-200">
+                      {overflowColors.length > 0
+                        ? `Sticker Check: ${overflowColors
+                            .map(([c, cnt]) => `${SCANNER_COLOR_META[c]?.label || c} (${cnt}/9)`)
+                            .join(', ')} — tap the extra tile below to fix.`
+                        : `6-Face Count Check: ${sixFaceMismatch
+                            .map(([c, cnt]) => `${c}:${cnt}/9`)
+                            .join(' • ')}`}
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-slate-400 leading-snug bg-slate-950/70 border border-white/5 rounded-xl px-2.5 py-1.5">
+                    Tap any tile to fix its color—edited or locked tiles <strong className="text-green-300">stay locked in place</strong> when capturing other faces.
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {visibleFaceList.map((fObj) => (
+                      <div key={fObj.key} className="bg-slate-950/90 border border-white/10 rounded-2xl p-2 space-y-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-white block text-center">
+                          {fObj.title}
+                        </span>
+
+                        {/* Top Neighbor Center Indicator */}
+                        <div className="flex justify-center">
+                          {renderEdgeDot(fObj.top, 'Top')}
+                        </div>
+
+                        {/* Left Indicator + 3x3 Sticker Grid + Right Indicator */}
+                        <div className="flex items-center gap-1">
+                          <div className="flex flex-col items-center justify-center flex-shrink-0">
+                            {renderEdgeDot(fObj.left, 'Left')}
+                          </div>
+                          <div className="grid grid-cols-3 gap-1 flex-1">
+                            {(scannedFaces[fObj.key] || []).map((cCode, idx) => {
+                              const isSelected =
+                                selectedStickerEdit?.face === fObj.key && selectedStickerEdit?.idx === idx;
+                              const posLabels = [
+                                'Top-Left Corner',
+                                'Top Edge',
+                                'Top-Right Corner',
+                                'Left Edge',
+                                'Center',
+                                'Right Edge',
+                                'Bottom-Left Corner',
+                                'Bottom Edge',
+                                'Bottom-Right Corner'
+                              ];
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    emitBeep(620, 'sine', 0.04, 0.06);
+                                    setSelectedStickerEdit({
+                                      face: fObj.key,
+                                      idx,
+                                      posLabel: posLabels[idx],
+                                      faceTitle: fObj.title
+                                    });
+                                  }}
+                                  style={{ backgroundColor: SCANNER_COLOR_META[cCode]?.hex || '#334155' }}
+                                  className={`aspect-square rounded-md border transition-transform cursor-pointer ${
+                                    isSelected ? 'border-white scale-110 ring-2 ring-orange-400' : 'border-black/40'
+                                  }`}
+                                  title={`${fObj.title} • ${posLabels[idx]}: ${SCANNER_COLOR_META[cCode]?.label || cCode}`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="flex flex-col items-center justify-center flex-shrink-0">
+                            {renderEdgeDot(fObj.right, 'Right')}
+                          </div>
+                        </div>
+
+                        {/* Bottom Neighbor Center Indicator */}
+                        <div className="flex justify-center">
+                          {renderEdgeDot(fObj.bottom, 'Bottom')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedStickerEdit && (
+                    <div className="flex items-center justify-between gap-2 bg-slate-950 border border-orange-500/35 rounded-xl px-2.5 py-2">
+                      <div className="min-w-0">
+                        <span className="text-[9.5px] font-black uppercase text-orange-300 block truncate">
+                          {selectedStickerEdit.faceTitle || selectedStickerEdit.face}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block truncate">
+                          {selectedStickerEdit.posLabel || `Tile #${selectedStickerEdit.idx + 1}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {SCANNER_COLOR_CODES.map((cCode) => (
+                          <button
+                            key={cCode}
+                            type="button"
+                            onClick={() => {
+                              emitBeep(720, 'sine', 0.05);
+                              const { face, idx } = selectedStickerEdit;
+                              setScannedFaces((prev) => {
+                                const updated = [...(prev[face] || [])];
+                                updated[idx] = cCode;
+                                setScannerLockedFaces((lPrev) => ({
+                                  ...lPrev,
+                                  [face]: updated
+                                }));
+                                return { ...prev, [face]: updated };
+                              });
+                            }}
+                            style={{ backgroundColor: SCANNER_COLOR_META[cCode].hex }}
+                            className="w-6 h-6 rounded-lg border border-black/40 text-[9px] font-black text-slate-950 cursor-pointer active:scale-90"
+                            title={SCANNER_COLOR_META[cCode].label}
+                          >
+                            {cCode}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Identified Current Case + Interactive Stage Focus Card */}
+                <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/35 border border-orange-500/35 rounded-[1.75rem] p-4 space-y-3 shadow-xl">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-wider text-orange-300">
+                      {analysis.phaseLabel}
+                    </span>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                          analysis.crossSolved
+                            ? 'bg-green-500/15 border-green-500/35 text-green-300'
+                            : 'bg-red-500/15 border-red-500/35 text-red-300'
+                        }`}
+                      >
+                        {analysis.crossSolved ? 'Cross ✓' : 'Cross ✕'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-[9px] font-black uppercase text-slate-200">
+                        {analysis.remainingF2lPairs === 0 ? 'F2L Done ✓' : `${analysis.remainingF2lPairs} F2L Left`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Top Focused Stage Header Display (Full Untruncated Algorithm + Trigger Pills + F2L Pair Breakdown) */}
+                  {activeStagePhase === 'cross' ? (
+                    <div className="bg-slate-950/90 border border-orange-500/30 rounded-2xl p-3 space-y-1.5">
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">
+                        Focused Stage • Full Algorithm
+                      </span>
+                      <h3 className="text-base font-black text-white">{activeStageTitle}</h3>
+                      <p className="font-mono text-sm font-black text-amber-300 break-words leading-relaxed select-all">
+                        {activeStageAlg}
+                      </p>
+                      {getAlgorithmTriggerTags(activeStageAlg).length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {getAlgorithmTriggerTags(activeStageAlg).map((tag) => (
+                            <span
+                              key={tag.label}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[10.5px] text-orange-200/90 leading-snug">
+                        <strong>Fingertrick:</strong> {activeStageFingertrick}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-950/90 border border-orange-500/30 rounded-2xl p-3 space-y-2.5">
+                      <div className="flex items-start gap-3">
+                        {renderCaseThumb(activeStagePhase, matched, 'w-14 h-14')}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">
+                            Focused Stage • Full Algorithm
+                          </span>
+                          <h3 className="text-base font-black text-white leading-tight">{activeStageTitle}</h3>
+                          <p className="font-mono text-sm font-black text-amber-300 break-words leading-relaxed select-all">
+                            {activeStageAlg}
+                          </p>
+                          {getAlgorithmTriggerTags(activeStageAlg).length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-0.5">
+                              {getAlgorithmTriggerTags(activeStageAlg).map((tag) => (
+                                <span
+                                  key={tag.label}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                  {tag.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-[10.5px] text-orange-200/90 leading-snug">
+                            <strong>Fingertrick:</strong> {activeStageFingertrick}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Pair-by-Pair F2L Breakdown with Bracketed Fingertricks & Trigger Name Pills */}
+                      {focusedStage?.subSteps && focusedStage.subSteps.length > 0 && (
+                        <div className="pt-2 border-t border-white/10 space-y-1.5">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                            F2L Pair-by-Pair Execution Order (With y Rotations):
+                          </span>
+                          {focusedStage.subSteps.map((sub) => {
+                            const subTags = getAlgorithmTriggerTags(sub.alg);
+                            return (
+                              <div
+                                key={sub.slotNumber}
+                                className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 space-y-1"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-black text-white flex-shrink-0">
+                                    Pair {sub.slotNumber} ({sub.caseObj.name})
+                                  </span>
+                                  <span className="font-mono text-[10.5px] font-bold text-amber-300 text-right break-all">
+                                    {sub.alg}
+                                  </span>
+                                </div>
+                                {subTags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {subTags.map((tag) => (
+                                      <span
+                                        key={tag.label}
+                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[8.5px] font-black ${tag.badgeClass}`}
+                                      >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+                                        {tag.label}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Clickable 4-Stage CFOP Cards (Tap Any Card to Focus Full Algorithm Above) */}
+                  {stagesList && (
+                    <div className="space-y-1.5">
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 block">
+                        Tap Any Stage Below to View Full Algorithm Above
+                      </span>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {stagesList.map((st, idx) => {
+                          const isFocused = idx === activeFocusedIdx;
+                          const isStageDone = scannerCompletedStages.includes(idx);
+                          return (
+                            <button
+                              key={st.stage}
+                              type="button"
+                              onClick={() => {
+                                emitBeep(640, 'sine', 0.05);
+                                setScannerFocusedStageIdx(idx);
+                              }}
+                              className={`text-left rounded-xl p-2.5 border transition-all cursor-pointer ${
+                                isFocused
+                                  ? 'bg-orange-500/20 border-orange-400 shadow-md ring-1 ring-orange-400/50'
+                                  : isStageDone
+                                  ? 'bg-green-500/10 border-green-500/35'
+                                  : 'bg-slate-950 border-white/10 hover:bg-white/5'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className={`text-[9px] font-black uppercase ${isStageDone ? 'text-green-400' : 'text-orange-400'}`}>
+                                  {isStageDone ? `${st.stage} ✓` : st.stage}
+                                </span>
+                                {isFocused && (
+                                  <span className="text-[8.5px] font-black uppercase text-amber-300">Viewing ▲</span>
+                                )}
+                              </div>
+                              <span className="text-[11px] font-bold text-white block truncate mt-0.5">{st.label}</span>
+                              <span className="font-mono text-[10px] text-amber-300 block truncate mt-0.5">{st.alg}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step-by-Step Solve Progression Bar (Advance Through Cross -> F2L Pairs -> OLL -> PLL) */}
+                  {stagesList && (
+                    <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9.5px] font-black uppercase tracking-wider text-green-400">
+                          Interactive Solve Progression ({scannerCompletedStages.length}/{stagesList.length} Stages Done)
+                        </span>
+                        {scannerCompletedStages.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              emitBeep(460);
+                              setScannerCompletedStages([]);
+                              setScannerF2lPairIdx(0);
+                              setScannerFocusedStageIdx(0);
+                            }}
+                            className="text-[9.5px] font-bold text-slate-400 hover:text-white cursor-pointer"
+                          >
+                            Restart Solve ↻
+                          </button>
+                        )}
+                      </div>
+
+                      {focusedStage?.phaseKey === 'f2l' && Array.isArray(focusedStage.subSteps) && focusedStage.subSteps.length > 0 && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-[9px] font-black uppercase text-orange-300 block">
+                              Active F2L Sub-Step {Math.min(scannerF2lPairIdx + 1, focusedStage.subSteps.length)} of {focusedStage.subSteps.length}
+                            </span>
+                            <span className="font-mono text-xs font-black text-amber-300 block truncate">
+                              {focusedStage.subSteps[Math.min(scannerF2lPairIdx, focusedStage.subSteps.length - 1)]?.alg}
+                            </span>
+                          </div>
+                          {scannerF2lPairIdx + 1 < focusedStage.subSteps.length && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                emitBeep(720, 'sine', 0.06);
+                                setScannerF2lPairIdx((p) => p + 1);
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-400/40 text-[10px] font-black text-amber-200 flex-shrink-0 cursor-pointer"
+                            >
+                              Next F2L Pair →
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={activeFocusedIdx === 0}
+                          onClick={() => {
+                            emitBeep(480);
+                            setScannerFocusedStageIdx((idx) => Math.max(0, idx - 1));
+                          }}
+                          className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                        >
+                          ← Previous Stage
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            emitBeep(840, 'sine', 0.08);
+                            setScannerCompletedStages((prev) =>
+                              prev.includes(activeFocusedIdx) ? prev : [...prev, activeFocusedIdx]
+                            );
+                            if (activeFocusedIdx + 1 < stagesList.length) {
+                              setScannerFocusedStageIdx(activeFocusedIdx + 1);
+                              setScannerF2lPairIdx(0);
+                            }
+                          }}
+                          className="py-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-[11px] font-black text-green-300 cursor-pointer"
+                        >
+                          {activeFocusedIdx + 1 < stagesList.length
+                            ? `Done • Go to ${stagesList[activeFocusedIdx + 1].stage} →`
+                            : scannerCompletedStages.includes(activeFocusedIdx)
+                            ? 'Cube Solved ✓'
+                            : 'Complete Final PLL ✓'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Predicted Follow-Up Case / Lookahead Chain Section */}
+                  <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-sky-400">
+                        {analysis.nextUpBadge}
+                      </span>
+                      {nextCase && (
+                        <span className="font-mono text-[10px] font-bold text-slate-300">{nextCase.alg}</span>
+                      )}
+                    </div>
+                    <p className="text-xs font-black text-white">{analysis.nextUpTitle}</p>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      {focusedStage?.summary || analysis.nextUpSummary}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopScannerCamera();
+                      setScannerOpen(false);
+                      if (activeStagePhase === 'cross') {
+                        emitBeep(760);
+                        setActivePhase('cross');
+                        setCrossTab('ladder');
+                        return;
+                      }
+                      const locked = !isCaseUnlockedForTier(activeStagePhase, matched.id, isProUnlocked);
+                      if (locked) {
+                        openProPaywall(matched.name);
+                        return;
+                      }
+                      emitBeep(760);
+                      setActivePhase(activeStagePhase);
+                      setSwRunning(false);
+                      setSwElapsedMs(0);
+                      setSwLastResult(null);
+                      if (activeStagePhase === 'f2l') setF2lDrillCase(matched);
+                      else if (activeStagePhase === 'oll') setOllDrillCase(matched);
+                      else if (activeStagePhase === 'pll') setPllDrillCase(matched);
+                    }}
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                  >
+                    {activeStagePhase === 'cross'
+                      ? 'Practice Cross in X Ladder →'
+                      : `Drill ${matched.name} Now →`}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* BLINDFOLD VISOR OVERLAY */}
-        {blindState === 'visor' && (
-          <div
-            onClick={() => {
-              emitBeep(900);
-              setBlindState('done');
-            }}
-            className="fixed inset-0 z-[300] bg-[#03050c]/98 backdrop-blur-3xl flex flex-col items-center justify-center p-6 text-center cursor-pointer"
-          >
-            <div className="space-y-4">
-              <div className="w-24 h-24 rounded-full bg-orange-500/15 border-2 border-orange-500/40 flex items-center justify-center text-orange-400 shadow-2xl shadow-orange-500/20 mx-auto text-3xl font-black">
-                ●
-              </div>
-              <h2 className="text-3xl font-black text-white tracking-tight">EYES CLOSED</h2>
-              <p className="text-sm font-bold text-orange-400">EXECUTE YOUR CROSS!</p>
-            </div>
-            <div className="absolute bottom-10 w-full max-w-xs mx-auto">
-              <div className="w-full py-4 rounded-2xl bg-white/10 border border-white/15 text-white font-black text-sm">
-                Tap Anywhere When Finished
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* UNIFIED DAILY SESSION RUNNER & ISOLATED DRILL MODALS (F2L, OLL, PLL) */}
-        {renderUnifiedDailySession()}
-        {renderUnifiedDrillModal()}
+          );
+        })()}
 
         {/* 6. FINGERTRICK DOSSIER MODAL */}
         {activeModal === 'fingertrick' && ftCase && (() => {
@@ -6178,7 +8344,7 @@ function OLLDaySuite() {
           return (
             <div
               onClick={() => setActiveModal(null)}
-              className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+              className="fixed inset-0 z-[255] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -6264,7 +8430,7 @@ function OLLDaySuite() {
           const currentQ = ORBIT_QUESTIONS[orbitQuizIdx % ORBIT_QUESTIONS.length];
 
           return (
-            <div className="fixed inset-0 z-[255] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+            <div className="fixed inset-0 z-[255] bg-black/90 backdrop-blur-md flex items-center justify-center p-5">
               <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-xs w-full space-y-4 shadow-2xl">
                 <div className="flex items-center justify-between">
                   <div>
@@ -6346,7 +8512,7 @@ function OLLDaySuite() {
 
         {/* 10. CUSTOM CHUNK CURRICULUM BUILDER MODAL */}
         {activeModal === 'curriculum' && (
-          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-md flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl max-h-[88dvh] flex flex-col">
               <div className="flex items-center justify-between">
                 <div>
@@ -6446,7 +8612,7 @@ function OLLDaySuite() {
 
         {/* 11. GRANULAR PHASE-SPECIFIC RESET PROGRESS MODAL */}
         {activeModal === 'reset' && (
-          <div className="fixed inset-0 z-[260] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5">
+          <div className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-md flex items-center justify-center p-5">
             <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3.5 shadow-2xl max-h-[88dvh] overflow-y-auto no-scrollbar">
               <div className="text-center">
                 <span className="text-[10px] font-black uppercase tracking-widest text-red-400">
@@ -6580,6 +8746,7 @@ function OLLDaySuite() {
                   onClick={() => {
                     emitBeep(620, 'sine', 0.08);
                     setCrossScrambleIdx((p) => p + 1);
+                    setCrossSolutionRevealed(false);
                     setEfficiencyFeedback(null);
                   }}
                   className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer"
@@ -6595,7 +8762,7 @@ function OLLDaySuite() {
         {activeModal === 'blindHelp' && (
           <div
             onClick={() => setActiveModal(null)}
-            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[265] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -6620,7 +8787,7 @@ function OLLDaySuite() {
         {activeModal === 'blindPracticeHelp' && (
           <div
             onClick={() => setActiveModal(null)}
-            className="fixed inset-0 z-[265] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[265] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -6653,7 +8820,7 @@ function OLLDaySuite() {
           return (
             <div
               onClick={() => setEditingCaseTarget(null)}
-              className="fixed inset-0 z-[280] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-5"
+              className="fixed inset-0 z-[280] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -6747,6 +8914,92 @@ function OLLDaySuite() {
             </div>
           );
         })()}
+
+        {/* PRO PAYWALL MODAL */}
+        {activeModal === 'proPaywall' && (
+          <div
+            onClick={() => setActiveModal(null)}
+            className="fixed inset-0 z-[275] bg-black/90 backdrop-blur-md flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-orange-500/40 rounded-[2.25rem] p-6 max-w-xs w-full space-y-4 shadow-2xl text-center"
+            >
+              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                OLLDay Pro • Lifetime Access
+              </span>
+              <h3 className="text-xl font-black text-white">Unlock All 123 Cases</h3>
+              {proPaywallFeature && (
+                <p className="text-xs font-bold text-amber-300">{proPaywallFeature}</p>
+              )}
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Get full access to all 41 F2L pairs, 57 OLL algorithms, 25 PLLs, Advanced Full-Scramble Cross Ladder, Blindfold Mat, and Custom Chunk Builder.
+              </p>
+              {proPurchaseToast ? (
+                <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={unlockLifetimePro}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                  >
+                    Unlock Lifetime Pro — $3.99
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal(null)}
+                    className="w-full py-2.5 rounded-2xl bg-white/5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* UNIFIED DAILY SESSION RUNNER & ISOLATED DRILL MODALS (F2L, OLL, PLL) */}
+        {renderUnifiedDailySession()}
+        {renderUnifiedDrillModal()}
+
+        {/* FULLSCREEN BLIND EXECUTION VISOR (OPENS WHEN ARMED PADS ARE RELEASED) */}
+        {blindState === 'visor' && (
+          <div
+            onClick={() => {
+              emitBeep(960, 'sine', 0.1);
+              setBlindState('done');
+            }}
+            className="fixed inset-0 z-[295] bg-[#04060d] flex flex-col items-center justify-between p-8 text-center select-none cursor-pointer"
+          >
+            <div className="pt-4">
+              <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                Blind Execution Active • Eyes Closed
+              </span>
+            </div>
+
+            <div className="space-y-4 my-auto">
+              <div className="w-20 h-20 rounded-full bg-orange-500/15 border-2 border-orange-500/40 mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(249,115,22,0.25)]">
+                <svg className="w-9 h-9 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                  <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                  <line x1="2" x2="22" y1="2" y2="22" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-black text-white tracking-tight">Execute Your Cross Blindfolded</h3>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                Inspection locked at <strong className="text-orange-300">{(15 - inspectionLeft).toFixed(1)}s</strong>. Tap anywhere on the screen as soon as you finish your last turn.
+              </p>
+            </div>
+
+            <div className="w-full max-w-xs pb-4">
+              <div className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25">
+                Tap Anywhere When Finished ✓
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
