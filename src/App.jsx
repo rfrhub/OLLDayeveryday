@@ -231,7 +231,7 @@ function applyMovesTo54State(stateArr, movesStr) {
       rotCW(0);
       rotCCW(27);
       for (let i = 0; i < 9; i++) {
-        cyc(18 + i, 36 + i, 45 + i, 9 + i);
+        cyc(18 + i, 9 + i, 45 + i, 36 + i);
       }
     }
   };
@@ -365,15 +365,15 @@ function matchBestF2LForFrontRight54(s) {
     { name: 'UFL', stickers: [s[6], s[18], s[38]], extract: "U'" },
     { name: 'UBR', stickers: [s[2], s[11], s[45]], extract: 'U' },
     { name: 'UBL', stickers: [s[0], s[36], s[47]], extract: 'U2' },
-    { name: 'DFR', stickers: [s[29], s[26], s[15]], extract: '' },
+    { name: 'DFR', stickers: [s[29], s[26], s[15]], extract: "R U R' U'" },
     { name: 'DFL', stickers: [s[27], s[24], s[44]], extract: "L' U' L" },
     { name: 'DBR', stickers: [s[35], s[17], s[51]], extract: "R' U R U'" },
     { name: 'DBL', stickers: [s[33], s[42], s[53]], extract: "L U2 L'" }
   ];
 
-  // Also check if the target middle-layer edge is trapped in another slot (FL, BR, BL)
+  // Also check if the target middle-layer edge is trapped in another slot (FR, FL, BR, BL)
   const middleEdgeSlots = [
-    { name: 'FR', stickers: [s[23], s[12]], extract: '' },
+    { name: 'FR', stickers: [s[23], s[12]], extract: "R U R' U'" },
     { name: 'FL', stickers: [s[21], s[41]], extract: "L' U' L" },
     { name: 'BR', stickers: [s[48], s[14]], extract: "R' U R" },
     { name: 'BL', stickers: [s[50], s[39]], extract: "L U L'" }
@@ -392,6 +392,8 @@ function matchBestF2LForFrontRight54(s) {
       '',
       foundCorner?.extract || '',
       foundEdge?.extract || '',
+      foundCorner?.name === 'DFR' ? "R U' R' U" : '',
+      foundEdge?.name === 'FR' ? "R U' R' U" : '',
       simplifyMoveSequence(`${foundCorner?.extract || ''} ${foundEdge?.extract || ''}`),
       simplifyMoveSequence(`${foundEdge?.extract || ''} ${foundCorner?.extract || ''}`)
     ])
