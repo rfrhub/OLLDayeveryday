@@ -7804,6 +7804,51 @@ function OLLDaySuite() {
                   )}
                 </div>
 
+                {/* Persistent Camera Capture / Retake Controls (Always Visible for U, F, R, D, B, L) */}
+                <div className="grid grid-cols-2 gap-2">
+                  {activePreviewImg ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(580, 'sine', 0.06);
+                        startScannerCamera(scannerCaptureStep, false);
+                      }}
+                      className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer"
+                    >
+                      Retake {currentSpec.short} ↻
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!scannerCameraReady) {
+                          startScannerCamera(scannerCaptureStep, false);
+                        } else {
+                          captureAndAnalyzeCubeFrame();
+                        }
+                      }}
+                      className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer"
+                    >
+                      {scannerCameraReady
+                        ? scannerAutoSnap && scannerStabilityCount > 0
+                          ? `Hold Steady (${scannerStabilityCount}/5)...`
+                          : `Capture ${currentSpec.short}`
+                        : `Start Camera (${currentSpec.short})`}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(460);
+                      startScannerCamera('U', true);
+                    }}
+                    className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                  >
+                    Reset All Faces
+                  </button>
+                </div>
+
                 {/* 3-Face Clarifying Questions (Asked in Exact Order When Only U, F, R Are Captured) */}
                 {!hasFull6Faces && (
                   <div className="bg-slate-900/95 border border-orange-500/35 rounded-[1.75rem] p-3.5 space-y-3 shadow-lg">
