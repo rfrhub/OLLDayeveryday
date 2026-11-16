@@ -992,179 +992,77 @@ function classifyCapturedFaceBatch(rawFacesMap, fallbackFaces, lockedFaces = {},
     });
   });
 
-  if (!allEntries.length) return fallbackFaces;
+  if (allEntries.length === 0) return fallbackFaces;
 
   const expectedCenter = { U: 'Y', F: 'G', R: 'O', D: 'W', B: 'B', L: 'R' };
+  const centerSamples = { ...(savedPalette || {}) };
+  Object.entries(rawFacesMap).forEach(([faceKey, rgbList]) => {
+    if (Array.isArray(rgbList) && rgbList.length === 9 && expectedCenter[faceKey]) {
+      centerSamples[expectedCenter[faceKey]] = rgbList[4];
+    }
+  });
 
-  // 1. Seed anchors from persistent device cube palette, then override with live captured centers & user-locked tiles
-  const anchorSamplesByCode = { Y: [], W: [], G: [], B: [], O: [], R: [] };
-  if (savedPalette && typeof savedPalette === 'object') {
-    SCANNER_COLOR_CODES.forEach((code) => {
-      if (Array.isArray(savedPalette[code]) && savedPalette[code].length === 3) {
-        anchorSamplesByCode[code].push(savedPalette[code]);
-      }
-    });
-  }
+  const nextFaces = {
+    U: [...(fallbackFaces.U || [])],
+    F: [...(fallbackFaces.F || [])],
+    R: [...(fallbackFaces.R || [])],
+    D: [...(fallbackFaces.D || [])],
+    B: [...(fallbackFaces.B || [])],
+    L: [...(fallbackFaces.L || [])]
+  };
 
   Object.entries(rawFacesMap).forEach(([faceKey, rgbList]) => {
     if (!Array.isArray(rgbList) || rgbList.length !== 9) return;
-    const centerCode = expectedCenter[faceKey];
-    if (centerCode && rgbList[4]) {
-      // Weight live captured center 2x over prior saved palette
-      anchorSamplesByCode[centerCode].push(rgbList[4], rgbList[4]);
-    }
-    const lockedGrid = lockedFaces[faceKey];
-    if (Array.isArray(lockedGrid)) {
-      lockedGrid.forEach((code, idx) => {
-        if (code && rgbList[idx]) anchorSamplesByCode[code].push(rgbList[idx], rgbList[idx]);
-      });
-    }
-  });
-
-  const avgSamples = (list) => {
-    if (!list.length) return null;
-    const sum = list.reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0]);
-    return [sum[0] / list.length, sum[1] / list.length, sum[2] / list.length];
-  };
-
-  const rawAnchors = {};
-  SCANNER_COLOR_CODES.forEach((code) => {
-    const avg = avgSamples(anchorSamplesByCode[code]);
-    if (avg) rawAnchors[code] = avg;
-  });
-
-  // 2. Gray-World White-Balance Gain from White anchor or brightest neutral sticker
-  let gainR = 1;
-  let gainG = 1;
-  let gainB = 1;
-  let whiteRefRaw = rawAnchors.W;
-  if (!whiteRefRaw) {
-    let bestNeutralScore = -Infinity;
-    allEntries.forEach(({ rgb }) => {
-      const [r, g, b] = rgb;
-      const maxC = Math.max(r, g, b);
-      const minC = Math.min(r, g, b);
-      const chroma = maxC - minC;
-      const luma = (r + g + b) / 3;
-      const score = luma - chroma * 1.4;
-      if (score > bestNeutralScore && luma > 110) {
-        bestNeutralScore = score;
-        whiteRefRaw = rgb;
-      }
-    });
-  }
-
-  if (whiteRefRaw) {
-    const [wr, wg, wb] = whiteRefRaw;
-    const avgW = (wr + wg + wb) / 3;
-    if (wr > 35 && wg > 35 && wb > 35) {
-      gainR = Math.min(1.5, Math.max(0.68, avgW / wr));
-      gainG = Math.min(1.5, Math.max(0.68, avgW / wg));
-      gainB = Math.min(1.5, Math.max(0.68, avgW / wb));
-    }
-  }
-
-  const balanceRgb = ([r, g, b]) => [
-    Math.min(255, Math.round(r * gainR)),
-    Math.min(255, Math.round(g * gainG)),
-    Math.min(255, Math.round(b * gainB))
-  ];
-
-  // Normalized chromaticity (rg, bg) + CIELAB for illumination-independent matching
-  const toFeatureVec = (rawRgb) => {
-    const rgb = balanceRgb(rawRgb);
-    const [r, g, b] = rgb;
-    const sum = Math.max(1, r + g + b);
-    const [L, a, bAxis] = rgbToLab(r, g, b);
-    const chromaLab = Math.sqrt(a * a + bAxis * bAxis);
-    return { rgb, rNorm: r / sum, gNorm: g / sum, bNorm: b / sum, L, a, bAxis, chromaLab };
-  };
-
-  // Canonical normalized chromaticity & Lab prototypes for standard speedcube colors
-  const canonicalProto = {
-    Y: { rNorm: 0.45, gNorm: 0.44, bNorm: 0.11, L: 88, a: -6, bAxis: 78, chromaLab: 78 },
-    W: { rNorm: 0.34, gNorm: 0.34, bNorm: 0.32, L: 92, a: 0, bAxis: 3, chromaLab: 4 },
-    G: { rNorm: 0.17, gNorm: 0.56, bNorm: 0.27, L: 60, a: -52, bAxis: 34, chromaLab: 62 },
-    B: { rNorm: 0.15, gNorm: 0.31, bNorm: 0.54, L: 46, a: 10, bAxis: -54, chromaLab: 55 },
-    O: { rNorm: 0.61, gNorm: 0.27, bNorm: 0.12, L: 65, a: 46, bAxis: 60, chromaLab: 75 },
-    R: { rNorm: 0.66, gNorm: 0.18, bNorm: 0.16, L: 48, a: 64, bAxis: 42, chromaLab: 76 }
-  };
-
-  const activeProtos = {};
-  SCANNER_COLOR_CODES.forEach((code) => {
-    activeProtos[code] = rawAnchors[code] ? toFeatureVec(rawAnchors[code]) : canonicalProto[code];
-  });
-
-  // Dynamic White chroma cutoff halfway between White anchor and lowest-chroma chromatic anchor
-  const minChromaticChroma = Math.min(
-    ...['Y', 'G', 'B', 'O', 'R'].map((c) => activeProtos[c].chromaLab)
-  );
-  const whiteChromaCutoff = Math.min(32, Math.max(15, (activeProtos.W.chromaLab + minChromaticChroma) * 0.42));
-
-  const result = { ...fallbackFaces };
-  Object.entries(rawFacesMap).forEach(([faceKey, rgbList]) => {
-    if (!Array.isArray(rgbList) || rgbList.length !== 9) return;
-    const lockedFace = Array.isArray(lockedFaces[faceKey]) ? lockedFaces[faceKey] : null;
-
-    result[faceKey] = rgbList.map((rawRgb, idx) => {
-      // Preserve any sticker manually set or verified by the user
-      if (lockedFace && lockedFace[idx]) return lockedFace[idx];
+    const locked = lockedFaces?.[faceKey];
+    nextFaces[faceKey] = rgbList.map((rgb, idx) => {
+      if (Array.isArray(locked) && locked[idx]) return locked[idx];
       if (idx === 4 && expectedCenter[faceKey]) return expectedCenter[faceKey];
-
-      const feat = toFeatureVec(rawRgb);
-
-      // Low-chroma bright stickers are White
-      if (feat.L >= 52 && feat.chromaLab <= whiteChromaCutoff) {
-        return 'W';
-      }
-
-      // Compare chromatic stickers using normalized RGB chromaticity + Lab (a*, b*) distance
-      let bestCode = 'Y';
-      let bestDist = Infinity;
-      ['Y', 'G', 'B', 'O', 'R'].forEach((code) => {
-        const p = activeProtos[code];
-        const dChromaNorm =
-          Math.hypot(feat.rNorm - p.rNorm, feat.gNorm - p.gNorm, feat.bNorm - p.bNorm) * 180;
-        const dLab = Math.hypot((feat.a - p.a) * 0.85, (feat.bAxis - p.bAxis) * 0.85, (feat.L - p.L) * 0.25);
-        const dist = dChromaNorm + dLab;
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestCode = code;
-        }
-      });
-
-      return bestCode;
+      return classifyStickerRgb(rgb, centerSamples);
     });
   });
 
-  return result;
+  return nextFaces;
 }
 
-// Precompute 2-sided top-layer signatures from simulateCrossCubeState(invertAlgorithm(alg))
+// Precompute 2-sided top-layer signatures across all 4 AUF rotations (0, U, U2, U')
 let CACHED_SIGNATURES = null;
 function getCaseSignatures() {
   if (CACHED_SIGNATURES) return CACHED_SIGNATURES;
 
   const ollSigs = OLL_DATA.map((item) => {
-    const st = simulateCrossCubeState(invertAlgorithm(item.alg));
-    const uMask = st.slice(0, 9).map((c) => (c === 'Y' ? '1' : '0')).join('');
-    const fTop = st.slice(18, 21).map((c) => (c === 'Y' ? '1' : '0')).join('');
-    const rTop = st.slice(9, 12).map((c) => (c === 'Y' ? '1' : '0')).join('');
-    return { item, uMask, sideMask: `${fTop}${rTop}` };
+    const baseSt = simulateCrossCubeState(invertAlgorithm(item.alg));
+    const rotations = [];
+    let curSt = baseSt;
+    for (let rot = 0; rot < 4; rot++) {
+      const uMask = curSt.slice(0, 9).map((c) => (c === 'Y' ? '1' : '0')).join('');
+      const fTop = curSt.slice(18, 21).map((c) => (c === 'Y' ? '1' : '0')).join('');
+      const rTop = curSt.slice(9, 12).map((c) => (c === 'Y' ? '1' : '0')).join('');
+      rotations.push({ rot, uMask, sideMask: `${fTop}${rTop}` });
+      // Simulate U' on the setup state (= U Pre-AUF needed to reach rot 0)
+      curSt = applyMovesTo54State(curSt, "U'");
+    }
+    return { item, rotations };
   });
 
-  const pllSigs = PLL_DATA.map((item) => {
-    const st = simulateCrossCubeState(invertAlgorithm(item.alg));
-    const six = [...st.slice(18, 21), ...st.slice(9, 12)];
-    const map = {};
-    let idx = 0;
-    const pattern = six
-      .map((c) => {
-        if (!map[c]) map[c] = String(idx++);
-        return map[c];
-      })
-      .join('');
-    return { item, pattern };
+  const pllSigs = PLL_DATA.filter((item) => item.id <= 21).map((item) => {
+    const baseSt = simulateCrossCubeState(invertAlgorithm(item.alg));
+    const rotations = [];
+    let curSt = baseSt;
+    for (let rot = 0; rot < 4; rot++) {
+      const six = [...curSt.slice(18, 21), ...curSt.slice(9, 12)];
+      const map = {};
+      let idx = 0;
+      const pattern = six
+        .map((c) => {
+          if (!map[c]) map[c] = String(idx++);
+          return map[c];
+        })
+        .join('');
+      const fEdgeColor = curSt[19];
+      rotations.push({ rot, pattern, fEdgeColor });
+      curSt = applyMovesTo54State(curSt, "U'");
+    }
+    return { item, rotations };
   });
 
   CACHED_SIGNATURES = { ollSigs, pllSigs };
@@ -1247,6 +1145,141 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
       nextUpBadge: 'Cross → F2L Transition',
       nextUpCase: firstF2l,
       nextUpSummary: `Finish ${missingLabel} (${crossAlg}), then solve the remaining ${Math.max(1, estimatedRemainingPairs)} F2L pairs starting with Front-Right.`
+    };
+  }
+
+  // 1. PLL DETECTION (Cross Solved, 0 F2L pairs left, Top face solid Yellow)
+  if (allTopOriented && f2lRowsSolved) {
+    const six = [fGrid[0], fGrid[1], fGrid[2], rGrid[0], rGrid[1], rGrid[2]];
+    const map = {};
+    let idx = 0;
+    const scannedPattern = six
+      .map((c) => {
+        if (!map[c]) map[c] = String(idx++);
+        return map[c];
+      })
+      .join('');
+
+    // Check if cube is already completely solved on F and R top rows
+    if (
+      fGrid[0] === fCenter &&
+      fGrid[1] === fCenter &&
+      fGrid[2] === fCenter &&
+      rGrid[0] === rCenter &&
+      rGrid[1] === rCenter &&
+      rGrid[2] === rCenter
+    ) {
+      const uaCase = PLL_BY_ID.get(1) || PLL_DATA[0];
+      return {
+        phase: 'pll',
+        crossSolved: true,
+        remainingF2lPairs: 0,
+        phaseLabel: 'Cube Solved ✓ (0 Moves Needed)',
+        confidence: 99,
+        matchedCase: uaCase,
+        aufHint: 'Solved! All layers match their centers.',
+        nextUpTitle: 'Cube Solved! ✓',
+        nextUpBadge: 'Complete',
+        nextUpCase: null,
+        nextUpSummary: 'Every visible face is solved—no algorithm needed.'
+      };
+    }
+
+    let bestPll = pllSigs[0].item;
+    let bestScore = -1;
+    let bestRot = 0;
+
+    pllSigs.forEach(({ item, rotations }) => {
+      rotations.forEach(({ rot, pattern }) => {
+        let score = 0;
+        for (let i = 0; i < 6; i++) {
+          if (pattern[i] === scannedPattern[i]) score += 3;
+        }
+        // Prefer zero Pre-AUF on ties
+        if (rot === 0) score += 0.5;
+        if (score > bestScore) {
+          bestScore = score;
+          bestPll = item;
+          bestRot = rot;
+        }
+      });
+    });
+
+    const preAuf = bestRot === 0 ? '' : bestRot === 1 ? 'U' : bestRot === 2 ? 'U2' : "U'";
+    const auf = preAuf ? `Pre-AUF: ${preAuf} before executing` : 'Ready from current angle (No Pre-AUF)';
+
+    return {
+      phase: 'pll',
+      crossSolved: true,
+      remainingF2lPairs: 0,
+      phaseLabel: 'Cross Solved ✓ • 0 F2L Left • PLL',
+      confidence: Math.min(99, Math.round(74 + bestScore * 1.4)),
+      matchedCase: bestPll,
+      aufHint: auf,
+      nextUpTitle: preAuf ? `Execute ${preAuf} → ${bestPll.name}` : `Execute ${bestPll.name}`,
+      nextUpBadge: 'Final Layer PLL',
+      nextUpCase: null,
+      nextUpSummary: `Cross & all 4 F2L pairs are solved. ${preAuf ? `Do ${preAuf} first, then execute ` : 'Execute '}${bestPll.name} (${bestPll.alg}) and align AUF.`
+    };
+  }
+
+  // 2. OLL DETECTION (Cross Solved, 0 F2L pairs left, Top face has unoriented yellow stickers)
+  if (f2lRowsSolved && !allTopOriented) {
+    let bestOll = ollSigs[0].item;
+    let bestScore = -1;
+    let bestRot = 0;
+
+    const scannedUMask = uGrid.map((c) => (c === topColor ? '1' : '0')).join('');
+    const scannedSideMask = [...fGrid.slice(0, 3), ...rGrid.slice(0, 3)]
+      .map((c) => (c === topColor ? '1' : '0'))
+      .join('');
+
+    ollSigs.forEach(({ item, rotations }) => {
+      rotations.forEach(({ rot, uMask: targetU, sideMask: targetSide }) => {
+        let score = 0;
+        for (let i = 0; i < 9; i++) {
+          if (scannedUMask[i] === targetU[i]) score += 4;
+        }
+        for (let j = 0; j < 6; j++) {
+          if (scannedSideMask[j] === targetSide[j]) score += 3;
+        }
+        if (rot === 0) score += 0.5;
+        if (score > bestScore) {
+          bestScore = score;
+          bestOll = item;
+          bestRot = rot;
+        }
+      });
+    });
+
+    const preAuf = bestRot === 0 ? '' : bestRot === 1 ? 'U ' : bestRot === 2 ? 'U2 ' : "U' ";
+    const postState = simulateCrossCubeState(`${invertAlgorithm(bestOll.alg)} ${preAuf}${bestOll.alg}`);
+    const postSix = [...postState.slice(18, 21), ...postState.slice(9, 12)];
+    const pMap = {};
+    let pIdx = 0;
+    const postPattern = postSix
+      .map((c) => {
+        if (!pMap[c]) pMap[c] = String(pIdx++);
+        return pMap[c];
+      })
+      .join('');
+    const predictedPll =
+      pllSigs.find((p) => p.rotations.some((r) => r.pattern === postPattern))?.item ||
+      PLL_BY_ID.get(8) ||
+      PLL_DATA[0];
+
+    return {
+      phase: 'oll',
+      crossSolved: true,
+      remainingF2lPairs: 0,
+      phaseLabel: 'Cross Solved ✓ • 0 F2L Left • OLL',
+      confidence: Math.min(98, Math.round(62 + bestScore * 0.7)),
+      matchedCase: bestOll,
+      aufHint: bestRot === 0 ? 'Ready from current angle' : `Pre-AUF: ${preAuf.trim()} before executing`,
+      nextUpTitle: `Follow-Up Case: ${predictedPll.name}`,
+      nextUpBadge: 'Predicted Next PLL',
+      nextUpCase: predictedPll,
+      nextUpSummary: `Cross & all 4 F2L pairs are solved. ${preAuf ? `Turn ${preAuf.trim()} first, then execute ` : 'Execute '}${bestOll.name} to orient the yellow top.`
     };
   }
 
