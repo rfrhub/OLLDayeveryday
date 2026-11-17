@@ -2674,8 +2674,8 @@ function OLLDaySuite() {
   const [fullTimerOpen, setFullTimerOpen] = useState(false);
   const [fullScramble, setFullScramble] = useState(() => generate3x3Scramble(20));
   const [fullTimerState, setFullTimerState] = useState('idle');
-  const [fullElapsedMs, setFullElapsedMs] = useState(0);
   const fullStartRef = useRef(0);
+  const fullFinalMsRef = useRef(0);
 
   const [crossDifficulty, setCrossDifficulty] = useState('standard');
   const [crossTier, setCrossTier] = useState(1);
@@ -2700,12 +2700,6 @@ function OLLDaySuite() {
   const [orbitFeedback, setOrbitFeedback] = useState(null);
   const padHoldTimeoutRef = useRef(null);
 
-  const [f2lLibMode, setF2lLibMode] = useState('groups');
-  const [f2lSelectedCategory, setF2lSelectedCategory] = useState(null);
-  const [ollLibMode, setOllLibMode] = useState('groups');
-  const [ollSelectedCategory, setOllSelectedCategory] = useState(null);
-  const [pllLibMode, setPllLibMode] = useState('groups');
-  const [pllSelectedCategory, setPllSelectedCategory] = useState(null);
   const [libState, setLibState] = useState({
     f2l: { mode: 'groups', category: null },
     oll: { mode: 'groups', category: null },
@@ -2807,6 +2801,7 @@ function OLLDaySuite() {
       document.removeEventListener('visibilitychange', handleVis);
       window.removeEventListener('pagehide', enterBackgroundSleep);
       window.removeEventListener('pageshow', () => setIsAppVisible(!document.hidden));
+      stopScannerCamera();
     };
   }, []);
 
@@ -2858,18 +2853,30 @@ function OLLDaySuite() {
 
   useEffect(() => {
     if (!swRunning || !isAppVisible) return;
-    const id = setInterval(() => {
-      if (swDisplayRef.current) swDisplayRef.current.textContent = `${((performance.now() - swStartRef.current) / 1000).toFixed(2)}s — Stop`;
-    }, 50);
-    return () => clearInterval(id);
+    let rafId = 0, lastPaint = 0;
+    const tick = (now) => {
+      if (now - lastPaint >= 33) {
+        lastPaint = now;
+        if (swDisplayRef.current) swDisplayRef.current.textContent = `${((now - swStartRef.current) / 1000).toFixed(2)}s — Stop`;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [swRunning, isAppVisible]);
 
   useEffect(() => {
     if (fullTimerState !== 'running' || !isAppVisible) return;
-    const id = setInterval(() => {
-      if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = ((performance.now() - fullStartRef.current) / 1000).toFixed(2);
-    }, 50);
-    return () => clearInterval(id);
+    let rafId = 0, lastPaint = 0;
+    const tick = (now) => {
+      if (now - lastPaint >= 33) {
+        lastPaint = now;
+        if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = ((now - fullStartRef.current) / 1000).toFixed(2);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [fullTimerState, isAppVisible]);
 
   // Derived User Data & Memoized Mastered Counts
@@ -3004,11 +3011,13 @@ function OLLDaySuite() {
     if (fullTimerState !== 'running') {
       emitBeep(820, 'sine', 0.07);
       fullStartRef.current = performance.now();
-      setFullElapsedMs(0);
+      fullFinalMsRef.current = 0;
+      if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = '0.00';
       setFullTimerState('running');
     } else {
       const finalMs = Math.round(performance.now() - fullStartRef.current);
-      setFullElapsedMs(finalMs);
+      fullFinalMsRef.current = finalMs;
+      if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = (finalMs / 1000).toFixed(2);
       setFullTimerState('stopped');
       emitBeep(980, 'sine', 0.1);
       const newEntry = { id: Date.now(), ms: finalMs, penalty: null, scramble: fullScramble };
@@ -3042,8 +3051,9 @@ function OLLDaySuite() {
       saveUserToCloud(resolvedUserKey, updated);
       return { ...prev, [resolvedUserKey]: updated };
     });
+    fullFinalMsRef.current = 0;
+    if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = '0.00';
     setFullTimerState('idle');
-    setFullElapsedMs(0);
   };
 
   const openProPaywall = (featureLabel) => { emitBeep(460); setProPaywallFeature(featureLabel || ''); setProPurchaseToast(''); setActiveModal('proPaywall'); };
@@ -3315,7 +3325,22 @@ function OLLDaySuite() {
   };
   const isDeckCardMounted = (cardIdx) => (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards <= 2;
 
-  // Shared Full-Solve Stats Block
+  // Shared Full-Solve Stats & WCA Telemetry Grid
+  const renderWcaTelemetryGrid = (cardBgClass = 'bg-slate-950/90 rounded-xl') => (
+    <div className="grid grid-cols-3 gap-2">
+      {[
+        { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
+        { label: 'Ao12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: 'text-sky-400' },
+        { label: 'Best PB', val: formatMsTime(bestFullPbMs, 2), color: 'text-amber-300' }
+      ].map((stat) => (
+        <div key={stat.label} className={`${cardBgClass} border border-white/10 p-2.5 text-center`}>
+          <span className="text-[9px] font-bold uppercase text-slate-400 block">{stat.label}</span>
+          <span className={`font-mono text-sm font-black ${stat.color}`}>{stat.val}</span>
+        </div>
+      ))}
+    </div>
+  );
+
   const renderFullSolveStatsBlock = () => (
     <div className="bg-slate-900/75 border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
       <div className="flex items-center justify-between">
@@ -3327,24 +3352,13 @@ function OLLDaySuite() {
         </div>
         <button
           type="button"
-          onClick={() => { emitBeep(680); setFullTimerState('idle'); setFullElapsedMs(0); setFullTimerOpen(true); }}
+          onClick={() => { emitBeep(680); fullFinalMsRef.current = 0; setFullTimerState('idle'); setFullTimerOpen(true); }}
           className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
         >
           Open Timer
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
-          { label: 'Ao12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: 'text-sky-400' },
-          { label: 'Best PB', val: formatMsTime(bestFullPbMs, 2), color: 'text-amber-300' }
-        ].map((stat) => (
-          <div key={stat.label} className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 text-center">
-            <span className="text-[9px] font-bold uppercase text-slate-400 block">{stat.label}</span>
-            <span className={`font-mono text-sm font-black ${stat.color}`}>{stat.val}</span>
-          </div>
-        ))}
-      </div>
+      {renderWcaTelemetryGrid('bg-slate-950/90 rounded-xl')}
     </div>
   );
 
@@ -3464,21 +3478,10 @@ function OLLDaySuite() {
             <p className="text-xs text-slate-400 leading-relaxed">
               Full-screen glassmorphic speedcube timer with WCA 20-move scrambles, +2 / DNF penalties, and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> tracking.
             </p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
-                { label: 'Ao12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: 'text-sky-400' },
-                { label: 'Best PB', val: formatMsTime(bestFullPbMs, 2), color: 'text-amber-300' }
-              ].map((st) => (
-                <div key={st.label} className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 text-center">
-                  <span className="text-[9px] font-bold uppercase text-slate-400 block">{st.label}</span>
-                  <span className={`font-mono text-sm font-black ${st.color}`}>{st.val}</span>
-                </div>
-              ))}
-            </div>
+            {renderWcaTelemetryGrid('bg-slate-950/90 rounded-2xl')}
             <button
               type="button"
-              onClick={() => { emitBeep(680); setFullTimerState('idle'); setFullElapsedMs(0); setFullTimerOpen(true); }}
+              onClick={() => { emitBeep(680); fullFinalMsRef.current = 0; setFullTimerState('idle'); setFullTimerOpen(true); }}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
             >
               Launch Full-Screen 3x3x3 Timer
@@ -3640,7 +3643,7 @@ function OLLDaySuite() {
               </div>
               {!isProUnlocked && (
                 <button type="button" onClick={() => openProPaywall('Full 123-Case CFOP Suite')} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
-                  Unlock Lifetime Pro — $3.99
+                  Unlock Lifetime Pro — $5.99
                 </button>
               )}
             </div>
@@ -4712,7 +4715,7 @@ function OLLDaySuite() {
                               <h3 className="text-lg font-black text-white">WCA Blindfold Timer Mat</h3>
                               <p className="text-xs text-slate-300 leading-relaxed">Train 15-second inspection and eyes-closed execution on the dual-thumb Speedstack mat.</p>
                               <button type="button" onClick={() => openProPaywall('WCA Blindfold Timer Mat')} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
-                                Unlock Pro — $3.99
+                                Unlock Lifetime Pro — $5.99
                               </button>
                             </div>
                           </div>
@@ -4968,7 +4971,7 @@ function OLLDaySuite() {
 
             <div className="relative z-10 flex flex-col items-center justify-center my-auto text-center">
               <div ref={fullTimerDisplayRef} className={`text-7xl sm:text-8xl font-mono font-black tracking-tight transition-colors ${fullTimerState === 'running' ? 'text-green-400' : 'text-white'}`}>
-                {(fullElapsedMs / 1000).toFixed(2)}
+                {(fullFinalMsRef.current / 1000).toFixed(2)}
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap or Press Space to Stop' : 'Tap or Press Space to Start'}</p>
             </div>
@@ -6087,11 +6090,12 @@ function OLLDaySuite() {
               <h3 className="text-xl font-black text-white">Unlock All 123 Cases</h3>
               {proPaywallFeature && <p className="text-xs font-bold text-amber-300">{proPaywallFeature}</p>}
               <p className="text-xs text-slate-300 leading-relaxed">Get full access to all 41 F2L pairs, 57 OLL algorithms, 25 PLLs, Advanced Full-Scramble Cross Ladder, Blindfold Mat, and Custom Chunk Builder.</p>
+              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-slate-400">One-Time Purchase • Yours Forever • No Subscription</span>
               {proPurchaseToast ? (
                 <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
               ) : (
                 <div className="space-y-2 pt-1">
-                  <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $3.99</button>
+                  <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $5.99</button>
                   <button type="button" onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-2xl bg-white/5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer">Maybe Later</button>
                 </div>
               )}
