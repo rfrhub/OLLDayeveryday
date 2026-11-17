@@ -224,7 +224,7 @@ function applyMovesTo54State(stateArr, movesStr) {
     else if (tok === 'D') { rotCW(27); cyc(24, 15, 51, 42); cyc(25, 16, 52, 43); cyc(26, 17, 53, 44); }
     else if (tok === 'F') { rotCW(18); cyc(6, 9, 29, 44); cyc(7, 12, 28, 41); cyc(8, 15, 27, 38); }
     else if (tok === 'B') { rotCW(45); cyc(2, 36, 33, 17); cyc(1, 39, 34, 14); cyc(0, 42, 35, 11); }
-    else if (tok === 'R') { rotCW(9); cyc(2, 45, 29, 20); cyc(5, 48, 32, 23); cyc(8, 51, 35, 26); }
+    else if (tok === 'R') { rotCW(9); cyc(2, 51, 29, 20); cyc(5, 48, 32, 23); cyc(8, 45, 35, 26); }
     else if (tok === 'L') { rotCW(36); cyc(0, 18, 27, 53); cyc(3, 21, 30, 50); cyc(6, 24, 33, 47); }
     else if (tok === 'r') { turnOnce('R'); turnM(); turnM(); turnM(); }
     else if (tok === 'l') { turnOnce('L'); turnM(); }
@@ -593,10 +593,10 @@ function getAlgorithmTriggerTags(alg = '') {
 }
 
 const F2L_VIEW_ANGLES = [
-  { label: 'Front-Right (Target)', rot: 'y-35x-25', yaw: -35, pitch: -25 },
-  { label: 'Front-Left (Green/Red)', rot: 'y35x-25', yaw: 35, pitch: -25 },
-  { label: 'Back-Right (Orange/Blue)', rot: 'y-135x-25', yaw: -135, pitch: -25 },
-  { label: 'Back-Left (Blue/Red)', rot: 'y135x-25', yaw: 135, pitch: -25 }
+  { label: 'Front-Right (Target)', rot: 'y35x-25', yaw: -35, pitch: -25 },
+  { label: 'Front-Left (Green/Red)', rot: 'y-35x-25', yaw: 35, pitch: -25 },
+  { label: 'Back-Right (Orange/Blue)', rot: 'y135x-25', yaw: -135, pitch: -25 },
+  { label: 'Back-Left (Blue/Red)', rot: 'y-135x-25', yaw: 135, pitch: -25 }
 ];
 
 function getClosestF2LAngleLabel(yaw, pitch) {
@@ -608,17 +608,23 @@ function getClosestF2LAngleLabel(yaw, pitch) {
   return 'Back-Left (Blue/Red)';
 }
 
-const getF2LImageUrl = (alg, rot = 'y-35x-25', setupScramble = null) => {
+const getF2LImageUrl = (alg, rot = 'y35x-25', setupScramble = null) => {
+  const cleanCase = (alg || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
+  const cleanSetup = (setupScramble || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
   const baseUrl = `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&stage=f2l&bg=t&cc=080b12&co=100&fc=yyyyyyyyyooooooooogggggggggwwwwwwwwwrrrrrrrrrbbbbbbbbb&r=${rot}`;
-  return setupScramble ? `${baseUrl}&alg=${encodeURIComponent(setupScramble)}` : `${baseUrl}&case=${encodeURIComponent(alg)}`;
+  return cleanSetup ? `${baseUrl}&alg=${encodeURIComponent(cleanSetup)}` : `${baseUrl}&case=${encodeURIComponent(cleanCase)}`;
 };
 
-const getOLLImageUrl = (alg) =>
-  `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&view=plan&stage=oll&bg=t&cc=1e293b&case=${encodeURIComponent(alg)}`;
+const getOLLImageUrl = (alg) => {
+  const cleanCase = (alg || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
+  return `https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&view=plan&stage=oll&bg=t&cc=1e293b&case=${encodeURIComponent(cleanCase)}`;
+};
 
 const getPLLImageUrl = (alg, setupScramble = null) => {
+  const cleanCase = (alg || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
+  const cleanSetup = (setupScramble || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
   const baseUrl = 'https://visualcube.api.cubing.net/visualcube.php?fmt=svg&pzl=3&view=plan&stage=pll&bg=t&cc=1e293b';
-  return setupScramble ? `${baseUrl}&alg=${encodeURIComponent(setupScramble)}` : `${baseUrl}&case=${encodeURIComponent(alg)}`;
+  return cleanSetup ? `${baseUrl}&alg=${encodeURIComponent(cleanSetup)}` : `${baseUrl}&case=${encodeURIComponent(cleanCase)}`;
 };
 
 const VISUALCUBE_SVG_CACHE = new Map();
@@ -1363,10 +1369,7 @@ const isCrossStickerActive = (stickers, offset, idx) => {
   return partner !== undefined && stickers[partner] === 'W';
 };
 
-const isF2LStickerMuted = (stickers, offset, idx) => {
-  const code = stickers[offset + idx];
-  return (offset === 0 && code === 'Y') || (offset !== 0 && idx < 3 && code === 'Y');
-};
+const isF2LStickerMuted = (stickers, offset, idx) => stickers[offset + idx] === 'Y';
 
 function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging, cubeRef }) {
   const stickers = useMemo(() => simulateCrossCubeState(scramble), [scramble]);
