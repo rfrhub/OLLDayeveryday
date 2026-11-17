@@ -2681,6 +2681,11 @@ function OLLDaySuite() {
   const [ollSelectedCategory, setOllSelectedCategory] = useState(null);
   const [pllLibMode, setPllLibMode] = useState('groups');
   const [pllSelectedCategory, setPllSelectedCategory] = useState(null);
+  const [libState, setLibState] = useState({
+    f2l: { mode: 'groups', category: null },
+    oll: { mode: 'groups', category: null },
+    pll: { mode: 'groups', category: null }
+  });
 
   const [draggedLineupIdx, setDraggedLineupIdx] = useState(null);
   const holdTimerRef = useRef(null);
@@ -2711,6 +2716,7 @@ function OLLDaySuite() {
     if (savedActive && !list.includes(savedActive)) list.push(savedActive);
     return list;
   });
+
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
@@ -3660,10 +3666,9 @@ function OLLDaySuite() {
     const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
     const masteredCount = isF2L ? f2lMasteredCount : isPLL ? pllMasteredCount : ollMasteredCount;
     const lineupOrder = lineupOrders[phaseKey] || [];
-    const libMode = isF2L ? f2lLibMode : isPLL ? pllLibMode : ollLibMode;
-    const setLibMode = isF2L ? setF2lLibMode : isPLL ? setPllLibMode : setOllLibMode;
-    const selectedCategory = isF2L ? f2lSelectedCategory : isPLL ? pllSelectedCategory : ollSelectedCategory;
-    const setSelectedCategory = isF2L ? setF2lSelectedCategory : isPLL ? setPllSelectedCategory : setOllSelectedCategory;
+    const { mode: libMode, category: selectedCategory } = libState[phaseKey];
+    const setLibMode = (mode) => setLibState((prev) => ({ ...prev, [phaseKey]: { ...prev[phaseKey], mode } }));
+    const setSelectedCategory = (category) => setLibState((prev) => ({ ...prev, [phaseKey]: { ...prev[phaseKey], category } }));
     const setSession = isF2L ? setF2lSession : isPLL ? setPllSession : setOllSession;
     const setDrillCase = isF2L ? setF2lDrillCase : isPLL ? setPllDrillCase : setOllDrillCase;
 
@@ -4127,6 +4132,7 @@ function OLLDaySuite() {
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
     const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
+    const closeDrill = () => { setSwRunning(false); setSwLastResult(null); close(); };
 
     return (
       <div
@@ -4135,76 +4141,60 @@ function OLLDaySuite() {
           isTwoPane ? 'bg-[#090e1c] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-[#040711]/95 flex items-center justify-center p-5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
-        {isTwoPane ? (
-          <>
-            <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-400">
-                  {phaseKey.toUpperCase()} Isolated Drill • {item.group}
-                </span>
-              </div>
-              <button onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-base font-bold cursor-pointer">✕</button>
-            </div>
+        {isTwoPane && (
+          <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between">
+            <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-400">
+              {phaseKey.toUpperCase()} Isolated Drill • {item.group}
+            </span>
+            <button onClick={closeDrill} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-base font-bold cursor-pointer">✕</button>
+          </div>
+        )}
 
-            <div className="w-full max-w-3xl mx-auto bg-slate-900/90 border border-white/10 rounded-[2.5rem] p-7 space-y-4 shadow-2xl my-auto flex flex-col items-center">
-              <CasePracticeCard
-                {...sharedPracticeProps}
-                phaseKey={phaseKey}
-                item={item}
-                timerLabel={timerLabel}
-                lastResultForThis={lastResultForThis}
-                recordedBest={caseStat.best}
-                onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-                onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-              >
-                <div className="w-full grid grid-cols-3 gap-3 pt-1">
-                  {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-                    <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-2xl py-2.5 px-3 text-center">
-                      <span className="text-[10.5px] font-black uppercase text-slate-400 block">{w.label}</span>
-                      <span className={`font-mono text-sm font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              </CasePracticeCard>
-            </div>
-
-            <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-slate-400">
-              <span>{viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}</span>
-              <button
-                type="button"
-                onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }}
-                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-slate-200 cursor-pointer"
-              >
-                Done Drilling
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar">
+        <div
+          className={`bg-slate-900 border border-white/10 w-full shadow-2xl ${
+            isTwoPane
+              ? 'max-w-3xl mx-auto bg-slate-900/90 rounded-[2.5rem] p-7 space-y-4 my-auto flex flex-col items-center'
+              : 'rounded-[2.25rem] p-5 max-w-sm space-y-3 max-h-[92dvh] overflow-y-auto no-scrollbar'
+          }`}
+        >
+          {!isTwoPane && (
             <div data-no-timer-start="true" className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
-              <button onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
+              <button onClick={closeDrill} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
             </div>
+          )}
 
-            <CasePracticeCard
-              {...sharedPracticeProps}
-              phaseKey={phaseKey}
-              item={item}
-              timerLabel={timerLabel}
-              lastResultForThis={lastResultForThis}
-              recordedBest={caseStat.best}
-              onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-              onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+          <CasePracticeCard
+            {...sharedPracticeProps}
+            phaseKey={phaseKey}
+            item={item}
+            timerLabel={timerLabel}
+            lastResultForThis={lastResultForThis}
+            recordedBest={caseStat.best}
+            onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+            onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+          >
+            <div className={`w-full grid grid-cols-3 ${isTwoPane ? 'gap-3 pt-1' : 'gap-1.5'}`}>
+              {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
+                <div key={w.label} className={`bg-slate-950/90 border border-white/10 text-center ${isTwoPane ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1.5 px-2'}`}>
+                  <span className={`${isTwoPane ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase text-slate-400 block`}>{w.label}</span>
+                  <span className={`font-mono ${isTwoPane ? 'text-sm' : 'text-xs'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
+                </div>
+              ))}
+            </div>
+          </CasePracticeCard>
+        </div>
+
+        {isTwoPane && (
+          <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-slate-400">
+            <span>{viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}</span>
+            <button
+              type="button"
+              onClick={closeDrill}
+              className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-slate-200 cursor-pointer"
             >
-              <div className="grid grid-cols-3 gap-1.5">
-                {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-                  <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                    <span className="text-[9px] font-black uppercase text-slate-400 block">{w.label}</span>
-                    <span className={`font-mono text-xs font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-                  </div>
-                ))}
-              </div>
-            </CasePracticeCard>
+              Done Drilling
+            </button>
           </div>
         )}
       </div>
