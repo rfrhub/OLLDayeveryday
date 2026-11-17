@@ -1499,11 +1499,81 @@ function useCubeOrbit(initialRot, onTap) {
   return { rot, setOrbit, isDragging, domRef, labelRef, handlers };
 }
 
-function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, setF2LPresetAngle, emitBeep }) {
+function detectViewportDevice() {
+  if (typeof window === 'undefined') {
+    return { kind: 'mobile', isWideTwoPane: false, isTouchPrimary: true, width: 390 };
+  }
+  const width = window.innerWidth || document.documentElement?.clientWidth || 390;
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+  const platform = typeof navigator !== 'undefined' ? navigator.platform || '' : '';
+  const maxTouch = typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0;
+  const isCoarsePointer = typeof window.matchMedia === 'function' ? window.matchMedia('(pointer: coarse)').matches : maxTouch > 0;
+
+  // Detect iPadOS 13+ (reports MacIntel with maxTouchPoints > 1) & Android/Windows tablets
+  const isIPad = /iPad/i.test(ua) || (platform === 'MacIntel' && maxTouch > 1);
+  const isAndroidTablet = /Android/i.test(ua) && !/Mobile/i.test(ua);
+  const isGenericTablet = /Tablet|PlayBook|Silk|Kindle/i.test(ua);
+  const isPhoneUA = /iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry/i.test(ua);
+
+  let kind = 'desktop';
+  if (isPhoneUA) {
+    kind = 'mobile';
+  } else if (isIPad || isAndroidTablet || isGenericTablet || (isCoarsePointer && width >= 600 && width <= 1366)) {
+    kind = 'tablet';
+  } else if (isCoarsePointer || width < 768) {
+    kind = 'mobile';
+  }
+
+  // Strictly keep phones in the original single-column layout (even in landscape);
+  // enable the two-pane workspace only on iPad/Tablet (>= 700px) and Desktop (>= 768px)
+  const isWideTwoPane =
+    kind !== 'mobile' && (kind === 'desktop' ? width >= 768 : width >= 700);
+
+  return {
+    kind,
+    isWideTwoPane,
+    isTouchPrimary: isCoarsePointer || kind !== 'desktop',
+    width
+  };
+}
+
+function useViewportDevice() {
+  const [device, setDevice] = useState(detectViewportDevice);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    let rafId = 0;
+    const handleResize = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        const next = detectViewportDevice();
+        setDevice((prev) =>
+          prev.kind === next.kind &&
+          prev.isWideTwoPane === next.isWideTwoPane &&
+          prev.isTouchPrimary === next.isTouchPrimary
+            ? prev
+            : next
+        );
+      });
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('orientationchange', handleResize, { passive: true });
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  return device;
+}
+
+function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, setF2LPresetAngle, emitBeep, isLargeScreen = false }) {
   return (
     <div data-no-timer-start="true" className="w-full space-y-3">
       <div className="w-full flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+        <span className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-black uppercase tracking-widest text-slate-400`}>
           Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(orbit.rot.yaw, orbit.rot.pitch)}</strong>
         </span>
         <div className="flex items-center gap-1.5">
@@ -1511,7 +1581,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-1 text-[10px]'} rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 font-bold text-slate-300 cursor-pointer`}
             >
               Reset
             </button>
@@ -1519,7 +1589,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className="px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black text-orange-400 active:scale-95 transition-all cursor-pointer"
+            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-400 active:scale-95 transition-all cursor-pointer`}
           >
             Rotate Cube ↻
           </button>
@@ -1530,16 +1600,18 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
         {...orbit.handlers}
         onPointerCancel={orbit.handlers.onPointerUp}
         style={{ touchAction: 'none' }}
-        className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
+        className={`${isLargeScreen ? 'w-52 h-52' : 'w-40 h-40'} mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none`}
       >
-        <F2LSpatial3DCube
-          setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
-          yaw={orbit.rot.yaw}
-          pitch={orbit.rot.pitch}
-          isDragging={orbit.isDragging}
-          cubeRef={orbit.domRef}
-        />
-        <span ref={orbit.labelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+        <div style={isLargeScreen ? { transform: 'scale(1.22)' } : undefined}>
+          <F2LSpatial3DCube
+            setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
+            yaw={orbit.rot.yaw}
+            pitch={orbit.rot.pitch}
+            isDragging={orbit.isDragging}
+            cubeRef={orbit.domRef}
+          />
+        </div>
+        <span ref={orbit.labelRef} className={`${isLargeScreen ? 'text-[10.5px] mt-1' : 'text-[9px] -mt-1'} font-bold uppercase tracking-widest text-slate-500`}>
           3D Orbit • Drag to Spin ({((orbit.rot.yaw % 360) + 360) % 360}°)
         </span>
       </div>
@@ -1550,7 +1622,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
 function CasePracticeCard({
   phaseKey, item, f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
   f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
-  swRunning, swDisplayRef, timerLabel, showInlineGroup = false,
+  swRunning, swDisplayRef, timerLabel, showInlineGroup = false, isLargeScreen = false,
   lastResultForThis = null, recordedBest = null, onOpenGrip, onToggleStopwatch, emitBeep, children
 }) {
   const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
@@ -1559,9 +1631,9 @@ function CasePracticeCard({
   return (
     <>
       {isF2L ? (
-        <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} />
+        <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
       ) : (
-        <div className="w-28 h-28 rounded-3xl bg-slate-200 p-2 mx-auto">
+        <div className={`${isLargeScreen ? 'w-40 h-40 p-3' : 'w-28 h-28 p-2'} rounded-3xl bg-slate-200 mx-auto`}>
           <CachedVisualCubeImg
             url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
             alt={item.name} lazy={false} className="w-full h-full object-contain"
@@ -1570,74 +1642,80 @@ function CasePracticeCard({
       )}
 
       <div className="text-center">
-        {showInlineGroup && <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>}
-        <h3 className="text-xl font-black text-white">{item.name}</h3>
-        {item.recognition && <p className="text-[11px] text-slate-300 mt-0.5">{item.recognition}</p>}
+        {showInlineGroup && <span className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-black uppercase tracking-widest text-orange-400`}>{item.group}</span>}
+        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-xl'} font-black text-white`}>{item.name}</h3>
+        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-slate-300 mt-1`}>{item.recognition}</p>}
       </div>
 
       {(isF2L || isPLL) && (
-        <div className="w-full bg-[#050811] border border-white/10 rounded-2xl p-2.5 text-center space-y-1">
+        <div className={`w-full bg-[#050811] border border-white/10 rounded-2xl ${isLargeScreen ? 'p-3.5 space-y-1.5' : 'p-2.5 space-y-1'} text-center`}>
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-slate-400`}>
               {isF2L ? `Setup (${f2lSetupMode})` : showInlineGroup ? 'Setup Scramble' : 'Setup Scramble (From Solved Cube)'}
             </span>
-            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer">
+            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
               {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
             </button>
           </div>
-          <p className="font-mono text-xs font-black text-amber-300 select-all">
+          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-xs'} font-black text-amber-300 select-all`}>
             {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
           </p>
         </div>
       )}
 
-      <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-center space-y-1.5">
+      <div className={`w-full bg-white/5 border border-white/10 rounded-2xl ${isLargeScreen ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5'} text-center`}>
         <div className="flex items-center justify-between">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}</span>
+          <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-slate-400`}>{isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}</span>
           {fingertricksEnabled && (
-            <button type="button" onClick={onOpenGrip} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer">
+            <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-lg bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
               Grip Guide →
             </button>
           )}
         </div>
-        <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-base'} font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
         {fingertricksEnabled && (
-          <div className="space-y-1.5 text-left">
+          <div className="space-y-2 text-left">
             <TriggerTagsList tags={triggerTags} centered />
-            <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
+            <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[11px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
               <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
             </p>
           </div>
         )}
-        {isF2L && <p className="text-[11px] text-slate-300 text-left pt-1">• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
+        {isF2L && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-slate-300 text-left pt-1`}>• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
       </div>
 
       {stopwatchEnabled && (
         <button
           onClick={onToggleStopwatch}
-          className={`w-full py-3 px-3 rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
+          className={`w-full ${isLargeScreen ? 'py-4 px-4' : 'py-3 px-3'} rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
             swRunning ? 'bg-green-500/20 border-green-400 text-green-300' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'bg-slate-950 border-white/10 text-slate-200'
           }`}
         >
           {swRunning ? (
-            <span ref={swDisplayRef} className="text-base font-black">0.00s — Stop</span>
+            <span ref={swDisplayRef} className={`${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
           ) : lastResultForThis ? (
             <>
               <div className="flex items-center gap-2">
-                <span className="text-base font-black text-white">Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
+                <span className={`${isLargeScreen ? 'text-xl' : 'text-base'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
                 {lastResultForThis.isNewPb ? (
-                  <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">★ New PB!</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[11px] font-black uppercase text-green-300">★ New PB!</span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">PB: {recordedBest?.toFixed(3)}s</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-slate-300">PB: {recordedBest?.toFixed(3)}s</span>
                 )}
               </div>
-              <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Tap Anywhere to Time Again</span>
+              <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
+              </span>
             </>
           ) : (
             <div className="flex flex-col items-center">
-              <span className="text-base font-black">{timerLabel}</span>
-              {!showInlineGroup && <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">or Tap Anywhere on Screen</span>}
-              {!showInlineGroup && typeof recordedBest === 'number' && <span className="text-[10px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
+              <span className={`${isLargeScreen ? 'text-lg' : 'text-base'} font-black`}>{timerLabel}</span>
+              {!showInlineGroup && (
+                <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                  {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
+                </span>
+              )}
+              {!showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
             </div>
           )}
         </button>
@@ -2209,6 +2287,8 @@ class AppErrorBoundary extends React.Component {
 
 function OLLDaySuite() {
   const [isAppVisible, setIsAppVisible] = useState(() => (typeof document !== 'undefined' ? !document.hidden : true));
+  const viewportDevice = useViewportDevice();
+  const isTwoPane = viewportDevice.isWideTwoPane;
 
   const [users, setUsers] = useState(() => {
     const saved = storage.getJson(STORAGE_KEYS.users, null);
@@ -2247,6 +2327,8 @@ function OLLDaySuite() {
   const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
+  const [rightPaneTab, setRightPaneTab] = useState('notation');
+  const [rightPaneSearch, setRightPaneSearch] = useState('');
   const deckTouchStartRef = useRef(null);
 
   const [tourType, setTourType] = useState('cfopAndApp');
@@ -2697,6 +2779,52 @@ function OLLDaySuite() {
     };
   }, []);
 
+  // Desktop & iPad Hardware Keyboard Spacebar Shortcut for Full Timer & Case Drills
+  const spaceShortcutRef = useRef(null);
+  spaceShortcutRef.current = () => {
+    if (fullTimerOpen) {
+      handleFullTimerScreenTap();
+      return;
+    }
+    if (!stopwatchEnabled) return;
+    const activeDrillItem = f2lDrillCase
+      ? { phase: 'f2l', id: f2lDrillCase.id }
+      : ollDrillCase
+      ? { phase: 'oll', id: ollDrillCase.id }
+      : pllDrillCase
+      ? { phase: 'pll', id: pllDrillCase.id }
+      : null;
+    if (activeDrillItem) {
+      toggleStopwatch((sec) => recordCaseTime(activeDrillItem.phase, activeDrillItem.id, sec));
+      return;
+    }
+    const activeSessionItem = f2lSession
+      ? { phase: 'f2l', id: f2lSession.queue[f2lSession.index]?.id }
+      : ollSession
+      ? { phase: 'oll', id: ollSession.queue[ollSession.index]?.id }
+      : pllSession
+      ? { phase: 'pll', id: pllSession.queue[pllSession.index]?.id }
+      : null;
+    if (activeSessionItem?.id !== undefined) {
+      toggleStopwatch((sec) => recordCaseTime(activeSessionItem.phase, activeSessionItem.id, sec));
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleKeyDown = (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
+      if (fullTimerOpen || f2lDrillCase || ollDrillCase || pllDrillCase || f2lSession || ollSession || pllSession) {
+        e.preventDefault();
+        spaceShortcutRef.current?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fullTimerOpen, f2lDrillCase, ollDrillCase, pllDrillCase, f2lSession, ollSession, pllSession]);
+
   useEffect(() => {
     if (!swRunning || !isAppVisible) return;
     const id = setInterval(() => {
@@ -2955,16 +3083,13 @@ function OLLDaySuite() {
     }
   }, [leftPadHeld, rightPadHeld, blindState]);
 
-  // Deduplicated Lineup Drag-and-Drop
+  // Deduplicated Lineup Drag-and-Drop (Touch + Mouse Support for iPad/Tablet/Desktop)
   useEffect(() => {
     if (draggedLineupIdx === null) return;
     let dragRafId = 0, pendingPoint = null;
 
-    const handleWindowTouchMove = (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      if (!touch) return;
-      pendingPoint = { x: touch.clientX, y: touch.clientY };
+    const processDragMove = (clientX, clientY) => {
+      pendingPoint = { x: clientX, y: clientY };
       if (dragRafId) return;
       dragRafId = requestAnimationFrame(() => {
         dragRafId = 0;
@@ -2988,15 +3113,33 @@ function OLLDaySuite() {
       });
     };
 
-    const handleWindowTouchEnd = () => { if (dragRafId) cancelAnimationFrame(dragRafId); setDraggedLineupIdx(null); };
+    const handleWindowTouchMove = (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) processDragMove(touch.clientX, touch.clientY);
+    };
+
+    const handleWindowMouseMove = (e) => {
+      processDragMove(e.clientX, e.clientY);
+    };
+
+    const handleWindowDragEnd = () => {
+      if (dragRafId) cancelAnimationFrame(dragRafId);
+      setDraggedLineupIdx(null);
+    };
+
     window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
-    window.addEventListener('touchend', handleWindowTouchEnd);
-    window.addEventListener('touchcancel', handleWindowTouchEnd);
+    window.addEventListener('touchend', handleWindowDragEnd);
+    window.addEventListener('touchcancel', handleWindowDragEnd);
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowDragEnd);
     return () => {
       if (dragRafId) cancelAnimationFrame(dragRafId);
       window.removeEventListener('touchmove', handleWindowTouchMove);
-      window.removeEventListener('touchend', handleWindowTouchEnd);
-      window.removeEventListener('touchcancel', handleWindowTouchEnd);
+      window.removeEventListener('touchend', handleWindowDragEnd);
+      window.removeEventListener('touchcancel', handleWindowDragEnd);
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowDragEnd);
     };
   }, [draggedLineupIdx, activePhase]);
 
@@ -3624,6 +3767,9 @@ function OLLDaySuite() {
                     onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
                     onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
                     onTouchEnd={cancelLineupHold}
+                    onMouseDown={(e) => { if (e.button === 0) startLineupHold(idx, e.clientY); }}
+                    onMouseMove={(e) => handleLineupPreHoldMove(e.clientY)}
+                    onMouseUp={() => { if (draggedLineupIdx === null) { clearTimeout(holdTimerRef.current); preHoldStartYRef.current = null; } }}
                     onClick={() => {
                       if (draggedLineupIdx !== null) return;
                       if (locked) { openProPaywall(item.name); return; }
@@ -3867,6 +4013,7 @@ function OLLDaySuite() {
     );
   };
 
+  // Tap-to-time handler and shared props for Daily Session & Isolated Drill overlays
   const handlePracticeTap = (phaseKey, itemId) => (e) => {
     if (!stopwatchEnabled || e.target.closest('button, input, a')) return;
     if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
@@ -3876,10 +4023,10 @@ function OLLDaySuite() {
   const sharedPracticeProps = {
     f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
     f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
-    swRunning, swDisplayRef, emitBeep
+    swRunning, swDisplayRef, isLargeScreen: isTwoPane, emitBeep
   };
 
-  // Unified Daily Session Runner
+  // Unified Daily Session Runner (Mobile single-column vs. Fullscreen iPad/Tablet/Desktop)
   const renderUnifiedDailySession = () => {
     const activePhaseSession = f2lSession
       ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
@@ -3899,15 +4046,32 @@ function OLLDaySuite() {
         onClick={handlePracticeTap(phaseKey, item.id)}
         className={`fixed inset-0 z-[240] bg-[#060913] flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
-        <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/10 shadow-2xl flex flex-col justify-between p-5 overflow-y-auto no-scrollbar">
-          <div data-no-timer-start="true" className="flex items-center justify-between">
-            <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">
-              {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
-            </span>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+        <div
+          className={`w-full ${
+            isTwoPane
+              ? 'max-w-none h-[100dvh] px-8 py-6'
+              : 'max-w-md h-[100dvh] border-x border-white/10 p-5 shadow-2xl'
+          } bg-[#090e1c] flex flex-col justify-between overflow-y-auto no-scrollbar`}
+        >
+          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between`}>
+            <div className="flex items-center gap-2.5">
+              <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-3 py-1 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-widest text-orange-400`}>
+                {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
+              </span>
+              {isTwoPane && (
+                <span className="text-xs font-bold text-slate-400">
+                  Day {safeDay} • {session.dayObj.chunkTitle}
+                </span>
+              )}
+            </div>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-9 h-9'} rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold cursor-pointer`}>✕</button>
           </div>
 
-          <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 flex flex-col items-center space-y-3 shadow-2xl my-auto">
+          <div
+            className={`w-full ${
+              isTwoPane ? 'max-w-3xl mx-auto rounded-[2.5rem] p-7 space-y-4' : 'rounded-[2rem] p-5 space-y-3'
+            } bg-slate-900/90 border border-white/10 flex flex-col items-center shadow-2xl my-auto`}
+          >
             <CasePracticeCard
               {...sharedPracticeProps}
               phaseKey={phaseKey}
@@ -3919,11 +4083,11 @@ function OLLDaySuite() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2.5'} grid grid-cols-2`}>
             <button
               onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
-              className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 font-bold text-slate-300 disabled:opacity-30 cursor-pointer`}
             >
               ← Previous
             </button>
@@ -3938,7 +4102,7 @@ function OLLDaySuite() {
                   setSession(null);
                 }
               }}
-              className="py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider cursor-pointer`}
             >
               {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
             </button>
@@ -3948,7 +4112,7 @@ function OLLDaySuite() {
     );
   };
 
-  // Unified Isolated Case Drill Modal
+  // Unified Isolated Case Drill Modal (Mobile card vs. Fullscreen iPad/Tablet/Desktop)
   const renderUnifiedDrillModal = () => {
     const activeDrill = f2lDrillCase
       ? { phaseKey: 'f2l', item: f2lDrillCase, close: () => setF2lDrillCase(null), statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' }
@@ -3967,35 +4131,250 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040711]/95 flex items-center justify-center p-5 ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[245] ${
+          isTwoPane ? 'bg-[#090e1c] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-[#040711]/95 flex items-center justify-center p-5'
+        } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
-        <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar">
-          <div data-no-timer-start="true" className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
-          </div>
-
-          <CasePracticeCard
-            {...sharedPracticeProps}
-            phaseKey={phaseKey}
-            item={item}
-            timerLabel={timerLabel}
-            lastResultForThis={lastResultForThis}
-            recordedBest={caseStat.best}
-            onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-            onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-          >
-            <div className="grid grid-cols-3 gap-1.5">
-              {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-                <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
-                  <span className="text-[9px] font-black uppercase text-slate-400 block">{w.label}</span>
-                  <span className={`font-mono text-xs font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-                </div>
-              ))}
+        {isTwoPane ? (
+          <>
+            <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-400">
+                  {phaseKey.toUpperCase()} Isolated Drill • {item.group}
+                </span>
+              </div>
+              <button onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-base font-bold cursor-pointer">✕</button>
             </div>
-          </CasePracticeCard>
-        </div>
+
+            <div className="w-full max-w-3xl mx-auto bg-slate-900/90 border border-white/10 rounded-[2.5rem] p-7 space-y-4 shadow-2xl my-auto flex flex-col items-center">
+              <CasePracticeCard
+                {...sharedPracticeProps}
+                phaseKey={phaseKey}
+                item={item}
+                timerLabel={timerLabel}
+                lastResultForThis={lastResultForThis}
+                recordedBest={caseStat.best}
+                onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+                onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+              >
+                <div className="w-full grid grid-cols-3 gap-3 pt-1">
+                  {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
+                    <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-2xl py-2.5 px-3 text-center">
+                      <span className="text-[10.5px] font-black uppercase text-slate-400 block">{w.label}</span>
+                      <span className={`font-mono text-sm font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              </CasePracticeCard>
+            </div>
+
+            <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-slate-400">
+              <span>{viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}</span>
+              <button
+                type="button"
+                onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-slate-200 cursor-pointer"
+              >
+                Done Drilling
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="bg-slate-900 border border-white/10 rounded-[2.25rem] p-5 max-w-sm w-full space-y-3 shadow-2xl max-h-[92dvh] overflow-y-auto no-scrollbar">
+            <div data-no-timer-start="true" className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
+              <button onClick={() => { setSwRunning(false); setSwLastResult(null); close(); }} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
+            </div>
+
+            <CasePracticeCard
+              {...sharedPracticeProps}
+              phaseKey={phaseKey}
+              item={item}
+              timerLabel={timerLabel}
+              lastResultForThis={lastResultForThis}
+              recordedBest={caseStat.best}
+              onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+              onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+            >
+              <div className="grid grid-cols-3 gap-1.5">
+                {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
+                  <div key={w.label} className="bg-slate-950/90 border border-white/10 rounded-xl py-1.5 px-2 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">{w.label}</span>
+                    <span className={`font-mono text-xs font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </CasePracticeCard>
+          </div>
+        )}
       </div>
+    );
+  };
+
+  // Dedicated Right-Hand Reference Pane for iPad, Tablets & Desktop (Notation Key + Fingertrick Dossier)
+  const renderTabletDesktopReferencePane = () => {
+    const activeContextCase = f2lDrillCase || ollDrillCase || pllDrillCase ||
+      (f2lSession ? f2lSession.queue[f2lSession.index] : ollSession ? ollSession.queue[ollSession.index] : pllSession ? pllSession.queue[pllSession.index] : null);
+    const activeContextTags = activeContextCase ? getAlgorithmTriggerTags(activeContextCase.alg) : [];
+    const q = rightPaneSearch.trim().toLowerCase();
+
+    const filteredNotation = WCA_NOTATION_GUIDE.filter((n) =>
+      (notationFilter === 'All' || n.section === notationFilter) &&
+      (!q || n.move.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q) || n.section.toLowerCase().includes(q))
+    );
+
+    const filteredDossier = FINGERTRICK_CODEX.filter((t) =>
+      (dossierFilter === 'All' || t.category === dossierFilter) &&
+      (!q || t.name.toLowerCase().includes(q) || t.notation.toLowerCase().includes(q) || t.grip.toLowerCase().includes(q) || t.execution.toLowerCase().includes(q))
+    );
+
+    return (
+      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-[#070b16] border-l border-white/10 p-5 space-y-3.5 overflow-hidden`}>
+        <div className="flex items-center justify-between gap-2 flex-shrink-0">
+          <div>
+            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Companion Reference</p>
+            <h2 className="text-lg font-black tracking-tight text-white">Notation &amp; Mechanics</h2>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[9.5px] font-black uppercase tracking-wider text-slate-400">
+            {viewportDevice.kind === 'tablet' ? 'iPad / Tablet' : 'Desktop'} • {activePhase === 'cross' ? 'Cross' : activePhase === 'f2l' ? 'F2L' : activePhase === 'oll' ? 'OLL' : 'PLL'}
+          </span>
+        </div>
+
+        {/* Segmented Switcher: Notation Key vs Fingertrick Dossier */}
+        <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 grid grid-cols-2 flex-shrink-0">
+          {[
+            { key: 'notation', label: 'Notation Key' },
+            { key: 'fingertricks', label: 'Fingertrick Dossier' }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => { emitBeep(520); setRightPaneTab(tab.key); }}
+              className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                rightPaneTab === tab.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Quick Search Filter */}
+        <div className="relative flex-shrink-0">
+          <input
+            type="text"
+            value={rightPaneSearch}
+            onChange={(e) => setRightPaneSearch(e.target.value)}
+            placeholder={rightPaneTab === 'notation' ? 'Filter moves (e.g., Rw, M2, U2, y)...' : 'Search triggers (e.g., Sexy, Sledge, M-slice)...'}
+            className="w-full rounded-xl bg-slate-950/90 border border-white/10 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/40"
+          />
+          {rightPaneSearch && (
+            <button
+              type="button"
+              onClick={() => setRightPaneSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Active Drill / Case Trigger Callout Banner */}
+        {activeContextCase && (
+          <div className="bg-gradient-to-r from-orange-500/15 to-amber-500/10 border border-orange-500/35 rounded-2xl p-3 space-y-1.5 flex-shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400">Active Case Triggers</span>
+              <span className="text-[10px] font-bold text-white truncate">{activeContextCase.name}</span>
+            </div>
+            <p className="font-mono text-xs font-black text-amber-300">{activeContextCase.alg}</p>
+            <TriggerTagsList tags={activeContextTags} />
+          </div>
+        )}
+
+        {/* Category Filter Pills */}
+        {rightPaneTab === 'notation' ? (
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 flex-shrink-0">
+            {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => { emitBeep(480); setNotationFilter(sec); }}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
+                  notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+                }`}
+              >
+                {sec}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 flex-shrink-0">
+            {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => { emitBeep(480); setDossierFilter(cat); }}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
+                  dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Scrollable Reference Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+          {rightPaneTab === 'notation' ? (
+            filteredNotation.length > 0 ? (
+              filteredNotation.map((item) => (
+                <div key={item.move} className="bg-slate-900/75 border border-white/10 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="font-mono text-xs font-black text-amber-300 block">{item.move}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{item.section}</span>
+                  </div>
+                  <span className="text-xs text-slate-300 text-right leading-snug">{item.desc}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-6">No notation moves match &ldquo;{rightPaneSearch}&rdquo;.</p>
+            )
+          ) : filteredDossier.length > 0 ? (
+            filteredDossier.map((trig) => {
+              const isHighlighted = activeContextTags.some((t) => t.label.toLowerCase().includes(trig.name.toLowerCase()));
+              return (
+                <div
+                  key={trig.id}
+                  className={`border rounded-2xl p-3.5 space-y-1.5 transition-all ${
+                    isHighlighted ? 'bg-orange-500/15 border-orange-500/45 shadow-md' : 'bg-slate-900/75 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
+                      <span className="text-xs font-black text-white">{trig.name}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
+                  </div>
+                  <p className="text-[10.5px] font-bold text-slate-300"><span className="text-orange-400">Grip:</span> {trig.grip}</p>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">{trig.execution}</p>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-xs text-slate-400 text-center py-6">No fingertricks match &ldquo;{rightPaneSearch}&rdquo;.</p>
+          )}
+        </div>
+
+        {/* Desktop/Tablet Orientation & Shortcut Footer */}
+        <div className="bg-slate-950/90 border border-white/10 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 text-[10px] text-slate-400 flex-shrink-0">
+          <span>Hold <strong className="text-white">White (D)</strong> • <strong className="text-green-400">Green (F)</strong></span>
+          <span className="font-mono text-[9.5px] text-orange-300">
+            {viewportDevice.isTouchPrimary ? 'Touch & Drag • 2-Pane' : 'Spacebar: Timer'}
+          </span>
+        </div>
+      </aside>
     );
   };
 
@@ -4004,39 +4383,45 @@ function OLLDaySuite() {
       <style>{APP_GLOBAL_CSS}</style>
 
       <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
-        <div style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] pointer-events-none z-0" />
+        <div style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[42vh] pointer-events-none z-0" />
         <div style={{ background: 'radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed bottom-0 right-0 w-3/4 h-[38vh] pointer-events-none z-0" />
 
-        <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
+        <div className={`w-full ${isTwoPane ? 'max-w-5xl lg:max-w-6xl' : 'max-w-md'} h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden`}>
           {/* PERSISTENT HEADER */}
-          <header className="px-4 pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/5 bg-[#090e1c] flex-shrink-0 z-40">
-            <div className="flex items-center gap-2 min-w-0">
+          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/5 bg-[#090e1c] flex-shrink-0 z-40`}>
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0">
                 <SuneEmblemSvg className="w-full h-full" />
               </div>
-              <h1 className="text-sm font-black tracking-tight text-white whitespace-nowrap">
+              <h1 className={`${isTwoPane ? 'text-base' : 'text-sm'} font-black tracking-tight text-white whitespace-nowrap`}>
                 OLLDay <span className="text-orange-400">Everyday</span>
               </h1>
+              {isTwoPane && (
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-slate-400">
+                  {viewportDevice.kind === 'tablet' ? 'iPad / Tablet Workspace' : 'Desktop Workspace'}
+                </span>
+              )}
             </div>
 
-            <div className="flex items-center gap-1.5 flex-shrink-0 relative">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 relative">
               <button
                 type="button"
                 onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
-                className="w-8 h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                className={`${isTwoPane ? 'w-auto px-3' : 'w-8'} h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer`}
                 title="Scan 3x3 Cube & Predict Next Case"
                 aria-label="Scan Cube"
               >
                 <Camera className="w-4 h-4" />
+                {isTwoPane && <span className="text-[11px] font-black">Scan Cube</span>}
               </button>
 
               <button
                 onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
-                className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 active:scale-95 transition-all cursor-pointer"
+                className={`flex items-center gap-1 ${isTwoPane ? 'px-3' : 'px-2'} py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 active:scale-95 transition-all cursor-pointer`}
                 title="Switch Solver Account"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                <span className="max-w-[52px] truncate">{String(activeUserKey || 'Account')}</span>
+                <span className={`${isTwoPane ? 'max-w-[110px]' : 'max-w-[52px]'} truncate`}>{String(activeUserKey || 'Account')}</span>
               </button>
 
               <div className="relative">
@@ -4045,18 +4430,28 @@ function OLLDaySuite() {
                   className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 text-xs font-black tracking-wider active:scale-95 transition-all cursor-pointer"
                 >
                   <span>{activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}</span>
+                  {isTwoPane && (
+                    <span className="text-[11px]">
+                      • {activePhase === 'cross' ? 'Cross' : activePhase === 'f2l' ? 'F2L' : activePhase === 'oll' ? 'OLL' : 'PLL'}
+                    </span>
+                  )}
                   <ChevronDown className="w-3 h-3" />
                 </button>
 
                 {cfopMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-14 bg-[#0c1326] border border-white/15 rounded-2xl p-1.5 shadow-2xl z-50 flex flex-col gap-1">
-                    {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((p) => (
+                  <div className={`absolute right-0 mt-2 ${isTwoPane ? 'w-32' : 'w-14'} bg-[#0c1326] border border-white/15 rounded-2xl p-1.5 shadow-2xl z-50 flex flex-col gap-1`}>
+                    {[
+                      { key: 'cross', label: 'C', full: 'C • Cross' },
+                      { key: 'f2l', label: 'F', full: 'F • F2L' },
+                      { key: 'oll', label: 'O', full: 'O • OLL' },
+                      { key: 'pll', label: 'P', full: 'P • PLL' }
+                    ].map((p) => (
                       <button
                         key={p.key}
                         onClick={() => { emitBeep(620); setCfopMenuOpen(false); setActivePhase(p.key); }}
-                        className={`w-full py-2 rounded-xl text-xs font-black text-center cursor-pointer transition-all ${activePhase === p.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
+                        className={`w-full py-2 px-2.5 rounded-xl text-xs font-black ${isTwoPane ? 'text-left' : 'text-center'} cursor-pointer transition-all ${activePhase === p.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
                       >
-                        {p.label}
+                        {isTwoPane ? p.full : p.label}
                       </button>
                     ))}
                   </div>
@@ -4065,437 +4460,445 @@ function OLLDaySuite() {
             </div>
           </header>
 
-          {/* MAIN SCROLLABLE PHASE CONTENT */}
-          <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
-            {activePhase === 'cross' && (
-              <>
-                {phaseTabs.cross === 'ladder' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Phase 1</p>
-                        <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
-                      </div>
-                      <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 cursor-pointer">
-                        Color Orbit
-                      </button>
-                    </div>
-
-                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          emitBeep(520); setCrossDifficulty('standard');
-                          const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
-                          setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
-                        }}
-                        className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                      >
-                        Standard (2–6 Moves)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!isProUnlocked) { openProPaywall('Advanced Full-Scramble Cross Ladder'); return; }
-                          emitBeep(580); setCrossDifficulty('advanced');
-                          const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
-                          setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
-                        }}
-                        className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                      >
-                        <span className={!isProUnlocked ? 'opacity-65' : ''}>Advanced Full Scramble</span>
-                        {!isProUnlocked && <span className="ml-1 text-[9px] text-orange-300">🔒</span>}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {activeCrossTierList.map((t) => {
-                        const locked = !isProUnlocked && (crossDifficulty === 'advanced' || t.tier > 2);
-                        return (
-                          <button
-                            key={t.tier}
-                            onClick={() => {
-                              if (locked) { openProPaywall(crossDifficulty === 'advanced' ? `Advanced Full-Scramble Cross L${t.tier}` : `Cross Ladder Level ${t.tier}`); return; }
-                              emitBeep(540); setCrossTier(t.tier); setCrossUserMoves(t.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
-                            }}
-                            className={`relative overflow-hidden py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
-                              crossTier === t.tier ? 'bg-orange-500 text-slate-950 shadow-md' : locked ? 'bg-white/5 text-slate-400 border border-orange-500/20' : 'bg-white/5 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            <span className={locked ? 'opacity-45' : ''}>L{t.tier}</span>
-                            {locked && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-orange-300">🔒</span>}
+          {/* RESPONSIVE WORKSPACE BODY: Single-Column on Mobile, Two-Pane Split on iPad/Tablet/Desktop */}
+          <div className={`flex-1 min-h-0 ${isTwoPane ? 'grid grid-cols-12' : 'flex flex-col'} overflow-hidden`}>
+            {/* LEFT PANE: MAIN DAY TRAINING & CROSS WORKSPACE */}
+            <main className={`${isTwoPane ? 'col-span-7' : 'flex-1'} min-h-0 overflow-y-auto no-scrollbar`}>
+              <div className={isTwoPane ? 'max-w-2xl mx-auto' : ''}>
+                {activePhase === 'cross' && (
+                  <>
+                    {phaseTabs.cross === 'ladder' && (
+                      <div className="p-5 pb-10 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Phase 1</p>
+                            <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
+                          </div>
+                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 cursor-pointer">
+                            Color Orbit
                           </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
-                      {[{ key: 'efficiency', label: 'Move Efficiency' }, { key: 'blind', label: 'Blind Practice' }].map((m) => (
-                        <button
-                          key={m.key}
-                          onClick={() => { emitBeep(480); setCrossLadderMode(m.key); }}
-                          className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossLadderMode === m.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                            {crossDifficulty === 'advanced' ? 'Advanced Full Scramble • ' : ''}Level {activeTierObj.tier} • Cross in {activeTierObj.moves}
-                          </span>
-                          <h3 className="text-base font-black text-white">{activeTierObj.title}</h3>
                         </div>
-                        <button
-                          onClick={() => { emitBeep(560); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }}
-                          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-orange-400 active:scale-95 cursor-pointer"
-                        >
-                          New Scramble
-                        </button>
-                      </div>
 
-                      <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center shadow-inner">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Hold White (D) • Green (F) • Red (L) • Orange (R)</span>
-                        <div className={`font-mono font-black text-amber-300 tracking-wider select-all ${crossDifficulty === 'advanced' ? 'text-xs sm:text-sm leading-relaxed' : 'text-xl'}`}>
-                          {activeCrossScramble}
+                        <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              emitBeep(520); setCrossDifficulty('standard');
+                              const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
+                              setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
+                            }}
+                            className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                          >
+                            Standard (2–6 Moves)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!isProUnlocked) { openProPaywall('Advanced Full-Scramble Cross Ladder'); return; }
+                              emitBeep(580); setCrossDifficulty('advanced');
+                              const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
+                              setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
+                            }}
+                            className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                          >
+                            <span className={!isProUnlocked ? 'opacity-65' : ''}>Advanced Full Scramble</span>
+                            {!isProUnlocked && <span className="ml-1 text-[9px] text-orange-300">🔒</span>}
+                          </button>
                         </div>
-                      </div>
 
-                      <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-1.5">
-                        <div className="w-full flex items-center justify-between px-1">
-                          <span className="text-[10px] font-bold text-slate-400">
-                            {crossOrbit.rot.pitch > 15 ? '3D Bottom-Right View (D-Face)' : crossOrbit.rot.pitch < -15 ? '3D Top-Right View (U-Face)' : '3D Front-Right View'}
-                          </span>
-                          <div className="flex items-center gap-1.5">
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {activeCrossTierList.map((t) => {
+                            const locked = !isProUnlocked && (crossDifficulty === 'advanced' || t.tier > 2);
+                            return (
+                              <button
+                                key={t.tier}
+                                onClick={() => {
+                                  if (locked) { openProPaywall(crossDifficulty === 'advanced' ? `Advanced Full-Scramble Cross L${t.tier}` : `Cross Ladder Level ${t.tier}`); return; }
+                                  emitBeep(540); setCrossTier(t.tier); setCrossUserMoves(t.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
+                                }}
+                                className={`relative overflow-hidden py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
+                                  crossTier === t.tier ? 'bg-orange-500 text-slate-950 shadow-md' : locked ? 'bg-white/5 text-slate-400 border border-orange-500/20' : 'bg-white/5 text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                <span className={locked ? 'opacity-45' : ''}>L{t.tier}</span>
+                                {locked && <span className="absolute inset-0 flex items-center justify-center text-[10px] text-orange-300">🔒</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
+                          {[{ key: 'efficiency', label: 'Move Efficiency' }, { key: 'blind', label: 'Blind Practice' }].map((m) => (
                             <button
-                              type="button"
-                              onClick={() => { emitBeep(540); crossOrbit.setOrbit((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }}
-                              className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer active:scale-95 transition-all"
+                              key={m.key}
+                              onClick={() => { emitBeep(480); setCrossLadderMode(m.key); }}
+                              className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossLadderMode === m.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
                             >
-                              {crossOrbit.rot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
+                              {m.label}
                             </button>
+                          ))}
+                        </div>
+
+                        <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                                {crossDifficulty === 'advanced' ? 'Advanced Full Scramble • ' : ''}Level {activeTierObj.tier} • Cross in {activeTierObj.moves}
+                              </span>
+                              <h3 className="text-base font-black text-white">{activeTierObj.title}</h3>
+                            </div>
                             <button
-                              type="button"
-                              onClick={() => { emitBeep(480); crossOrbit.setOrbit({ yaw: -35, pitch: 38 }); }}
-                              className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                              onClick={() => { emitBeep(560); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }}
+                              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-orange-400 active:scale-95 cursor-pointer"
                             >
-                              Reset
+                              New Scramble
                             </button>
+                          </div>
+
+                          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center shadow-inner">
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Hold White (D) • Green (F) • Red (L) • Orange (R)</span>
+                            <div className={`font-mono font-black text-amber-300 tracking-wider select-all ${crossDifficulty === 'advanced' ? 'text-xs sm:text-sm leading-relaxed' : 'text-xl'}`}>
+                              {activeCrossScramble}
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-1.5">
+                            <div className="w-full flex items-center justify-between px-1">
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {crossOrbit.rot.pitch > 15 ? '3D Bottom-Right View (D-Face)' : crossOrbit.rot.pitch < -15 ? '3D Top-Right View (U-Face)' : '3D Front-Right View'}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => { emitBeep(540); crossOrbit.setOrbit((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }}
+                                  className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer active:scale-95 transition-all"
+                                >
+                                  {crossOrbit.rot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { emitBeep(480); crossOrbit.setOrbit({ yaw: -35, pitch: 38 }); }}
+                                  className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                                >
+                                  Reset
+                                </button>
+                              </div>
+                            </div>
+
+                            <div
+                              {...crossOrbit.handlers}
+                              onPointerCancel={crossOrbit.handlers.onPointerUp}
+                              style={{ touchAction: 'none' }}
+                              className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
+                            >
+                              <CrossSpatial3DCube scramble={activeCrossScramble} yaw={crossOrbit.rot.yaw} pitch={crossOrbit.rot.pitch} isDragging={crossOrbit.isDragging} cubeRef={crossOrbit.domRef} />
+                              <span ref={crossOrbit.labelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
+                                3D Cross Orbit • Drag to Spin ({((crossOrbit.rot.yaw % 360) + 360) % 360}°)
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-[9.5px] font-bold text-slate-400">
+                              <span className="text-green-400">▲ Green (F)</span>
+                              <span className="text-red-400">◀ Red (L)</span>
+                              <span className="text-orange-400">Orange (R) ▶</span>
+                              <span className="text-blue-400">▼ Blue (B)</span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">{activeTierObj.hint}</p>
+
+                          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Optimal Cross Solution (≤8 Moves)</span>
+                              <button
+                                type="button"
+                                onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
+                                className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
+                              >
+                                {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
+                              </button>
+                            </div>
+                            {crossSolutionRevealed && (
+                              <div className="pt-1 border-t border-white/10 text-center space-y-1">
+                                <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
+                                <span className="text-[9.5px] text-slate-400 block">Solves all 4 White Cross edges on D ({activeCrossSolution.split(/\s+/).filter(Boolean).length} moves)</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div
-                          {...crossOrbit.handlers}
-                          onPointerCancel={crossOrbit.handlers.onPointerUp}
-                          style={{ touchAction: 'none' }}
-                          className="w-40 h-40 mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none"
-                        >
-                          <CrossSpatial3DCube scramble={activeCrossScramble} yaw={crossOrbit.rot.yaw} pitch={crossOrbit.rot.pitch} isDragging={crossOrbit.isDragging} cubeRef={crossOrbit.domRef} />
-                          <span ref={crossOrbit.labelRef} className="text-[9px] font-bold uppercase tracking-widest text-slate-500 -mt-1">
-                            3D Cross Orbit • Drag to Spin ({((crossOrbit.rot.yaw % 360) + 360) % 360}°)
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-[9.5px] font-bold text-slate-400">
-                          <span className="text-green-400">▲ Green (F)</span>
-                          <span className="text-red-400">◀ Red (L)</span>
-                          <span className="text-orange-400">Orange (R) ▶</span>
-                          <span className="text-blue-400">▼ Blue (B)</span>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">{activeTierObj.hint}</p>
-
-                      <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Optimal Cross Solution (≤8 Moves)</span>
-                          <button
-                            type="button"
-                            onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
-                            className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
-                          >
-                            {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
-                          </button>
-                        </div>
-                        {crossSolutionRevealed && (
-                          <div className="pt-1 border-t border-white/10 text-center space-y-1">
-                            <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
-                            <span className="text-[9.5px] text-slate-400 block">Solves all 4 White Cross edges on D ({activeCrossSolution.split(/\s+/).filter(Boolean).length} moves)</span>
+                        {crossLadderMode === 'efficiency' ? (
+                          <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Your Turn Count</span>
+                                <span className="text-xs font-bold text-orange-400 font-mono">Target: Cross in {activeTierObj.moves}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">-</button>
+                                <span className="font-mono text-xl font-black text-white w-8 text-center">{crossUserMoves}</span>
+                                <button onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">+</button>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const optimal = crossUserMoves <= activeTierObj.moves;
+                                emitBeep(optimal ? 920 : 420, 'sine', 0.1);
+                                if (optimal) {
+                                  const updated = { ...currentUser, crossClears: (currentUser.crossClears || 0) + 1 };
+                                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                                  saveUserToCloud(activeUserKey, updated);
+                                }
+                                setEfficiencyFeedback({
+                                  optimal,
+                                  title: optimal ? `Optimal! Solved in ${crossUserMoves} Moves` : `${crossUserMoves} Moves (Target: ${activeTierObj.moves})`,
+                                  detail: optimal ? 'Sub-8 efficiency unlocked. Keep building lookahead into your first F2L pair!' : `Try using D-layer keyhole shifts to trim ${crossUserMoves - activeTierObj.moves} extra turn(s).`
+                                });
+                              }}
+                              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                            >
+                              Check My Turn Count
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative overflow-hidden bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill</span>
+                              <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindPracticeHelp'); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer">
+                                <span className="w-3.5 h-3.5 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black">?</span>
+                                <span>How It Works</span>
+                              </button>
+                            </div>
+                            <div className={!isProUnlocked ? 'opacity-45 select-none space-y-2' : 'space-y-2'}>
+                              <h4 className="text-base font-black text-white">Blind Practice Ready</h4>
+                              <p className="text-xs text-slate-400">Plan all {activeTierObj.moves} cross moves during inspection, then execute with eyes closed.</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (!isProUnlocked) { openProPaywall('WCA Blindfold Timer Mat'); return; }
+                                emitBeep(620); setTabForPhase('cross', 'blind');
+                              }}
+                              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
+                            >
+                              {isProUnlocked ? 'Open Blindfold Timer Mat' : '🔒 Unlock Blindfold Timer Mat (Pro)'}
+                            </button>
                           </div>
                         )}
                       </div>
-                    </div>
-
-                    {crossLadderMode === 'efficiency' ? (
-                      <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Your Turn Count</span>
-                            <span className="text-xs font-bold text-orange-400 font-mono">Target: Cross in {activeTierObj.moves}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">-</button>
-                            <span className="font-mono text-xl font-black text-white w-8 text-center">{crossUserMoves}</span>
-                            <button onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">+</button>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            const optimal = crossUserMoves <= activeTierObj.moves;
-                            emitBeep(optimal ? 920 : 420, 'sine', 0.1);
-                            if (optimal) {
-                              const updated = { ...currentUser, crossClears: (currentUser.crossClears || 0) + 1 };
-                              setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
-                              saveUserToCloud(activeUserKey, updated);
-                            }
-                            setEfficiencyFeedback({
-                              optimal,
-                              title: optimal ? `Optimal! Solved in ${crossUserMoves} Moves` : `${crossUserMoves} Moves (Target: ${activeTierObj.moves})`,
-                              detail: optimal ? 'Sub-8 efficiency unlocked. Keep building lookahead into your first F2L pair!' : `Try using D-layer keyhole shifts to trim ${crossUserMoves - activeTierObj.moves} extra turn(s).`
-                            });
-                          }}
-                          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-                        >
-                          Check My Turn Count
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="relative overflow-hidden bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill</span>
-                          <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindPracticeHelp'); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer">
-                            <span className="w-3.5 h-3.5 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black">?</span>
-                            <span>How It Works</span>
-                          </button>
-                        </div>
-                        <div className={!isProUnlocked ? 'opacity-45 select-none space-y-2' : 'space-y-2'}>
-                          <h4 className="text-base font-black text-white">Blind Practice Ready</h4>
-                          <p className="text-xs text-slate-400">Plan all {activeTierObj.moves} cross moves during inspection, then execute with eyes closed.</p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (!isProUnlocked) { openProPaywall('WCA Blindfold Timer Mat'); return; }
-                            emitBeep(620); setTabForPhase('cross', 'blind');
-                          }}
-                          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
-                        >
-                          {isProUnlocked ? 'Open Blindfold Timer Mat' : '🔒 Unlock Blindfold Timer Mat (Pro)'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {phaseTabs.cross === 'blind' && (
-                  <div className="relative p-5 pb-10 space-y-4">
-                    {!isProUnlocked && (
-                      <div className="fixed inset-x-0 top-20 bottom-24 z-30 flex items-center justify-center p-6 pointer-events-none">
-                        <div className="pointer-events-auto max-w-xs w-full rounded-[2rem] bg-slate-900/95 border border-orange-500/40 p-5 text-center shadow-2xl space-y-3">
-                          <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">🔒 OLLDay Pro Feature</span>
-                          <h3 className="text-lg font-black text-white">WCA Blindfold Timer Mat</h3>
-                          <p className="text-xs text-slate-300 leading-relaxed">Train 15-second inspection and eyes-closed execution on the dual-thumb Speedstack mat.</p>
-                          <button type="button" onClick={() => openProPaywall('WCA Blindfold Timer Mat')} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
-                            Unlock Pro — $3.99
-                          </button>
-                        </div>
-                      </div>
                     )}
 
-                    <div className={!isProUnlocked ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
-                          <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
-                        </div>
-                        <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindHelp'); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer">
-                          <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
-                          <span>How It Works</span>
-                        </button>
-                      </div>
-
-                      <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
-                        <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
-                        <p className="text-xs font-bold text-orange-400">
-                          {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
-                          {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
-                          {blindState === 'readying' && 'Holding pads... keep holding'}
-                          {blindState === 'armed' && 'ARMED! Release pads to close visor'}
-                          {blindState === 'done' && 'Run complete — log result below'}
-                        </p>
-                      </div>
-
-                      {blindState === 'idle' && (
-                        <button onClick={() => { emitBeep(800); setInspectionLeft(15.0); setBlindState('inspecting'); }} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
-                          Start 15s Countdown
-                        </button>
-                      )}
-
-                      <div onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }} className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">Speedstack Touch Pads (Hold Both Thumbs &amp; Release)</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          {[{ side: 'left', label: 'LEFT THUMB', held: leftPadHeld, setHeld: setLeftPadHeld, freq: 520 }, { side: 'right', label: 'RIGHT THUMB', held: rightPadHeld, setHeld: setRightPadHeld, freq: 560 }].map((pad) => (
-                            <div
-                              key={pad.side}
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                if (e.pointerType === 'mouse') { emitBeep(pad.freq, 'sine', 0.04, 0.06); setLeftPadHeld(true); setRightPadHeld(true); return; }
-                                e.currentTarget.setPointerCapture?.(e.pointerId);
-                                if (!pad.held) emitBeep(pad.freq, 'sine', 0.04, 0.06);
-                                pad.setHeld(true);
-                              }}
-                              onPointerUp={(e) => {
-                                e.preventDefault();
-                                if (e.pointerType === 'mouse') { setLeftPadHeld(false); setRightPadHeld(false); return; }
-                                pad.setHeld(false);
-                              }}
-                              onPointerCancel={() => pad.setHeld(false)}
-                              className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
-                                blindState === 'armed' ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]' :
-                                pad.held ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]' : 'bg-white/5 border-white/10 text-slate-400'
-                              }`}
-                            >
-                              <span>{pad.label}</span>
-                              <span className="text-[9px] font-bold opacity-80">{blindState === 'armed' ? 'READY ✓' : pad.held ? 'HOLDING ●' : 'TOUCH'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {blindState === 'done' && (
-                        <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-2">
-                          <span className="text-xs font-bold text-slate-300 block">Log Execution Result:</span>
-                          <div className="grid grid-cols-3 gap-2">
-                            {['Clean', '+2', 'DNF'].map((res) => (
-                              <button
-                                key={res}
-                                onClick={() => {
-                                  emitBeep(600);
-                                  setBlindLogs((l) => [{ id: Date.now(), result: res, time: `${(15 - inspectionLeft).toFixed(1)}s insp` }, ...l.slice(0, 7)]);
-                                  setBlindState('idle'); setInspectionLeft(15.0);
-                                }}
-                                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
-                              >
-                                {res}
+                    {phaseTabs.cross === 'blind' && (
+                      <div className="relative p-5 pb-10 space-y-4">
+                        {!isProUnlocked && (
+                          <div className="flex items-center justify-center p-2">
+                            <div className="max-w-xs w-full rounded-[2rem] bg-slate-900/95 border border-orange-500/40 p-5 text-center shadow-2xl space-y-3">
+                              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">🔒 OLLDay Pro Feature</span>
+                              <h3 className="text-lg font-black text-white">WCA Blindfold Timer Mat</h3>
+                              <p className="text-xs text-slate-300 leading-relaxed">Train 15-second inspection and eyes-closed execution on the dual-thumb Speedstack mat.</p>
+                              <button type="button" onClick={() => openProPaywall('WCA Blindfold Timer Mat')} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
+                                Unlock Pro — $3.99
                               </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {blindLogs.length > 0 && (
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Runs</span>
-                          {blindLogs.map((log) => (
-                            <div key={log.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs">
-                              <span className="font-bold text-white">{log.result}</span>
-                              <span className="font-mono text-slate-400">{log.time}</span>
                             </div>
+                          </div>
+                        )}
+
+                        <div className={!isProUnlocked ? 'opacity-40 pointer-events-none select-none space-y-4' : 'space-y-4'}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
+                              <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
+                            </div>
+                            <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindHelp'); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer">
+                              <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
+                              <span>How It Works</span>
+                            </button>
+                          </div>
+
+                          <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
+                            <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
+                            <p className="text-xs font-bold text-orange-400">
+                              {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
+                              {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
+                              {blindState === 'readying' && 'Holding pads... keep holding'}
+                              {blindState === 'armed' && 'ARMED! Release pads to close visor'}
+                              {blindState === 'done' && 'Run complete — log result below'}
+                            </p>
+                          </div>
+
+                          {blindState === 'idle' && (
+                            <button onClick={() => { emitBeep(800); setInspectionLeft(15.0); setBlindState('inspecting'); }} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
+                              Start 15s Countdown
+                            </button>
+                          )}
+
+                          <div onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }} className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">Speedstack Touch Pads (Hold Both Thumbs &amp; Release)</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              {[{ side: 'left', label: 'LEFT THUMB', held: leftPadHeld, setHeld: setLeftPadHeld, freq: 520 }, { side: 'right', label: 'RIGHT THUMB', held: rightPadHeld, setHeld: setRightPadHeld, freq: 560 }].map((pad) => (
+                                <div
+                                  key={pad.side}
+                                  onPointerDown={(e) => {
+                                    e.preventDefault();
+                                    if (e.pointerType === 'mouse') { emitBeep(pad.freq, 'sine', 0.04, 0.06); setLeftPadHeld(true); setRightPadHeld(true); return; }
+                                    e.currentTarget.setPointerCapture?.(e.pointerId);
+                                    if (!pad.held) emitBeep(pad.freq, 'sine', 0.04, 0.06);
+                                    pad.setHeld(true);
+                                  }}
+                                  onPointerUp={(e) => {
+                                    e.preventDefault();
+                                    if (e.pointerType === 'mouse') { setLeftPadHeld(false); setRightPadHeld(false); return; }
+                                    pad.setHeld(false);
+                                  }}
+                                  onPointerCancel={() => pad.setHeld(false)}
+                                  className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
+                                    blindState === 'armed' ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]' :
+                                    pad.held ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]' : 'bg-white/5 border-white/10 text-slate-400'
+                                  }`}
+                                >
+                                  <span>{pad.label}</span>
+                                  <span className="text-[9px] font-bold opacity-80">{blindState === 'armed' ? 'READY ✓' : pad.held ? 'HOLDING ●' : 'TOUCH'}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {blindState === 'done' && (
+                            <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-2">
+                              <span className="text-xs font-bold text-slate-300 block">Log Execution Result:</span>
+                              <div className="grid grid-cols-3 gap-2">
+                                {['Clean', '+2', 'DNF'].map((res) => (
+                                  <button
+                                    key={res}
+                                    onClick={() => {
+                                      emitBeep(600);
+                                      setBlindLogs((l) => [{ id: Date.now(), result: res, time: `${(15 - inspectionLeft).toFixed(1)}s insp` }, ...l.slice(0, 7)]);
+                                      setBlindState('idle'); setInspectionLeft(15.0);
+                                    }}
+                                    className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
+                                  >
+                                    {res}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {blindLogs.length > 0 && (
+                            <div className="space-y-1.5">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Runs</span>
+                              {blindLogs.map((log) => (
+                                <div key={log.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs">
+                                  <span className="font-bold text-white">{log.result}</span>
+                                  <span className="font-mono text-slate-400">{log.time}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {phaseTabs.cross === 'mechanics' && (
+                      <div className="p-5 pb-10 space-y-4">
+                        <div>
+                          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Deconstructing Intuition</p>
+                          <h2 className="text-2xl font-black tracking-tight text-white">4 Cross Mechanics</h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {CROSS_MECHANICS.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => { emitBeep(540); setActiveMechanicId(m.id); setActiveMechApproachIdx(0); setActiveMechCaseIdx(0); }}
+                              className={`py-3 px-2 rounded-xl text-xs font-black cursor-pointer transition-all ${activeMechanicId === m.id ? 'bg-orange-500 text-slate-950 shadow-md' : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'}`}
+                            >
+                              {m.id}. {m.title}
+                            </button>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
-                {phaseTabs.cross === 'mechanics' && (
-                  <div className="p-5 pb-10 space-y-4">
-                    <div>
-                      <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Deconstructing Intuition</p>
-                      <h2 className="text-2xl font-black tracking-tight text-white">4 Cross Mechanics</h2>
-                    </div>
+                        <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{activeMechanicObj.badge}</span>
+                          <h3 className="text-lg font-black text-white">{activeMechanicObj.title}</h3>
+                          <p className="text-xs text-slate-300 leading-relaxed">{activeMechanicObj.summary}</p>
+                          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">{activeMechanicObj.example}</div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      {CROSS_MECHANICS.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => { emitBeep(540); setActiveMechanicId(m.id); setActiveMechApproachIdx(0); setActiveMechCaseIdx(0); }}
-                          className={`py-3 px-2 rounded-xl text-xs font-black cursor-pointer transition-all ${activeMechanicId === m.id ? 'bg-orange-500 text-slate-950 shadow-md' : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'}`}
-                        >
-                          {m.id}. {m.title}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{activeMechanicObj.badge}</span>
-                      <h3 className="text-lg font-black text-white">{activeMechanicObj.title}</h3>
-                      <p className="text-xs text-slate-300 leading-relaxed">{activeMechanicObj.summary}</p>
-                      <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">{activeMechanicObj.example}</div>
-
-                      {activeMechanicObj.approaches && (() => {
-                        const activeApproach = activeMechanicObj.approaches[activeMechApproachIdx] || activeMechanicObj.approaches[0];
-                        const activeCase = activeApproach.cases[activeMechCaseIdx] || activeApproach.cases[0];
-                        return (
-                          <div className="pt-2 border-t border-white/10 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Fine-Tuning Approaches</span>
-                              <span className="text-[10px] font-bold text-slate-400">{activeApproach.tag}</span>
-                            </div>
-                            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                              {activeMechanicObj.approaches.map((app, aIdx) => (
-                                <button
-                                  key={app.id} type="button"
-                                  onClick={() => { emitBeep(520); setActiveMechApproachIdx(aIdx); setActiveMechCaseIdx(0); }}
-                                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${activeMechApproachIdx === aIdx ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white'}`}
-                                >
-                                  {app.name}
-                                </button>
-                              ))}
-                            </div>
-                            <p className="text-[11px] text-slate-300 leading-relaxed bg-white/5 border border-white/5 rounded-xl p-3">{activeApproach.rule}</p>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {activeApproach.cases.map((cItem, cIdx) => (
-                                <button
-                                  key={cItem.label} type="button"
-                                  onClick={() => { emitBeep(580); setActiveMechCaseIdx(cIdx); }}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all ${activeMechCaseIdx === cIdx ? 'bg-amber-400/20 border border-amber-400/50 text-amber-300' : 'bg-slate-950 border border-white/10 text-slate-400 hover:text-white'}`}
-                                >
-                                  {cItem.label.split('•')[0].trim()}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-black text-white">{activeCase.label}</span>
-                                <div className="flex items-center gap-1">
-                                  <button type="button" onClick={() => { emitBeep(540); setMechCubeRot((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-300 cursor-pointer">
-                                    {mechCubeRot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
-                                  </button>
-                                  <button type="button" onClick={() => { emitBeep(520); setMechCubeRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch })); }} className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9.5px] font-bold text-slate-300 cursor-pointer">
-                                    Spin 90°
-                                  </button>
+                          {activeMechanicObj.approaches && (() => {
+                            const activeApproach = activeMechanicObj.approaches[activeMechApproachIdx] || activeMechanicObj.approaches[0];
+                            const activeCase = activeApproach.cases[activeMechCaseIdx] || activeApproach.cases[0];
+                            return (
+                              <div className="pt-2 border-t border-white/10 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Fine-Tuning Approaches</span>
+                                  <span className="text-[10px] font-bold text-slate-400">{activeApproach.tag}</span>
+                                </div>
+                                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                                  {activeMechanicObj.approaches.map((app, aIdx) => (
+                                    <button
+                                      key={app.id} type="button"
+                                      onClick={() => { emitBeep(520); setActiveMechApproachIdx(aIdx); setActiveMechCaseIdx(0); }}
+                                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${activeMechApproachIdx === aIdx ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white'}`}
+                                    >
+                                      {app.name}
+                                    </button>
+                                  ))}
+                                </div>
+                                <p className="text-[11px] text-slate-300 leading-relaxed bg-white/5 border border-white/5 rounded-xl p-3">{activeApproach.rule}</p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {activeApproach.cases.map((cItem, cIdx) => (
+                                    <button
+                                      key={cItem.label} type="button"
+                                      onClick={() => { emitBeep(580); setActiveMechCaseIdx(cIdx); }}
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all ${activeMechCaseIdx === cIdx ? 'bg-amber-400/20 border border-amber-400/50 text-amber-300' : 'bg-slate-950 border border-white/10 text-slate-400 hover:text-white'}`}
+                                    >
+                                      {cItem.label.split('•')[0].trim()}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black text-white">{activeCase.label}</span>
+                                    <div className="flex items-center gap-1">
+                                      <button type="button" onClick={() => { emitBeep(540); setMechCubeRot((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-300 cursor-pointer">
+                                        {mechCubeRot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
+                                      </button>
+                                      <button type="button" onClick={() => { emitBeep(520); setMechCubeRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch })); }} className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9.5px] font-bold text-slate-300 cursor-pointer">
+                                        Spin 90°
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="w-36 h-36 mx-auto flex items-center justify-center">
+                                    <CrossSpatial3DCube scramble={activeCase.setup} yaw={mechCubeRot.yaw} pitch={mechCubeRot.pitch} isDragging={false} />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-center font-mono">
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-slate-400 block">Setup</span><span className="text-xs font-black text-amber-300">{activeCase.setup}</span></div>
+                                    <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-green-300 block">Optimal Solve</span><span className="text-xs font-black text-green-300">{activeCase.solve}</span></div>
+                                  </div>
+                                  <p className="text-[11px] text-slate-300 leading-relaxed">{activeCase.note}</p>
                                 </div>
                               </div>
-                              <div className="w-36 h-36 mx-auto flex items-center justify-center">
-                                <CrossSpatial3DCube scramble={activeCase.setup} yaw={mechCubeRot.yaw} pitch={mechCubeRot.pitch} isDragging={false} />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-center font-mono">
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-slate-400 block">Setup</span><span className="text-xs font-black text-amber-300">{activeCase.setup}</span></div>
-                                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-green-300 block">Optimal Solve</span><span className="text-xs font-black text-green-300">{activeCase.solve}</span></div>
-                              </div>
-                              <p className="text-[11px] text-slate-300 leading-relaxed">{activeCase.note}</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    {phaseTabs.cross === 'settings' && renderSettingsDeck()}
+                  </>
                 )}
 
-                {phaseTabs.cross === 'settings' && renderSettingsDeck()}
-              </>
-            )}
+                {['f2l', 'oll', 'pll'].includes(activePhase) && renderCFOPAlgorithmPhase(activePhase)}
+              </div>
+            </main>
 
-            {['f2l', 'oll', 'pll'].includes(activePhase) && renderCFOPAlgorithmPhase(activePhase)}
-          </main>
+            {/* RIGHT PANE: NOTATION KEY & FINGERTRICK DOSSIER (iPad, Tablet & Desktop) */}
+            {renderTabletDesktopReferencePane()}
+          </div>
 
           {/* SYMMETRICAL 4-COLUMN BOTTOM NAVIGATION BAR */}
-          <nav className="w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 px-3 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]">
-            <div className="grid grid-cols-4 gap-1 w-full">
+          <nav className={`w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 ${isTwoPane ? 'px-6' : 'px-3'} z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]`}>
+            <div className={`grid grid-cols-4 ${isTwoPane ? 'gap-3 max-w-2xl mx-auto' : 'gap-1.5'} w-full`}>
               {(activePhase === 'cross'
                 ? [
                     { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
@@ -4515,7 +4918,7 @@ function OLLDaySuite() {
                   <button
                     key={id}
                     onClick={() => { emitBeep(460); setTabForPhase(activePhase, id); }}
-                    className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
+                    className={`${isTwoPane ? 'py-2.5 px-3 flex-row gap-2 text-[11px]' : 'py-2 px-1 flex-col gap-1 text-[9.5px]'} rounded-xl flex items-center justify-center font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
                       currentTab === id ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-slate-400 hover:text-slate-200 border border-transparent'
                     }`}
                   >
@@ -4551,7 +4954,7 @@ function OLLDaySuite() {
               <div ref={fullTimerDisplayRef} className={`text-7xl sm:text-8xl font-mono font-black tracking-tight transition-colors ${fullTimerState === 'running' ? 'text-green-400' : 'text-white'}`}>
                 {(fullElapsedMs / 1000).toFixed(2)}
               </div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap Anywhere to Stop' : 'Tap Anywhere to Start'}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap or Press Space to Stop' : 'Tap or Press Space to Start'}</p>
             </div>
 
             <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-2.5">
@@ -4778,7 +5181,7 @@ function OLLDaySuite() {
 
           return (
             <div className="fixed inset-0 z-[285] bg-[#060913] flex justify-center overflow-hidden">
-              <div className="w-full max-w-md h-[100dvh] bg-[#090e1c] border-x border-white/10 shadow-2xl flex flex-col">
+              <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-[#090e1c] border-x border-white/10 shadow-2xl flex flex-col">
                 <div className="px-4 pt-4 pb-3 border-b border-white/10 bg-[#090e1c] flex items-center justify-between flex-shrink-0">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Live AI Scanner • {capturedCount} Face{capturedCount === 1 ? '' : 's'} Captured</span>
