@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Camera, ChevronDown, EyeOff, Layers, Settings, Zap, Grid, BarChart3, AlignJustify
 } from 'lucide-react';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 // =========================================================================
 // 1. FIREBASE, STORAGE & TIER HELPERS
@@ -32,28 +35,11 @@ function resolveFirebaseConfig() {
 }
 
 const resolvedFirebaseConfig = resolveFirebaseConfig();
-let firebaseSdkPromise = null;
-
-async function getFirebaseServices() {
-  if (!resolvedFirebaseConfig) return null;
-  if (!firebaseSdkPromise) {
-    firebaseSdkPromise = (async () => {
-      try {
-        const [appMod, authMod, fsMod] = await Promise.all([
-          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js'),
-          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'),
-          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js')
-        ]);
-        const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
-        return { auth: authMod.getAuth(appInstance), db: fsMod.getFirestore(appInstance), authMod, fsMod };
-      } catch {
-        firebaseSdkPromise = null;
-        return null;
-      }
-    })();
-  }
-  return firebaseSdkPromise;
-}
+const firebaseAppInstance = resolvedFirebaseConfig
+  ? (getApps().length > 0 ? getApp() : initializeApp(resolvedFirebaseConfig))
+  : null;
+const firebaseAuth = firebaseAppInstance ? getAuth(firebaseAppInstance) : null;
+const firebaseDb = firebaseAppInstance ? getFirestore(firebaseAppInstance) : null;
 
 const rawAppId =
   (typeof globalThis !== 'undefined' && (globalThis.__app_id || globalThis.VITE_APP_ID) && String(globalThis.__app_id || globalThis.VITE_APP_ID)) ||
@@ -1297,6 +1283,45 @@ const CUBE_FACES_META = [
   { offset: 27, transform: `rotateX(-90deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.22 }
 ];
 
+function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
+  const pillClass = size === 'xs'
+    ? 'px-2.5 py-0.5 text-[9.5px]'
+    : 'px-3 py-1 text-[10px] shadow-lg';
+  const badge = (
+    <span className={`${pillClass} rounded-full bg-orange-500/25 border border-orange-400/50 font-black uppercase tracking-wider text-orange-200`}>
+      🔒 {label}
+    </span>
+  );
+  return interactive ? (
+    <button type="button" onClick={onClick} className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center cursor-pointer">
+      {badge}
+    </button>
+  ) : (
+    <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
+      {badge}
+    </div>
+  );
+}
+
+function TriggerTagsList({ tags, centered = false, compact = false }) {
+  if (!tags?.length) return null;
+  return (
+    <div className={`flex flex-wrap gap-1 ${centered ? 'justify-center' : ''}`}>
+      {tags.map((tag) => (
+        <span
+          key={tag.label}
+          className={`inline-flex items-center gap-1 rounded-full border font-black ${
+            compact ? 'px-1.5 py-0.5 text-[8.5px]' : 'px-2 py-0.5 text-[9px]'
+          } ${tag.badgeClass}`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
+          {tag.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, isDragging, cubeRef }) {
   const half = CUBE_HALF_PX;
   const renderFace = ({ offset, transform, shade }) => (
@@ -1525,7 +1550,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
 function CasePracticeCard({
   phaseKey, item, f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
   f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
-  swRunning, swElapsedMs, swDisplayRef, timerLabel, showInlineGroup = false,
+  swRunning, swDisplayRef, timerLabel, showInlineGroup = false,
   lastResultForThis = null, recordedBest = null, onOpenGrip, onToggleStopwatch, emitBeep, children
 }) {
   const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
@@ -1578,16 +1603,7 @@ function CasePracticeCard({
         <p className={`font-mono text-base font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
         {fingertricksEnabled && (
           <div className="space-y-1.5 text-left">
-            {triggerTags.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-1">
-                {triggerTags.map((tag) => (
-                  <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                    {tag.label}
-                  </span>
-                ))}
-              </div>
-            )}
+            <TriggerTagsList tags={triggerTags} centered />
             <p className="text-[11px] text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
               <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
             </p>
@@ -1604,7 +1620,7 @@ function CasePracticeCard({
           }`}
         >
           {swRunning ? (
-            <span ref={swDisplayRef} className="text-base font-black">{(swElapsedMs / 1000).toFixed(2)}s — Stop</span>
+            <span ref={swDisplayRef} className="text-base font-black">0.00s — Stop</span>
           ) : lastResultForThis ? (
             <>
               <div className="flex items-center gap-2">
@@ -1999,7 +2015,7 @@ const PLL_DEFAULT_CHUNKS = [
 ];
 
 // =========================================================================
-// 3. MAIN APPLICATION COMPONENT
+// 3. CLOUD & LOCAL PERSISTENCE HOOK
 // =========================================================================
 const DEFAULT_USERS = {
   Demo: {
@@ -2010,18 +2026,6 @@ const DEFAULT_USERS = {
     caseTargetPbs: { f2l: {}, oll: {}, pll: {} }
   }
 };
-
-const APP_GLOBAL_CSS = `
-  html, body { background-color: #060913; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
-  .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
-  .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
-  .f2l-cube-satin { filter: contrast(0.92) saturate(0.86) brightness(0.96); transition: transform 0.25s ease; }
-  .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
-  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
-`;
 
 function sanitizeUserRecord(raw) {
   const base = raw && typeof raw === 'object' ? raw : {};
@@ -2059,6 +2063,128 @@ function mergeDefaultUsersWithStored(storedMap) {
   return Object.keys(result).length === 0 ? { ...DEFAULT_USERS } : result;
 }
 
+function useSolverPersistence(users, setUsers, activeUserKey) {
+  const [cloudAuthUser, setCloudAuthUser] = useState(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
+  const latestUsersRef = useRef(users);
+  latestUsersRef.current = users;
+  const cloudAuthUserRef = useRef(cloudAuthUser);
+  cloudAuthUserRef.current = cloudAuthUser;
+  const pendingCloudSyncRef = useRef(null);
+  const lastCloudWriteRef = useRef({ uKey: '', ts: 0 });
+  const cloudSaveTimerRef = useRef(null);
+  const localSaveTimerRef = useRef(null);
+
+  const flushPendingPersistence = async () => {
+    if (localSaveTimerRef.current) { clearTimeout(localSaveTimerRef.current); localSaveTimerRef.current = null; }
+    storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
+    if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
+    const pending = pendingCloudSyncRef.current;
+    const uid = cloudAuthUserRef.current?.uid;
+    if (pending?.uKey && firebaseDb && uid) {
+      pendingCloudSyncRef.current = null;
+      try {
+        const writeTs = Date.now();
+        lastCloudWriteRef.current = { uKey: pending.uKey, ts: writeTs };
+        await setDoc(
+          doc(firebaseDb, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
+          { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
+          { merge: true }
+        );
+        setCloudSyncStatus('synced');
+      } catch {
+        if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
+        setCloudSyncStatus('local');
+      }
+    }
+  };
+
+  const saveUserToCloud = (uKey, record) => {
+    if (!uKey || uKey === 'Demo' || !firebaseDb || !cloudAuthUserRef.current?.uid) return;
+    pendingCloudSyncRef.current = { uKey, record };
+    if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
+    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 1200);
+  };
+
+  const cancelPendingWriteFor = (uKey) => {
+    if (pendingCloudSyncRef.current?.uKey === uKey) {
+      pendingCloudSyncRef.current = null;
+      if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
+    }
+  };
+
+  useEffect(() => () => { if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current); }, []);
+
+  useEffect(() => {
+    if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
+    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 450);
+    return () => clearTimeout(localSaveTimerRef.current);
+  }, [users]);
+
+  useEffect(() => {
+    if (!firebaseAuth) { setCloudSyncStatus('local'); return; }
+    const initAuth = async () => {
+      try {
+        const g = typeof globalThis !== 'undefined' ? globalThis : {};
+        if (typeof g.__initial_auth_token !== 'undefined' && g.__initial_auth_token) {
+          await signInWithCustomToken(firebaseAuth, g.__initial_auth_token);
+        } else if (!firebaseAuth.currentUser) {
+          await signInAnonymously(firebaseAuth);
+        }
+      } catch {
+        setCloudSyncStatus('local');
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (fbUser) => {
+      setCloudAuthUser(fbUser || null);
+      setCloudSyncStatus(fbUser ? 'synced' : 'local');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const uid = cloudAuthUser?.uid;
+    if (!firebaseDb || !uid || !activeUserKey || activeUserKey === 'Demo') {
+      setCloudSyncStatus('local');
+      return;
+    }
+    setCloudSyncStatus('synced');
+    const unsubscribe = onSnapshot(
+      doc(firebaseDb, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey),
+      (docSnap) => {
+        if (!docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
+        const data = docSnap.data();
+        if (!data || typeof data !== 'object') return;
+        if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
+        setUsers((prev) => ({
+          ...prev,
+          [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
+        }));
+      },
+      () => setCloudSyncStatus('local')
+    );
+    return () => unsubscribe();
+  }, [cloudAuthUser?.uid, activeUserKey, setUsers]);
+
+  return { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
+}
+
+// =========================================================================
+// 4. MAIN APPLICATION COMPONENT & ERROR BOUNDARY
+// =========================================================================
+const APP_GLOBAL_CSS = `
+  html, body { background-color: #060913; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
+  .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
+  .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
+  .f2l-cube-satin { filter: contrast(0.92) saturate(0.86) brightness(0.96); transition: transform 0.25s ease; }
+  .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
+  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
+`;
+
 class AppErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, errorMessage: '' }; }
   static getDerivedStateFromError(error) { return { hasError: true, errorMessage: error?.message ? String(error.message) : 'Unexpected rendering error' }; }
@@ -2083,8 +2209,6 @@ class AppErrorBoundary extends React.Component {
 
 function OLLDaySuite() {
   const [isAppVisible, setIsAppVisible] = useState(() => (typeof document !== 'undefined' ? !document.hidden : true));
-  const [cloudAuthUser, setCloudAuthUser] = useState(null);
-  const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
 
   const [users, setUsers] = useState(() => {
     const saved = storage.getJson(STORAGE_KEYS.users, null);
@@ -2101,10 +2225,13 @@ function OLLDaySuite() {
   });
   const [cfopMenuOpen, setCfopMenuOpen] = useState(false);
 
-  const [crossTab, setCrossTab] = useState('ladder');
-  const [f2lTab, setF2lTab] = useState('grind');
-  const [ollTab, setOllTab] = useState('grind');
-  const [pllTab, setPllTab] = useState('grind');
+  const [phaseTabs, setPhaseTabs] = useState({ cross: 'ladder', f2l: 'grind', oll: 'grind', pll: 'grind' });
+  const setTabForPhase = (phase, tab) => setPhaseTabs((prev) => ({ ...prev, [phase]: tab }));
+
+  const { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
+    useSolverPersistence(users, setUsers, activeUserKey);
+
+  useEffect(() => { storage.setStr(STORAGE_KEYS.activeAccount, activeUserKey); }, [activeUserKey]);
 
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [stopwatchEnabled, setStopwatchEnabled] = useState(true);
@@ -2155,6 +2282,8 @@ function OLLDaySuite() {
   const scannerVideoRef = useRef(null);
   const scannerStreamRef = useRef(null);
   const scannerCanvasRef = useRef(null);
+  const scannerViewfinderRef = useRef(null);
+  const [scannerViewfinderVisible, setScannerViewfinderVisible] = useState(true);
   const liveStableSignatureRef = useRef('');
   const liveStableStreakRef = useRef(0);
 
@@ -2197,7 +2326,7 @@ function OLLDaySuite() {
     f2lOrbit.setOrbit({ yaw: preset.yaw, pitch: preset.pitch });
   };
 
-  // Scanner Camera & Sampling
+  // Scanner Camera, Visibility Observer & Sampling
   const stopScannerCamera = () => {
     if (scannerStreamRef.current) {
       scannerStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -2210,6 +2339,15 @@ function OLLDaySuite() {
     liveStableSignatureRef.current = '';
     liveStableStreakRef.current = 0;
   };
+
+  useEffect(() => {
+    const el = scannerViewfinderRef.current;
+    if (!scannerOpen || !el || typeof IntersectionObserver === 'undefined') return;
+    setScannerViewfinderVisible(true);
+    const obs = new IntersectionObserver(([entry]) => setScannerViewfinderVisible(entry.isIntersecting), { threshold: 0.25 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [scannerOpen]);
 
   const startScannerCamera = async (targetFace = 'U', resetAll = false) => {
     setScannerCameraError('');
@@ -2279,7 +2417,6 @@ function OLLDaySuite() {
     if (!ctx) return null;
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
 
-    // Single GPU->CPU pixel buffer readback with zero-allocation glare/shadow rejection
     const frameBuf = ctx.getImageData(0, 0, outW, outH).data;
     const isMatte = scannerSurfaceFinish === 'matte';
     const readPatch = (nx, ny) => {
@@ -2382,7 +2519,7 @@ function OLLDaySuite() {
   const currentFaceAlreadyCaptured = Boolean(scannerCapturedThumbs[scannerCaptureStep]);
 
   useEffect(() => {
-    if (!scannerOpen || !scannerCameraReady || !isAppVisible || currentFaceAlreadyCaptured) return;
+    if (!scannerOpen || !scannerCameraReady || !isAppVisible || !scannerViewfinderVisible || currentFaceAlreadyCaptured) return;
     const id = setInterval(() => {
       const res = sampleVideoGridAntiGlare();
       if (!res) return;
@@ -2411,7 +2548,7 @@ function OLLDaySuite() {
       }
     }, scannerAutoSnap ? 450 : 1100);
     return () => clearInterval(id);
-  }, [scannerOpen, scannerCameraReady, isAppVisible, currentFaceAlreadyCaptured, scannerCaptureStep, scannerAutoSnap]);
+  }, [scannerOpen, scannerCameraReady, isAppVisible, scannerViewfinderVisible, currentFaceAlreadyCaptured, scannerCaptureStep, scannerAutoSnap]);
 
   const scannerHasFull6Faces = useMemo(
     () => Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
@@ -2458,13 +2595,10 @@ function OLLDaySuite() {
 
   const [f2lLibMode, setF2lLibMode] = useState('groups');
   const [f2lSelectedCategory, setF2lSelectedCategory] = useState(null);
-  const [f2lLineupOrder, setF2lLineupOrder] = useState([]);
   const [ollLibMode, setOllLibMode] = useState('groups');
   const [ollSelectedCategory, setOllSelectedCategory] = useState(null);
-  const [ollLineupOrder, setOllLineupOrder] = useState([]);
   const [pllLibMode, setPllLibMode] = useState('groups');
   const [pllSelectedCategory, setPllSelectedCategory] = useState(null);
-  const [pllLineupOrder, setPllLineupOrder] = useState([]);
 
   const [draggedLineupIdx, setDraggedLineupIdx] = useState(null);
   const holdTimerRef = useRef(null);
@@ -2499,8 +2633,8 @@ function OLLDaySuite() {
   const [proPurchaseToast, setProPurchaseToast] = useState('');
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
 
+  // Zero-re-render DOM-ref stopwatch state
   const [swRunning, setSwRunning] = useState(false);
-  const [swElapsedMs, setSwElapsedMs] = useState(0);
   const [swLastResult, setSwLastResult] = useState(null);
   const swStartRef = useRef(0);
   const swDisplayRef = useRef(null);
@@ -2525,10 +2659,7 @@ function OLLDaySuite() {
   const applyTourNavigation = (stepObj) => {
     if (!stepObj) return;
     setActivePhase(stepObj.phase);
-    if (stepObj.phase === 'cross') setCrossTab(stepObj.tab);
-    if (stepObj.phase === 'f2l') setF2lTab(stepObj.tab);
-    if (stepObj.phase === 'oll') setOllTab(stepObj.tab);
-    if (stepObj.phase === 'pll') setPllTab(stepObj.tab);
+    setTabForPhase(stepObj.phase, stepObj.tab);
   };
 
   const startGuidedTour = (type) => {
@@ -2540,114 +2671,7 @@ function OLLDaySuite() {
     setActiveModal('guidedTour');
   };
 
-  // Persistence & Cloud Sync (Private user-scoped Firestore path + echo/quota protection)
-  const latestUsersRef = useRef(users);
-  latestUsersRef.current = users;
-  const cloudAuthUserRef = useRef(cloudAuthUser);
-  cloudAuthUserRef.current = cloudAuthUser;
-  const pendingCloudSyncRef = useRef(null);
-  const lastCloudWriteRef = useRef({ uKey: '', ts: 0 });
-  const cloudSaveTimerRef = useRef(null);
-  const localSaveTimerRef = useRef(null);
-
-  const flushPendingPersistence = async () => {
-    if (localSaveTimerRef.current) { clearTimeout(localSaveTimerRef.current); localSaveTimerRef.current = null; }
-    storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
-    if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
-    const pending = pendingCloudSyncRef.current;
-    const uid = cloudAuthUserRef.current?.uid;
-    if (pending?.uKey && resolvedFirebaseConfig && uid) {
-      pendingCloudSyncRef.current = null;
-      try {
-        const svc = await getFirebaseServices();
-        if (!svc) {
-          if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
-          setCloudSyncStatus('local');
-          return;
-        }
-        const writeTs = Date.now();
-        lastCloudWriteRef.current = { uKey: pending.uKey, ts: writeTs };
-        await svc.fsMod.setDoc(
-          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
-          { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
-          { merge: true }
-        );
-        setCloudSyncStatus('synced');
-      } catch {
-        if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
-        setCloudSyncStatus('local');
-      }
-    }
-  };
-
-  useEffect(() => () => { if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current); }, []);
-
-  useEffect(() => {
-    if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
-    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 450);
-    return () => clearTimeout(localSaveTimerRef.current);
-  }, [users]);
-
-  useEffect(() => { storage.setStr(STORAGE_KEYS.activeAccount, activeUserKey); }, [activeUserKey]);
-
-  const saveUserToCloud = (uKey, record) => {
-    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUserRef.current?.uid) return;
-    pendingCloudSyncRef.current = { uKey, record };
-    if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 1200);
-  };
-
-  useEffect(() => {
-    if (!resolvedFirebaseConfig) { setCloudSyncStatus('local'); return; }
-    let unsubAuth = null, cancelled = false;
-    (async () => {
-      const svc = await getFirebaseServices();
-      if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
-      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
-        if (!cancelled) { setCloudAuthUser(fbUser || null); setCloudSyncStatus(fbUser ? 'synced' : 'local'); }
-      });
-      if (!svc.auth.currentUser) {
-        try {
-          const g = typeof globalThis !== 'undefined' ? globalThis : {};
-          if (g.__initial_auth_token) await svc.authMod.signInWithCustomToken(svc.auth, g.__initial_auth_token);
-          else await svc.authMod.signInAnonymously(svc.auth);
-        } catch {
-          if (!cancelled) setCloudSyncStatus('local');
-        }
-      }
-    })();
-    return () => { cancelled = true; unsubAuth?.(); };
-  }, []);
-
-  useEffect(() => {
-    const uid = cloudAuthUser?.uid;
-    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
-      setCloudSyncStatus('local');
-      return;
-    }
-    let unsubSnapshot = null, cancelled = false;
-    (async () => {
-      const svc = await getFirebaseServices();
-      if (!svc || cancelled) return;
-      setCloudSyncStatus('synced');
-      unsubSnapshot = svc.fsMod.onSnapshot(
-        svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey),
-        (docSnap) => {
-          if (cancelled || !docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
-          const data = docSnap.data();
-          if (!data || typeof data !== 'object') return;
-          if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
-          setUsers((prev) => ({
-            ...prev,
-            [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
-          }));
-        },
-        () => setCloudSyncStatus('local')
-      );
-    })();
-    return () => { cancelled = true; unsubSnapshot?.(); };
-  }, [cloudAuthUser?.uid, activeUserKey]);
-
+  // Visibility & Background Sleep Lifecycle
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
     const enterBackgroundSleep = () => {
@@ -2732,9 +2756,18 @@ function OLLDaySuite() {
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: OLL_DATA.slice(0, 4) };
   const currentPllDayObj = pllSchedule[safePllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: PLL_DATA.slice(0, 4) };
 
-  useEffect(() => { setF2lLineupOrder([...currentF2lDayObj.cases]); }, [safeF2lDay, currentUser.f2lCustomChunks]);
-  useEffect(() => { setOllLineupOrder([...currentOllDayObj.cases]); }, [safeOllDay, currentUser.customChunks]);
-  useEffect(() => { setPllLineupOrder([...currentPllDayObj.cases]); }, [safePllDay, currentUser.pllCustomChunks]);
+  const [lineupOrders, setLineupOrders] = useState({ f2l: [], oll: [], pll: [] });
+  useEffect(() => {
+    setLineupOrders({
+      f2l: [...currentF2lDayObj.cases],
+      oll: [...currentOllDayObj.cases],
+      pll: [...currentPllDayObj.cases]
+    });
+  }, [
+    safeF2lDay, currentUser.f2lCustomChunks,
+    safeOllDay, currentUser.customChunks,
+    safePllDay, currentUser.pllCustomChunks
+  ]);
 
   const fullSolveTargetSec = Number.isFinite(Number(currentUser.fullSolveTargetPb)) ? Number(currentUser.fullSolveTargetPb) : 15.0;
   useEffect(() => { setTargetPbInput(fullSolveTargetSec.toFixed(3)); }, [fullSolveTargetSec]);
@@ -2778,12 +2811,10 @@ function OLLDaySuite() {
     if (!swRunning) {
       emitBeep(820, 'sine', 0.06);
       swStartRef.current = performance.now();
-      setSwElapsedMs(0);
       setSwRunning(true);
     } else {
       const finalMs = performance.now() - swStartRef.current;
       setSwRunning(false);
-      setSwElapsedMs(finalMs);
       emitBeep(960, 'sine', 0.09);
       onCompleteSec?.(Number((finalMs / 1000).toFixed(3)));
     }
@@ -2928,12 +2959,6 @@ function OLLDaySuite() {
   useEffect(() => {
     if (draggedLineupIdx === null) return;
     let dragRafId = 0, pendingPoint = null;
-    const reorder = (setter, fromIdx, toIdx) => setter((prev) => {
-      const updated = [...prev];
-      const [moved] = updated.splice(fromIdx, 1);
-      updated.splice(toIdx, 0, moved);
-      return updated;
-    });
 
     const handleWindowTouchMove = (e) => {
       e.preventDefault();
@@ -2950,8 +2975,12 @@ function OLLDaySuite() {
         if (row) {
           const targetIdx = Number(row.getAttribute('data-lineup-idx'));
           if (!Number.isNaN(targetIdx) && targetIdx !== draggedLineupIdx) {
-            const setter = activePhase === 'f2l' ? setF2lLineupOrder : activePhase === 'oll' ? setOllLineupOrder : setPllLineupOrder;
-            reorder(setter, draggedLineupIdx, targetIdx);
+            setLineupOrders((prev) => {
+              const updated = [...(prev[activePhase] || [])];
+              const [moved] = updated.splice(draggedLineupIdx, 1);
+              updated.splice(targetIdx, 0, moved);
+              return { ...prev, [activePhase]: updated };
+            });
             setDraggedLineupIdx(targetIdx);
             emitBeep(640, 'sine', 0.04, 0.08);
           }
@@ -3014,15 +3043,11 @@ function OLLDaySuite() {
     const keyToRemove = activeUserKey;
     if (!keyToRemove) return;
     emitBeep(320, 'triangle', 0.14);
-    if (pendingCloudSyncRef.current?.uKey === keyToRemove) {
-      pendingCloudSyncRef.current = null;
-      if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
-    }
+    cancelPendingWriteFor(keyToRemove);
     setUsers((prev) => { const copy = { ...prev }; delete copy[keyToRemove]; return copy; });
-    if (resolvedFirebaseConfig && cloudAuthUser?.uid) {
+    if (firebaseDb && cloudAuthUser?.uid) {
       try {
-        const svc = await getFirebaseServices();
-        await svc?.fsMod.deleteDoc(svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', cloudAuthUser.uid, 'solver_profiles', keyToRemove));
+        await deleteDoc(doc(firebaseDb, 'artifacts', appId, 'users', cloudAuthUser.uid, 'solver_profiles', keyToRemove));
       } catch {}
     }
     setDeleteAccountConfirm(false); setActiveModal(null);
@@ -3375,9 +3400,7 @@ function OLLDaySuite() {
             <div className="space-y-2.5">
               <div className="relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
                 {!isProUnlocked && (
-                  <button type="button" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center cursor-pointer">
-                    <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">🔒 Custom Chunks • Pro</span>
-                  </button>
+                  <ProLockOverlay interactive label="Custom Chunks • Pro" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} />
                 )}
                 <div className={!isProUnlocked ? 'opacity-40 select-none space-y-2' : 'space-y-2'}>
                   <span className="text-xs font-black text-white block">Custom Learning Chunks</span>
@@ -3482,7 +3505,7 @@ function OLLDaySuite() {
   // Unified Phase Workspace (F2L, OLL, PLL)
   const renderCFOPAlgorithmPhase = (phaseKey) => {
     const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
-    const tab = isF2L ? f2lTab : isPLL ? pllTab : ollTab;
+    const tab = phaseTabs[phaseKey];
     const dataList = isF2L ? F2L_DATA : isPLL ? PLL_DATA : OLL_DATA;
     const lookupMap = isF2L ? F2L_BY_ID : isPLL ? PLL_BY_ID : OLL_BY_ID;
     const groupList = isF2L ? F2L_GROUPS : isPLL ? PLL_GROUPS : OLL_GROUPS;
@@ -3493,7 +3516,7 @@ function OLLDaySuite() {
     const dayField = isF2L ? 'f2lDay' : isPLL ? 'pllDay' : 'day';
     const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
     const masteredCount = isF2L ? f2lMasteredCount : isPLL ? pllMasteredCount : ollMasteredCount;
-    const lineupOrder = isF2L ? f2lLineupOrder : isPLL ? pllLineupOrder : ollLineupOrder;
+    const lineupOrder = lineupOrders[phaseKey] || [];
     const libMode = isF2L ? f2lLibMode : isPLL ? pllLibMode : ollLibMode;
     const setLibMode = isF2L ? setF2lLibMode : isPLL ? setPllLibMode : setOllLibMode;
     const selectedCategory = isF2L ? f2lSelectedCategory : isPLL ? pllSelectedCategory : ollSelectedCategory;
@@ -3564,7 +3587,7 @@ function OLLDaySuite() {
                     return;
                   }
                   emitBeep(720, 'sine', 0.08);
-                  setSwRunning(false); setSwElapsedMs(0); setSwLastResult(null);
+                  setSwRunning(false); setSwLastResult(null);
                   setSession({ dayObj, index: 0, queue: [...lineupOrder] });
                 }}
                 className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
@@ -3604,17 +3627,13 @@ function OLLDaySuite() {
                     onClick={() => {
                       if (draggedLineupIdx !== null) return;
                       if (locked) { openProPaywall(item.name); return; }
-                      emitBeep(600); setSwRunning(false); setSwElapsedMs(0); setSwLastResult(null); setDrillCase(item);
+                      emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
                     }}
                     className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
                     }`}
                   >
-                    {locked && (
-                      <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
-                        <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">🔒 {item.name} • Pro</span>
-                      </div>
-                    )}
+                    {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
                     <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
                       {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-12 h-12 rounded-xl')}
                       <div className="min-w-0">
@@ -3730,15 +3749,11 @@ function OLLDaySuite() {
                       key={item.id}
                       onClick={() => {
                         if (locked) { openProPaywall(item.name); return; }
-                        emitBeep(600); setSwRunning(false); setSwElapsedMs(0); setSwLastResult(null); setDrillCase(item);
+                        emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
                       }}
                       className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'}`}
                     >
-                      {locked && (
-                        <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
-                          <span className="px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/50 text-[10px] font-black uppercase tracking-wider text-orange-200 shadow-lg">🔒 {item.name} • Unlock Pro</span>
-                        </div>
-                      )}
+                      {locked && <ProLockOverlay label={`${item.name} • Unlock Pro`} />}
                       <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
                         {renderCaseThumb(phaseKey, item, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
                         <div className="min-w-0">
@@ -3750,16 +3765,7 @@ function OLLDaySuite() {
                           {item.recognition && <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>}
                           {fingertricksEnabled && (
                             <div className="mt-1.5 space-y-1">
-                              {itemTags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {itemTags.map((tag) => (
-                                    <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}>
-                                      <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
-                                      {tag.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                              <TriggerTagsList tags={itemTags} />
                               <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
                                 <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
                               </p>
@@ -3818,15 +3824,11 @@ function OLLDaySuite() {
                 key={item.id}
                 onClick={() => {
                   if (locked) { openProPaywall(item.name); return; }
-                  emitBeep(580); setSwRunning(false); setSwElapsedMs(0); setSwLastResult(null); setDrillCase(item);
+                  emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
                 }}
                 className={`case-row-opt relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'}`}
               >
-                {locked && (
-                  <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
-                    <span className="px-2.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[9.5px] font-black uppercase tracking-wider text-orange-200">🔒 {item.name} • Pro</span>
-                  </div>
-                )}
+                {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
                 <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
                   {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-11 h-11 rounded-xl')}
                   <div className="min-w-0">
@@ -3874,7 +3876,7 @@ function OLLDaySuite() {
   const sharedPracticeProps = {
     f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
     f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
-    swRunning, swElapsedMs, swDisplayRef, emitBeep
+    swRunning, swDisplayRef, emitBeep
   };
 
   // Unified Daily Session Runner
@@ -3919,7 +3921,7 @@ function OLLDaySuite() {
 
           <div className="grid grid-cols-2 gap-2.5">
             <button
-              onClick={() => { emitBeep(460); setSwRunning(false); setSwElapsedMs(0); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
+              onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
               className="py-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
             >
@@ -3927,7 +3929,7 @@ function OLLDaySuite() {
             </button>
             <button
               onClick={() => {
-                emitBeep(760); setSwRunning(false); setSwElapsedMs(0);
+                emitBeep(760); setSwRunning(false);
                 if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
                 else {
                   const updated = { ...currentUser, [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1 };
@@ -4002,8 +4004,8 @@ function OLLDaySuite() {
       <style>{APP_GLOBAL_CSS}</style>
 
       <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
-        <div style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)' }} className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] pointer-events-none z-0" />
-        <div style={{ background: 'radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)' }} className="fixed bottom-0 right-0 w-3/4 h-[38vh] pointer-events-none z-0" />
+        <div style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[42vh] pointer-events-none z-0" />
+        <div style={{ background: 'radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed bottom-0 right-0 w-3/4 h-[38vh] pointer-events-none z-0" />
 
         <div className="w-full max-w-md h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden">
           {/* PERSISTENT HEADER */}
@@ -4067,7 +4069,7 @@ function OLLDaySuite() {
           <main className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
             {activePhase === 'cross' && (
               <>
-                {crossTab === 'ladder' && (
+                {phaseTabs.cross === 'ladder' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -4276,7 +4278,7 @@ function OLLDaySuite() {
                         <button
                           onClick={() => {
                             if (!isProUnlocked) { openProPaywall('WCA Blindfold Timer Mat'); return; }
-                            emitBeep(620); setCrossTab('blind');
+                            emitBeep(620); setTabForPhase('cross', 'blind');
                           }}
                           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
                         >
@@ -4287,7 +4289,7 @@ function OLLDaySuite() {
                   </div>
                 )}
 
-                {crossTab === 'blind' && (
+                {phaseTabs.cross === 'blind' && (
                   <div className="relative p-5 pb-10 space-y-4">
                     {!isProUnlocked && (
                       <div className="fixed inset-x-0 top-20 bottom-24 z-30 flex items-center justify-center p-6 pointer-events-none">
@@ -4399,7 +4401,7 @@ function OLLDaySuite() {
                   </div>
                 )}
 
-                {crossTab === 'mechanics' && (
+                {phaseTabs.cross === 'mechanics' && (
                   <div className="p-5 pb-10 space-y-4">
                     <div>
                       <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Deconstructing Intuition</p>
@@ -4484,7 +4486,7 @@ function OLLDaySuite() {
                   </div>
                 )}
 
-                {crossTab === 'settings' && renderSettingsDeck()}
+                {phaseTabs.cross === 'settings' && renderSettingsDeck()}
               </>
             )}
 
@@ -4508,12 +4510,11 @@ function OLLDaySuite() {
                     { id: 'settings', label: 'Settings', Icon: Settings }
                   ]
               ).map(({ id, label, Icon }) => {
-                const currentTab = activePhase === 'cross' ? crossTab : activePhase === 'f2l' ? f2lTab : activePhase === 'pll' ? pllTab : ollTab;
-                const setTab = activePhase === 'cross' ? setCrossTab : activePhase === 'f2l' ? setF2lTab : activePhase === 'pll' ? setPllTab : setOllTab;
+                const currentTab = phaseTabs[activePhase];
                 return (
                   <button
                     key={id}
-                    onClick={() => { emitBeep(460); setTab(id); }}
+                    onClick={() => { emitBeep(460); setTabForPhase(activePhase, id); }}
                     className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
                       currentTab === id ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-slate-400 hover:text-slate-200 border border-transparent'
                     }`}
@@ -4530,8 +4531,8 @@ function OLLDaySuite() {
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
         {fullTimerOpen && (
           <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-slate-950/95 flex flex-col justify-between p-6 select-none cursor-pointer">
-            <div style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }} className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
-            <div style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)' }} className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
+            <div style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
+            <div style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
 
             <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
@@ -4572,8 +4573,8 @@ function OLLDaySuite() {
         {/* SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
           <div className="fixed inset-0 z-[255] bg-slate-950/95 flex flex-col items-center justify-center p-6 overflow-y-auto">
-            <div style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)' }} className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
-            <div style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)' }} className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full" />
+            <div style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
+            <div style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full" />
 
             <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-white/15 p-6 shadow-2xl space-y-5">
               <div className="flex flex-col items-center text-center space-y-2">
@@ -4834,7 +4835,7 @@ function OLLDaySuite() {
                     <p className="text-[10.5px] text-slate-300 leading-snug">{currentSpec.instruction}</p>
                   </div>
 
-                  <div className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-[1.75rem] overflow-hidden bg-slate-950 border border-white/15 shadow-inner">
+                  <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-[1.75rem] overflow-hidden bg-slate-950 border border-white/15 shadow-inner">
                     {activePreviewImg ? (
                       <img src={activePreviewImg} alt={`Captured ${currentSpec.short} face`} className="w-full h-full object-cover" />
                     ) : (
@@ -5080,13 +5081,9 @@ function OLLDaySuite() {
                           <p className="text-[10.5px] text-sky-200 bg-sky-500/10 border border-sky-500/25 rounded-xl px-2.5 py-1.5 leading-snug">
                             <strong className="text-sky-300">Cube Hold &amp; Orientation:</strong> {activeStageOrientationTip}
                           </p>
-                          {activeStageTags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 pt-0.5">
-                              {activeStageTags.map((tag) => (
-                                <span key={tag.label} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-black ${tag.badgeClass}`}><span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />{tag.label}</span>
-                              ))}
-                            </div>
-                          )}
+                          <div className="pt-0.5">
+                            <TriggerTagsList tags={activeStageTags} />
+                          </div>
                           <p className="text-[10.5px] text-orange-200/90 leading-snug"><strong>Fingertrick:</strong> {activeStageFingertrick}</p>
                         </div>
                       </div>
@@ -5105,13 +5102,7 @@ function OLLDaySuite() {
                                 <p className="text-[9.5px] text-sky-200/90 leading-snug">
                                   <strong className="text-sky-300">Hold:</strong> White Bottom (D) • <strong className="text-white">{sub.frontColor}</strong> Front (F) • <strong className="text-white">{sub.rightColor}</strong> Right (R){sub.preU ? ` • Pre-turn ${sub.preU}` : ''}
                                 </p>
-                                {subTags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {subTags.map((tag) => (
-                                      <span key={tag.label} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[8.5px] font-black ${tag.badgeClass}`}><span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />{tag.label}</span>
-                                    ))}
-                                  </div>
-                                )}
+                                <TriggerTagsList tags={subTags} compact />
                               </div>
                             );
                           })}
@@ -5195,9 +5186,9 @@ function OLLDaySuite() {
                       type="button"
                       onClick={() => {
                         stopScannerCamera(); setScannerOpen(false);
-                        if (activeStagePhase === 'cross') { emitBeep(760); setActivePhase('cross'); setCrossTab('ladder'); return; }
+                        if (activeStagePhase === 'cross') { emitBeep(760); setActivePhase('cross'); setTabForPhase('cross', 'ladder'); return; }
                         if (!isCaseUnlockedForTier(activeStagePhase, matched.id, isProUnlocked)) { openProPaywall(matched.name); return; }
-                        emitBeep(760); setActivePhase(activeStagePhase); setSwRunning(false); setSwElapsedMs(0); setSwLastResult(null);
+                        emitBeep(760); setActivePhase(activeStagePhase); setSwRunning(false); setSwLastResult(null);
                         if (activeStagePhase === 'f2l') setF2lDrillCase(matched);
                         else if (activeStagePhase === 'oll') setOllDrillCase(matched);
                         else if (activeStagePhase === 'pll') setPllDrillCase(matched);
