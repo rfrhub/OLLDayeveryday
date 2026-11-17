@@ -1358,8 +1358,25 @@ function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, 
 const CROSS_EDGE_PAIRS = {
   '0_1': 46, '45_1': 1, '0_3': 37, '36_1': 3, '0_5': 10, '9_1': 5, '0_7': 19, '18_1': 7,
   '27_1': 25, '18_7': 28, '27_3': 43, '36_7': 30, '27_5': 16, '9_7': 32, '27_7': 52, '45_7': 34,
-  '18_3': 41, '36_5': 21, '18_5': 12, '9_3': 23, '45_3': 14, '9_5': 48, '45_5': 39, '36_3': 41
+  '18_3': 41, '36_5': 21, '18_5': 12, '9_3': 23, '45_3': 14, '9_5': 48, '45_5': 39, '36_3': 50
 };
+
+const CUBIE_STICKER_GROUPS_54 = (() => {
+  const groups = Array.from({ length: 54 }, (_, i) => [i]);
+  const cubies = [
+    [1, 46], [5, 10], [7, 19], [3, 37],
+    [28, 25], [32, 16], [34, 52], [30, 43],
+    [23, 12], [21, 41], [48, 14], [50, 39],
+    [8, 20, 9], [6, 18, 38], [2, 11, 45], [0, 36, 47],
+    [29, 26, 15], [27, 24, 44], [35, 17, 51], [33, 42, 53]
+  ];
+  cubies.forEach((group) => {
+    group.forEach((stickerIdx) => {
+      groups[stickerIdx] = group;
+    });
+  });
+  return groups;
+})();
 
 const isCrossStickerActive = (stickers, offset, idx) => {
   if (idx === 4) return true;
@@ -1369,7 +1386,11 @@ const isCrossStickerActive = (stickers, offset, idx) => {
   return partner !== undefined && stickers[partner] === 'W';
 };
 
-const isF2LStickerMuted = (stickers, offset, idx) => stickers[offset + idx] === 'Y';
+const isF2LStickerMuted = (stickers, offset, idx) => {
+  if (idx === 4) return false;
+  const group = CUBIE_STICKER_GROUPS_54[offset + idx];
+  return group ? group.some((sIdx) => stickers[sIdx] === 'Y') : stickers[offset + idx] === 'Y';
+};
 
 function CrossSpatial3DCube({ scramble, yaw, pitch, isDragging, cubeRef }) {
   const stickers = useMemo(() => simulateCrossCubeState(scramble), [scramble]);
