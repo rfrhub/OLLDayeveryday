@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Camera, ChevronDown, EyeOff, Layers, Settings, Zap, Grid, BarChart3, AlignJustify
 } from 'lucide-react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 // =========================================================================
 // 1. FIREBASE, STORAGE & TIER HELPERS
@@ -35,11 +32,28 @@ function resolveFirebaseConfig() {
 }
 
 const resolvedFirebaseConfig = resolveFirebaseConfig();
-const firebaseAppInstance = resolvedFirebaseConfig
-  ? (getApps().length > 0 ? getApp() : initializeApp(resolvedFirebaseConfig))
-  : null;
-const firebaseAuth = firebaseAppInstance ? getAuth(firebaseAppInstance) : null;
-const firebaseDb = firebaseAppInstance ? getFirestore(firebaseAppInstance) : null;
+let firebaseSdkPromise = null;
+
+async function getFirebaseServices() {
+  if (!resolvedFirebaseConfig) return null;
+  if (!firebaseSdkPromise) {
+    firebaseSdkPromise = (async () => {
+      try {
+        const [appMod, authMod, fsMod] = await Promise.all([
+          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js'),
+          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'),
+          import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js')
+        ]);
+        const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
+        return { auth: authMod.getAuth(appInstance), db: fsMod.getFirestore(appInstance), authMod, fsMod };
+      } catch {
+        firebaseSdkPromise = null;
+        return null;
+      }
+    })();
+  }
+  return firebaseSdkPromise;
+}
 
 const rawAppId =
   (typeof globalThis !== 'undefined' && (globalThis.__app_id || globalThis.VITE_APP_ID) && String(globalThis.__app_id || globalThis.VITE_APP_ID)) ||
@@ -2159,13 +2173,19 @@ function useSolverPersistence(users, setUsers, activeUserKey) {
     if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
     const pending = pendingCloudSyncRef.current;
     const uid = cloudAuthUserRef.current?.uid;
-    if (pending?.uKey && firebaseDb && uid) {
+    if (pending?.uKey && resolvedFirebaseConfig && uid) {
       pendingCloudSyncRef.current = null;
       try {
+        const svc = await getFirebaseServices();
+        if (!svc) {
+          if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
+          setCloudSyncStatus('local');
+          return;
+        }
         const writeTs = Date.now();
         lastCloudWriteRef.current = { uKey: pending.uKey, ts: writeTs };
-        await setDoc(
-          doc(firebaseDb, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
+        await svc.fsMod.setDoc(
+          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
           { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
           { merge: true }
         );
@@ -2178,7 +2198,7 @@ function useSolverPersistence(users, setUsers, activeUserKey) {
   };
 
   const saveUserToCloud = (uKey, record) => {
-    if (!uKey || uKey === 'Demo' || !firebaseDb || !cloudAuthUserRef.current?.uid) return;
+    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUserRef.current?.uid) return;
     pendingCloudSyncRef.current = { uKey, record };
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
     cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 1200);
@@ -2200,49 +2220,54 @@ function useSolverPersistence(users, setUsers, activeUserKey) {
   }, [users]);
 
   useEffect(() => {
-    if (!firebaseAuth) { setCloudSyncStatus('local'); return; }
-    const initAuth = async () => {
-      try {
-        const g = typeof globalThis !== 'undefined' ? globalThis : {};
-        if (typeof g.__initial_auth_token !== 'undefined' && g.__initial_auth_token) {
-          await signInWithCustomToken(firebaseAuth, g.__initial_auth_token);
-        } else if (!firebaseAuth.currentUser) {
-          await signInAnonymously(firebaseAuth);
+    if (!resolvedFirebaseConfig) { setCloudSyncStatus('local'); return; }
+    let unsubAuth = null, cancelled = false;
+    (async () => {
+      const svc = await getFirebaseServices();
+      if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
+      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
+        if (!cancelled) { setCloudAuthUser(fbUser || null); setCloudSyncStatus(fbUser ? 'synced' : 'local'); }
+      });
+      if (!svc.auth.currentUser) {
+        try {
+          const g = typeof globalThis !== 'undefined' ? globalThis : {};
+          if (g.__initial_auth_token) await svc.authMod.signInWithCustomToken(svc.auth, g.__initial_auth_token);
+          else await svc.authMod.signInAnonymously(svc.auth);
+        } catch {
+          if (!cancelled) setCloudSyncStatus('local');
         }
-      } catch {
-        setCloudSyncStatus('local');
       }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (fbUser) => {
-      setCloudAuthUser(fbUser || null);
-      setCloudSyncStatus(fbUser ? 'synced' : 'local');
-    });
-    return () => unsubscribe();
+    })();
+    return () => { cancelled = true; unsubAuth?.(); };
   }, []);
 
   useEffect(() => {
     const uid = cloudAuthUser?.uid;
-    if (!firebaseDb || !uid || !activeUserKey || activeUserKey === 'Demo') {
+    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
       setCloudSyncStatus('local');
       return;
     }
-    setCloudSyncStatus('synced');
-    const unsubscribe = onSnapshot(
-      doc(firebaseDb, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey),
-      (docSnap) => {
-        if (!docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
-        const data = docSnap.data();
-        if (!data || typeof data !== 'object') return;
-        if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
-        setUsers((prev) => ({
-          ...prev,
-          [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
-        }));
-      },
-      () => setCloudSyncStatus('local')
-    );
-    return () => unsubscribe();
+    let unsubSnapshot = null, cancelled = false;
+    (async () => {
+      const svc = await getFirebaseServices();
+      if (!svc || cancelled) return;
+      setCloudSyncStatus('synced');
+      unsubSnapshot = svc.fsMod.onSnapshot(
+        svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey),
+        (docSnap) => {
+          if (cancelled || !docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
+          const data = docSnap.data();
+          if (!data || typeof data !== 'object') return;
+          if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
+          setUsers((prev) => ({
+            ...prev,
+            [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
+          }));
+        },
+        () => setCloudSyncStatus('local')
+      );
+    })();
+    return () => { cancelled = true; unsubSnapshot?.(); };
   }, [cloudAuthUser?.uid, activeUserKey, setUsers]);
 
   return { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
@@ -3194,9 +3219,10 @@ function OLLDaySuite() {
     emitBeep(320, 'triangle', 0.14);
     cancelPendingWriteFor(keyToRemove);
     setUsers((prev) => { const copy = { ...prev }; delete copy[keyToRemove]; return copy; });
-    if (firebaseDb && cloudAuthUser?.uid) {
+    if (resolvedFirebaseConfig && cloudAuthUser?.uid) {
       try {
-        await deleteDoc(doc(firebaseDb, 'artifacts', appId, 'users', cloudAuthUser.uid, 'solver_profiles', keyToRemove));
+        const svc = await getFirebaseServices();
+        await svc?.fsMod.deleteDoc(svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', cloudAuthUser.uid, 'solver_profiles', keyToRemove));
       } catch {}
     }
     setDeleteAccountConfirm(false); setActiveModal(null);
