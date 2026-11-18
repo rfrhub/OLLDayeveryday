@@ -274,67 +274,100 @@ function inspectCrossOn54(s) {
   };
 }
 
+const OPTIMAL_CROSS_CACHE = new Map();
+const CROSS_HTM_MOVES = ['U', "U'", 'U2', 'D', "D'", 'D2', 'F', "F'", 'F2', 'R', "R'", 'R2', 'B', "B'", 'B2', 'L', "L'", 'L2'];
+const OPPOSITE_FACE_MAP = { U: 'D', D: 'U', F: 'B', B: 'F', L: 'R', R: 'L' };
+const CROSS_EDGE_SPECS = [
+  { dIdx: 28, sideIdx: 25, centerCol: 'G' },
+  { dIdx: 32, sideIdx: 16, centerCol: 'O' },
+  { dIdx: 34, sideIdx: 52, centerCol: 'B' },
+  { dIdx: 30, sideIdx: 43, centerCol: 'R' }
+];
+
+// Fast integer representation of the 4 white cross edges (each edge encoded as stickerPos * 2 + flip)
+function encodeCrossEdgesKey(s) {
+  const pos = [0, 0, 0, 0];
+  const slots = [
+    [28, 25], [32, 16], [34, 52], [30, 43],
+    [7, 19], [5, 10], [1, 46], [3, 37],
+    [23, 12], [14, 48], [39, 50], [41, 21]
+  ];
+  for (let idx = 0; idx < 12; idx++) {
+    const [a, b] = slots[idx];
+    const ca = s[a], cb = s[b];
+    if (ca === 'W' || cb === 'W') {
+      const other = ca === 'W' ? cb : ca;
+      const flip = ca === 'W' ? 0 : 1;
+      const eId = other === 'G' ? 0 : other === 'O' ? 1 : other === 'B' ? 2 : 3;
+      pos[eId] = idx * 2 + flip;
+    }
+  }
+  return (pos[0] << 15) | (pos[1] << 10) | (pos[2] << 5) | pos[3];
+}
+
+// Lower-bound heuristic: minimum HTM moves needed to solve remaining cross edges
+function crossHeuristicLowerBound(s) {
+  let unsolved = 0;
+  let needsFOrB = 0;
+  for (let i = 0; i < 4; i++) {
+    const { dIdx, sideIdx, centerCol } = CROSS_EDGE_SPECS[i];
+    if (s[dIdx] !== 'W' || s[sideIdx] !== centerCol) {
+      unsolved++;
+      if (s[dIdx] === centerCol && s[sideIdx] === 'W') needsFOrB++;
+    }
+  }
+  if (unsolved === 0) return 0;
+  return Math.max(Math.ceil(unsolved / 2), needsFOrB > 0 ? 2 : 1);
+}
+
 function solveExactCrossFrom54(startState) {
   const initialInfo = inspectCrossOn54(startState);
   if (initialInfo.solvedCount === 4) return { moves: '', postState: startState, info: initialInfo };
 
-  const candidateMoves = ['U', "U'", 'U2', 'D', "D'", 'D2', 'F', "F'", 'F2', 'R', "R'", 'R2', 'B', "B'", 'B2', 'L', "L'", 'L2'];
-  const edgeOrders = [[0, 2, 1, 3], [1, 3, 0, 2], [0, 1, 2, 3], [2, 3, 1, 0]];
-  const isEdgeSolvedAt = (st, idx) =>
-    idx === 0 ? st[28] === 'W' && st[25] === st[22] :
-    idx === 1 ? st[32] === 'W' && st[16] === st[13] :
-    idx === 2 ? st[34] === 'W' && st[52] === st[49] :
-    st[30] === 'W' && st[43] === st[40];
-
-  let bestMoves = null;
-  let bestState = startState;
-
-  for (const order of edgeOrders) {
-    let curState = [...startState];
-    const rawSteps = [];
-    const lockedEdges = [];
-
-    for (const targetEdge of order) {
-      if (isEdgeSolvedAt(curState, targetEdge)) { lockedEdges.push(targetEdge); continue; }
-      let foundSeq = null;
-      const queue = [{ st: curState, seq: [] }];
-      const visited = new Set([curState.join('')]);
-
-      while (queue.length > 0 && !foundSeq) {
-        const node = queue.shift();
-        if (node.seq.length >= 3) continue;
-        const lastFace = node.seq.length > 0 ? node.seq[node.seq.length - 1][0] : '';
-        for (const mv of candidateMoves) {
-          if (mv[0] === lastFace) continue;
-          const nextSt = applyMovesTo54State(node.st, mv);
-          const nextSeq = [...node.seq, mv];
-          if (isEdgeSolvedAt(nextSt, targetEdge) && lockedEdges.every((le) => isEdgeSolvedAt(nextSt, le))) {
-            foundSeq = { seq: nextSeq, st: nextSt };
-            break;
-          }
-          if (nextSeq.length < 3) {
-            const key = nextSt.join('');
-            if (!visited.has(key)) { visited.add(key); queue.push({ st: nextSt, seq: nextSeq }); }
-          }
-        }
-      }
-      if (foundSeq) { rawSteps.push(...foundSeq.seq); curState = foundSeq.st; lockedEdges.push(targetEdge); }
-      else break;
-    }
-
-    const cleanMoves = simplifyMoveSequence(rawSteps.join(' '));
-    const verifiedState = applyMovesTo54State(startState, cleanMoves);
-    if (inspectCrossOn54(verifiedState).solvedCount === 4) {
-      const len = cleanMoves ? cleanMoves.split(/\s+/).length : 0;
-      if (bestMoves === null || len < bestMoves.split(/\s+/).length) {
-        bestMoves = cleanMoves;
-        bestState = verifiedState;
-      }
-    }
+  const cacheKey = encodeCrossEdgesKey(startState);
+  if (OPTIMAL_CROSS_CACHE.has(cacheKey)) {
+    const cachedMoves = OPTIMAL_CROSS_CACHE.get(cacheKey);
+    const postSt = applyMovesTo54State(startState, cachedMoves);
+    return { moves: cachedMoves, postState: postSt, info: inspectCrossOn54(postSt) };
   }
 
-  const finalState = bestMoves ? bestState : startState;
-  return { moves: bestMoves || '', postState: finalState, info: inspectCrossOn54(finalState) };
+  let foundSolution = null;
+  const path = [];
+
+  const dfs = (state, depth, maxDepth, lastFace, prevFace) => {
+    const h = crossHeuristicLowerBound(state);
+    if (h === 0) {
+      foundSolution = path.join(' ');
+      return true;
+    }
+    if (depth + h > maxDepth) return false;
+
+    for (let i = 0; i < CROSS_HTM_MOVES.length; i++) {
+      const mv = CROSS_HTM_MOVES[i];
+      const face = mv[0];
+      if (face === lastFace) continue;
+      if (prevFace && face === prevFace && OPPOSITE_FACE_MAP[face] === lastFace) continue;
+
+      path.push(mv);
+      const nextSt = applyMovesTo54State(state, mv);
+      if (dfs(nextSt, depth + 1, maxDepth, face, lastFace)) return true;
+      path.pop();
+    }
+    return false;
+  };
+
+  // Every 3x3 cross is guaranteed solvable in <= 8 moves in Half-Turn Metric (HTM)
+  const startBound = Math.max(1, crossHeuristicLowerBound(startState));
+  for (let maxDepth = startBound; maxDepth <= 8; maxDepth++) {
+    if (dfs(startState, 0, maxDepth, '', '')) break;
+  }
+
+  const cleanMoves = simplifyMoveSequence(foundSolution || '');
+  const finalState = cleanMoves ? applyMovesTo54State(startState, cleanMoves) : startState;
+  if (inspectCrossOn54(finalState).solvedCount === 4) {
+    OPTIMAL_CROSS_CACHE.set(cacheKey, cleanMoves);
+  }
+  return { moves: cleanMoves, postState: finalState, info: inspectCrossOn54(finalState) };
 }
 
 function isFrontRightF2LSolved54(s) {
@@ -631,23 +664,63 @@ const VISUALCUBE_SVG_CACHE = new Map();
 const VISUALCUBE_INFLIGHT = new Map();
 const VISUALCUBE_FETCH_QUEUE = [];
 let visualCubeActiveFetches = 0;
+let vcIdbPromise = null;
+
+function getVisualCubeIdb() {
+  if (typeof window === 'undefined' || !window.indexedDB) return Promise.resolve(null);
+  if (!vcIdbPromise) {
+    vcIdbPromise = new Promise((resolve) => {
+      try {
+        const req = window.indexedDB.open('ollday_vc_svg_db', 1);
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains('svgs')) req.result.createObjectStore('svgs');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+  return vcIdbPromise;
+}
+
+async function readVisualCubeFromIdb(url) {
+  try {
+    const db = await getVisualCubeIdb();
+    if (!db) return null;
+    return await new Promise((resolve) => {
+      const tx = db.transaction('svgs', 'readonly');
+      const getReq = tx.objectStore('svgs').get(url);
+      getReq.onsuccess = () => resolve(typeof getReq.result === 'string' ? getReq.result : null);
+      getReq.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function writeVisualCubeToIdb(url, dataUri) {
+  try {
+    const db = await getVisualCubeIdb();
+    if (!db) return;
+    const tx = db.transaction('svgs', 'readwrite');
+    tx.objectStore('svgs').put(dataUri, url);
+  } catch {}
+}
 
 function pumpVisualCubeQueue() {
-  while (visualCubeActiveFetches < 5 && VISUALCUBE_FETCH_QUEUE.length > 0) {
+  while (visualCubeActiveFetches < 10 && VISUALCUBE_FETCH_QUEUE.length > 0) {
     const job = VISUALCUBE_FETCH_QUEUE.shift();
     if (!job) break;
     visualCubeActiveFetches++;
-    fetch(job.url)
+    fetch(job.url, { priority: job.highPriority ? 'high' : 'low' })
       .then((res) => (res.ok ? res.text() : null))
       .then((svgText) => {
         if (!svgText?.includes('<svg')) return null;
         const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgText)}`;
         VISUALCUBE_SVG_CACHE.set(job.url, dataUri);
-        try {
-          if (typeof window !== 'undefined' && window.sessionStorage && VISUALCUBE_SVG_CACHE.size <= 160) {
-            window.sessionStorage.setItem(`vc_svg_${job.url}`, dataUri);
-          }
-        } catch {}
+        writeVisualCubeToIdb(job.url, dataUri);
         return dataUri;
       })
       .catch(() => null)
@@ -660,12 +733,24 @@ function pumpVisualCubeQueue() {
   }
 }
 
-function enqueueVisualCubeFetch(url) {
+function enqueueVisualCubeFetch(url, highPriority = false) {
+  if (!url) return Promise.resolve(null);
+  if (VISUALCUBE_SVG_CACHE.has(url)) return Promise.resolve(VISUALCUBE_SVG_CACHE.get(url));
   if (VISUALCUBE_INFLIGHT.has(url)) return VISUALCUBE_INFLIGHT.get(url);
-  const promise = new Promise((resolve) => {
-    VISUALCUBE_FETCH_QUEUE.push({ url, resolve });
-    pumpVisualCubeQueue();
-  });
+  const promise = (async () => {
+    const idbHit = await readVisualCubeFromIdb(url);
+    if (idbHit) {
+      VISUALCUBE_SVG_CACHE.set(url, idbHit);
+      VISUALCUBE_INFLIGHT.delete(url);
+      return idbHit;
+    }
+    return await new Promise((resolve) => {
+      const job = { url, resolve, highPriority };
+      if (highPriority) VISUALCUBE_FETCH_QUEUE.unshift(job);
+      else VISUALCUBE_FETCH_QUEUE.push(job);
+      pumpVisualCubeQueue();
+    });
+  })();
   VISUALCUBE_INFLIGHT.set(url, promise);
   return promise;
 }
@@ -673,31 +758,64 @@ function enqueueVisualCubeFetch(url) {
 function getCachedVisualCubeSrc(url) {
   if (!url) return '';
   if (VISUALCUBE_SVG_CACHE.has(url)) return VISUALCUBE_SVG_CACHE.get(url);
-  try {
-    const stored = typeof window !== 'undefined' && window.sessionStorage?.getItem(`vc_svg_${url}`);
-    if (stored) {
-      VISUALCUBE_SVG_CACHE.set(url, stored);
-      return stored;
-    }
-  } catch {}
   return url;
+}
+
+function prewarmVisualCubeLibrary(priorityUrls = []) {
+  priorityUrls.forEach((u) => {
+    if (u && !VISUALCUBE_SVG_CACHE.has(u)) enqueueVisualCubeFetch(u, true);
+  });
+  const scheduleIdle = typeof window !== 'undefined' && window.requestIdleCallback
+    ? window.requestIdleCallback
+    : (cb) => setTimeout(cb, 350);
+  scheduleIdle(() => {
+    const allUrls = [
+      ...F2L_DATA.map((c) => getF2LImageUrl(c.alg)),
+      ...OLL_DATA.map((c) => getOLLImageUrl(c.alg)),
+      ...PLL_DATA.map((c) => getPLLImageUrl(c.alg))
+    ];
+    allUrls.forEach((u) => {
+      if (!VISUALCUBE_SVG_CACHE.has(u)) enqueueVisualCubeFetch(u, false);
+    });
+  });
 }
 
 function CachedVisualCubeImg({ url, alt, className, lazy = true }) {
   const [src, setSrc] = useState(() => getCachedVisualCubeSrc(url));
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
     const cached = getCachedVisualCubeSrc(url);
     setSrc(cached);
+    setRetryCount(0);
     if (!url || cached.startsWith('data:image/svg+xml')) return undefined;
-    enqueueVisualCubeFetch(url).then((dataUri) => {
+    enqueueVisualCubeFetch(url, true).then((dataUri) => {
       if (active && dataUri) setSrc(dataUri);
     });
     return () => { active = false; };
   }, [url]);
 
-  return <img src={src} alt={alt} loading={lazy ? 'lazy' : undefined} decoding="async" className={className} />;
+  const handleImgError = () => {
+    if (retryCount >= 2 || !url) return;
+    const nextRetry = retryCount + 1;
+    setRetryCount(nextRetry);
+    setTimeout(() => {
+      const sep = url.includes('?') ? '&' : '?';
+      setSrc(`${url}${sep}_r=${nextRetry}`);
+    }, 350 * nextRetry);
+  };
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading={lazy ? 'lazy' : undefined}
+      decoding="async"
+      onError={handleImgError}
+      className={className}
+    />
+  );
 }
 
 function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
@@ -706,9 +824,6 @@ function generatePLLSetupScramble(inverseAlg, variationSeed = 0) {
   return `${aufOptions[variationSeed % 4]} ${inverseAlg} ${aufOptions[Math.floor(variationSeed / 2) % 4]}`.replace(/\s+/g, ' ').trim();
 }
 
-// =========================================================================
-// 2B. SCRAMBLE, TELEMETRY & SCANNER HELPERS
-// =========================================================================
 function generate3x3Scramble(length = 20) {
   const faces = ['U', 'D', 'L', 'R', 'F', 'B'];
   const axis = { U: 'UD', D: 'UD', L: 'LR', R: 'LR', F: 'FB', B: 'FB' };
@@ -1282,9 +1397,6 @@ function verifyFocusedStageState(stagePhase, scannedFaces, hasFull6Faces, curren
   };
 }
 
-// =========================================================================
-// 2C. 3D SPATIAL CUBE & REUSABLE UI PRIMITIVES
-// =========================================================================
 const simulateCrossCubeState = (scramble = '') => applyMovesTo54State(SOLVED_54_STATE, scramble);
 const STICKER_HEX = { Y: '#facc15', W: '#f8fafc', G: '#22c55e', B: '#3b82f6', O: '#f97316', R: '#ef4444' };
 const CUBE_HALF_PX = 48;
@@ -1451,6 +1563,15 @@ function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', border
         {children}
       </div>
     </div>
+  );
+}
+
+function AmbientGlows({ topClass, topGradient, bottomClass, bottomGradient }) {
+  return (
+    <>
+      <div style={{ background: topGradient, contain: 'strict', transform: 'translateZ(0)' }} className={`pointer-events-none ${topClass}`} />
+      <div style={{ background: bottomGradient, contain: 'strict', transform: 'translateZ(0)' }} className={`pointer-events-none ${bottomClass}`} />
+    </>
   );
 }
 
@@ -2439,6 +2560,10 @@ function OLLDaySuite() {
       scannerStreamRef.current.getTracks().forEach((track) => track.stop());
       scannerStreamRef.current = null;
     }
+    if (scannerCanvasRef.current) {
+      scannerCanvasRef.current.width = 0;
+      scannerCanvasRef.current.height = 0;
+    }
     setScannerCameraReady(false);
     setScannerLivePreviewCodes(null);
     setScannerStabilityCount(0);
@@ -2689,7 +2814,8 @@ function OLLDaySuite() {
   const [activeMechCaseIdx, setActiveMechCaseIdx] = useState(0);
   const [mechCubeRot, setMechCubeRot] = useState({ yaw: -35, pitch: 38 });
   const [blindState, setBlindState] = useState('idle');
-  const [inspectionLeft, setInspectionLeft] = useState(15.0);
+  const inspectionLeftRef = useRef(15.0);
+  const inspectionDisplayRef = useRef(null);
   const [blindLogs, setBlindLogs] = useState([]);
   const [leftPadHeld, setLeftPadHeld] = useState(false);
   const [rightPadHeld, setRightPadHeld] = useState(false);
@@ -2739,6 +2865,7 @@ function OLLDaySuite() {
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
+  const [shareStatsFeedback, setShareStatsFeedback] = useState('');
 
   // Zero-re-render DOM-ref stopwatch state
   const [swRunning, setSwRunning] = useState(false);
@@ -2935,6 +3062,26 @@ function OLLDaySuite() {
     safePllDay, currentUser.pllCustomChunks
   ]);
 
+  // Preconnect to VisualCube & prewarm active lineup + library icons in background
+  useEffect(() => {
+    if (typeof document !== 'undefined' && !document.querySelector('link[href="https://visualcube.api.cubing.net"]')) {
+      const link = document.createElement('link');
+      link.rel = 'preconnect';
+      link.href = 'https://visualcube.api.cubing.net';
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    }
+    const activePriorityUrls = [
+      ...currentF2lDayObj.cases.map((c) => getF2LImageUrl(c.alg)),
+      ...currentOllDayObj.cases.map((c) => getOLLImageUrl(c.alg)),
+      ...currentPllDayObj.cases.map((c) => getPLLImageUrl(c.alg)),
+      ...F2L_GROUPS.map((g) => getF2LImageUrl(F2L_DATA.find((c) => c.group === g)?.alg)),
+      ...OLL_GROUPS.map((g) => getOLLImageUrl(OLL_DATA.find((c) => c.group === g)?.alg)),
+      ...PLL_GROUPS.map((g) => getPLLImageUrl(PLL_DATA.find((c) => c.group === g)?.alg))
+    ];
+    prewarmVisualCubeLibrary(activePriorityUrls);
+  }, [currentF2lDayObj, currentOllDayObj, currentPllDayObj]);
+
   const fullSolveTargetSec = Number.isFinite(Number(currentUser.fullSolveTargetPb)) ? Number(currentUser.fullSolveTargetPb) : 15.0;
   useEffect(() => { setTargetPbInput(fullSolveTargetSec.toFixed(3)); }, [fullSolveTargetSec]);
   useEffect(() => { setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3)); }, [selectedTargetPhase, currentUser.phaseTargetPbs]);
@@ -3056,6 +3203,13 @@ function OLLDaySuite() {
     setFullTimerState('idle');
   };
 
+  const openFullTimerModal = () => {
+    emitBeep(680);
+    fullFinalMsRef.current = 0;
+    setFullTimerState('idle');
+    setFullTimerOpen(true);
+  };
+
   const openProPaywall = (featureLabel) => { emitBeep(460); setProPaywallFeature(featureLabel || ''); setProPurchaseToast(''); setActiveModal('proPaywall'); };
   const unlockLifetimePro = () => {
     emitBeep(920, 'sine', 0.12);
@@ -3081,25 +3235,265 @@ function OLLDaySuite() {
     };
   }, [currentUser.fullSolveHistory]);
 
-  // Blind Inspection & Touch Pad Effects
+  const top5FastestAlgs = useMemo(() => {
+    const entries = [];
+    const collect = (phaseLabel, dataList, statsMap) => {
+      dataList.forEach((item) => {
+        const best = statsMap?.[item.id]?.best;
+        if (typeof best === 'number' && Number.isFinite(best) && best > 0) {
+          entries.push({
+            key: `${phaseLabel}-${item.id}`,
+            phase: phaseLabel,
+            name: item.name,
+            alg: item.alg,
+            best
+          });
+        }
+      });
+    };
+    collect('F2L', F2L_DATA, currentUser.f2lStats);
+    collect('OLL', OLL_DATA, currentUser.stats);
+    collect('PLL', PLL_DATA, currentUser.pllStats);
+    return entries.sort((a, b) => a.best - b.best).slice(0, 5);
+  }, [currentUser.f2lStats, currentUser.stats, currentUser.pllStats]);
+
+  const shareStatsSummaryImage = async () => {
+    emitBeep(760, 'sine', 0.08);
+    setShareStatsFeedback('Rendering image...');
+    try {
+      const dpr = 2;
+      const w = 540;
+      const h = 720;
+      const canvas = document.createElement('canvas');
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unavailable');
+      ctx.scale(dpr, dpr);
+
+      const roundRect = (x, y, rw, rh, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + rw - r, y);
+        ctx.quadraticCurveTo(x + rw, y, x + rw, y + r);
+        ctx.lineTo(x + rw, y + rh - r);
+        ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh);
+        ctx.lineTo(x + r, y + rh);
+        ctx.quadraticCurveTo(x, y + rh, x, y + rh - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      };
+
+      // Background & ambient glows
+      ctx.fillStyle = '#060913';
+      ctx.fillRect(0, 0, w, h);
+
+      const topGlow = ctx.createRadialGradient(w * 0.5, 40, 10, w * 0.5, 40, 320);
+      topGlow.addColorStop(0, 'rgba(249, 115, 22, 0.24)');
+      topGlow.addColorStop(1, 'rgba(249, 115, 22, 0)');
+      ctx.fillStyle = topGlow;
+      ctx.fillRect(0, 0, w, h);
+
+      const botGlow = ctx.createRadialGradient(w * 0.85, h - 40, 10, w * 0.85, h - 40, 280);
+      botGlow.addColorStop(0, 'rgba(56, 189, 248, 0.16)');
+      botGlow.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      ctx.fillStyle = botGlow;
+      ctx.fillRect(0, 0, w, h);
+
+      // Main card container
+      roundRect(24, 24, w - 48, h - 48, 32);
+      ctx.fillStyle = '#0c1324';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.stroke();
+
+      // Header branding
+      ctx.fillStyle = '#fb923c';
+      ctx.font = '800 12px system-ui, -apple-system, sans-serif';
+      ctx.fillText('OLLDAY EVERYDAY • CFOP TELEMETRY', 48, 66);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 28px system-ui, -apple-system, sans-serif';
+      const solverTitle = String(activeUserKey || 'Solver');
+      ctx.fillText(solverTitle.length > 18 ? `${solverTitle.slice(0, 18)}…` : solverTitle, 48, 100);
+
+      // Mastered pill
+      const totalMastered = f2lMasteredCount + ollMasteredCount + pllMasteredCount;
+      roundRect(w - 196, 52, 148, 34, 17);
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.16)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(251, 146, 60, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#fdba74';
+      ctx.font = '800 11px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${totalMastered}/123 MASTERED`, w - 122, 73);
+      ctx.textAlign = 'left';
+
+      // 3x3x3 WCA Section Title
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '800 11px system-ui, -apple-system, sans-serif';
+      ctx.fillText('3x3x3 FULL SOLVE RECORDS', 48, 142);
+
+      const wcaCards = [
+        { label: 'BEST PB', val: formatMsTime(bestFullPbMs, 2), color: '#fcd34d' },
+        { label: 'AO5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: '#4ade80' },
+        { label: 'AO12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: '#38bdf8' }
+      ];
+      const boxW = (w - 96 - 24) / 3;
+      wcaCards.forEach((card, idx) => {
+        const bx = 48 + idx * (boxW + 12);
+        roundRect(bx, 154, boxW, 84, 18);
+        ctx.fillStyle = '#070b15';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '800 11px system-ui, -apple-system, sans-serif';
+        ctx.fillText(card.label, bx + boxW / 2, 180);
+
+        ctx.fillStyle = card.color;
+        ctx.font = '900 24px ui-monospace, SFMono-Regular, Menlo, monospace';
+        ctx.fillText(card.val, bx + boxW / 2, 216);
+      });
+      ctx.textAlign = 'left';
+
+      // Top 5 Fastest Algorithm PBs
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '800 11px system-ui, -apple-system, sans-serif';
+      ctx.fillText('TOP 5 FASTEST ALGORITHM PBs', 48, 276);
+
+      if (top5FastestAlgs.length === 0) {
+        roundRect(48, 290, w - 96, 110, 20);
+        ctx.fillStyle = '#070b15';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '700 14px system-ui, -apple-system, sans-serif';
+        ctx.fillText('No algorithm PBs logged yet — drill any case to rank!', w / 2, 350);
+        ctx.textAlign = 'left';
+      } else {
+        top5FastestAlgs.forEach((entry, idx) => {
+          const ry = 290 + idx * 66;
+          roundRect(48, ry, w - 96, 56, 16);
+          ctx.fillStyle = idx === 0 ? 'rgba(249, 115, 22, 0.12)' : '#070b15';
+          ctx.fill();
+          ctx.strokeStyle = idx === 0 ? 'rgba(251, 146, 60, 0.4)' : 'rgba(255, 255, 255, 0.08)';
+          ctx.stroke();
+
+          // Rank pill
+          roundRect(62, ry + 14, 28, 28, 9);
+          ctx.fillStyle = idx === 0 ? '#f97316' : 'rgba(255,255,255,0.08)';
+          ctx.fill();
+          ctx.textAlign = 'center';
+          ctx.fillStyle = idx === 0 ? '#090e1c' : '#cbd5e1';
+          ctx.font = '900 12px ui-monospace, monospace';
+          ctx.fillText(`#${idx + 1}`, 76, ry + 32);
+
+          // Phase tag + Case name
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#fb923c';
+          ctx.font = '900 10px system-ui, -apple-system, sans-serif';
+          ctx.fillText(entry.phase, 102, ry + 23);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '800 14px system-ui, -apple-system, sans-serif';
+          const shortName = entry.name.length > 24 ? `${entry.name.slice(0, 24)}…` : entry.name;
+          ctx.fillText(shortName, 134, ry + 23);
+
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '600 11px ui-monospace, monospace';
+          const shortAlg = entry.alg.length > 32 ? `${entry.alg.slice(0, 32)}…` : entry.alg;
+          ctx.fillText(shortAlg, 102, ry + 42);
+
+          // PB Time
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#4ade80';
+          ctx.font = '900 17px ui-monospace, monospace';
+          ctx.fillText(`${entry.best.toFixed(3)}s`, w - 64, ry + 34);
+          ctx.textAlign = 'left';
+        });
+      }
+
+      // Footer
+      ctx.fillStyle = '#475569';
+      ctx.font = '700 11px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`F2L ${f2lMasteredCount}/41  •  OLL ${ollMasteredCount}/57  •  PLL ${pllMasteredCount}/25`, 48, h - 46);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#fb923c';
+      ctx.fillText('olldayeveryday.app', w - 48, h - 46);
+      ctx.textAlign = 'left';
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      canvas.width = 0;
+      canvas.height = 0;
+      if (!blob) throw new Error('Blob generation failed');
+      const fileName = `OLLDay-${solverTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}-Stats.png`;
+      const file = new File([blob], fileName, { type: 'image/png' });
+
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `${solverTitle} — OLLDay Everyday Stats`,
+          text: `My 3x3 PB: ${formatMsTime(bestFullPbMs, 2)} | Ao5: ${ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)} | Ao12: ${ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}`
+        });
+        setShareStatsFeedback('Shared ✓');
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        setShareStatsFeedback('Image downloaded ✓');
+      }
+    } catch {
+      setShareStatsFeedback('Unable to export image on this browser.');
+    }
+  };
+
+  // Blind Inspection & Touch Pad Effects (rAF + direct DOM text updates to prevent 10Hz full-tree re-renders)
   useEffect(() => {
     if (!isAppVisible || !['inspecting', 'readying', 'armed'].includes(blindState)) return;
-    const interval = setInterval(() => {
-      setInspectionLeft((prev) => {
-        const next = Number((prev - 0.1).toFixed(1));
-        if (Math.abs(next - 7.0) < 0.05) emitBeep(480, 'sine', 0.16);
-        if (Math.abs(next - 3.0) < 0.05) emitBeep(560, 'sine', 0.16);
-        if (next <= 0) {
-          clearInterval(interval);
-          emitBeep(210, 'sawtooth', 0.35);
-          setBlindState('done');
-          setBlindLogs((logs) => [{ id: Date.now(), result: 'DNF (+15s)', time: '0.0s' }, ...logs.slice(0, 7)]);
-          return 0.0;
-        }
-        return next;
-      });
-    }, 100);
-    return () => clearInterval(interval);
+    let rafId = 0;
+    let lastPaint = 0;
+    let beeped7 = false;
+    let beeped3 = false;
+    const startRemaining = inspectionLeftRef.current > 0 ? inspectionLeftRef.current : 15.0;
+    const startTs = performance.now();
+
+    const tick = (now) => {
+      const elapsedSec = (now - startTs) / 1000;
+      const remaining = Math.max(0, Number((startRemaining - elapsedSec).toFixed(1)));
+      inspectionLeftRef.current = remaining;
+
+      if (now - lastPaint >= 95) {
+        lastPaint = now;
+        if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = remaining.toFixed(1);
+      }
+      if (!beeped7 && remaining <= 7.0 && remaining > 6.8) { beeped7 = true; emitBeep(480, 'sine', 0.16); }
+      if (!beeped3 && remaining <= 3.0 && remaining > 2.8) { beeped3 = true; emitBeep(560, 'sine', 0.16); }
+
+      if (remaining <= 0) {
+        emitBeep(210, 'sawtooth', 0.35);
+        setBlindState('done');
+        setBlindLogs((logs) => [{ id: Date.now(), result: 'DNF (+15s)', time: '0.0s' }, ...logs.slice(0, 7)]);
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [blindState, isAppVisible]);
 
   useEffect(() => {
@@ -3300,8 +3694,12 @@ function OLLDaySuite() {
   const activeCrossScramble = activeTierObj.scrambles[crossScrambleIdx % activeTierObj.scrambles.length];
   const activeCrossSolution = useMemo(() => {
     const crossOnly = solveExactCrossFrom54(simulateCrossCubeState(activeCrossScramble));
-    return crossOnly.moves || (crossDifficulty === 'standard' ? invertAlgorithm(activeCrossScramble) : 'Cross Solved ✓');
-  }, [activeCrossScramble, crossDifficulty]);
+    return crossOnly.moves || 'Cross Solved ✓';
+  }, [activeCrossScramble]);
+  const activeCrossMoveCount = useMemo(
+    () => (activeCrossSolution === 'Cross Solved ✓' ? 0 : activeCrossSolution.split(/\s+/).filter(Boolean).length),
+    [activeCrossSolution]
+  );
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
   // Settings Deck Touch Swipe Handlers
@@ -3319,11 +3717,16 @@ function OLLDaySuite() {
       setSettingsDeckIdx((p) => (dx < -36 || dy < -36 ? (p + 1) % totalDeckCards : (p + totalDeckCards - 1) % totalDeckCards));
     }
   };
-  const getDeckCardClass = (cardIdx) => {
+  const getDeckCardSlot = (cardIdx) => {
     const rel = (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards;
-    return rel === 0 ? 'deck-card-1' : rel === 1 ? 'deck-card-2' : 'deck-card-3';
+    return rel <= 2 ? rel + 1 : null;
   };
-  const isDeckCardMounted = (cardIdx) => (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards <= 2;
+  const renderDeckCardHeader = (cardNum, tag, nextLabel, nextIdx) => (
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card {cardNum} of 8 • {tag}</span>
+      <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(nextIdx); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">{nextLabel} →</button>
+    </div>
+  );
 
   // Shared Full-Solve Stats & WCA Telemetry Grid
   const renderWcaTelemetryGrid = (cardBgClass = 'bg-slate-950/90 rounded-xl') => (
@@ -3352,7 +3755,7 @@ function OLLDaySuite() {
         </div>
         <button
           type="button"
-          onClick={() => { emitBeep(680); fullFinalMsRef.current = 0; setFullTimerState('idle'); setFullTimerOpen(true); }}
+          onClick={openFullTimerModal}
           className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
         >
           Open Timer
@@ -3382,12 +3785,9 @@ function OLLDaySuite() {
       </div>
 
       <div onTouchStart={handleDeckTouchStart} onTouchEnd={handleDeckTouchEnd} className="relative h-[515px] w-full mt-2">
-        {isDeckCardMounted(0) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(0)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 1 of 8 • Onboarding</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(1); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Preferences →</button>
-            </div>
+        {getDeckCardSlot(0) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(0)}`}>
+            {renderDeckCardHeader(1, 'Onboarding', 'Preferences', 1)}
             <h3 className="text-lg font-black text-white">Learn How to Use This App</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Launch an interactive, auto-navigating walkthrough that switches through <strong className="text-white">C → F → O → P</strong> live and shows how to reach every feature yourself.
@@ -3405,13 +3805,19 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(1) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(1)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 2 of 8 • Preferences</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(2); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">3x3 Timer →</button>
+        {getDeckCardSlot(1) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(1)}`}>
+            {renderDeckCardHeader(2, 'Preferences', '3x3 Timer', 2)}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg font-black text-white">Speedcubing Suite</h3>
+              <button
+                type="button"
+                onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+              >
+                Show My Stats
+              </button>
             </div>
-            <h3 className="text-lg font-black text-white">Speedcubing Suite</h3>
             <div data-scrollable="true" className="h-[410px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
               {[
                 { title: 'Speedcube Stopwatch', sub: 'Record solve times & track case PBs', val: stopwatchEnabled, toggle: () => { emitBeep(620); setStopwatchEnabled((v) => !v); } },
@@ -3468,12 +3874,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(2) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(2)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 3 of 8 • Timer &amp; Home</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(3); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Notation →</button>
-            </div>
+        {getDeckCardSlot(2) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(2)}`}>
+            {renderDeckCardHeader(3, 'Timer & Home', 'Notation', 3)}
             <h3 className="text-lg font-black text-white">3x3x3 CFOP Timer</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Full-screen glassmorphic speedcube timer with WCA 20-move scrambles, +2 / DNF penalties, and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> tracking.
@@ -3481,7 +3884,7 @@ function OLLDaySuite() {
             {renderWcaTelemetryGrid('bg-slate-950/90 rounded-2xl')}
             <button
               type="button"
-              onClick={() => { emitBeep(680); fullFinalMsRef.current = 0; setFullTimerState('idle'); setFullTimerOpen(true); }}
+              onClick={openFullTimerModal}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
             >
               Launch Full-Screen 3x3x3 Timer
@@ -3508,12 +3911,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(3) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(3)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 4 of 8 • Notation</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(4); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Dossier →</button>
-            </div>
+        {getDeckCardSlot(3) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(3)}`}>
+            {renderDeckCardHeader(4, 'Notation', 'Dossier', 4)}
             <h3 className="text-lg font-black text-white">WCA Notation Guide</h3>
             <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
               {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
@@ -3536,12 +3936,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(4) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 ${getDeckCardClass(4)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 5 of 8 • Mechanics</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(5); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Guide &amp; Reset →</button>
-            </div>
+        {getDeckCardSlot(4) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(4)}`}>
+            {renderDeckCardHeader(5, 'Mechanics', 'Guide & Reset', 5)}
             <h3 className="text-lg font-black text-white">Fingertrick Dossier</h3>
             <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
               {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
@@ -3568,12 +3965,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(5) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(5)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 6 of 8 • Tools</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(6); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Account →</button>
-            </div>
+        {getDeckCardSlot(5) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(5)}`}>
+            {renderDeckCardHeader(6, 'Tools', 'Account', 6)}
             <h3 className="text-lg font-black text-white">Custom Chunks &amp; Reset</h3>
             <div className="space-y-2.5">
               <div className="relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
@@ -3603,12 +3997,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(6) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(6)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 7 of 8 • Account</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(7); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Pro &amp; Data →</button>
-            </div>
+        {getDeckCardSlot(6) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(6)}`}>
+            {renderDeckCardHeader(7, 'Account', 'Pro & Data', 7)}
             <h3 className="text-lg font-black text-white">Account &amp; Cloud Sync</h3>
             <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-1.5">
               <div className="flex items-center justify-between">
@@ -3627,12 +4018,9 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {isDeckCardMounted(7) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 ${getDeckCardClass(7)}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card 8 of 8 • Membership</span>
-              <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(0); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Learn App →</button>
-            </div>
+        {getDeckCardSlot(7) && (
+          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(7)}`}>
+            {renderDeckCardHeader(8, 'Membership', 'Learn App', 0)}
             <h3 className="text-lg font-black text-white">OLLDay Pro &amp; Privacy</h3>
             <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2">
               <div className="flex items-center justify-between">
@@ -3669,16 +4057,15 @@ function OLLDaySuite() {
   );
 
   // Case Thumbnail Renderer
-  const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') =>
-    phaseKey === 'f2l' ? (
-      <div className={`${sizeClass} flex-shrink-0 flex items-center justify-center pointer-events-none`}>
-        <CachedVisualCubeImg url={getF2LImageUrl(item.alg)} alt={item.name} className="w-full h-full object-contain f2l-cube-satin" />
-      </div>
-    ) : (
-      <div className={`${sizeClass} rounded-2xl bg-slate-200 p-1.5 flex-shrink-0 flex items-center justify-center pointer-events-none`}>
-        <CachedVisualCubeImg url={phaseKey === 'pll' ? getPLLImageUrl(item.alg) : getOLLImageUrl(item.alg)} alt={item.name} className="w-full h-full object-contain" />
+  const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
+    const isF2L = phaseKey === 'f2l';
+    const url = isF2L ? getF2LImageUrl(item.alg) : phaseKey === 'pll' ? getPLLImageUrl(item.alg) : getOLLImageUrl(item.alg);
+    return (
+      <div className={`${sizeClass} ${isF2L ? '' : 'rounded-2xl bg-slate-200 p-1.5'} flex-shrink-0 flex items-center justify-center pointer-events-none`}>
+        <CachedVisualCubeImg url={url} alt={item.name} className={`w-full h-full object-contain ${isF2L ? 'f2l-cube-satin' : ''}`} />
       </div>
     );
+  };
 
   // Unified Phase Workspace (F2L, OLL, PLL)
   const renderCFOPAlgorithmPhase = (phaseKey) => {
@@ -3695,8 +4082,8 @@ function OLLDaySuite() {
     const statsMap = isF2L ? currentUser.f2lStats : isPLL ? currentUser.pllStats : currentUser.stats;
     const masteredCount = isF2L ? f2lMasteredCount : isPLL ? pllMasteredCount : ollMasteredCount;
     const lineupOrder = lineupOrders[phaseKey] || [];
-    const { mode: libMode, category: selectedCategory } = libState[phaseKey];
-    const setLibMode = (mode) => setLibState((prev) => ({ ...prev, [phaseKey]: { ...prev[phaseKey], mode } }));
+    const currentLib = libState[phaseKey] || { mode: 'groups', category: null };
+    const setLibMode = (mode) => setLibState((prev) => ({ ...prev, [phaseKey]: { mode, category: null } }));
     const setSelectedCategory = (category) => setLibState((prev) => ({ ...prev, [phaseKey]: { ...prev[phaseKey], category } }));
     const setSession = isF2L ? setF2lSession : isPLL ? setPllSession : setOllSession;
     const setDrillCase = isF2L ? setF2lDrillCase : isPLL ? setPllDrillCase : setOllDrillCase;
@@ -3801,9 +4188,9 @@ function OLLDaySuite() {
                     onTouchStart={(e) => startLineupHold(idx, e.touches[0].clientY)}
                     onTouchMove={(e) => handleLineupPreHoldMove(e.touches[0].clientY)}
                     onTouchEnd={cancelLineupHold}
-                    onMouseDown={(e) => { if (e.button === 0) startLineupHold(idx, e.clientY); }}
+                    onMouseDown={(e) => e.button === 0 && startLineupHold(idx, e.clientY)}
                     onMouseMove={(e) => handleLineupPreHoldMove(e.clientY)}
-                    onMouseUp={() => { if (draggedLineupIdx === null) { clearTimeout(holdTimerRef.current); preHoldStartYRef.current = null; } }}
+                    onMouseUp={cancelLineupHold}
                     onClick={() => {
                       if (draggedLineupIdx !== null) return;
                       if (locked) { openProPaywall(item.name); return; }
@@ -3858,16 +4245,16 @@ function OLLDaySuite() {
             {[{ key: 'groups', label: meta.groupTabLabel }, { key: 'chunks', label: 'Curriculum Chunks' }].map((m) => (
               <button
                 key={m.key}
-                onClick={() => { emitBeep(480); setLibMode(m.key); setSelectedCategory(null); }}
-                className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${libMode === m.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                onClick={() => { emitBeep(480); setLibMode(m.key); }}
+                className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${currentLib.mode === m.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
               >
                 {m.label}
               </button>
             ))}
           </div>
 
-          {!selectedCategory ? (
-            libMode === 'groups' ? (
+          {!currentLib.category ? (
+            currentLib.mode === 'groups' ? (
               <div className="grid grid-cols-2 gap-3">
                 {groupList.map((group) => {
                   const groupCases = dataList.filter((c) => c.group === group);
@@ -3913,13 +4300,13 @@ function OLLDaySuite() {
           ) : (
             <div className="space-y-3">
               <button onClick={() => { emitBeep(460); setSelectedCategory(null); }} className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-400 cursor-pointer">
-                ← Back to All {libMode === 'groups' ? 'Groups' : 'Chunks'}
+                ← Back to All {currentLib.mode === 'groups' ? 'Groups' : 'Chunks'}
               </button>
-              <h3 className="text-lg font-black text-white">{selectedCategory.type === 'group' ? selectedCategory.name : selectedCategory.chunk.title}</h3>
+              <h3 className="text-lg font-black text-white">{currentLib.category.type === 'group' ? currentLib.category.name : currentLib.category.chunk.title}</h3>
               <div className="space-y-2.5">
-                {(selectedCategory.type === 'group'
-                  ? dataList.filter((c) => c.group === selectedCategory.name)
-                  : selectedCategory.chunk.ids.map((id) => lookupMap.get(id)).filter(Boolean)
+                {(currentLib.category.type === 'group'
+                  ? dataList.filter((c) => c.group === currentLib.category.name)
+                  : currentLib.category.chunk.ids.map((id) => lookupMap.get(id)).filter(Boolean)
                 ).map((item) => {
                   const stat = statsMap?.[item.id];
                   const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
@@ -4402,8 +4789,12 @@ function OLLDaySuite() {
       <style>{APP_GLOBAL_CSS}</style>
 
       <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
-        <div style={{ background: 'radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[42vh] pointer-events-none z-0" />
-        <div style={{ background: 'radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)', contain: 'strict', transform: 'translateZ(0)' }} className="fixed bottom-0 right-0 w-3/4 h-[38vh] pointer-events-none z-0" />
+        <AmbientGlows
+          topClass="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[42vh] z-0"
+          topGradient="radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)"
+          bottomClass="fixed bottom-0 right-0 w-3/4 h-[38vh] z-0"
+          bottomGradient="radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)"
+        />
 
         <div className={`w-full ${isTwoPane ? 'max-w-5xl lg:max-w-6xl' : 'max-w-md'} h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden`}>
           {/* PERSISTENT HEADER */}
@@ -4627,59 +5018,64 @@ function OLLDaySuite() {
                           <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">{activeTierObj.hint}</p>
 
                           <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Optimal Cross Solution (≤8 Moves)</span>
-                              <button
-                                type="button"
-                                onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
-                                className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
-                              >
-                                {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
-                              </button>
-                            </div>
-                            {crossSolutionRevealed && (
-                              <div className="pt-1 border-t border-white/10 text-center space-y-1">
-                                <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
-                                <span className="text-[9.5px] text-slate-400 block">Solves all 4 White Cross edges on D ({activeCrossSolution.split(/\s+/).filter(Boolean).length} moves)</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {crossLadderMode === 'efficiency' ? (
-                          <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Your Turn Count</span>
-                                <span className="text-xs font-bold text-orange-400 font-mono">Target: Cross in {activeTierObj.moves}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">-</button>
-                                <span className="font-mono text-xl font-black text-white w-8 text-center">{crossUserMoves}</span>
-                                <button onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">+</button>
-                              </div>
-                            </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                              Optimal Cross Solution ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'Move' : 'Moves'} • ≤8 Cap)
+                            </span>
                             <button
-                              onClick={() => {
-                                const optimal = crossUserMoves <= activeTierObj.moves;
-                                emitBeep(optimal ? 920 : 420, 'sine', 0.1);
-                                if (optimal) {
-                                  const updated = { ...currentUser, crossClears: (currentUser.crossClears || 0) + 1 };
-                                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
-                                  saveUserToCloud(activeUserKey, updated);
-                                }
-                                setEfficiencyFeedback({
-                                  optimal,
-                                  title: optimal ? `Optimal! Solved in ${crossUserMoves} Moves` : `${crossUserMoves} Moves (Target: ${activeTierObj.moves})`,
-                                  detail: optimal ? 'Sub-8 efficiency unlocked. Keep building lookahead into your first F2L pair!' : `Try using D-layer keyhole shifts to trim ${crossUserMoves - activeTierObj.moves} extra turn(s).`
-                                });
-                              }}
-                              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                              type="button"
+                              onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
+                              className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
                             >
-                              Check My Turn Count
+                              {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
                             </button>
                           </div>
-                        ) : (
+                          {crossSolutionRevealed && (
+                            <div className="pt-1 border-t border-white/10 text-center space-y-1">
+                              <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
+                              <span className="text-[9.5px] text-slate-400 block">
+                                Guaranteed shortest HTM path solving all 4 White Cross edges on D ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'move' : 'moves'})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {crossLadderMode === 'efficiency' ? (
+                        <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Your Turn Count</span>
+                              <span className="text-xs font-bold text-orange-400 font-mono">Optimal Target: Cross in {activeCrossMoveCount || activeTierObj.moves}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">-</button>
+                              <span className="font-mono text-xl font-black text-white w-8 text-center">{crossUserMoves}</span>
+                              <button onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">+</button>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const targetCap = Math.min(8, activeCrossMoveCount || activeTierObj.moves);
+                              const optimal = crossUserMoves <= targetCap;
+                              emitBeep(optimal ? 920 : 420, 'sine', 0.1);
+                              if (optimal) {
+                                const updated = { ...currentUser, crossClears: (currentUser.crossClears || 0) + 1 };
+                                setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                                saveUserToCloud(activeUserKey, updated);
+                              }
+                              setEfficiencyFeedback({
+                                optimal,
+                                title: optimal ? `Optimal! Solved in ${crossUserMoves} Moves` : `${crossUserMoves} Moves (Optimal: ${targetCap})`,
+                                detail: optimal ? 'Sub-8 efficiency unlocked. Keep building lookahead into your first F2L pair!' : `Try using D-layer keyhole shifts to trim ${crossUserMoves - targetCap} extra turn(s).`
+                              });
+                            }}
+                            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                          >
+                            Check My Turn Count
+                          </button>
+                        </div>
+                      ) : (
                           <div className="relative overflow-hidden bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill</span>
@@ -4735,7 +5131,7 @@ function OLLDaySuite() {
 
                           <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
-                            <div className="font-mono text-5xl font-black text-white my-3">{inspectionLeft.toFixed(1)}</div>
+                            <div ref={inspectionDisplayRef} className="font-mono text-5xl font-black text-white my-3">{inspectionLeftRef.current.toFixed(1)}</div>
                             <p className="text-xs font-bold text-orange-400">
                               {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
                               {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
@@ -4746,7 +5142,7 @@ function OLLDaySuite() {
                           </div>
 
                           {blindState === 'idle' && (
-                            <button onClick={() => { emitBeep(800); setInspectionLeft(15.0); setBlindState('inspecting'); }} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
+                            <button onClick={() => { emitBeep(800); inspectionLeftRef.current = 15.0; if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = '15.0'; setBlindState('inspecting'); }} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
                               Start 15s Countdown
                             </button>
                           )}
@@ -4790,12 +5186,12 @@ function OLLDaySuite() {
                                   <button
                                     key={res}
                                     onClick={() => {
-                                      emitBeep(600);
-                                      setBlindLogs((l) => [{ id: Date.now(), result: res, time: `${(15 - inspectionLeft).toFixed(1)}s insp` }, ...l.slice(0, 7)]);
-                                      setBlindState('idle'); setInspectionLeft(15.0);
-                                    }}
-                                    className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
-                                  >
+                                  emitBeep(600);
+                                  setBlindLogs((l) => [{ id: Date.now(), result: res, time: `${(15 - inspectionLeftRef.current).toFixed(1)}s insp` }, ...l.slice(0, 7)]);
+                                  inspectionLeftRef.current = 15.0; if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = '15.0'; setBlindState('idle');
+                                }}
+                                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
+                              >
                                     {res}
                                   </button>
                                 ))}
@@ -4953,8 +5349,12 @@ function OLLDaySuite() {
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
         {fullTimerOpen && (
           <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-slate-950/95 flex flex-col justify-between p-6 select-none cursor-pointer">
-            <div style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
-            <div style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
+            <AmbientGlows
+              topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)"
+              bottomClass="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+              bottomGradient="radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)"
+            />
 
             <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
@@ -4995,8 +5395,12 @@ function OLLDaySuite() {
         {/* SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
           <div className="fixed inset-0 z-[255] bg-slate-950/95 flex flex-col items-center justify-center p-6 overflow-y-auto">
-            <div style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full" />
-            <div style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)', contain: 'strict', transform: 'translateZ(0)' }} className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full" />
+            <AmbientGlows
+              topClass="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)"
+              bottomClass="absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full"
+              bottomGradient="radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)"
+            />
 
             <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-white/15 p-6 shadow-2xl space-y-5">
               <div className="flex flex-col items-center text-center space-y-2">
@@ -6103,6 +6507,116 @@ function OLLDaySuite() {
           </ModalShell>
         )}
 
+        {/* SHAREABLE STATS SUMMARY MODAL */}
+        {activeModal === 'shareStats' && (
+          <ModalShell onClose={() => setActiveModal(null)} zClass="z-[278]" maxWidth="max-w-sm" borderClass="border-orange-500/40">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Solver Snapshot</span>
+                <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+              </div>
+
+              {/* Preview Card */}
+              <div className="bg-gradient-to-br from-slate-950 via-[#0b1222] to-orange-950/30 border border-white/15 rounded-[1.75rem] p-4 space-y-3.5 shadow-inner">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 p-1 flex-shrink-0">
+                      <SuneEmblemSvg className="w-full h-full" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 block">OLLDay Everyday</span>
+                      <h3 className="text-base font-black text-white truncate">{String(activeUserKey || 'Solver')}</h3>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-300 flex-shrink-0">
+                    {f2lMasteredCount + ollMasteredCount + pllMasteredCount}/123 Mastered
+                  </span>
+                </div>
+
+                {/* 3x3x3 Best PB, Ao5, Ao12 */}
+                <div className="space-y-1.5">
+                  <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 block">3x3x3 Full-Solve Records</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Best PB', val: formatMsTime(bestFullPbMs, 2), color: 'text-amber-300' },
+                      { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
+                      { label: 'Ao12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: 'text-sky-400' }
+                    ].map((st) => (
+                      <div key={st.label} className="bg-slate-900/90 border border-white/10 rounded-2xl p-2.5 text-center">
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block">{st.label}</span>
+                        <span className={`font-mono text-sm font-black ${st.color}`}>{st.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top 5 Fastest Algorithm PBs */}
+                <div className="space-y-1.5">
+                  <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 block">Top 5 Fastest Algorithm PBs</span>
+                  {top5FastestAlgs.length === 0 ? (
+                    <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 text-center">
+                      <p className="text-xs text-slate-400">No algorithm PBs logged yet. Time any F2L, OLL, or PLL case to build your Top 5!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {top5FastestAlgs.map((entry, idx) => (
+                        <div
+                          key={entry.key}
+                          className={`rounded-xl px-3 py-2 border flex items-center justify-between gap-2 ${
+                            idx === 0 ? 'bg-orange-500/15 border-orange-500/40' : 'bg-slate-900/85 border-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`w-5 h-5 rounded-md font-mono text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+                              idx === 0 ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-slate-300'
+                            }`}>
+                              #{idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-black uppercase text-orange-400">{entry.phase}</span>
+                                <span className="text-xs font-black text-white truncate">{entry.name}</span>
+                              </div>
+                              <span className="font-mono text-[10px] text-slate-400 block truncate">{entry.alg}</span>
+                            </div>
+                          </div>
+                          <span className="font-mono text-xs font-black text-green-400 flex-shrink-0">{entry.best.toFixed(3)}s</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-1 border-t border-white/10 flex items-center justify-between text-[9.5px] font-bold text-slate-400">
+                  <span>F2L {f2lMasteredCount}/41 • OLL {ollMasteredCount}/57 • PLL {pllMasteredCount}/25</span>
+                  <span className="text-orange-400 font-black">OLLDay</span>
+                </div>
+              </div>
+
+              {shareStatsFeedback && (
+                <p className="text-center text-xs font-black text-green-400">{shareStatsFeedback}</p>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={shareStatsSummaryImage}
+                  className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  Share Image ↗
+                </button>
+              </div>
+            </div>
+          </ModalShell>
+        )}
+
         {renderUnifiedDailySession()}
         {renderUnifiedDrillModal()}
 
@@ -6115,7 +6629,7 @@ function OLLDaySuite() {
                 <EyeOff className="w-9 h-9 text-orange-400" />
               </div>
               <h3 className="text-2xl font-black text-white tracking-tight">Execute Your Cross Blindfolded</h3>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">Inspection locked at <strong className="text-orange-300">{(15 - inspectionLeft).toFixed(1)}s</strong>. Tap anywhere on the screen as soon as you finish your last turn.</p>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">Inspection locked at <strong className="text-orange-300">{(15 - inspectionLeftRef.current).toFixed(1)}s</strong>. Tap anywhere on the screen as soon as you finish your last turn.</p>
             </div>
             <div className="w-full max-w-xs pb-4"><div className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25">Tap Anywhere When Finished ✓</div></div>
           </div>
