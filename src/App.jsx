@@ -365,6 +365,10 @@ function solveExactCrossFrom54(startState) {
   const cleanMoves = simplifyMoveSequence(foundSolution || '');
   const finalState = cleanMoves ? applyMovesTo54State(startState, cleanMoves) : startState;
   if (inspectCrossOn54(finalState).solvedCount === 4) {
+    if (OPTIMAL_CROSS_CACHE.size >= 512) {
+      const oldestKey = OPTIMAL_CROSS_CACHE.keys().next().value;
+      if (oldestKey !== undefined) OPTIMAL_CROSS_CACHE.delete(oldestKey);
+    }
     OPTIMAL_CROSS_CACHE.set(cacheKey, cleanMoves);
   }
   return { moves: cleanMoves, postState: finalState, info: inspectCrossOn54(finalState) };
@@ -660,20 +664,22 @@ const getPLLImageUrl = (alg, setupScramble = null) => {
   return cleanSetup ? `${baseUrl}&alg=${encodeURIComponent(cleanSetup)}` : `${baseUrl}&case=${encodeURIComponent(cleanCase)}`;
 };
 
+// Persistent IndexedDB + In-Memory VisualCube SVG Cache
 const VISUALCUBE_SVG_CACHE = new Map();
 const VISUALCUBE_INFLIGHT = new Map();
 const VISUALCUBE_FETCH_QUEUE = [];
 let visualCubeActiveFetches = 0;
 let vcIdbPromise = null;
 
-function getVisualCubeIdb() {
-  if (typeof window === 'undefined' || !window.indexedDB) return Promise.resolve(null);
+function openVisualCubeIdb() {
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   if (!vcIdbPromise) {
     vcIdbPromise = new Promise((resolve) => {
       try {
-        const req = window.indexedDB.open('ollday_vc_svg_db', 1);
+        const req = indexedDB.open('ollday_vc_svg_db', 1);
         req.onupgradeneeded = () => {
-          if (!req.result.objectStoreNames.contains('svgs')) req.result.createObjectStore('svgs');
+          const db = req.result;
+          if (!db.objectStoreNames.contains('svgs')) db.createObjectStore('svgs');
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
@@ -686,30 +692,31 @@ function getVisualCubeIdb() {
 }
 
 async function readVisualCubeFromIdb(url) {
-  try {
-    const db = await getVisualCubeIdb();
-    if (!db) return null;
-    return await new Promise((resolve) => {
+  const db = await openVisualCubeIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
       const tx = db.transaction('svgs', 'readonly');
-      const getReq = tx.objectStore('svgs').get(url);
-      getReq.onsuccess = () => resolve(typeof getReq.result === 'string' ? getReq.result : null);
-      getReq.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
+      const req = tx.objectStore('svgs').get(url);
+      req.onsuccess = () => resolve(typeof req.result === 'string' ? req.result : null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
 }
 
 async function writeVisualCubeToIdb(url, dataUri) {
+  const db = await openVisualCubeIdb();
+  if (!db) return;
   try {
-    const db = await getVisualCubeIdb();
-    if (!db) return;
     const tx = db.transaction('svgs', 'readwrite');
     tx.objectStore('svgs').put(dataUri, url);
   } catch {}
 }
 
 function pumpVisualCubeQueue() {
+  if (typeof document !== 'undefined' && document.hidden) return;
   while (visualCubeActiveFetches < 10 && VISUALCUBE_FETCH_QUEUE.length > 0) {
     const job = VISUALCUBE_FETCH_QUEUE.shift();
     if (!job) break;
@@ -744,10 +751,9 @@ function enqueueVisualCubeFetch(url, highPriority = false) {
       VISUALCUBE_INFLIGHT.delete(url);
       return idbHit;
     }
-    return await new Promise((resolve) => {
-      const job = { url, resolve, highPriority };
-      if (highPriority) VISUALCUBE_FETCH_QUEUE.unshift(job);
-      else VISUALCUBE_FETCH_QUEUE.push(job);
+    return new Promise((resolve) => {
+      if (highPriority) VISUALCUBE_FETCH_QUEUE.unshift({ url, resolve, highPriority: true });
+      else VISUALCUBE_FETCH_QUEUE.push({ url, resolve, highPriority: false });
       pumpVisualCubeQueue();
     });
   })();
@@ -755,56 +761,42 @@ function enqueueVisualCubeFetch(url, highPriority = false) {
   return promise;
 }
 
-function getCachedVisualCubeSrc(url) {
-  if (!url) return '';
-  if (VISUALCUBE_SVG_CACHE.has(url)) return VISUALCUBE_SVG_CACHE.get(url);
-  return url;
-}
-
+let hasPrewarmedLibrary = false;
 function prewarmVisualCubeLibrary(priorityUrls = []) {
-  priorityUrls.forEach((u) => {
-    if (u && !VISUALCUBE_SVG_CACHE.has(u)) enqueueVisualCubeFetch(u, true);
-  });
-  const scheduleIdle = typeof window !== 'undefined' && window.requestIdleCallback
-    ? window.requestIdleCallback
-    : (cb) => setTimeout(cb, 350);
-  scheduleIdle(() => {
+  priorityUrls.filter(Boolean).forEach((url) => enqueueVisualCubeFetch(url, true));
+  if (hasPrewarmedLibrary || typeof window === 'undefined') return;
+  hasPrewarmedLibrary = true;
+  const runIdlePrewarm = () => {
     const allUrls = [
       ...F2L_DATA.map((c) => getF2LImageUrl(c.alg)),
       ...OLL_DATA.map((c) => getOLLImageUrl(c.alg)),
       ...PLL_DATA.map((c) => getPLLImageUrl(c.alg))
     ];
-    allUrls.forEach((u) => {
-      if (!VISUALCUBE_SVG_CACHE.has(u)) enqueueVisualCubeFetch(u, false);
+    allUrls.forEach((url) => {
+      if (!VISUALCUBE_SVG_CACHE.has(url)) enqueueVisualCubeFetch(url, false);
     });
-  });
+  };
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(runIdlePrewarm, { timeout: 1500 });
+  else setTimeout(runIdlePrewarm, 300);
 }
 
 function CachedVisualCubeImg({ url, alt, className, lazy = true }) {
-  const [src, setSrc] = useState(() => getCachedVisualCubeSrc(url));
-  const [retryCount, setRetryCount] = useState(0);
+  const [src, setSrc] = useState(() => (url && VISUALCUBE_SVG_CACHE.get(url)) || url || '');
 
   useEffect(() => {
     let active = true;
-    const cached = getCachedVisualCubeSrc(url);
-    setSrc(cached);
-    setRetryCount(0);
-    if (!url || cached.startsWith('data:image/svg+xml')) return undefined;
-    enqueueVisualCubeFetch(url, true).then((dataUri) => {
+    const cached = url ? VISUALCUBE_SVG_CACHE.get(url) : '';
+    if (cached) {
+      setSrc(cached);
+      return undefined;
+    }
+    setSrc(url || '');
+    if (!url) return undefined;
+    enqueueVisualCubeFetch(url, !lazy).then((dataUri) => {
       if (active && dataUri) setSrc(dataUri);
     });
     return () => { active = false; };
-  }, [url]);
-
-  const handleImgError = () => {
-    if (retryCount >= 2 || !url) return;
-    const nextRetry = retryCount + 1;
-    setRetryCount(nextRetry);
-    setTimeout(() => {
-      const sep = url.includes('?') ? '&' : '?';
-      setSrc(`${url}${sep}_r=${nextRetry}`);
-    }, 350 * nextRetry);
-  };
+  }, [url, lazy]);
 
   return (
     <img
@@ -812,7 +804,9 @@ function CachedVisualCubeImg({ url, alt, className, lazy = true }) {
       alt={alt}
       loading={lazy ? 'lazy' : undefined}
       decoding="async"
-      onError={handleImgError}
+      onError={() => {
+        if (url && src !== url) setSrc(url);
+      }}
       className={className}
     />
   );
@@ -1217,6 +1211,82 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
   };
 }
 
+const NOTATION_KEYPAD_GROUPS = [
+  { label: 'Right & Up', moves: ['R', "R'", 'R2', 'U', "U'", 'U2'] },
+  { label: 'Front & Left', moves: ['F', "F'", 'F2', 'L', "L'", 'L2'] },
+  { label: 'Down & Back', moves: ['D', "D'", 'D2', 'B', "B'", 'B2'] },
+  { label: 'Wide & Slice', moves: ['r', "r'", 'l', "l'", 'u', "u'", 'f', "f'", 'M', "M'", 'M2'] },
+  { label: 'Rotations', moves: ['x', "x'", 'y', "y'", 'y2', 'z', "z'"] }
+];
+
+function sanitizeCustomAlgTokens(rawAlg = '') {
+  return (rawAlg || '')
+    .replace(/[()]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter((tok) => /^(?:[UDFBRLrlufMESxyz])(?:2|')?$/.test(tok))
+    .join(' ');
+}
+
+const MAX_CUSTOM_ALGS_PER_CASE = 7;
+
+function normalizeCaseCustomAlgs(rawEntry) {
+  if (!rawEntry) return { list: [], activeId: null };
+  // Migrate legacy single-algorithm object { alg, rawAlg, assignFingertricks, useCustom }
+  if (typeof rawEntry === 'object' && !Array.isArray(rawEntry) && typeof rawEntry.alg === 'string') {
+    const legacyId = 'custom-1';
+    return {
+      list: [
+        {
+          id: legacyId,
+          label: 'Alt 1',
+          alg: rawEntry.alg,
+          rawAlg: rawEntry.rawAlg || rawEntry.alg,
+          assignFingertricks: rawEntry.assignFingertricks !== false
+        }
+      ],
+      activeId: rawEntry.useCustom === false ? null : legacyId
+    };
+  }
+  const list = Array.isArray(rawEntry.list)
+    ? rawEntry.list
+        .filter((item) => item && typeof item.alg === 'string' && item.alg.trim())
+        .slice(0, MAX_CUSTOM_ALGS_PER_CASE)
+        .map((item, idx) => ({
+          id: typeof item.id === 'string' ? item.id : `custom-${idx + 1}`,
+          label: typeof item.label === 'string' && item.label.trim() ? item.label.trim() : `Alt ${idx + 1}`,
+          alg: item.alg,
+          rawAlg: item.rawAlg || item.alg,
+          assignFingertricks: item.assignFingertricks !== false
+        }))
+    : [];
+  const activeId = typeof rawEntry.activeId === 'string' && list.some((c) => c.id === rawEntry.activeId) ? rawEntry.activeId : null;
+  return { list, activeId };
+}
+
+function resolveEffectiveCase(item, customAlgsMap, phaseKey) {
+  if (!item) return item;
+  const { list, activeId } = normalizeCaseCustomAlgs(customAlgsMap?.[phaseKey]?.[item.id]);
+  if (list.length === 0) {
+    return { ...item, defaultAlg: item.alg, customAlgList: [], activeCustomId: null, hasCustomAlg: false, usingCustomAlg: false, customEntry: null };
+  }
+  const activeEntry = activeId ? list.find((c) => c.id === activeId) || null : null;
+  const usingCustom = Boolean(activeEntry);
+  const effectiveAlg = usingCustom ? activeEntry.alg : item.alg;
+  return {
+    ...item,
+    defaultAlg: item.alg,
+    alg: effectiveAlg,
+    inverse: usingCustom ? invertAlgorithm(activeEntry.alg) : item.inverse,
+    customAlgList: list,
+    activeCustomId: activeEntry ? activeEntry.id : null,
+    hasCustomAlg: true,
+    usingCustomAlg: usingCustom,
+    customEntry: activeEntry || list[0],
+    showCustomTriggerPills: usingCustom ? activeEntry.assignFingertricks !== false : true
+  };
+}
+
 function verifyFocusedStageState(stagePhase, scannedFaces, hasFull6Faces, currentCaseId = null) {
   const uGrid = scannedFaces.U || Array(9).fill('Y');
   const fGrid = scannedFaces.F || Array(9).fill('G');
@@ -1443,6 +1513,34 @@ function TriggerTagsList({ tags, centered = false, compact = false }) {
           <span className={`w-1.5 h-1.5 rounded-full ${tag.dotClass}`} />
           {tag.label}
         </span>
+      ))}
+    </div>
+  );
+}
+
+function CustomAlgSwitcherPills({ item, onSelect, stopPropagation = false }) {
+  if (!item?.hasCustomAlg || !onSelect) return null;
+  return (
+    <div
+      onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
+      className="bg-slate-950 p-0.5 rounded-lg border border-white/15 inline-flex items-center flex-wrap gap-0.5"
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase cursor-pointer transition-all ${!item.usingCustomAlg ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'}`}
+      >
+        Ours
+      </button>
+      {(item.customAlgList || []).map((cAlt, idx) => (
+        <button
+          key={cAlt.id}
+          type="button"
+          onClick={() => onSelect(cAlt.id)}
+          className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase cursor-pointer transition-all ${item.activeCustomId === cAlt.id ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+        >
+          #{idx + 1}
+        </button>
       ))}
     </div>
   );
@@ -1758,10 +1856,11 @@ function CasePracticeCard({
   phaseKey, item, f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
   f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
   swRunning, swDisplayRef, timerLabel, showInlineGroup = false, isLargeScreen = false,
-  lastResultForThis = null, recordedBest = null, onOpenGrip, onToggleStopwatch, emitBeep, children
+  lastResultForThis = null, recordedBest = null, onOpenGrip, onToggleCustomAlgSource, onOpenCustomAlgEditor, onToggleStopwatch, emitBeep, children
 }) {
   const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
-  const triggerTags = fingertricksEnabled ? getAlgorithmTriggerTags(item.alg) : [];
+  const showTriggerPills = fingertricksEnabled && (!item.usingCustomAlg || item.showCustomTriggerPills !== false);
+  const triggerTags = showTriggerPills ? getAlgorithmTriggerTags(item.alg) : [];
 
   return (
     <>
@@ -1799,21 +1898,44 @@ function CasePracticeCard({
       )}
 
       <div className={`w-full bg-white/5 border border-white/10 rounded-2xl ${isLargeScreen ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5'} text-center`}>
-        <div className="flex items-center justify-between">
-          <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-slate-400`}>{isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}</span>
-          {fingertricksEnabled && (
-            <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-lg bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
-              Grip Guide →
-            </button>
-          )}
+        <div className="flex items-center justify-between gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-slate-400`}>
+              {item.usingCustomAlg
+                ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
+                : isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}
+            </span>
+            <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
+          </div>
+          <div className="flex items-center gap-1.5">
+            {onOpenCustomAlgEditor && (
+              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-lg bg-white/5 border border-white/15 font-black text-slate-200 hover:bg-white/10 cursor-pointer`}>
+                {item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ My Alg'}
+              </button>
+            )}
+            {fingertricksEnabled && (
+              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-lg bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
+                Grip Guide →
+              </button>
+            )}
+          </div>
         </div>
         <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-base'} font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+        {item.hasCustomAlg && (
+          <p className="text-[10px] font-mono text-slate-400">
+            {item.usingCustomAlg
+              ? `Default: ${item.defaultAlg}`
+              : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
+          </p>
+        )}
         {fingertricksEnabled && (
           <div className="space-y-2 text-left">
             <TriggerTagsList tags={triggerTags} centered />
-            <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[11px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
-              <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-            </p>
+            {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && (
+              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[11px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
+                <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+              </p>
+            )}
           </div>
         )}
         {isF2L && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-slate-300 text-left pt-1`}>• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
@@ -2236,7 +2358,8 @@ const DEFAULT_USERS = {
     customChunks: null, f2lCustomChunks: null, pllCustomChunks: null, crossClears: 0, isPro: true,
     email: '', fullSolveTargetPb: 15.0,
     phaseTargetPbs: { cross: 2.0, f2l: 2.5, oll: 2.0, pll: 2.0 },
-    caseTargetPbs: { f2l: {}, oll: {}, pll: {} }
+    caseTargetPbs: { f2l: {}, oll: {}, pll: {} },
+    customAlgs: { f2l: {}, oll: {}, pll: {} }
   }
 };
 
@@ -2262,6 +2385,11 @@ function sanitizeUserRecord(raw) {
       f2l: base.caseTargetPbs?.f2l && typeof base.caseTargetPbs.f2l === 'object' ? base.caseTargetPbs.f2l : {},
       oll: base.caseTargetPbs?.oll && typeof base.caseTargetPbs.oll === 'object' ? base.caseTargetPbs.oll : {},
       pll: base.caseTargetPbs?.pll && typeof base.caseTargetPbs.pll === 'object' ? base.caseTargetPbs.pll : {}
+    },
+    customAlgs: {
+      f2l: base.customAlgs?.f2l && typeof base.customAlgs.f2l === 'object' ? base.customAlgs.f2l : {},
+      oll: base.customAlgs?.oll && typeof base.customAlgs.oll === 'object' ? base.customAlgs.oll : {},
+      pll: base.customAlgs?.pll && typeof base.customAlgs.pll === 'object' ? base.customAlgs.pll : {}
     }
   };
 }
@@ -2866,7 +2994,9 @@ function OLLDaySuite() {
   const [proPurchaseToast, setProPurchaseToast] = useState('');
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
   const [shareStatsFeedback, setShareStatsFeedback] = useState('');
-
+  const [customAlgEditor, setCustomAlgEditor] = useState(null);
+  const [managingCaseHistory, setManagingCaseHistory] = useState(null);
+  const [fullHistoryExpanded, setFullHistoryExpanded] = useState(false);
   // Zero-re-render DOM-ref stopwatch state
   const [swRunning, setSwRunning] = useState(false);
   const [swLastResult, setSwLastResult] = useState(null);
@@ -3086,34 +3216,125 @@ function OLLDaySuite() {
   useEffect(() => { setTargetPbInput(fullSolveTargetSec.toFixed(3)); }, [fullSolveTargetSec]);
   useEffect(() => { setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3)); }, [selectedTargetPhase, currentUser.phaseTargetPbs]);
 
-  const updateFullSolveTargetPb = (sec) => {
-    const clamped = Math.min(120, Math.max(1.0, Number(Number(sec).toFixed(3))));
-    setTargetPbInput(clamped.toFixed(3));
+  const updateActiveUserRecord = (updaterFn) => {
     setUsers((prev) => {
-      const updated = { ...sanitizeUserRecord(prev[resolvedUserKey]), fullSolveTargetPb: clamped };
+      const current = sanitizeUserRecord(prev[resolvedUserKey]);
+      const updated = sanitizeUserRecord(updaterFn(current));
       saveUserToCloud(resolvedUserKey, updated);
       return { ...prev, [resolvedUserKey]: updated };
     });
+  };
+
+  const updateFullSolveTargetPb = (sec) => {
+    const clamped = Math.min(120, Math.max(1.0, Number(Number(sec).toFixed(3))));
+    setTargetPbInput(clamped.toFixed(3));
+    updateActiveUserRecord((u) => ({ ...u, fullSolveTargetPb: clamped }));
   };
 
   const updatePhaseTargetPb = (phase, sec) => {
     const clamped = Math.min(30, Math.max(0.1, Number(Number(sec).toFixed(3))));
     setPhaseTargetInput(clamped.toFixed(3));
+    updateActiveUserRecord((u) => ({ ...u, phaseTargetPbs: { ...u.phaseTargetPbs, [phase]: clamped } }));
+  };
+
+  const updateCaseTargetPb = (phase, caseId, secOrNull) => {
+    updateActiveUserRecord((u) => {
+      const phaseMap = { ...(u.caseTargetPbs?.[phase] || {}) };
+      if (secOrNull === null) delete phaseMap[caseId];
+      else phaseMap[caseId] = Math.min(30, Math.max(0.1, Number(Number(secOrNull).toFixed(3))));
+      return { ...u, caseTargetPbs: { ...u.caseTargetPbs, [phase]: phaseMap } };
+    });
+  };
+
+  const openCustomAlgEditor = (phaseKey, baseItem) => {
+    if (!isProUnlocked) {
+      openProPaywall('Custom Alternative Algorithms');
+      return;
+    }
+    emitBeep(580, 'sine', 0.06);
+    const { list, activeId } = normalizeCaseCustomAlgs(currentUser.customAlgs?.[phaseKey]?.[baseItem.id]);
+    const initialEdit = activeId ? list.find((c) => c.id === activeId) : null;
+    setCustomAlgEditor({
+      phaseKey,
+      caseId: baseItem.id,
+      name: baseItem.name,
+      defaultAlg: baseItem.alg,
+      editingAltId: initialEdit ? initialEdit.id : null,
+      draftAlg: initialEdit ? initialEdit.alg : '',
+      assignFingertricks: initialEdit ? initialEdit.assignFingertricks !== false : true,
+      makeActiveOnSave: true,
+      keypadCategory: 'All',
+      error: ''
+    });
+  };
+
+  const saveCustomCaseAlg = (phaseKey, caseId, algStr, assignFingertricks = true, makeActive = true, editingAltId = null) => {
+    const clean = sanitizeCustomAlgTokens(algStr);
+    if (!clean) return false;
+    const formatted = assignFingertricks ? formatAlgWithTriggerBrackets(clean) : clean;
     setUsers((prev) => {
       const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      const updated = { ...u, phaseTargetPbs: { ...u.phaseTargetPbs, [phase]: clamped } };
+      const { list, activeId } = normalizeCaseCustomAlgs(u.customAlgs?.[phaseKey]?.[caseId]);
+      let nextList = [...list];
+      let targetId = editingAltId;
+
+      if (editingAltId && nextList.some((c) => c.id === editingAltId)) {
+        nextList = nextList.map((c) =>
+          c.id === editingAltId ? { ...c, alg: formatted, rawAlg: clean, assignFingertricks } : c
+        );
+      } else {
+        if (nextList.length >= MAX_CUSTOM_ALGS_PER_CASE) return prev;
+        targetId = `alt-${Date.now()}-${nextList.length + 1}`;
+        nextList.push({
+          id: targetId,
+          label: `Alt ${nextList.length + 1}`,
+          alg: formatted,
+          rawAlg: clean,
+          assignFingertricks
+        });
+      }
+
+      const nextActiveId = makeActive ? targetId : activeId;
+      const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}), [caseId]: { list: nextList, activeId: nextActiveId } };
+      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+    return true;
+  };
+
+  const selectCaseAlgSource = (phaseKey, caseId, activeAltIdOrNull) => {
+    emitBeep(540, 'sine', 0.05);
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const { list } = normalizeCaseCustomAlgs(u.customAlgs?.[phaseKey]?.[caseId]);
+      if (list.length === 0) return prev;
+      const validId = activeAltIdOrNull && list.some((c) => c.id === activeAltIdOrNull) ? activeAltIdOrNull : null;
+      const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}), [caseId]: { list, activeId: validId } };
+      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
       saveUserToCloud(resolvedUserKey, updated);
       return { ...prev, [resolvedUserKey]: updated };
     });
   };
 
-  const updateCaseTargetPb = (phase, caseId, secOrNull) => {
+  const removeCustomCaseAlg = (phaseKey, caseId, altIdToRemove = null) => {
+    emitBeep(420, 'sine', 0.06);
     setUsers((prev) => {
       const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      const phaseMap = { ...(u.caseTargetPbs?.[phase] || {}) };
-      if (secOrNull === null) delete phaseMap[caseId];
-      else phaseMap[caseId] = Math.min(30, Math.max(0.1, Number(Number(secOrNull).toFixed(3))));
-      const updated = { ...u, caseTargetPbs: { ...u.caseTargetPbs, [phase]: phaseMap } };
+      const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}) };
+      if (!altIdToRemove) {
+        delete phaseMap[caseId];
+      } else {
+        const { list, activeId } = normalizeCaseCustomAlgs(phaseMap[caseId]);
+        const filtered = list.filter((c) => c.id !== altIdToRemove);
+        if (filtered.length === 0) {
+          delete phaseMap[caseId];
+        } else {
+          const nextActive = activeId === altIdToRemove ? filtered[0].id : activeId;
+          phaseMap[caseId] = { list: filtered, activeId: nextActive };
+        }
+      }
+      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
       saveUserToCloud(resolvedUserKey, updated);
       return { ...prev, [resolvedUserKey]: updated };
     });
@@ -3152,6 +3373,43 @@ function OLLDaySuite() {
       return { ...prev, [resolvedUserKey]: updated };
     });
     setSwLastResult({ phase, caseId, timeSec, isNewPb });
+  };
+
+  const deleteCaseTimeEntry = (phase, caseId, entryIdx) => {
+    emitBeep(420, 'sine', 0.06);
+    const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const existing = u[statField]?.[caseId];
+      if (!existing) return prev;
+      const oldHist = Array.isArray(existing.history) ? existing.history : [];
+      const nextHist = oldHist.filter((_, idx) => idx !== entryIdx);
+      const nextPhaseStats = { ...(u[statField] || {}) };
+      if (nextHist.length === 0) {
+        delete nextPhaseStats[caseId];
+      } else {
+        nextPhaseStats[caseId] = {
+          best: Math.min(...nextHist),
+          attempts: nextHist.length,
+          history: nextHist
+        };
+      }
+      const updated = { ...u, [statField]: nextPhaseStats };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
+    setSwLastResult((prev) => (prev?.phase === phase && prev?.caseId === caseId ? null : prev));
+  };
+
+  const deleteFullSolveById = (solveId) => {
+    emitBeep(400, 'sine', 0.06);
+    setUsers((prev) => {
+      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+      const nextHist = (u.fullSolveHistory || []).filter((s) => s.id !== solveId);
+      const updated = { ...u, fullSolveHistory: nextHist };
+      saveUserToCloud(resolvedUserKey, updated);
+      return { ...prev, [resolvedUserKey]: updated };
+    });
   };
 
   const handleFullTimerScreenTap = () => {
@@ -3237,10 +3495,11 @@ function OLLDaySuite() {
 
   const top5FastestAlgs = useMemo(() => {
     const entries = [];
-    const collect = (phaseLabel, dataList, statsMap) => {
-      dataList.forEach((item) => {
-        const best = statsMap?.[item.id]?.best;
+    const collect = (phaseKey, phaseLabel, dataList, statsMap) => {
+      dataList.forEach((rawItem) => {
+        const best = statsMap?.[rawItem.id]?.best;
         if (typeof best === 'number' && Number.isFinite(best) && best > 0) {
+          const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
           entries.push({
             key: `${phaseLabel}-${item.id}`,
             phase: phaseLabel,
@@ -3251,12 +3510,11 @@ function OLLDaySuite() {
         }
       });
     };
-    collect('F2L', F2L_DATA, currentUser.f2lStats);
-    collect('OLL', OLL_DATA, currentUser.stats);
-    collect('PLL', PLL_DATA, currentUser.pllStats);
+    collect('f2l', 'F2L', F2L_DATA, currentUser.f2lStats);
+    collect('oll', 'OLL', OLL_DATA, currentUser.stats);
+    collect('pll', 'PLL', PLL_DATA, currentUser.pllStats);
     return entries.sort((a, b) => a.best - b.best).slice(0, 5);
-  }, [currentUser.f2lStats, currentUser.stats, currentUser.pllStats]);
-
+  }, [currentUser.f2lStats, currentUser.stats, currentUser.pllStats, currentUser.customAlgs]);
   const shareStatsSummaryImage = async () => {
     emitBeep(760, 'sine', 0.08);
     setShareStatsFeedback('Rendering image...');
@@ -3564,10 +3822,10 @@ function OLLDaySuite() {
     };
 
     window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
-    window.addEventListener('touchend', handleWindowDragEnd);
-    window.addEventListener('touchcancel', handleWindowDragEnd);
-    window.addEventListener('mousemove', handleWindowMouseMove);
-    window.addEventListener('mouseup', handleWindowDragEnd);
+    window.addEventListener('touchend', handleWindowDragEnd, { passive: true });
+    window.addEventListener('touchcancel', handleWindowDragEnd, { passive: true });
+    window.addEventListener('mousemove', handleWindowMouseMove, { passive: true });
+    window.addEventListener('mouseup', handleWindowDragEnd, { passive: true });
     return () => {
       if (dragRafId) cancelAnimationFrame(dragRafId);
       window.removeEventListener('touchmove', handleWindowTouchMove);
@@ -3694,15 +3952,12 @@ function OLLDaySuite() {
   const activeCrossScramble = activeTierObj.scrambles[crossScrambleIdx % activeTierObj.scrambles.length];
   const activeCrossSolution = useMemo(() => {
     const crossOnly = solveExactCrossFrom54(simulateCrossCubeState(activeCrossScramble));
-    return crossOnly.moves || 'Cross Solved ✓';
-  }, [activeCrossScramble]);
-  const activeCrossMoveCount = useMemo(
-    () => (activeCrossSolution === 'Cross Solved ✓' ? 0 : activeCrossSolution.split(/\s+/).filter(Boolean).length),
-    [activeCrossSolution]
-  );
+    return crossOnly.moves || (crossDifficulty === 'standard' ? invertAlgorithm(activeCrossScramble) : 'Cross Solved ✓');
+  }, [activeCrossScramble, crossDifficulty]);
+  const activeCrossMoveCount = activeCrossSolution === 'Cross Solved ✓' ? 0 : activeCrossSolution.split(/\s+/).filter(Boolean).length;
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
-  // Settings Deck Touch Swipe Handlers
+  // Settings Deck Touch Swipe & Slot Helpers
   const totalDeckCards = 8;
   const handleDeckTouchStart = (e) => {
     if (!e.target.closest('[data-scrollable="true"]')) deckTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -3721,22 +3976,21 @@ function OLLDaySuite() {
     const rel = (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards;
     return rel <= 2 ? rel + 1 : null;
   };
-  const renderDeckCardHeader = (cardNum, tag, nextLabel, nextIdx) => (
+  const renderDeckCardHeader = (cardNum, category, nextLabel, nextIdx) => (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card {cardNum} of 8 • {tag}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card {cardNum} of {totalDeckCards} • {category}</span>
       <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(nextIdx); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">{nextLabel} →</button>
     </div>
   );
 
-  // Shared Full-Solve Stats & WCA Telemetry Grid
-  const renderWcaTelemetryGrid = (cardBgClass = 'bg-slate-950/90 rounded-xl') => (
+  const renderWcaTelemetryGrid = (cardClass = 'bg-slate-950/90 rounded-xl') => (
     <div className="grid grid-cols-3 gap-2">
       {[
         { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
         { label: 'Ao12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: 'text-sky-400' },
         { label: 'Best PB', val: formatMsTime(bestFullPbMs, 2), color: 'text-amber-300' }
       ].map((stat) => (
-        <div key={stat.label} className={`${cardBgClass} border border-white/10 p-2.5 text-center`}>
+        <div key={stat.label} className={`${cardClass} border border-white/10 p-2.5 text-center`}>
           <span className="text-[9px] font-bold uppercase text-slate-400 block">{stat.label}</span>
           <span className={`font-mono text-sm font-black ${stat.color}`}>{stat.val}</span>
         </div>
@@ -3744,26 +3998,84 @@ function OLLDaySuite() {
     </div>
   );
 
-  const renderFullSolveStatsBlock = () => (
-    <div className="bg-slate-900/75 border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-            Full 3x3x3 CFOP Session • Target PB {fullSolveTargetSec.toFixed(3)}s
-          </span>
-          <h3 className="text-sm font-black text-white">Ao5 &amp; Ao12 Telemetry</h3>
+  const renderFullSolveStatsBlock = () => {
+    const fullHistory = currentUser.fullSolveHistory || [];
+    const visibleSolves = fullHistoryExpanded ? fullHistory : fullHistory.slice(0, 5);
+    return (
+      <div className="bg-slate-900/75 border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+              Full 3x3x3 CFOP Session • Target PB {fullSolveTargetSec.toFixed(3)}s
+            </span>
+            <h3 className="text-sm font-black text-white">Ao5 &amp; Ao12 Telemetry</h3>
+          </div>
+          <button
+            type="button"
+            onClick={openFullTimerModal}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
+          >
+            Open Timer
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={openFullTimerModal}
-          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
-        >
-          Open Timer
-        </button>
+        {renderWcaTelemetryGrid('bg-slate-950/90 rounded-xl')}
+
+        {fullHistory.length > 0 && (
+          <div className="pt-2 border-t border-white/10 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
+                Recent 3x3x3 Solves ({fullHistory.length})
+              </span>
+              {fullHistory.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(480); setFullHistoryExpanded((v) => !v); }}
+                  className="text-[10px] font-bold text-orange-400 hover:underline cursor-pointer"
+                >
+                  {fullHistoryExpanded ? 'Show Less ▲' : `View All (${fullHistory.length}) ▼`}
+                </button>
+              )}
+            </div>
+            <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-0.5">
+              {visibleSolves.map((solve, idx) => {
+                const effMs = solve.penalty === 'DNF' ? null : Number(solve.ms) + (solve.penalty === '+2' ? 2000 : 0);
+                const isBest = effMs !== null && bestFullPbMs !== null && effMs === bestFullPbMs;
+                return (
+                  <div
+                    key={solve.id ?? idx}
+                    className="bg-slate-950/85 border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-[9.5px] font-bold text-slate-500 w-5 flex-shrink-0">#{idx + 1}</span>
+                      <span className={`font-mono text-xs font-black flex-shrink-0 ${solve.penalty === 'DNF' ? 'text-red-400' : isBest ? 'text-green-400' : 'text-white'}`}>
+                        {solve.penalty === 'DNF' ? 'DNF' : `${(effMs / 1000).toFixed(2)}s${solve.penalty === '+2' ? '+' : ''}`}
+                      </span>
+                      {isBest && (
+                        <span className="px-1.5 py-0.2 rounded bg-green-500/20 border border-green-500/35 text-[8.5px] font-black uppercase text-green-300 flex-shrink-0">
+                          PB
+                        </span>
+                      )}
+                      {solve.scramble && (
+                        <span className="font-mono text-[9.5px] text-slate-500 truncate">{solve.scramble}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteFullSolveById(solve.id)}
+                      className="px-2 py-0.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/25 text-[9.5px] font-black text-red-300 flex-shrink-0 cursor-pointer"
+                      title="Delete Accidental Solve"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
-      {renderWcaTelemetryGrid('bg-slate-950/90 rounded-xl')}
-    </div>
-  );
+    );
+  };
 
   // Settings 8-Card Deck Renderer
   const renderSettingsDeck = () => (
@@ -4178,7 +4490,8 @@ function OLLDaySuite() {
               <span className="text-[10px] font-bold text-orange-400">{lineupOrder.length} Cases</span>
             </div>
             <div className="space-y-2">
-              {lineupOrder.map((item, idx) => {
+              {lineupOrder.map((rawItem, idx) => {
+                const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
                 const stat = statsMap?.[item.id];
                 const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
                 return (
@@ -4194,7 +4507,7 @@ function OLLDaySuite() {
                     onClick={() => {
                       if (draggedLineupIdx !== null) return;
                       if (locked) { openProPaywall(item.name); return; }
-                      emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
+                      emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                     }}
                     className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
@@ -4202,9 +4515,16 @@ function OLLDaySuite() {
                   >
                     {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
                     <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
-                      {renderCaseThumb(phaseKey, item, isF2L ? 'w-14 h-14' : 'w-12 h-12 rounded-xl')}
+                      {renderCaseThumb(phaseKey, rawItem, isF2L ? 'w-14 h-14' : 'w-12 h-12 rounded-xl')}
                       <div className="min-w-0">
-                        <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-black text-white block truncate">{item.name}</span>
+                          {item.usingCustomAlg && (
+                            <span className="px-1.5 py-0.2 rounded bg-orange-500/20 border border-orange-400/40 text-[8.5px] font-black uppercase text-orange-300 flex-shrink-0">
+                              Custom #{(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}
+                            </span>
+                          )}
+                        </div>
                         <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
                         {(item.step1 || item.recognition) && <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.step1 || item.recognition}</p>}
                       </div>
@@ -4307,47 +4627,81 @@ function OLLDaySuite() {
                 {(currentLib.category.type === 'group'
                   ? dataList.filter((c) => c.group === currentLib.category.name)
                   : currentLib.category.chunk.ids.map((id) => lookupMap.get(id)).filter(Boolean)
-                ).map((item) => {
+                ).map((rawItem) => {
+                  const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
                   const stat = statsMap?.[item.id];
                   const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
-                  const itemTags = fingertricksEnabled ? getAlgorithmTriggerTags(item.alg) : [];
+                  const showItemTriggers = fingertricksEnabled && (!item.usingCustomAlg || item.showCustomTriggerPills !== false);
+                  const itemTags = showItemTriggers ? getAlgorithmTriggerTags(item.alg) : [];
                   return (
                     <div
                       key={item.id}
                       onClick={() => {
                         if (locked) { openProPaywall(item.name); return; }
-                        emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
+                        emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                       }}
                       className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'}`}
                     >
                       {locked && <ProLockOverlay label={`${item.name} • Unlock Pro`} />}
-                      <div className={`flex items-center gap-3.5 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
-                        {renderCaseThumb(phaseKey, item, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
-                        <div className="min-w-0">
+                      <div className={`flex items-center gap-3.5 min-w-0 flex-1 ${locked ? 'opacity-40 select-none' : ''}`}>
+                        {renderCaseThumb(phaseKey, rawItem, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-black text-white truncate">{item.name}</span>
                             {stat?.best && <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">{stat.best.toFixed(2)}s</span>}
+                            <CustomAlgSwitcherPills
+                              item={item}
+                              stopPropagation
+                              onSelect={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
+                            />
                           </div>
                           <p className="font-mono text-xs font-bold text-amber-300 mt-0.5">{item.alg}</p>
+                          {item.hasCustomAlg && (
+                            <p className="text-[9.5px] font-mono text-slate-400 truncate">
+                              {item.usingCustomAlg
+                                ? `Ours: ${item.defaultAlg}`
+                                : `${item.customAlgList.length} Custom Saved • Tap #1–#${item.customAlgList.length} to switch`}
+                            </p>
+                          )}
                           {item.recognition && <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{item.recognition}</p>}
-                          {fingertricksEnabled && (
+                          {showItemTriggers && (
                             <div className="mt-1.5 space-y-1">
                               <TriggerTagsList tags={itemTags} />
-                              <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
-                                <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-                              </p>
+                              {!item.usingCustomAlg && (
+                                <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
+                                  <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+                                </p>
+                              )}
                             </div>
                           )}
                           {item.step1 && <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.step1}</p>}
                         </div>
                       </div>
-                      {fingertricksEnabled && !locked && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-                          className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white flex-shrink-0 cursor-pointer"
-                        >
-                          Grip
-                        </button>
+                      {!locked && (
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCustomAlgEditor(phaseKey, rawItem);
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-black cursor-pointer transition-all ${
+                              item.hasCustomAlg
+                                ? 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30'
+                                : 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            {isProUnlocked ? (item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ Custom') : '🔒 Custom'}
+                          </button>
+                          {fingertricksEnabled && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+                              className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                            >
+                              Grip
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -4401,19 +4755,36 @@ function OLLDaySuite() {
                   <div className="min-w-0">
                     <span className="text-xs font-black text-white block truncate">{item.name}</span>
                     <span className="font-mono text-[11px] text-amber-300 truncate block">{item.alg}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (locked) { openProPaywall(item.name); return; }
-                        emitBeep(560);
-                        setEditingCaseTarget({ phase: phaseKey, caseId: item.id, name: item.name, draft: caseGoal.toFixed(3) });
-                      }}
-                      className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
-                      title="Set Case Target PB"
-                    >
-                      Goal: {caseGoal.toFixed(3)}s ✎
-                    </button>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (locked) { openProPaywall(item.name); return; }
+                          emitBeep(560);
+                          setEditingCaseTarget({ phase: phaseKey, caseId: item.id, name: item.name, draft: caseGoal.toFixed(3) });
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                        title="Set Case Target PB"
+                      >
+                        Goal: {caseGoal.toFixed(3)}s ✎
+                      </button>
+                      {Array.isArray(stat?.history) && stat.history.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (locked) { openProPaywall(item.name); return; }
+                            emitBeep(520);
+                            setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name });
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 cursor-pointer"
+                          title="Inspect or Delete Logged Times"
+                        >
+                          Times ({stat.history.length}) ✎
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className={`text-right flex-shrink-0 ${locked ? 'opacity-35' : ''}`}>
@@ -4459,8 +4830,9 @@ function OLLDaySuite() {
 
     if (!activePhaseSession) return null;
     const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, itemLabel, timerLabel } = activePhaseSession;
-    const item = session.queue[session.index];
-    if (!item) return null;
+    const rawItem = session.queue[session.index];
+    if (!rawItem) return null;
+    const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
 
     return (
       <div
@@ -4500,6 +4872,8 @@ function OLLDaySuite() {
               timerLabel={timerLabel}
               showInlineGroup={phaseKey !== 'f2l'}
               onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+              onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
+              onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
               onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
             />
           </div>
@@ -4544,7 +4918,8 @@ function OLLDaySuite() {
       : null;
 
     if (!activeDrill) return null;
-    const { phaseKey, item, close, statsMap, timerLabel } = activeDrill;
+    const { phaseKey, item: rawItem, close, statsMap, timerLabel } = activeDrill;
+    const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
     const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
@@ -4588,6 +4963,8 @@ function OLLDaySuite() {
             lastResultForThis={lastResultForThis}
             recordedBest={caseStat.best}
             onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+            onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
+            onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
             onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
           >
             <div className={`w-full grid grid-cols-3 ${isTwoPane ? 'gap-3 pt-1' : 'gap-1.5'}`}>
@@ -4598,6 +4975,20 @@ function OLLDaySuite() {
                 </div>
               ))}
             </div>
+            {caseHist.length > 0 && (
+              <div data-no-timer-start="true" className="w-full pt-1 flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold text-slate-400">
+                  {caseHist.length} logged time{caseHist.length === 1 ? '' : 's'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(520); setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name }); }}
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black text-slate-300 hover:text-white cursor-pointer"
+                >
+                  Manage / Delete Times ({caseHist.length})
+                </button>
+              </div>
+            )}
           </CasePracticeCard>
         </div>
 
@@ -6030,40 +6421,313 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* FINGERTRICK DOSSIER MODAL */}
-        {activeModal === 'fingertrick' && ftCase && (() => {
-          const breakdown = buildFingertrickBreakdown(ftCase);
+        {/* CUSTOM ALTERNATIVE ALGORITHMS & NOTATION PICKER MODAL (PRO, UP TO 7 PER CASE) */}
+        {customAlgEditor && (() => {
+          const { phaseKey, caseId, name, defaultAlg, editingAltId, draftAlg, assignFingertricks, makeActiveOnSave, keypadCategory, error } = customAlgEditor;
+          const { list: savedAlts, activeId: currentActiveAltId } = normalizeCaseCustomAlgs(currentUser.customAlgs?.[phaseKey]?.[caseId]);
+          const atLimit = !editingAltId && savedAlts.length >= MAX_CUSTOM_ALGS_PER_CASE;
+          const cleanPreview = sanitizeCustomAlgTokens(draftAlg);
+          const bracketedPreview = cleanPreview ? formatAlgWithTriggerBrackets(cleanPreview) : '';
+          const detectedTags = cleanPreview ? getAlgorithmTriggerTags(cleanPreview) : [];
+          const filteredNotationGroups = keypadCategory === 'All'
+            ? NOTATION_KEYPAD_GROUPS
+            : NOTATION_KEYPAD_GROUPS.filter((g) => g.label === keypadCategory);
+
+          const appendMoveToken = (tok) => {
+            emitBeep(620, 'sine', 0.04);
+            setCustomAlgEditor((prev) => {
+              const trimmed = prev.draftAlg.trim();
+              return { ...prev, error: '', draftAlg: trimmed ? `${trimmed} ${tok}` : tok };
+            });
+          };
+
+          const backspaceMoveToken = () => {
+            emitBeep(460, 'sine', 0.04);
+            setCustomAlgEditor((prev) => {
+              const parts = prev.draftAlg.trim().split(/\s+/).filter(Boolean);
+              parts.pop();
+              return { ...prev, error: '', draftAlg: parts.join(' ') };
+            });
+          };
+
           return (
-            <ModalShell onClose={() => setActiveModal(null)} zClass="z-[255]">
+            <ModalShell onClose={() => setCustomAlgEditor(null)} zClass="z-[282]" maxWidth="max-w-md" borderClass="border-orange-500/40">
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Fingertrick Dossier • {ftPhaseContext.toUpperCase()}</span>
-                  <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
-                </div>
-                <div className="flex items-center gap-3 bg-[#050811] border border-white/10 rounded-2xl p-3">
-                  <CachedVisualCubeImg
-                    url={ftPhaseContext === 'f2l' ? getF2LImageUrl(ftCase.alg) : ftPhaseContext === 'pll' ? getPLLImageUrl(ftCase.alg) : getOLLImageUrl(ftCase.alg)}
-                    alt={ftCase.name} lazy={false}
-                    className={ftPhaseContext === 'f2l' ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0' : 'w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 object-contain'}
-                  />
-                  <div className="min-w-0">
-                    <h3 className="text-base font-black text-white truncate">{ftCase.name}</h3>
-                    <p className="font-mono text-xs font-bold text-amber-300 break-words">{ftCase.alg}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                      Pro Custom Algorithms ({savedAlts.length}/{MAX_CUSTOM_ALGS_PER_CASE}) • {phaseKey.toUpperCase()}
+                    </span>
+                    <h3 className="text-base font-black text-white">{name}</h3>
                   </div>
+                  <button type="button" onClick={() => setCustomAlgEditor(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
                 </div>
-                <div className="space-y-2 text-left">
-                  {[
-                    { title: '1. Starting Grip', color: 'text-orange-400', body: breakdown.grip },
-                    { title: '2. Execution Sequence', color: 'text-amber-300', body: breakdown.cue },
-                    { title: '3. Flow & Regrip Tip', color: 'text-green-400', body: breakdown.flow }
-                  ].map((s) => (
-                    <div key={s.title} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${s.color} block`}>{s.title}</span>
-                      <p className="text-xs text-slate-300 leading-relaxed">{s.body}</p>
+
+                {/* Saved Custom Algorithms List + Default Selector */}
+                <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
+                      Saved Algorithms (Tap to Set Active)
+                    </span>
+                    {editingAltId && savedAlts.length < MAX_CUSTOM_ALGS_PER_CASE && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitBeep(540);
+                          setCustomAlgEditor((prev) => ({
+                            ...prev,
+                            editingAltId: null,
+                            draftAlg: '',
+                            assignFingertricks: true,
+                            makeActiveOnSave: true,
+                            error: ''
+                          }));
+                        }}
+                        className="text-[10px] font-black text-orange-400 hover:underline cursor-pointer"
+                      >
+                        + Add Another ({savedAlts.length}/{MAX_CUSTOM_ALGS_PER_CASE})
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Built-in Default Row */}
+                  <div
+                    onClick={() => selectCaseAlgSource(phaseKey, caseId, null)}
+                    className={`rounded-xl px-2.5 py-2 border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                      !currentActiveAltId ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/10 hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-white/15 text-white">Ours</span>
+                        <span className="font-mono text-xs font-bold text-slate-200 truncate">{defaultAlg}</span>
+                      </div>
                     </div>
-                  ))}
+                    <span className={`text-[9.5px] font-black uppercase flex-shrink-0 ${!currentActiveAltId ? 'text-green-400' : 'text-slate-500'}`}>
+                      {!currentActiveAltId ? 'Active ✓' : 'Use'}
+                    </span>
+                  </div>
+
+                  {/* Up to 7 Saved Custom Alternatives */}
+                  {savedAlts.length > 0 && (
+                    <div className="max-h-32 overflow-y-auto no-scrollbar space-y-1.5 pt-0.5">
+                      {savedAlts.map((alt, idx) => {
+                        const isSelectedActive = currentActiveAltId === alt.id;
+                        const isCurrentlyEditing = editingAltId === alt.id;
+                        return (
+                          <div
+                            key={alt.id}
+                            onClick={() => selectCaseAlgSource(phaseKey, caseId, alt.id)}
+                            className={`rounded-xl px-2.5 py-2 border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                              isCurrentlyEditing
+                                ? 'bg-orange-500/20 border-orange-400'
+                                : isSelectedActive
+                                ? 'bg-orange-500/10 border-orange-500/40'
+                                : 'bg-white/[0.03] border-white/10 hover:bg-white/5'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${isSelectedActive ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-orange-300'}`}>
+                                  #{idx + 1}
+                                </span>
+                                <span className="font-mono text-xs font-bold text-amber-300 truncate">{alt.alg}</span>
+                              </div>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 flex-shrink-0">
+                              <span className={`text-[9px] font-black uppercase px-1 ${isSelectedActive ? 'text-green-400' : 'text-slate-500'}`}>
+                                {isSelectedActive ? 'Active ✓' : ''}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  emitBeep(540);
+                                  setCustomAlgEditor((prev) => ({
+                                    ...prev,
+                                    editingAltId: alt.id,
+                                    draftAlg: alt.alg,
+                                    assignFingertricks: alt.assignFingertricks !== false,
+                                    makeActiveOnSave: true,
+                                    error: ''
+                                  }));
+                                }}
+                                className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[9.5px] font-black text-slate-200 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  removeCustomCaseAlg(phaseKey, caseId, alt.id);
+                                  if (editingAltId === alt.id) {
+                                    setCustomAlgEditor((prev) => ({ ...prev, editingAltId: null, draftAlg: '', error: '' }));
+                                  }
+                                }}
+                                className="px-1.5 py-0.5 rounded bg-red-500/15 hover:bg-red-500/25 text-[9.5px] font-black text-red-300 cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <button type="button" onClick={() => setActiveModal(null)} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">Close</button>
+
+                {/* Add / Edit Algorithm Form */}
+                {atLimit ? (
+                  <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center space-y-1">
+                    <p className="text-xs font-black text-amber-200">Maximum 7 Custom Algorithms Reached</p>
+                    <p className="text-[11px] text-slate-300">Tap <strong>Edit</strong> or <strong>✕</strong> on one of your saved algorithms above to modify or free up a slot.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                          {editingAltId
+                            ? `Editing Custom #${savedAlts.findIndex((c) => c.id === editingAltId) + 1}`
+                            : `Add New Custom Algorithm (#${savedAlts.length + 1} of ${MAX_CUSTOM_ALGS_PER_CASE})`}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={backspaceMoveToken}
+                            disabled={!draftAlg.trim()}
+                            className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                          >
+                            ⌫ Undo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { emitBeep(420); setCustomAlgEditor((prev) => ({ ...prev, draftAlg: '', error: '' })); }}
+                            disabled={!draftAlg.trim()}
+                            className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        value={draftAlg}
+                        onChange={(e) => setCustomAlgEditor((prev) => ({ ...prev, draftAlg: e.target.value, error: '' }))}
+                        placeholder="Tap moves below or type e.g. R U R' U R U2 R'"
+                        className="w-full rounded-2xl bg-slate-950 border border-orange-500/35 px-3.5 py-2.5 font-mono text-sm font-black text-amber-300 placeholder-slate-600 focus:outline-none focus:border-orange-400"
+                      />
+                      {error && <p className="text-[11px] font-bold text-rose-300">{error}</p>}
+                    </div>
+
+                    {/* Notation Library Picker */}
+                    <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 space-y-2">
+                      <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar pb-0.5">
+                        {['All', ...NOTATION_KEYPAD_GROUPS.map((g) => g.label)].map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => { emitBeep(480); setCustomAlgEditor((prev) => ({ ...prev, keypadCategory: cat })); }}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
+                              keypadCategory === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="max-h-32 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+                        {filteredNotationGroups.map((grp) => (
+                          <div key={grp.label} className="space-y-1">
+                            <span className="text-[8.5px] font-black uppercase tracking-wider text-slate-500 block">{grp.label}</span>
+                            <div className="grid grid-cols-6 gap-1">
+                              {grp.moves.map((mv) => (
+                                <button
+                                  key={mv}
+                                  type="button"
+                                  onClick={() => appendMoveToken(mv)}
+                                  className="py-1.5 rounded-lg bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 font-mono text-xs font-black text-white active:scale-95 transition-all cursor-pointer"
+                                >
+                                  {mv}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Automatic Fingertrick Detection & Bracket Confirmation */}
+                    {cleanPreview && (
+                      <div className="bg-gradient-to-r from-orange-500/15 to-amber-500/10 border border-orange-500/35 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-300">
+                            {detectedTags.length > 0
+                              ? `Detected ${detectedTags.length} Fingertrick Trigger${detectedTags.length === 1 ? '' : 's'}!`
+                              : 'Algorithm Formatted'}
+                          </span>
+                          <span className="text-[9.5px] font-mono text-slate-400">
+                            {cleanPreview.split(/\s+/).length} moves
+                          </span>
+                        </div>
+
+                        {detectedTags.length > 0 && <TriggerTagsList tags={detectedTags} />}
+
+                        <div className="bg-slate-950/85 border border-white/10 rounded-xl px-2.5 py-2 space-y-0.5">
+                          <span className="text-[9px] font-bold uppercase text-slate-400 block">
+                            {assignFingertricks ? 'Preview With Trigger Brackets:' : 'Preview Without Brackets:'}
+                          </span>
+                          <p className="font-mono text-xs font-black text-amber-300 break-words">
+                            {assignFingertricks ? bracketedPreview : cleanPreview}
+                          </p>
+                        </div>
+
+                        <label className="flex items-center justify-between gap-2 bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 cursor-pointer">
+                          <span className="text-[11px] font-bold text-slate-200">
+                            Assign fingertrick pills &amp; trigger brackets
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={assignFingertricks}
+                            onChange={(e) => { emitBeep(560); setCustomAlgEditor((prev) => ({ ...prev, assignFingertricks: e.target.checked })); }}
+                            className="w-4 h-4 accent-orange-500 cursor-pointer"
+                          />
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Save / Cancel Actions */}
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setCustomAlgEditor(null)}
+                        className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                      >
+                        Close
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!cleanPreview) {
+                            setCustomAlgEditor((prev) => ({ ...prev, error: 'Enter at least one valid WCA move (e.g., R U R\' U\').' }));
+                            return;
+                          }
+                          emitBeep(820, 'sine', 0.09);
+                          saveCustomCaseAlg(phaseKey, caseId, cleanPreview, assignFingertricks, makeActiveOnSave, editingAltId);
+                          setCustomAlgEditor((prev) => ({
+                            ...prev,
+                            editingAltId: null,
+                            draftAlg: '',
+                            assignFingertricks: true,
+                            error: ''
+                          }));
+                        }}
+                        className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                      >
+                        {editingAltId ? 'Update Algorithm' : `+ Save Custom #${savedAlts.length + 1}`}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </ModalShell>
           );
@@ -6486,6 +7150,130 @@ function OLLDaySuite() {
           );
         })()}
 
+        {/* FINGERTRICK DOSSIER MODAL */}
+        {activeModal === 'fingertrick' && ftCase && (() => {
+          const breakdown = buildFingertrickBreakdown(ftCase);
+          return (
+            <ModalShell onClose={() => setActiveModal(null)} zClass="z-[255]">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Fingertrick Dossier • {ftPhaseContext.toUpperCase()}</span>
+                  <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                </div>
+                <div className="flex items-center gap-3 bg-[#050811] border border-white/10 rounded-2xl p-3">
+                  <CachedVisualCubeImg
+                    url={ftPhaseContext === 'f2l' ? getF2LImageUrl(ftCase.alg) : ftPhaseContext === 'pll' ? getPLLImageUrl(ftCase.alg) : getOLLImageUrl(ftCase.alg)}
+                    alt={ftCase.name} lazy={false}
+                    className={ftPhaseContext === 'f2l' ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0' : 'w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 object-contain'}
+                  />
+                  <div className="min-w-0">
+                    <h3 className="text-base font-black text-white truncate">{ftCase.name}</h3>
+                    <p className="font-mono text-xs font-bold text-amber-300 break-words">{ftCase.alg}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-left">
+                  {[
+                    { title: '1. Starting Grip', color: 'text-orange-400', body: breakdown.grip },
+                    { title: '2. Execution Sequence', color: 'text-amber-300', body: breakdown.cue },
+                    { title: '3. Flow & Regrip Tip', color: 'text-green-400', body: breakdown.flow }
+                  ].map((s) => (
+                    <div key={s.title} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${s.color} block`}>{s.title}</span>
+                      <p className="text-xs text-slate-300 leading-relaxed">{s.body}</p>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setActiveModal(null)} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">Close</button>
+              </div>
+            </ModalShell>
+          );
+        })()}
+
+        {/* PER-CASE LOGGED TIMES MANAGER MODAL (DELETE ACCIDENTAL TIMES) */}
+        {managingCaseHistory && (() => {
+          const { phase, caseId, name } = managingCaseHistory;
+          const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
+          const caseStat = currentUser[statField]?.[caseId] || {};
+          const timesList = Array.isArray(caseStat.history) ? caseStat.history : [];
+          const currentBest = typeof caseStat.best === 'number' ? caseStat.best : null;
+          return (
+            <ModalShell onClose={() => setManagingCaseHistory(null)} zClass="z-[284]" maxWidth="max-w-xs">
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                      Logged Times • {phase.toUpperCase()}
+                    </span>
+                    <h3 className="text-base font-black text-white">{name}</h3>
+                  </div>
+                  <button type="button" onClick={() => setManagingCaseHistory(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                </div>
+
+                {timesList.length > 0 && (
+                  <div className="grid grid-cols-3 gap-1.5 text-center">
+                    <div className="bg-slate-950 border border-white/10 rounded-xl p-2">
+                      <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Best PB</span>
+                      <span className="font-mono text-xs font-black text-green-400">{currentBest !== null ? `${currentBest.toFixed(3)}s` : '—'}</span>
+                    </div>
+                    <div className="bg-slate-950 border border-white/10 rounded-xl p-2">
+                      <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Ao20</span>
+                      <span className="font-mono text-xs font-black text-sky-400">{computeCaseWindowAvg(timesList, 20) !== null ? `${computeCaseWindowAvg(timesList, 20).toFixed(2)}s` : '—'}</span>
+                    </div>
+                    <div className="bg-slate-950 border border-white/10 rounded-xl p-2">
+                      <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Runs</span>
+                      <span className="font-mono text-xs font-black text-amber-300">{timesList.length}</span>
+                    </div>
+                  </div>
+                )}
+
+                {timesList.length === 0 ? (
+                  <div className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-center">
+                    <p className="text-xs text-slate-400">All logged times for this case have been cleared.</p>
+                  </div>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
+                    {timesList.map((sec, idx) => {
+                      const isPbRow = currentBest !== null && Number(sec) === currentBest;
+                      return (
+                        <div
+                          key={`${idx}-${sec}`}
+                          className={`rounded-xl px-3 py-2 border flex items-center justify-between gap-2 ${
+                            isPbRow ? 'bg-green-500/10 border-green-500/35' : 'bg-slate-950 border-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] font-bold text-slate-500">#{idx + 1}</span>
+                            <span className={`font-mono text-xs font-black ${isPbRow ? 'text-green-400' : 'text-white'}`}>
+                              {Number(sec).toFixed(3)}s
+                            </span>
+                            {isPbRow && (
+                              <span className="px-1.5 py-0.2 rounded bg-green-500/20 border border-green-500/40 text-[8.5px] font-black uppercase text-green-300">
+                                PB
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteCaseTimeEntry(phase, caseId, idx)}
+                            className="px-2 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[10px] font-black text-red-300 cursor-pointer"
+                            title="Delete This Time"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button type="button" onClick={() => setManagingCaseHistory(null)} className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer">
+                  Done
+                </button>
+              </div>
+            </ModalShell>
+          );
+        })()}
+
         {/* PRO PAYWALL MODAL */}
         {activeModal === 'proPaywall' && (
           <ModalShell onClose={() => setActiveModal(null)} zClass="z-[275]" maxWidth="max-w-xs" borderClass="border-orange-500/40">
@@ -6493,7 +7281,7 @@ function OLLDaySuite() {
               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">OLLDay Pro • Lifetime Access</span>
               <h3 className="text-xl font-black text-white">Unlock All 123 Cases</h3>
               {proPaywallFeature && <p className="text-xs font-bold text-amber-300">{proPaywallFeature}</p>}
-              <p className="text-xs text-slate-300 leading-relaxed">Get full access to all 41 F2L pairs, 57 OLL algorithms, 25 PLLs, Advanced Full-Scramble Cross Ladder, Blindfold Mat, and Custom Chunk Builder.</p>
+              <p className="text-xs text-slate-300 leading-relaxed">Get full access to all 41 F2L pairs, 57 OLL algorithms, 25 PLLs, Advanced Full-Scramble Cross Ladder, Blindfold Mat, Custom Alternative Algorithms, and Custom Chunk Builder.</p>
               <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-slate-400">One-Time Purchase • Yours Forever • No Subscription</span>
               {proPurchaseToast ? (
                 <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
