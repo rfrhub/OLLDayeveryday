@@ -105,7 +105,7 @@ const FREE_F2L_CASE_IDS = [1, 2, 3, 4];
 const FREE_OLL_CASE_IDS = [27, 26, 21, 22, 23, 24, 25];
 const FREE_PLL_CASE_IDS = [1, 2, 3, 4, 5, 6, 7];
 
-function isCaseUnlockedForTier(phase, caseId, isPro) {
+function isCaseUnlockedForTraining(phase, caseId, isPro) {
   if (isPro) return true;
   if (phase === 'f2l') return FREE_F2L_CASE_IDS.includes(caseId);
   if (phase === 'oll') return FREE_OLL_CASE_IDS.includes(caseId);
@@ -4498,10 +4498,10 @@ function OLLDaySuite() {
     const setDrillCase = isF2L ? setF2lDrillCase : isPLL ? setPllDrillCase : setOllDrillCase;
 
     const meta = isF2L
-      ? { subtitle: 'Hold White on Bottom • Green in Front • Target Slot: Front-Right (White–Green–Orange)', lineupLabel: "Today's Pair Lineup (Hold & Drag to Reorder)", libEyebrow: '41 Standard Pairs', libTitle: 'F2L Library', groupTabLabel: '6 Pair Groups', unitLabel: 'Pairs', statsTitle: 'F2L Statistics', isFreeGroup: (g) => g === 'Basic Inserts' }
+      ? { subtitle: 'Hold White on Bottom • Green in Front • Target Slot: Front-Right (White–Green–Orange)', lineupLabel: "Today's Pair Lineup (Hold & Drag to Reorder)", libEyebrow: '41 Standard Pairs', libTitle: 'F2L Library', groupTabLabel: '6 Pair Groups', unitLabel: 'Pairs', statsTitle: 'F2L Statistics' }
       : isPLL
-      ? { subtitle: `2-Side Headlight & Block Recognition • Phase Target PB: ${getPhaseTargetPb('pll').toFixed(3)}s`, lineupLabel: "Today's PLL Lineup (Hold & Drag to Reorder)", libEyebrow: '21 Standard + 4 Bonus Algs', libTitle: 'PLL Library', groupTabLabel: '5 Perm Groups', unitLabel: 'Algs', statsTitle: 'PLL Statistics', isFreeGroup: (g) => g === 'Edges Only (EPLL)' || g === 'Corners Only (CPLL)' }
-      : { subtitle: `Yellow Top Recognition • Phase Target PB: ${getPhaseTargetPb('oll').toFixed(3)}s`, lineupLabel: "Today's OLL Lineup (Hold & Drag to Reorder)", libEyebrow: '57 Last-Layer Cases', libTitle: 'OLL Library', groupTabLabel: 'Shape Groups', unitLabel: 'Cases', statsTitle: 'OLL Statistics', isFreeGroup: (g) => g === 'All Edges Oriented' };
+      ? { subtitle: `2-Side Headlight & Block Recognition • Phase Target PB: ${getPhaseTargetPb('pll').toFixed(3)}s`, lineupLabel: "Today's PLL Lineup (Hold & Drag to Reorder)", libEyebrow: '21 Standard + 4 Bonus Algs', libTitle: 'PLL Library', groupTabLabel: '5 Perm Groups', unitLabel: 'Algs', statsTitle: 'PLL Statistics' }
+      : { subtitle: `Yellow Top Recognition • Phase Target PB: ${getPhaseTargetPb('oll').toFixed(3)}s`, lineupLabel: "Today's OLL Lineup (Hold & Drag to Reorder)", libEyebrow: '57 Last-Layer Cases', libTitle: 'OLL Library', groupTabLabel: 'Shape Groups', unitLabel: 'Cases', statsTitle: 'OLL Statistics' };
 
     if (tab === 'settings') return renderSettingsDeck();
 
@@ -4563,8 +4563,8 @@ function OLLDaySuite() {
                 </button>
                 <button
                   onClick={() => {
-                    if (lineupOrder.some((c) => !isCaseUnlockedForTier(phaseKey, c.id, isProUnlocked))) {
-                      openProPaywall(`Day ${safeDay} ${phaseKey.toUpperCase()} Cases`);
+                    if (lineupOrder.some((c) => !isCaseUnlockedForTraining(phaseKey, c.id, isProUnlocked))) {
+                      openProPaywall(`Day ${safeDay} ${phaseKey.toUpperCase()} Training`);
                       return;
                     }
                     emitBeep(720, 'sine', 0.08);
@@ -4599,7 +4599,7 @@ function OLLDaySuite() {
               {lineupOrder.map((rawItem, idx) => {
                 const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
                 const stat = statsMap?.[item.id];
-                const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+                const locked = !isCaseUnlockedForTraining(phaseKey, item.id, isProUnlocked);
                 return (
                   <div
                     key={item.id} data-lineup-idx={idx}
@@ -4684,15 +4684,19 @@ function OLLDaySuite() {
               <div className="grid grid-cols-2 gap-3">
                 {groupList.map((group) => {
                   const groupCases = dataList.filter((c) => c.group === group);
-                  const groupLocked = !isProUnlocked && !meta.isFreeGroup(group);
+                  const hasProTrainingCases = !isProUnlocked && groupCases.some((c) => !isCaseUnlockedForTraining(phaseKey, c.id, false));
                   return (
                     <button
                       key={group}
                       onClick={() => { emitBeep(520); setSelectedCategory({ type: 'group', name: group }); }}
-                      className={`relative overflow-hidden liquid-glass-card liquid-tile-sheen liquid-rim-muted border rounded-[2rem] p-4 flex flex-col items-center text-center hover:border-orange-500/35 active:scale-95 transition-all cursor-pointer space-y-2.5 ${groupLocked ? 'border-orange-500/20' : 'border-white/10'}`}
+                      className="relative overflow-hidden liquid-glass-card liquid-tile-sheen liquid-rim-muted border border-white/10 rounded-[2rem] p-4 flex flex-col items-center text-center hover:border-orange-500/35 active:scale-95 transition-all cursor-pointer space-y-2.5"
                     >
-                      {groupLocked && <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">🔒 Pro</span>}
-                      <div className={groupLocked ? 'opacity-45' : ''}>{renderCaseThumb(phaseKey, groupCases[0], isF2L ? 'w-24 h-24' : 'w-16 h-16')}</div>
+                      {hasProTrainingCases && (
+                        <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/15 text-[8px] font-black uppercase text-zinc-300 z-10">
+                          View Free
+                        </span>
+                      )}
+                      <div>{renderCaseThumb(phaseKey, groupCases[0], isF2L ? 'w-24 h-24' : 'w-16 h-16')}</div>
                       <div><h3 className="text-xs font-black text-white leading-snug">{group}</h3><span className="text-[10px] font-bold text-orange-400">{groupCases.length} {meta.unitLabel}</span></div>
                     </button>
                   );
@@ -4702,20 +4706,24 @@ function OLLDaySuite() {
               <div className="space-y-2.5">
                 {chunksList.map((chk) => {
                   const sampleCase = lookupMap.get(chk.ids[0]) || dataList[0];
-                  const chunkLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTier(phaseKey, id, false));
+                  const trainingLocked = !isProUnlocked && chk.ids.some((id) => !isCaseUnlockedForTraining(phaseKey, id, false));
                   return (
                     <button
                       key={chk.id}
                       onClick={() => { emitBeep(520); setSelectedCategory({ type: 'chunk', chunk: chk }); }}
-                      className={`relative overflow-hidden w-full liquid-glass-card liquid-rim-muted border rounded-[1.85rem] p-3.5 flex items-center gap-3.5 text-left hover:border-orange-500/35 cursor-pointer ${chunkLocked ? 'border-orange-500/20' : 'border-white/10'}`}
+                      className="relative overflow-hidden w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-[1.85rem] p-3.5 flex items-center gap-3.5 text-left hover:border-orange-500/35 cursor-pointer"
                     >
-                      <div className={chunkLocked ? 'opacity-45' : ''}>{renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-20 h-20' : 'w-14 h-14')}</div>
+                      <div>{renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-20 h-20' : 'w-14 h-14')}</div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
-                          {chunkLocked && <span className="px-1.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">🔒 PRO</span>}
+                          {trainingLocked && (
+                            <span className="px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/35 text-[8.5px] font-black text-orange-200 flex-shrink-0">
+                              🔒 Day Grind
+                            </span>
+                          )}
                         </div>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">{chk.ids.length} {phaseKey.toUpperCase()} {meta.unitLabel}</p>
+                        <p className="text-[11px] text-zinc-400 mt-0.5">{chk.ids.length} {phaseKey.toUpperCase()} {meta.unitLabel} • Algs Visible</p>
                       </div>
                       <span className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-orange-400 font-black text-xs">→</span>
                     </button>
@@ -4736,20 +4744,19 @@ function OLLDaySuite() {
                 ).map((rawItem) => {
                   const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
                   const stat = statsMap?.[item.id];
-                  const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+                  const trainingLocked = !isCaseUnlockedForTraining(phaseKey, item.id, isProUnlocked);
                   const showItemTriggers = fingertricksEnabled && (!item.usingCustomAlg || item.showCustomTriggerPills !== false);
                   const itemTags = showItemTriggers ? getAlgorithmTriggerTags(item.alg) : [];
                   return (
                     <div
                       key={item.id}
                       onClick={() => {
-                        if (locked) { openProPaywall(item.name); return; }
+                        if (trainingLocked) { openProPaywall(`${item.name} • Day Training & Drills`); return; }
                         emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                       }}
-                      className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-[1.85rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:border-white/20'}`}
+                      className="case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 hover:border-white/20 rounded-[1.85rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer"
                     >
-                      {locked && <ProLockOverlay label={`${item.name} • Unlock Pro`} />}
-                      <div className={`flex items-center gap-3.5 min-w-0 flex-1 ${locked ? 'opacity-40 select-none' : ''}`}>
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         {renderCaseThumb(phaseKey, rawItem, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -4783,32 +4790,35 @@ function OLLDaySuite() {
                           {item.step1 && <p className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{item.step1}</p>}
                         </div>
                       </div>
-                      {!locked && (
-                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                        {trainingLocked && (
+                          <span className="px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-400/35 text-[9.5px] font-black text-orange-300">
+                            🔒 Day Training
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCustomAlgEditor(phaseKey, rawItem);
+                          }}
+                          className={`px-2.5 py-1.5 rounded-full border text-[10px] font-black cursor-pointer transition-all ${
+                            item.hasCustomAlg
+                              ? 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30'
+                              : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:text-white hover:bg-white/[0.12]'
+                          }`}
+                        >
+                          {isProUnlocked ? (item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ Custom') : '🔒 Custom'}
+                        </button>
+                        {fingertricksEnabled && (
                           <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openCustomAlgEditor(phaseKey, rawItem);
-                            }}
-                            className={`px-2.5 py-1.5 rounded-full border text-[10px] font-black cursor-pointer transition-all ${
-                              item.hasCustomAlg
-                                ? 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30'
-                                : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:text-white hover:bg-white/[0.12]'
-                            }`}
+                            onClick={(e) => { e.stopPropagation(); emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+                            className="px-2.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-zinc-300 hover:text-white cursor-pointer"
                           >
-                            {isProUnlocked ? (item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ Custom') : '🔒 Custom'}
+                            Grip
                           </button>
-                          {fingertricksEnabled && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-                              className="px-2.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-zinc-300 hover:text-white cursor-pointer"
-                            >
-                              Grip
-                            </button>
-                          )}
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -4845,7 +4855,7 @@ function OLLDaySuite() {
           {dataList.map((item) => {
             const stat = statsMap?.[item.id];
             const caseGoal = getEffectiveCaseTargetPb(phaseKey, item.id);
-            const locked = !isCaseUnlockedForTier(phaseKey, item.id, isProUnlocked);
+            const locked = !isCaseUnlockedForTraining(phaseKey, item.id, isProUnlocked);
             return (
               <div
                 key={item.id}
@@ -6697,7 +6707,7 @@ function OLLDaySuite() {
                       onClick={() => {
                         stopScannerCamera(); setScannerOpen(false);
                         if (activeStagePhase === 'cross') { emitBeep(760); setActivePhase('cross'); setTabForPhase('cross', 'ladder'); return; }
-                        if (!isCaseUnlockedForTier(activeStagePhase, matched.id, isProUnlocked)) { openProPaywall(matched.name); return; }
+                        if (!isCaseUnlockedForTraining(activeStagePhase, matched.id, isProUnlocked)) { openProPaywall(matched.name); return; }
                         emitBeep(760); setActivePhase(activeStagePhase); setSwRunning(false); setSwLastResult(null);
                         if (activeStagePhase === 'f2l') setF2lDrillCase(matched);
                         else if (activeStagePhase === 'oll') setOllDrillCase(matched);
@@ -7565,9 +7575,9 @@ function OLLDaySuite() {
           <ModalShell onClose={() => setActiveModal(null)} zClass="z-[275]" maxWidth="max-w-xs" borderClass="border-orange-500/40">
             <div className="space-y-4 text-center">
               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">OLLDay Pro • Lifetime Access</span>
-              <h3 className="text-xl font-black text-white">Unlock All 123 Cases</h3>
+              <h3 className="text-xl font-black text-white">Unlock Full Day Training</h3>
               {proPaywallFeature && <p className="text-xs font-bold text-amber-300">{proPaywallFeature}</p>}
-              <p className="text-xs text-zinc-300 leading-relaxed">Get full access to all 41 F2L pairs, 57 OLL algorithms, 25 PLLs, Advanced Full-Scramble Cross Ladder, Blindfold Mat, Custom Alternative Algorithms, and Custom Chunk Builder.</p>
+              <p className="text-xs text-zinc-300 leading-relaxed">All 123 algorithms are free to view in your library! Upgrade to Pro to train every F2L, OLL, and PLL case in Day Grind sessions, isolated drills, Advanced Full-Scramble Cross Ladder, Blindfold Mat, Custom Algs, and Custom Chunk Builder.</p>
               <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-zinc-400">One-Time Purchase • Yours Forever • No Subscription</span>
               {proPurchaseToast ? (
                 <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
