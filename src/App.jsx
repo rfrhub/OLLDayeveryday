@@ -284,7 +284,6 @@ const CROSS_EDGE_SPECS = [
   { dIdx: 30, sideIdx: 43, centerCol: 'R' }
 ];
 
-// Fast integer representation of the 4 white cross edges (each edge encoded as stickerPos * 2 + flip)
 function encodeCrossEdgesKey(s) {
   const pos = [0, 0, 0, 0];
   const slots = [
@@ -305,7 +304,6 @@ function encodeCrossEdgesKey(s) {
   return (pos[0] << 15) | (pos[1] << 10) | (pos[2] << 5) | pos[3];
 }
 
-// Lower-bound heuristic: minimum HTM moves needed to solve remaining cross edges
 function crossHeuristicLowerBound(s) {
   let unsolved = 0;
   let needsFOrB = 0;
@@ -356,7 +354,6 @@ function solveExactCrossFrom54(startState) {
     return false;
   };
 
-  // Every 3x3 cross is guaranteed solvable in <= 8 moves in Half-Turn Metric (HTM)
   const startBound = Math.max(1, crossHeuristicLowerBound(startState));
   for (let maxDepth = startBound; maxDepth <= 8; maxDepth++) {
     if (dfs(startState, 0, maxDepth, '', '')) break;
@@ -738,6 +735,12 @@ function pumpVisualCubeQueue() {
       })
       .then(job.resolve);
   }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && VISUALCUBE_FETCH_QUEUE.length > 0) pumpVisualCubeQueue();
+  });
 }
 
 function enqueueVisualCubeFetch(url, highPriority = false) {
@@ -1232,7 +1235,6 @@ const MAX_CUSTOM_ALGS_PER_CASE = 7;
 
 function normalizeCaseCustomAlgs(rawEntry) {
   if (!rawEntry) return { list: [], activeId: null };
-  // Migrate legacy single-algorithm object { alg, rawAlg, assignFingertricks, useCustom }
   if (typeof rawEntry === 'object' && !Array.isArray(rawEntry) && typeof rawEntry.alg === 'string') {
     const legacyId = 'custom-1';
     return {
@@ -1479,21 +1481,40 @@ const CUBE_FACES_META = [
   { offset: 27, transform: `rotateX(-90deg) translateZ(${CUBE_HALF_PX}px)`, shade: 0.22 }
 ];
 
+// =========================================================================
+// 2B. LIQUID GLASS PRIMITIVES & ALL-ORANGE 3x3 CUBE GLYPH
+// =========================================================================
+function OrangeCube3x3Icon({ className = 'w-5 h-5' }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="5.2" height="5.2" rx="1.35" fill="#fb923c" />
+      <rect x="9.4" y="2.5" width="5.2" height="5.2" rx="1.35" fill="#f97316" />
+      <rect x="16.3" y="2.5" width="5.2" height="5.2" rx="1.35" fill="#fb923c" />
+      <rect x="2.5" y="9.4" width="5.2" height="5.2" rx="1.35" fill="#f97316" />
+      <rect x="9.4" y="9.4" width="5.2" height="5.2" rx="1.35" fill="#fdba74" />
+      <rect x="16.3" y="9.4" width="5.2" height="5.2" rx="1.35" fill="#f97316" />
+      <rect x="2.5" y="16.3" width="5.2" height="5.2" rx="1.35" fill="#fb923c" />
+      <rect x="9.4" y="16.3" width="5.2" height="5.2" rx="1.35" fill="#f97316" />
+      <rect x="16.3" y="16.3" width="5.2" height="5.2" rx="1.35" fill="#ea580c" />
+    </svg>
+  );
+}
+
 function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
   const pillClass = size === 'xs'
     ? 'px-2.5 py-0.5 text-[9.5px]'
     : 'px-3 py-1 text-[10px] shadow-lg';
   const badge = (
-    <span className={`${pillClass} rounded-full bg-orange-500/25 border border-orange-400/50 font-black uppercase tracking-wider text-orange-200`}>
+    <span className={`${pillClass} rounded-full bg-orange-500/20 border border-orange-400/40 font-black uppercase tracking-wider text-orange-200`}>
       🔒 {label}
     </span>
   );
   return interactive ? (
-    <button type="button" onClick={onClick} className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center cursor-pointer">
+    <button type="button" onClick={onClick} className="absolute inset-0 z-10 bg-[#05070e]/80 backdrop-blur-sm flex items-center justify-center cursor-pointer">
       {badge}
     </button>
   ) : (
-    <div className="absolute inset-0 z-10 bg-slate-950/75 flex items-center justify-center pointer-events-none">
+    <div className="absolute inset-0 z-10 bg-[#05070e]/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
       {badge}
     </div>
   );
@@ -1523,12 +1544,12 @@ function CustomAlgSwitcherPills({ item, onSelect, stopPropagation = false }) {
   return (
     <div
       onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
-      className="bg-slate-950 p-0.5 rounded-lg border border-white/15 inline-flex items-center flex-wrap gap-0.5"
+      className="bg-black/45 p-0.5 rounded-full border border-white/10 inline-flex items-center flex-wrap gap-0.5"
     >
       <button
         type="button"
         onClick={() => onSelect(null)}
-        className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase cursor-pointer transition-all ${!item.usingCustomAlg ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'}`}
+        className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase cursor-pointer transition-all ${!item.usingCustomAlg ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-white'}`}
       >
         Ours
       </button>
@@ -1537,7 +1558,7 @@ function CustomAlgSwitcherPills({ item, onSelect, stopPropagation = false }) {
           key={cAlt.id}
           type="button"
           onClick={() => onSelect(cAlt.id)}
-          className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase cursor-pointer transition-all ${item.activeCustomId === cAlt.id ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+          className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase cursor-pointer transition-all ${item.activeCustomId === cAlt.id ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
         >
           #{idx + 1}
         </button>
@@ -1553,9 +1574,9 @@ function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, 
       key={offset}
       style={{
         position: 'absolute', width: `${half * 2}px`, height: `${half * 2}px`, transform,
-        backfaceVisibility: 'hidden', backgroundColor: '#070a12', borderRadius: '10px', padding: '4px',
+        backfaceVisibility: 'hidden', backgroundColor: '#060810', borderRadius: '11px', padding: '4px',
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)',
-        gap: '3.5px', boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.08)'
+        gap: '3.5px', boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.07)'
       }}
     >
       {Array.from({ length: 9 }).map((_, idx) => {
@@ -1567,9 +1588,9 @@ function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, 
           <div
             key={idx}
             style={{
-              backgroundColor: dimmed ? (muted ? '#334155' : '#1e293b') : STICKER_HEX[code] || '#334155',
+              backgroundColor: dimmed ? (muted ? '#263042' : '#161d2b') : STICKER_HEX[code] || '#263042',
               borderRadius: '4.5px',
-              boxShadow: dimmed ? 'inset 0 1px 1px rgba(255,255,255,0.06)' : 'inset 0 1.5px 2px rgba(255,255,255,0.45), inset 0 -1.5px 2px rgba(0,0,0,0.28)',
+              boxShadow: dimmed ? 'inset 0 1px 1px rgba(255,255,255,0.04)' : 'inset 0 1.5px 2px rgba(255,255,255,0.38), inset 0 -1.5px 2px rgba(0,0,0,0.32)',
               position: 'relative', overflow: 'hidden'
             }}
           >
@@ -1585,7 +1606,7 @@ function Spatial3DCube({ stickers, isStickerActive, isStickerMuted, yaw, pitch, 
       <div
         style={{
           position: 'absolute', bottom: '8px', width: '92px', height: '20px', borderRadius: '9999px',
-          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 72%)',
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 72%)',
           transform: `scale(${isDragging ? 1.08 : 1})`, transition: isDragging ? 'none' : 'transform 0.2s ease'
         }}
       />
@@ -1653,10 +1674,10 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
 
 function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', children }) {
   return (
-    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#040711]/95 flex items-center justify-center p-5`}>
+    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#03050a]/85 backdrop-blur-md flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-slate-900 border ${borderClass} rounded-[2.25rem] p-5 ${maxWidth} w-full shadow-2xl max-h-[90dvh] overflow-y-auto no-scrollbar`}
+        className={`liquid-glass-card liquid-rim-muted border ${borderClass} rounded-[2.25rem] p-5 ${maxWidth} w-full shadow-[0_28px_70px_rgba(0,0,0,0.85)] max-h-[90dvh] overflow-y-auto no-scrollbar`}
       >
         {children}
       </div>
@@ -1742,7 +1763,6 @@ function detectViewportDevice() {
   const maxTouch = typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0;
   const isCoarsePointer = typeof window.matchMedia === 'function' ? window.matchMedia('(pointer: coarse)').matches : maxTouch > 0;
 
-  // Detect iPadOS 13+ (reports MacIntel with maxTouchPoints > 1) & Android/Windows tablets
   const isIPad = /iPad/i.test(ua) || (platform === 'MacIntel' && maxTouch > 1);
   const isAndroidTablet = /Android/i.test(ua) && !/Mobile/i.test(ua);
   const isGenericTablet = /Tablet|PlayBook|Silk|Kindle/i.test(ua);
@@ -1757,8 +1777,6 @@ function detectViewportDevice() {
     kind = 'mobile';
   }
 
-  // Strictly keep phones in the original single-column layout (even in landscape);
-  // enable the two-pane workspace only on iPad/Tablet (>= 700px) and Desktop (>= 768px)
   const isWideTwoPane =
     kind !== 'mobile' && (kind === 'desktop' ? width >= 768 : width >= 700);
 
@@ -1814,7 +1832,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-1 text-[10px]'} rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 font-bold text-slate-300 cursor-pointer`}
+              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-slate-300 cursor-pointer`}
             >
               Reset
             </button>
@@ -1822,7 +1840,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-400 active:scale-95 transition-all cursor-pointer`}
+            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
           >
             Rotate Cube ↻
           </button>
@@ -1867,10 +1885,10 @@ function CasePracticeCard({
       {isF2L ? (
         <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
       ) : (
-        <div className={`${isLargeScreen ? 'w-40 h-40 p-3' : 'w-28 h-28 p-2'} rounded-3xl bg-slate-200 mx-auto`}>
+        <div className={`${isLargeScreen ? 'w-40 h-40 p-3' : 'w-28 h-28 p-2.5'} rounded-[1.75rem] bg-white/[0.08] border border-white/10 shadow-inner mx-auto`}>
           <CachedVisualCubeImg
             url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
-            alt={item.name} lazy={false} className="w-full h-full object-contain"
+            alt={item.name} lazy={false} className="w-full h-full object-contain drop-shadow"
           />
         </div>
       )}
@@ -1882,7 +1900,7 @@ function CasePracticeCard({
       </div>
 
       {(isF2L || isPLL) && (
-        <div className={`w-full bg-[#050811] border border-white/10 rounded-2xl ${isLargeScreen ? 'p-3.5 space-y-1.5' : 'p-2.5 space-y-1'} text-center`}>
+        <div className={`w-full liquid-glass-well border border-white/10 rounded-2xl ${isLargeScreen ? 'p-3.5 space-y-1.5' : 'p-2.5 space-y-1'} text-center`}>
           <div className="flex items-center justify-between">
             <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-slate-400`}>
               {isF2L ? `Setup (${f2lSetupMode})` : showInlineGroup ? 'Setup Scramble' : 'Setup Scramble (From Solved Cube)'}
@@ -1897,7 +1915,7 @@ function CasePracticeCard({
         </div>
       )}
 
-      <div className={`w-full bg-white/5 border border-white/10 rounded-2xl ${isLargeScreen ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5'} text-center`}>
+      <div className={`w-full liquid-glass-well liquid-rim-muted border border-white/10 rounded-2xl ${isLargeScreen ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5'} text-center`}>
         <div className="flex items-center justify-between gap-1.5 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-slate-400`}>
@@ -1909,12 +1927,12 @@ function CasePracticeCard({
           </div>
           <div className="flex items-center gap-1.5">
             {onOpenCustomAlgEditor && (
-              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-lg bg-white/5 border border-white/15 font-black text-slate-200 hover:bg-white/10 cursor-pointer`}>
+              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-full bg-white/[0.06] border border-white/10 font-black text-slate-200 hover:bg-white/[0.12] cursor-pointer`}>
                 {item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ My Alg'}
               </button>
             )}
             {fingertricksEnabled && (
-              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'} rounded-lg bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
+              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
                 Grip Guide →
               </button>
             )}
@@ -1944,8 +1962,8 @@ function CasePracticeCard({
       {stopwatchEnabled && (
         <button
           onClick={onToggleStopwatch}
-          className={`w-full ${isLargeScreen ? 'py-4 px-4' : 'py-3 px-3'} rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 ${
-            swRunning ? 'bg-green-500/20 border-green-400 text-green-300' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'bg-slate-950 border-white/10 text-slate-200'
+          className={`w-full ${isLargeScreen ? 'py-4 px-4' : 'py-3 px-3'} rounded-2xl border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 transition-all ${
+            swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/50 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-slate-200 hover:border-orange-500/35'
           }`}
         >
           {swRunning ? (
@@ -1995,7 +2013,7 @@ function MillisecondSliderControl({ value, min, max, draftValue, onSliderChange,
         {[{ label: '-10ms', delta: -0.01 }, { label: '-1ms', delta: -0.001 }, { label: '+1ms', delta: 0.001 }, { label: '+10ms', delta: 0.01 }].map((btn) => (
           <button
             key={btn.label} type="button" onClick={() => onStepDelta(btn.delta)}
-            className="flex-1 py-1 rounded-lg bg-slate-950 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
+            className="flex-1 py-1 rounded-lg bg-black/45 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 hover:text-white cursor-pointer"
           >
             {btn.label}
           </button>
@@ -2003,7 +2021,7 @@ function MillisecondSliderControl({ value, min, max, draftValue, onSliderChange,
         <input
           type="number" step="0.001" min="0.100" max="120.000" value={draftValue}
           onChange={(e) => onDraftChange(e.target.value)}
-          className={`${inputWidthClass} rounded-lg bg-slate-950 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center ${accentTextClass}`}
+          className={`${inputWidthClass} rounded-lg bg-black/45 border border-white/15 px-1.5 py-1 font-mono text-[10px] text-center ${accentTextClass}`}
         />
       </div>
     </>
@@ -2072,21 +2090,21 @@ function buildSchedule(chunks, dataList, lookupMap = null) {
 // 2D. COMPLETE CFOP DATASETS, TOURS, FINGERTRICK CODEX & WCA NOTATION
 // =========================================================================
 const CFOP_AND_APP_TOUR_STEPS = [
-  { badge: 'Step 1 of 6 • Welcome to CFOP', title: 'How CFOP Solves the 3x3 Cube', phase: 'cross', tab: 'ladder', desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. Instead of solving layer-by-layer slowly, you build a bottom cross, pair corners & edges together, orient the yellow top in one look, and permute the final layer.', howToReach: 'Tap the orange phase pill (C / F / O / P) in the top-right header anytime to jump between phases.' },
-  { badge: 'Step 2 of 6 • Phase C (Cross)', title: 'Solve the White Cross on Bottom', phase: 'cross', tab: 'ladder', desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6–8 moves or fewer while matching their side colors to the center pieces—use the 3D Cross Orbit cube and Ladder tiers to build efficiency.', howToReach: 'Top-right pill → C • Bottom bar: Ladder, Blind Run (dual-thumb mat), Mechanics.' },
-  { badge: 'Step 3 of 6 • Phase F (F2L)', title: 'First Two Layers (41 Pairs)', phase: 'f2l', tab: 'grind', desc: 'Keep White on the bottom and Green in front. Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—completing the first two layers at the same time.', howToReach: 'Top-right pill → F • Tap Start Day Grind or any pair in Today\'s Lineup for a 3D isolated drill.' },
-  { badge: 'Step 4 of 6 • Phase O (OLL)', title: 'Orient Last Layer (57 Cases)', phase: 'oll', tab: 'grind', desc: 'Recognize the Yellow pattern on the top face and execute one algorithm to make the entire top face solid Yellow.', howToReach: 'Top-right pill → O • Use The Grind for daily chunks or Algorithms to browse all 57 OLL shapes.' },
-  { badge: 'Step 5 of 6 • Phase P (PLL)', title: 'Permute Last Layer (25 Algorithms)', phase: 'pll', tab: 'grind', desc: 'With Yellow solid on top, swap the final top-layer corners and edges into their solved positions to finish the cube.', howToReach: 'Top-right pill → P • Each case highlights inline fingertrick triggers and step-by-step grip cues.' },
-  { badge: 'Step 6 of 6 • Ready to Train', title: 'Pick Your Starting Phase', phase: 'oll', tab: 'settings', desc: 'Every phase includes Statistics (with custom 0.001s Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier. Choose where you want to start training right now:', howToReach: 'Tap a phase button below to jump straight in, or switch anytime using the top-right C • F • O • P pill.' }
+  { badge: 'Step 1 of 6 • Welcome to CFOP', title: 'How CFOP Solves the 3x3 Cube', phase: 'cross', tab: 'ladder', desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. Instead of solving layer-by-layer slowly, you build a bottom cross, pair corners & edges together, orient the yellow top in one look, and permute the final layer.', howToReach: 'Tap the elevated orange 3×3 cube button in the center of the bottom dock anytime to pour open C • F • O • P.' },
+  { badge: 'Step 2 of 6 • Phase C (Cross)', title: 'Solve the White Cross on Bottom', phase: 'cross', tab: 'ladder', desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6–8 moves or fewer while matching their side colors to the center pieces—use the 3D Cross Orbit cube and Ladder tiers to build efficiency.', howToReach: 'Center 3×3 Cube → C • Bottom dock: Ladder, Blind Run (dual-thumb mat), Mechanics.' },
+  { badge: 'Step 3 of 6 • Phase F (F2L)', title: 'First Two Layers (41 Pairs)', phase: 'f2l', tab: 'grind', desc: 'Keep White on the bottom and Green in front. Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—completing the first two layers at the same time.', howToReach: 'Center 3×3 Cube → F • Tap Start Day Grind or any pair in Today\'s Lineup for a 3D isolated drill.' },
+  { badge: 'Step 4 of 6 • Phase O (OLL)', title: 'Orient Last Layer (57 Cases)', phase: 'oll', tab: 'grind', desc: 'Recognize the Yellow pattern on the top face and execute one algorithm to make the entire top face solid Yellow.', howToReach: 'Center 3×3 Cube → O • Use The Grind for daily chunks or Algorithms to browse all 57 OLL shapes.' },
+  { badge: 'Step 5 of 6 • Phase P (PLL)', title: 'Permute Last Layer (25 Algorithms)', phase: 'pll', tab: 'grind', desc: 'With Yellow solid on top, swap the final top-layer corners and edges into their solved positions to finish the cube.', howToReach: 'Center 3×3 Cube → P • Each case highlights inline fingertrick triggers and step-by-step grip cues.' },
+  { badge: 'Step 6 of 6 • Ready to Train', title: 'Pick Your Starting Phase', phase: 'oll', tab: 'settings', desc: 'Every phase includes Statistics (with custom 0.001s Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier. Choose where you want to start training right now:', howToReach: 'Tap a phase button below to jump straight in, or tap the center 3×3 orange cube in the dock anytime.' }
 ];
 
 const APP_ONLY_TOUR_STEPS = [
-  { badge: 'Feature 1 of 6 • Phase Navigation', title: 'Instant C • F • O • P Phase Switching', phase: 'cross', tab: 'ladder', desc: 'Switch seamlessly between Cross (C), F2L (F), OLL (O), and PLL (P). You can also pin your preferred startup phase in Settings Card 3.', howToReach: 'Tap the orange phase selector pill in the top-right corner of the header.' },
-  { badge: 'Feature 2 of 6 • Cross & Blind Mat', title: '3D Cross Ladder & Dual-Thumb Blind Mat', phase: 'cross', tab: 'blind', desc: 'Train Standard (2–6 move) or Advanced 20-move scrambles with the interactive 3D Cross Orbit cube, then test 15s WCA inspection on the dual-thumb Speedstack mat.', howToReach: 'Phase C → Bottom tabs: Ladder, Blind Run, and Mechanics.' },
+  { badge: 'Feature 1 of 6 • Liquid Phase Switcher', title: 'Instant C • F • O • P Phase Switching', phase: 'cross', tab: 'ladder', desc: 'Tap the elevated orange 3×3 cube in the center of the bottom dock to pour open C, F, O, and P. You can also pin your preferred startup phase in Settings Card 3.', howToReach: 'Tap the center orange 3×3 cube button in the bottom navigation bar.' },
+  { badge: 'Feature 2 of 6 • Cross & Blind Mat', title: '3D Cross Ladder & Dual-Thumb Blind Mat', phase: 'cross', tab: 'blind', desc: 'Train Standard (2–6 move) or Advanced 20-move scrambles with the interactive 3D Cross Orbit cube, then test 15s WCA inspection on the dual-thumb Speedstack mat.', howToReach: 'Phase C → Bottom dock: Ladder, Blind Run, and Mechanics.' },
   { badge: 'Feature 3 of 6 • F2L 3D Spatial Drills', title: 'Daily Grind & Interactive 3D F2L Cube', phase: 'f2l', tab: 'grind', desc: 'Work through daily learning chunks, navigate backward/forward across days (← Prev / Next →), hold-and-drag to reorder your lineup, or tap any pair to spin it in 3D.', howToReach: 'Phase F → The Grind (tap any pair) or Algorithms (41 F2L pairs).' },
-  { badge: 'Feature 4 of 6 • OLL & PLL Libraries', title: 'Inline Fingertricks & Isolated Case Drills', phase: 'oll', tab: 'algorithms', desc: 'Browse all 57 OLL and 25 PLL cases by shape group or curriculum chunk with color-coded inline fingertrick triggers, grip guides, and Ao5/Ao20/Ao40 case timers.', howToReach: 'Phase O or P → Bottom tab: Algorithms → Tap any case to drill or tap Grip.' },
-  { badge: 'Feature 5 of 6 • Millisecond Telemetry', title: 'Custom Target PBs & Full 3x3x3 Timer', phase: 'pll', tab: 'stats', desc: 'Set 0.001s millisecond Target PBs per phase or per individual case, and launch the full-screen 3x3x3 WCA Timer with Ao5 and Ao12 tracking.', howToReach: 'Any phase → Bottom tab: Statistics → Tap Open Timer or Goal ✎ on any case.' },
-  { badge: 'Feature 6 of 6 • Settings Control Deck', title: '8-Card Settings Deck & Guided Replay', phase: 'oll', tab: 'settings', desc: 'Swipe through the 3D Settings deck to replay this guide anytime on Card 1, adjust Target PBs on Card 2, pin your startup phase on Card 3, or inspect WCA Notation & Fingertricks.', howToReach: 'Any phase → Bottom tab: Settings → Swipe cards or tap the pagination dots.' }
+  { badge: 'Feature 4 of 6 • OLL & PLL Libraries', title: 'Inline Fingertricks & Isolated Case Drills', phase: 'oll', tab: 'algorithms', desc: 'Browse all 57 OLL and 25 PLL cases by shape group or curriculum chunk with color-coded inline fingertrick triggers, grip guides, and Ao20/Ao40/Ao60 case timers.', howToReach: 'Phase O or P → Bottom dock: Algorithms → Tap any case to drill or tap Grip.' },
+  { badge: 'Feature 5 of 6 • Millisecond Telemetry', title: 'Custom Target PBs & Full 3x3x3 Timer', phase: 'pll', tab: 'stats', desc: 'Set 0.001s millisecond Target PBs per phase or per individual case, and launch the full-screen 3x3x3 WCA Timer with Ao5 and Ao12 tracking.', howToReach: 'Any phase → Bottom dock: Statistics → Tap Open Timer or Goal ✎ on any case.' },
+  { badge: 'Feature 6 of 6 • Settings Control Deck', title: '8-Card Settings Deck & Guided Replay', phase: 'oll', tab: 'settings', desc: 'Swipe through the Liquid Glass Settings deck to replay this guide anytime on Card 1, adjust Target PBs on Card 2, pin your startup phase on Card 3, or inspect WCA Notation & Fingertricks.', howToReach: 'Any phase → Bottom dock: Settings → Swipe cards or tap the pagination dots.' }
 ];
 
 const FINGERTRICK_CODEX = [
@@ -2526,13 +2544,39 @@ function useSolverPersistence(users, setUsers, activeUserKey) {
 // 4. MAIN APPLICATION COMPONENT & ERROR BOUNDARY
 // =========================================================================
 const APP_GLOBAL_CSS = `
-  html, body { background-color: #060913; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  html, body { background-color: #05070e; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .liquid-glass-card {
+    background: linear-gradient(165deg, rgba(20, 27, 45, 0.84) 0%, rgba(10, 14, 24, 0.92) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .liquid-glass-well {
+    background: linear-gradient(180deg, rgba(6, 9, 18, 0.86) 0%, rgba(12, 17, 30, 0.78) 100%);
+  }
+  .liquid-glass-dock {
+    background: linear-gradient(180deg, rgba(22, 29, 48, 0.86) 0%, rgba(9, 13, 24, 0.95) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .liquid-rim-muted {
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.09), 0 14px 36px rgba(0, 0, 0, 0.48);
+  }
+  .liquid-rim-amber {
+    box-shadow: inset 0 1px 0 0 rgba(251, 146, 60, 0.22), 0 16px 40px rgba(0, 0, 0, 0.55);
+  }
+  .liquid-phase-pour {
+    border-radius: 9999px !important;
+    transition: width 0.42s cubic-bezier(0.22, 1.15, 0.36, 1),
+                background 0.32s ease,
+                box-shadow 0.35s ease,
+                transform 0.32s cubic-bezier(0.22, 1.15, 0.36, 1);
+  }
   .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
-  .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.5; pointer-events: none; }
-  .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.2; pointer-events: none; }
-  .f2l-cube-satin { filter: contrast(0.92) saturate(0.86) brightness(0.96); transition: transform 0.25s ease; }
+  .deck-card-2 { transform: translateY(18px) scale(0.95); z-index: 20; opacity: 0.45; pointer-events: none; }
+  .deck-card-3 { transform: translateY(36px) scale(0.90); z-index: 10; opacity: 0.18; pointer-events: none; }
+  .f2l-cube-satin { filter: contrast(0.94) saturate(0.9) brightness(0.97); transition: transform 0.25s ease; }
   .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
   .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
 `;
@@ -2543,12 +2587,12 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex items-center justify-center p-6">
-          <div className="max-w-xs w-full bg-slate-900 border border-white/10 rounded-[2rem] p-6 text-center space-y-4 shadow-2xl">
+        <div className="min-h-[100dvh] w-full bg-[#05070e] text-slate-100 flex items-center justify-center p-6">
+          <div className="max-w-xs w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-6 text-center space-y-4 shadow-2xl">
             <span className="inline-block px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-[10px] font-black uppercase tracking-widest text-red-300">Recovery Mode</span>
             <h2 className="text-lg font-black text-white">Display Interrupted</h2>
             <p className="text-xs text-slate-400 leading-relaxed break-words">{this.state.errorMessage}</p>
-            <button type="button" onClick={() => this.setState({ hasError: false, errorMessage: '' })} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
+            <button type="button" onClick={() => this.setState({ hasError: false, errorMessage: '' })} className="w-full py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
               Reload View
             </button>
           </div>
@@ -2642,6 +2686,7 @@ function OLLDaySuite() {
   const [scannerViewfinderVisible, setScannerViewfinderVisible] = useState(true);
   const liveStableSignatureRef = useRef('');
   const liveStableStreakRef = useRef(0);
+  const liveMissedFramesRef = useRef(0);
 
   // Audio Synthesizer
   const audioCtxRef = useRef(null);
@@ -2880,6 +2925,7 @@ function OLLDaySuite() {
 
   useEffect(() => {
     if (!scannerOpen || !scannerCameraReady || !isAppVisible || !scannerViewfinderVisible || currentFaceAlreadyCaptured) return;
+    liveMissedFramesRef.current = 0;
     const id = setInterval(() => {
       const res = sampleVideoGridAntiGlare();
       if (!res) return;
@@ -2890,8 +2936,16 @@ function OLLDaySuite() {
         liveStableSignatureRef.current = '';
         liveStableStreakRef.current = 0;
         setScannerStabilityCount(0);
+        if (scannerAutoSnap) {
+          liveMissedFramesRef.current += 1;
+          if (liveMissedFramesRef.current >= 25) {
+            liveMissedFramesRef.current = 0;
+            setScannerAutoSnap(false);
+          }
+        }
         return;
       }
+      liveMissedFramesRef.current = 0;
       const snap = scannerLiveRef.current;
       const codes = classifyCapturedFaceBatch({ ...snap.scannerRawSamples, [scannerCaptureStep]: res.sampled9 }, snap.scannedFaces, snap.scannerLockedFaces, snap.savedCubePalette)[scannerCaptureStep];
       if (!Array.isArray(codes) || codes.length !== 9) return;
@@ -2997,7 +3051,7 @@ function OLLDaySuite() {
   const [customAlgEditor, setCustomAlgEditor] = useState(null);
   const [managingCaseHistory, setManagingCaseHistory] = useState(null);
   const [fullHistoryExpanded, setFullHistoryExpanded] = useState(false);
-  // Zero-re-render DOM-ref stopwatch state
+
   const [swRunning, setSwRunning] = useState(false);
   const [swLastResult, setSwLastResult] = useState(null);
   const swStartRef = useRef(0);
@@ -3035,7 +3089,6 @@ function OLLDaySuite() {
     setActiveModal('guidedTour');
   };
 
-  // Visibility & Background Sleep Lifecycle
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
     const enterBackgroundSleep = () => {
@@ -3062,7 +3115,6 @@ function OLLDaySuite() {
     };
   }, []);
 
-  // Desktop & iPad Hardware Keyboard Spacebar Shortcut for Full Timer & Case Drills
   const spaceShortcutRef = useRef(null);
   spaceShortcutRef.current = () => {
     if (fullTimerOpen) {
@@ -3136,7 +3188,6 @@ function OLLDaySuite() {
     return () => cancelAnimationFrame(rafId);
   }, [fullTimerState, isAppVisible]);
 
-  // Derived User Data & Memoized Mastered Counts
   const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
   const currentUser = useMemo(
     () => sanitizeUserRecord(users[resolvedUserKey] || DEFAULT_USERS.Demo),
@@ -3192,7 +3243,6 @@ function OLLDaySuite() {
     safePllDay, currentUser.pllCustomChunks
   ]);
 
-  // Preconnect to VisualCube & prewarm active lineup + library icons in background
   useEffect(() => {
     if (typeof document !== 'undefined' && !document.querySelector('link[href="https://visualcube.api.cubing.net"]')) {
       const link = document.createElement('link');
@@ -3340,7 +3390,6 @@ function OLLDaySuite() {
     });
   };
 
-  // Stopwatch & Timer Handlers
   const toggleStopwatch = (onCompleteSec) => {
     if (!swRunning) {
       emitBeep(820, 'sine', 0.06);
@@ -3515,6 +3564,7 @@ function OLLDaySuite() {
     collect('pll', 'PLL', PLL_DATA, currentUser.pllStats);
     return entries.sort((a, b) => a.best - b.best).slice(0, 5);
   }, [currentUser.f2lStats, currentUser.stats, currentUser.pllStats, currentUser.customAlgs]);
+
   const shareStatsSummaryImage = async () => {
     emitBeep(760, 'sine', 0.08);
     setShareStatsFeedback('Rendering image...');
@@ -3543,8 +3593,7 @@ function OLLDaySuite() {
         ctx.closePath();
       };
 
-      // Background & ambient glows
-      ctx.fillStyle = '#060913';
+      ctx.fillStyle = '#05070e';
       ctx.fillRect(0, 0, w, h);
 
       const topGlow = ctx.createRadialGradient(w * 0.5, 40, 10, w * 0.5, 40, 320);
@@ -3553,21 +3602,13 @@ function OLLDaySuite() {
       ctx.fillStyle = topGlow;
       ctx.fillRect(0, 0, w, h);
 
-      const botGlow = ctx.createRadialGradient(w * 0.85, h - 40, 10, w * 0.85, h - 40, 280);
-      botGlow.addColorStop(0, 'rgba(56, 189, 248, 0.16)');
-      botGlow.addColorStop(1, 'rgba(56, 189, 248, 0)');
-      ctx.fillStyle = botGlow;
-      ctx.fillRect(0, 0, w, h);
-
-      // Main card container
       roundRect(24, 24, w - 48, h - 48, 32);
-      ctx.fillStyle = '#0c1324';
+      ctx.fillStyle = '#0c111e';
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
       ctx.stroke();
 
-      // Header branding
       ctx.fillStyle = '#fb923c';
       ctx.font = '800 12px system-ui, -apple-system, sans-serif';
       ctx.fillText('OLLDAY EVERYDAY • CFOP TELEMETRY', 48, 66);
@@ -3577,7 +3618,6 @@ function OLLDaySuite() {
       const solverTitle = String(activeUserKey || 'Solver');
       ctx.fillText(solverTitle.length > 18 ? `${solverTitle.slice(0, 18)}…` : solverTitle, 48, 100);
 
-      // Mastered pill
       const totalMastered = f2lMasteredCount + ollMasteredCount + pllMasteredCount;
       roundRect(w - 196, 52, 148, 34, 17);
       ctx.fillStyle = 'rgba(249, 115, 22, 0.16)';
@@ -3591,7 +3631,6 @@ function OLLDaySuite() {
       ctx.fillText(`${totalMastered}/123 MASTERED`, w - 122, 73);
       ctx.textAlign = 'left';
 
-      // 3x3x3 WCA Section Title
       ctx.fillStyle = '#94a3b8';
       ctx.font = '800 11px system-ui, -apple-system, sans-serif';
       ctx.fillText('3x3x3 FULL SOLVE RECORDS', 48, 142);
@@ -3605,9 +3644,9 @@ function OLLDaySuite() {
       wcaCards.forEach((card, idx) => {
         const bx = 48 + idx * (boxW + 12);
         roundRect(bx, 154, boxW, 84, 18);
-        ctx.fillStyle = '#070b15';
+        ctx.fillStyle = '#070a13';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.stroke();
 
         ctx.textAlign = 'center';
@@ -3621,14 +3660,13 @@ function OLLDaySuite() {
       });
       ctx.textAlign = 'left';
 
-      // Top 5 Fastest Algorithm PBs
       ctx.fillStyle = '#94a3b8';
       ctx.font = '800 11px system-ui, -apple-system, sans-serif';
       ctx.fillText('TOP 5 FASTEST ALGORITHM PBs', 48, 276);
 
       if (top5FastestAlgs.length === 0) {
         roundRect(48, 290, w - 96, 110, 20);
-        ctx.fillStyle = '#070b15';
+        ctx.fillStyle = '#070a13';
         ctx.fill();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.stroke();
@@ -3641,12 +3679,11 @@ function OLLDaySuite() {
         top5FastestAlgs.forEach((entry, idx) => {
           const ry = 290 + idx * 66;
           roundRect(48, ry, w - 96, 56, 16);
-          ctx.fillStyle = idx === 0 ? 'rgba(249, 115, 22, 0.12)' : '#070b15';
+          ctx.fillStyle = idx === 0 ? 'rgba(249, 115, 22, 0.12)' : '#070a13';
           ctx.fill();
           ctx.strokeStyle = idx === 0 ? 'rgba(251, 146, 60, 0.4)' : 'rgba(255, 255, 255, 0.08)';
           ctx.stroke();
 
-          // Rank pill
           roundRect(62, ry + 14, 28, 28, 9);
           ctx.fillStyle = idx === 0 ? '#f97316' : 'rgba(255,255,255,0.08)';
           ctx.fill();
@@ -3655,7 +3692,6 @@ function OLLDaySuite() {
           ctx.font = '900 12px ui-monospace, monospace';
           ctx.fillText(`#${idx + 1}`, 76, ry + 32);
 
-          // Phase tag + Case name
           ctx.textAlign = 'left';
           ctx.fillStyle = '#fb923c';
           ctx.font = '900 10px system-ui, -apple-system, sans-serif';
@@ -3671,7 +3707,6 @@ function OLLDaySuite() {
           const shortAlg = entry.alg.length > 32 ? `${entry.alg.slice(0, 32)}…` : entry.alg;
           ctx.fillText(shortAlg, 102, ry + 42);
 
-          // PB Time
           ctx.textAlign = 'right';
           ctx.fillStyle = '#4ade80';
           ctx.font = '900 17px ui-monospace, monospace';
@@ -3680,7 +3715,6 @@ function OLLDaySuite() {
         });
       }
 
-      // Footer
       ctx.fillStyle = '#475569';
       ctx.font = '700 11px system-ui, -apple-system, sans-serif';
       ctx.fillText(`F2L ${f2lMasteredCount}/41  •  OLL ${ollMasteredCount}/57  •  PLL ${pllMasteredCount}/25`, 48, h - 46);
@@ -3719,7 +3753,6 @@ function OLLDaySuite() {
     }
   };
 
-  // Blind Inspection & Touch Pad Effects (rAF + direct DOM text updates to prevent 10Hz full-tree re-renders)
   useEffect(() => {
     if (!isAppVisible || !['inspecting', 'readying', 'armed'].includes(blindState)) return;
     let rafId = 0;
@@ -3776,7 +3809,6 @@ function OLLDaySuite() {
     }
   }, [leftPadHeld, rightPadHeld, blindState]);
 
-  // Deduplicated Lineup Drag-and-Drop (Touch + Mouse Support for iPad/Tablet/Desktop)
   useEffect(() => {
     if (draggedLineupIdx === null) return;
     let dragRafId = 0, pendingPoint = null;
@@ -3849,7 +3881,6 @@ function OLLDaySuite() {
   };
   const cancelLineupHold = () => { clearTimeout(holdTimerRef.current); preHoldStartYRef.current = null; setDraggedLineupIdx(null); };
 
-  // Reset & Account Actions
   const executeGranularReset = (scope) => {
     emitBeep(360, 'triangle', 0.12);
     setUsers((prev) => {
@@ -3892,7 +3923,6 @@ function OLLDaySuite() {
     setActiveUserKey(''); setAuthNameInput(''); setAuthEmailInput(''); setAuthErrorMsg(''); setAuthMode('signup'); setAuthScreenOpen(true);
   };
 
-  // Curriculum Builder Helpers
   const openCurriculumBuilder = (phase) => {
     setBuilderPhase(phase);
     const sourceChunks = phase === 'f2l' ? f2lChunks : phase === 'pll' ? pllChunks : ollChunks;
@@ -3946,7 +3976,6 @@ function OLLDaySuite() {
     setActiveModal(null);
   };
 
-  // Active Cross Tier Data
   const activeCrossTierList = crossDifficulty === 'advanced' ? CROSS_ADVANCED_TIERS : CROSS_TIERS;
   const activeTierObj = activeCrossTierList.find((t) => t.tier === crossTier) || activeCrossTierList[0];
   const activeCrossScramble = activeTierObj.scrambles[crossScrambleIdx % activeTierObj.scrambles.length];
@@ -3957,7 +3986,6 @@ function OLLDaySuite() {
   const activeCrossMoveCount = activeCrossSolution === 'Cross Solved ✓' ? 0 : activeCrossSolution.split(/\s+/).filter(Boolean).length;
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
-  // Settings Deck Touch Swipe & Slot Helpers
   const totalDeckCards = 8;
   const handleDeckTouchStart = (e) => {
     if (!e.target.closest('[data-scrollable="true"]')) deckTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -3983,7 +4011,7 @@ function OLLDaySuite() {
     </div>
   );
 
-  const renderWcaTelemetryGrid = (cardClass = 'bg-slate-950/90 rounded-xl') => (
+  const renderWcaTelemetryGrid = (cardClass = 'liquid-glass-well rounded-2xl') => (
     <div className="grid grid-cols-3 gap-2">
       {[
         { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
@@ -4002,7 +4030,7 @@ function OLLDaySuite() {
     const fullHistory = currentUser.fullSolveHistory || [];
     const visibleSolves = fullHistoryExpanded ? fullHistory : fullHistory.slice(0, 5);
     return (
-      <div className="bg-slate-900/75 border border-white/10 rounded-[2rem] p-4 space-y-3 shadow-xl">
+      <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
@@ -4013,12 +4041,12 @@ function OLLDaySuite() {
           <button
             type="button"
             onClick={openFullTimerModal}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
+            className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md cursor-pointer"
           >
             Open Timer
           </button>
         </div>
-        {renderWcaTelemetryGrid('bg-slate-950/90 rounded-xl')}
+        {renderWcaTelemetryGrid('liquid-glass-well rounded-2xl')}
 
         {fullHistory.length > 0 && (
           <div className="pt-2 border-t border-white/10 space-y-1.5">
@@ -4043,7 +4071,7 @@ function OLLDaySuite() {
                 return (
                   <div
                     key={solve.id ?? idx}
-                    className="bg-slate-950/85 border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2"
+                    className="liquid-glass-well border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-mono text-[9.5px] font-bold text-slate-500 w-5 flex-shrink-0">#{idx + 1}</span>
@@ -4051,7 +4079,7 @@ function OLLDaySuite() {
                         {solve.penalty === 'DNF' ? 'DNF' : `${(effMs / 1000).toFixed(2)}s${solve.penalty === '+2' ? '+' : ''}`}
                       </span>
                       {isBest && (
-                        <span className="px-1.5 py-0.2 rounded bg-green-500/20 border border-green-500/35 text-[8.5px] font-black uppercase text-green-300 flex-shrink-0">
+                        <span className="px-1.5 py-0.2 rounded-full bg-green-500/20 border border-green-500/35 text-[8.5px] font-black uppercase text-green-300 flex-shrink-0">
                           PB
                         </span>
                       )}
@@ -4062,7 +4090,7 @@ function OLLDaySuite() {
                     <button
                       type="button"
                       onClick={() => deleteFullSolveById(solve.id)}
-                      className="px-2 py-0.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/25 text-[9.5px] font-black text-red-300 flex-shrink-0 cursor-pointer"
+                      className="px-2 py-0.5 rounded-full bg-red-500/10 hover:bg-red-500/25 border border-red-500/25 text-[9.5px] font-black text-red-300 flex-shrink-0 cursor-pointer"
                       title="Delete Accidental Solve"
                     >
                       ✕
@@ -4090,7 +4118,7 @@ function OLLDaySuite() {
             <button
               key={idx}
               onClick={() => { emitBeep(520); setSettingsDeckIdx(idx); }}
-              className={`h-2 rounded-full transition-all cursor-pointer ${settingsDeckIdx === idx ? 'w-5 bg-orange-500' : 'w-2 bg-white/20'}`}
+              className={`h-2 rounded-full transition-all cursor-pointer ${settingsDeckIdx === idx ? 'w-5 bg-orange-500' : 'w-2 bg-white/15'}`}
             />
           ))}
         </div>
@@ -4098,18 +4126,18 @@ function OLLDaySuite() {
 
       <div onTouchStart={handleDeckTouchStart} onTouchEnd={handleDeckTouchEnd} className="relative h-[515px] w-full mt-2">
         {getDeckCardSlot(0) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(0)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(0)}`}>
             {renderDeckCardHeader(1, 'Onboarding', 'Preferences', 1)}
             <h3 className="text-lg font-black text-white">Learn How to Use This App</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Launch an interactive, auto-navigating walkthrough that switches through <strong className="text-white">C → F → O → P</strong> live and shows how to reach every feature yourself.
             </p>
             <div className="space-y-2.5 pt-1">
-              <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600/25 to-amber-500/20 hover:from-orange-600/35 hover:to-amber-500/30 border border-orange-500/40 text-left space-y-1 cursor-pointer transition-all">
+              <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600/20 to-amber-500/15 hover:from-orange-600/30 hover:to-amber-500/25 border border-orange-500/35 text-left space-y-1 cursor-pointer transition-all">
                 <div className="flex items-center justify-between"><span className="text-xs font-black text-white">New to CFOP + App Navigation</span><span className="text-[10px] font-black text-orange-300">Start →</span></div>
                 <p className="text-[10.5px] text-slate-300 leading-snug">Teaches Cross, F2L, OLL, and PLL from scratch while navigating to each phase in the app.</p>
               </button>
-              <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 cursor-pointer transition-all">
+              <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full p-3.5 rounded-2xl liquid-glass-well hover:bg-white/[0.06] border border-white/10 text-left space-y-1 cursor-pointer transition-all">
                 <div className="flex items-center justify-between"><span className="text-xs font-black text-white">I Know CFOP • App Feature Tour</span><span className="text-[10px] font-black text-sky-300">Start →</span></div>
                 <p className="text-[10.5px] text-slate-300 leading-snug">Fast tour of 3D Cross &amp; F2L cubes, Blind Mat, Fingertrick tags, Target PBs, and the 3x3 Timer.</p>
               </button>
@@ -4118,14 +4146,14 @@ function OLLDaySuite() {
         )}
 
         {getDeckCardSlot(1) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(1)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(1)}`}>
             {renderDeckCardHeader(2, 'Preferences', '3x3 Timer', 2)}
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-lg font-black text-white">Speedcubing Suite</h3>
               <button
                 type="button"
                 onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
               >
                 Show My Stats
               </button>
@@ -4136,15 +4164,15 @@ function OLLDaySuite() {
                 { title: 'Inline Fingertrick Highlights', sub: 'Show color-coded triggers & grip cues on cases', val: fingertricksEnabled, toggle: () => { emitBeep(620); setFingertricksEnabled((v) => !v); } },
                 { title: 'Acoustic Audio & Beeps', sub: 'Inspection warnings & tactile feedback', val: audioEnabled, toggle: () => setAudioEnabled((v) => !v) }
               ].map((pref) => (
-                <div key={pref.title} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5">
+                <div key={pref.title} className="flex items-center justify-between liquid-glass-well border border-white/10 rounded-2xl p-2.5">
                   <div><p className="text-xs font-bold text-white">{pref.title}</p><p className="text-[10px] text-slate-400">{pref.sub}</p></div>
-                  <button type="button" onClick={pref.toggle} className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${pref.val ? 'bg-orange-500' : 'bg-slate-700'}`}>
+                  <button type="button" onClick={pref.toggle} className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${pref.val ? 'bg-orange-500' : 'bg-white/15'}`}>
                     <div className={`w-5 h-5 rounded-full bg-white transition-transform ${pref.val ? 'translate-x-5' : ''}`} />
                   </button>
                 </div>
               ))}
 
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 space-y-1.5">
+              <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-white">3x3x3 Full-Solve Target PB</span>
                   <span className="font-mono text-xs font-black text-orange-400">{fullSolveTargetSec.toFixed(3)}s</span>
@@ -4157,7 +4185,7 @@ function OLLDaySuite() {
                 />
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-2.5 space-y-1.5">
+              <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-white">Phase Target PB</span>
@@ -4167,7 +4195,7 @@ function OLLDaySuite() {
                     {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((ph) => (
                       <button
                         key={ph.key} type="button" onClick={() => { emitBeep(520); setSelectedTargetPhase(ph.key); }}
-                        className={`w-6 h-6 rounded-lg text-[10px] font-black cursor-pointer transition-all ${selectedTargetPhase === ph.key ? 'bg-orange-500 text-slate-950' : 'bg-slate-950 text-slate-400 hover:text-white'}`}
+                        className={`w-6 h-6 rounded-full text-[10px] font-black cursor-pointer transition-all ${selectedTargetPhase === ph.key ? 'bg-orange-500 text-slate-950' : 'bg-black/45 text-slate-400 hover:text-white'}`}
                       >
                         {ph.label}
                       </button>
@@ -4187,21 +4215,21 @@ function OLLDaySuite() {
         )}
 
         {getDeckCardSlot(2) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(2)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(2)}`}>
             {renderDeckCardHeader(3, 'Timer & Home', 'Notation', 3)}
             <h3 className="text-lg font-black text-white">3x3x3 CFOP Timer</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Full-screen glassmorphic speedcube timer with WCA 20-move scrambles, +2 / DNF penalties, and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> tracking.
+              Full-screen Liquid Glass speedcube timer with WCA 20-move scrambles, +2 / DNF penalties, and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> tracking.
             </p>
-            {renderWcaTelemetryGrid('bg-slate-950/90 rounded-2xl')}
+            {renderWcaTelemetryGrid('liquid-glass-well rounded-2xl')}
             <button
               type="button"
               onClick={openFullTimerModal}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+              className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
             >
               Launch Full-Screen 3x3x3 Timer
             </button>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
+            <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div><span className="text-xs font-black text-white block">Pinned Home Screen</span><span className="text-[10px] text-slate-400">Default phase on startup</span></div>
                 <div className="flex items-center gap-1.5">
@@ -4211,7 +4239,7 @@ function OLLDaySuite() {
                       <button
                         key={item.key} type="button"
                         onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
-                        className={`w-8 h-8 rounded-full text-xs font-black transition-all cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-slate-950 border border-white/10 text-slate-400 hover:text-white'}`}
+                        className={`w-8 h-8 rounded-full text-xs font-black transition-all cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/45 border border-white/10 text-slate-400 hover:text-white'}`}
                       >
                         {item.label}
                       </button>
@@ -4224,14 +4252,14 @@ function OLLDaySuite() {
         )}
 
         {getDeckCardSlot(3) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(3)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(3)}`}>
             {renderDeckCardHeader(4, 'Notation', 'Dossier', 4)}
             <h3 className="text-lg font-black text-white">WCA Notation Guide</h3>
             <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
               {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
                 <button
                   key={sec} type="button" onClick={() => { emitBeep(480); setNotationFilter(sec); }}
-                  className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-slate-400 hover:text-white'}`}
                 >
                   {sec}
                 </button>
@@ -4239,7 +4267,7 @@ function OLLDaySuite() {
             </div>
             <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
               {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
-                <div key={item.move} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                <div key={item.move} className="liquid-glass-well border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
                   <span className="font-mono text-xs font-black text-amber-300 flex-shrink-0">{item.move}</span>
                   <span className="text-[11px] text-slate-300 text-right">{item.desc}</span>
                 </div>
@@ -4249,14 +4277,14 @@ function OLLDaySuite() {
         )}
 
         {getDeckCardSlot(4) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(4)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(4)}`}>
             {renderDeckCardHeader(5, 'Mechanics', 'Guide & Reset', 5)}
             <h3 className="text-lg font-black text-white">Fingertrick Dossier</h3>
             <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
               {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
                 <button
                   key={cat} type="button" onClick={() => { emitBeep(480); setDossierFilter(cat); }}
-                  className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-slate-400 hover:text-white'}`}
                 >
                   {cat}
                 </button>
@@ -4264,7 +4292,7 @@ function OLLDaySuite() {
             </div>
             <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
               {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
-                <div key={trig.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-1.5">
+                <div key={trig.id} className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${trig.dotClass}`} /><span className="text-xs font-black text-white">{trig.name}</span></div>
                     <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
@@ -4278,11 +4306,11 @@ function OLLDaySuite() {
         )}
 
         {getDeckCardSlot(5) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(5)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(5)}`}>
             {renderDeckCardHeader(6, 'Tools', 'Account', 6)}
             <h3 className="text-lg font-black text-white">Custom Chunks &amp; Reset</h3>
             <div className="space-y-2.5">
-              <div className="relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
+              <div className="relative overflow-hidden liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2">
                 {!isProUnlocked && (
                   <ProLockOverlay interactive label="Custom Chunks • Pro" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} />
                 )}
@@ -4293,7 +4321,7 @@ function OLLDaySuite() {
                       <button
                         key={b.key} type="button"
                         onClick={() => { if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; } emitBeep(560); openCurriculumBuilder(b.key); }}
-                        className="py-2 rounded-xl bg-slate-950 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/10 cursor-pointer"
+                        className="py-2 rounded-full bg-black/45 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/10 cursor-pointer"
                       >
                         {b.label}
                       </button>
@@ -4310,10 +4338,10 @@ function OLLDaySuite() {
         )}
 
         {getDeckCardSlot(6) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(6)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(6)}`}>
             {renderDeckCardHeader(7, 'Account', 'Pro & Data', 7)}
             <h3 className="text-lg font-black text-white">Account &amp; Cloud Sync</h3>
-            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-1.5">
+            <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-white">{String(activeUserKey || 'Solver')}</span>
                 <span className="text-[10px] font-bold text-green-400">{cloudSyncStatus === 'synced' ? '● Cloud Synced' : '● Local Saved'}</span>
@@ -4321,43 +4349,43 @@ function OLLDaySuite() {
               {currentUser.email && <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>}
               <p className="text-[10px] text-slate-400 pt-1">F2L Day {safeF2lDay} • OLL Day {safeOllDay} • PLL Day {safePllDay} • {currentUser.fullSolveHistory?.length || 0} Full Solves</p>
             </div>
-            <button type="button" onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }} className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer">
+            <button type="button" onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }} className="w-full py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer">
               Switch / Sign Out of Account
             </button>
-            <button type="button" onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }} className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-300 cursor-pointer">
+            <button type="button" onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }} className="w-full py-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-[11px] font-bold text-slate-300 cursor-pointer">
               Restore App Store Purchase
             </button>
           </div>
         )}
 
         {getDeckCardSlot(7) && (
-          <div className={`absolute inset-x-0 top-0 bg-slate-900/95 border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(7)}`}>
+          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(7)}`}>
             {renderDeckCardHeader(8, 'Membership', 'Learn App', 0)}
             <h3 className="text-lg font-black text-white">OLLDay Pro &amp; Privacy</h3>
-            <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2">
+            <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-white">Current Plan</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isProUnlocked ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-orange-500/20 border border-orange-500/40 text-orange-300'}`}>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${isProUnlocked ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-orange-500/20 border border-orange-500/40 text-orange-300'}`}>
                   {isProUnlocked ? 'Lifetime Pro Active' : 'Starter Tier'}
                 </span>
               </div>
               {!isProUnlocked && (
-                <button type="button" onClick={() => openProPaywall('Full 123-Case CFOP Suite')} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
+                <button type="button" onClick={() => openProPaywall('Full 123-Case CFOP Suite')} className="w-full py-2.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
                   Unlock Lifetime Pro — $5.99
                 </button>
               )}
             </div>
             <div className="pt-2 border-t border-white/10">
               {!deleteAccountConfirm ? (
-                <button type="button" onClick={() => { emitBeep(380); setDeleteAccountConfirm(true); }} className="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer">
+                <button type="button" onClick={() => { emitBeep(380); setDeleteAccountConfirm(true); }} className="w-full py-2.5 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer">
                   Delete My Account &amp; Data
                 </button>
               ) : (
                 <div className="bg-red-950/50 border border-red-500/40 rounded-2xl p-2.5 space-y-2 text-center">
                   <p className="text-[10px] font-bold text-red-200">Permanently delete &ldquo;{String(activeUserKey)}&rdquo; and all PB history?</p>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="py-1.5 rounded-lg bg-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">Cancel</button>
-                    <button type="button" onClick={deleteCurrentSolverAccount} className="py-1.5 rounded-lg bg-red-500 text-white text-[10px] font-black cursor-pointer">Confirm Delete</button>
+                    <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="py-1.5 rounded-full bg-white/10 text-[10px] font-bold text-slate-200 cursor-pointer">Cancel</button>
+                    <button type="button" onClick={deleteCurrentSolverAccount} className="py-1.5 rounded-full bg-red-500 text-white text-[10px] font-black cursor-pointer">Confirm Delete</button>
                   </div>
                 </div>
               )}
@@ -4368,18 +4396,18 @@ function OLLDaySuite() {
     </div>
   );
 
-  // Case Thumbnail Renderer
+  // Case Thumbnail Renderer (Smoked Glass Tray instead of stark white)
   const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
     const isF2L = phaseKey === 'f2l';
     const url = isF2L ? getF2LImageUrl(item.alg) : phaseKey === 'pll' ? getPLLImageUrl(item.alg) : getOLLImageUrl(item.alg);
     return (
-      <div className={`${sizeClass} ${isF2L ? '' : 'rounded-2xl bg-slate-200 p-1.5'} flex-shrink-0 flex items-center justify-center pointer-events-none`}>
-        <CachedVisualCubeImg url={url} alt={item.name} className={`w-full h-full object-contain ${isF2L ? 'f2l-cube-satin' : ''}`} />
+      <div className={`${sizeClass} ${isF2L ? '' : 'rounded-2xl bg-white/[0.08] border border-white/10 p-1.5'} flex-shrink-0 flex items-center justify-center pointer-events-none`}>
+        <CachedVisualCubeImg url={url} alt={item.name} className={`w-full h-full object-contain ${isF2L ? 'f2l-cube-satin' : 'drop-shadow'}`} />
       </div>
     );
   };
 
-  // Unified Phase Workspace (F2L, OLL, PLL)
+  // Unified Phase Workspace (F2L, OLL, PLL) — Identical Liquid Glass & Playlist Architecture
   const renderCFOPAlgorithmPhase = (phaseKey) => {
     const isF2L = phaseKey === 'f2l', isPLL = phaseKey === 'pll';
     const tab = phaseTabs[phaseKey];
@@ -4411,76 +4439,87 @@ function OLLDaySuite() {
     if (tab === 'grind') {
       return (
         <div className="p-5 pb-10 space-y-4">
-          <div className="bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-orange-950/40 border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-400">Day {safeDay} • {dayObj.mode} Mode</span>
-              <span className="text-xs font-black text-slate-300 font-mono">{masteredCount}/{dataList.length} Mastered</span>
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-white leading-tight">{dayObj.chunkTitle}</h2>
-              <p className="text-xs text-slate-400 mt-1">{meta.subtitle}</p>
-            </div>
-            {isF2L && (
-              <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Setup Scramble Style</span>
-                  <div className="bg-slate-900 p-0.5 rounded-xl border border-white/10 flex">
-                    {['beginner', 'realistic'].map((modeKey) => (
-                      <button
-                        key={modeKey}
-                        onClick={() => { emitBeep(520); setF2lSetupMode(modeKey); }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer transition-all ${f2lSetupMode === modeKey ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                      >
-                        {modeKey}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  {f2lSetupMode === 'beginner'
-                    ? 'Start from a solved cube (White bottom, Green front): sets up only the Front-Right pair while keeping the other 3 slots solved.'
-                    : 'Start from a solved cube (White bottom, Green front): keeps the White Cross solved while scrambling back/left slots like a real mid-solve.'}
-                </p>
+          {/* Stacked Depth Header inspired by Reference Images 3 & 4 */}
+          <div className="relative pt-2.5">
+            <div className="mx-7 -mb-2 h-3 rounded-t-[1.75rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+            <div className="mx-3.5 -mb-2 h-3 rounded-t-[1.9rem] bg-white/[0.04] border-t border-x border-white/10" />
+            <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-[2.25rem] p-5 space-y-3.5 relative overflow-hidden">
+              <div
+                style={{ background: 'radial-gradient(circle at 85% 15%, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 65%)' }}
+                className="pointer-events-none absolute inset-0"
+              />
+              <div className="flex items-center justify-between relative">
+                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                  Day {safeDay} • {dayObj.mode} Mode
+                </span>
+                <span className="text-xs font-black text-slate-300 font-mono">{masteredCount}/{dataList.length} Mastered</span>
               </div>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  emitBeep(480);
-                  const updated = { ...currentUser, [dayField]: Math.max(1, safeDay - 1) };
-                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
-                  saveUserToCloud(activeUserKey, updated);
-                }}
-                disabled={safeDay <= 1}
-                className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
-              >
-                ← Prev
-              </button>
-              <button
-                onClick={() => {
-                  if (lineupOrder.some((c) => !isCaseUnlockedForTier(phaseKey, c.id, isProUnlocked))) {
-                    openProPaywall(`Day ${safeDay} ${phaseKey.toUpperCase()} Cases`);
-                    return;
-                  }
-                  emitBeep(720, 'sine', 0.08);
-                  setSwRunning(false); setSwLastResult(null);
-                  setSession({ dayObj, index: 0, queue: [...lineupOrder] });
-                }}
-                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-              >
-                Start Day {safeDay} Grind ({lineupOrder.length})
-              </button>
-              <button
-                onClick={() => {
-                  emitBeep(480);
-                  const updated = { ...currentUser, [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1 };
-                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
-                  saveUserToCloud(activeUserKey, updated);
-                }}
-                className="px-3 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
-              >
-                Next →
-              </button>
+              <div className="relative">
+                <h2 className="text-xl font-black text-white leading-tight">{dayObj.chunkTitle}</h2>
+                <p className="text-xs text-slate-400 mt-1">{meta.subtitle}</p>
+              </div>
+              {isF2L && (
+                <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Setup Scramble Style</span>
+                    <div className="bg-black/50 p-0.5 rounded-full border border-white/10 flex">
+                      {['beginner', 'realistic'].map((modeKey) => (
+                        <button
+                          key={modeKey}
+                          onClick={() => { emitBeep(520); setF2lSetupMode(modeKey); }}
+                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase cursor-pointer transition-all ${f2lSetupMode === modeKey ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                        >
+                          {modeKey}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    {f2lSetupMode === 'beginner'
+                      ? 'Start from a solved cube (White bottom, Green front): sets up only the Front-Right pair while keeping the other 3 slots solved.'
+                      : 'Start from a solved cube (White bottom, Green front): keeps the White Cross solved while scrambling back/left slots like a real mid-solve.'}
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center gap-2 relative">
+                <button
+                  onClick={() => {
+                    emitBeep(480);
+                    const updated = { ...currentUser, [dayField]: Math.max(1, safeDay - 1) };
+                    setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                    saveUserToCloud(activeUserKey, updated);
+                  }}
+                  disabled={safeDay <= 1}
+                  className="px-3.5 py-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() => {
+                    if (lineupOrder.some((c) => !isCaseUnlockedForTier(phaseKey, c.id, isProUnlocked))) {
+                      openProPaywall(`Day ${safeDay} ${phaseKey.toUpperCase()} Cases`);
+                      return;
+                    }
+                    emitBeep(720, 'sine', 0.08);
+                    setSwRunning(false); setSwLastResult(null);
+                    setSession({ dayObj, index: 0, queue: [...lineupOrder] });
+                  }}
+                  className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                >
+                  Start Day {safeDay} Grind ({lineupOrder.length})
+                </button>
+                <button
+                  onClick={() => {
+                    emitBeep(480);
+                    const updated = { ...currentUser, [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1 };
+                    setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                    saveUserToCloud(activeUserKey, updated);
+                  }}
+                  className="px-3.5 py-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           </div>
 
@@ -4509,8 +4548,8 @@ function OLLDaySuite() {
                       if (locked) { openProPaywall(item.name); return; }
                       emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                     }}
-                    className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-2xl p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                      draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'
+                    className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-[1.5rem] p-3 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : 'border-white/10 hover:border-orange-500/30'
                     }`}
                   >
                     {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
@@ -4520,7 +4559,7 @@ function OLLDaySuite() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-black text-white block truncate">{item.name}</span>
                           {item.usingCustomAlg && (
-                            <span className="px-1.5 py-0.2 rounded bg-orange-500/20 border border-orange-400/40 text-[8.5px] font-black uppercase text-orange-300 flex-shrink-0">
+                            <span className="px-1.5 py-0.2 rounded-full bg-orange-500/20 border border-orange-400/40 text-[8.5px] font-black uppercase text-orange-300 flex-shrink-0">
                               Custom #{(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}
                             </span>
                           )}
@@ -4530,8 +4569,8 @@ function OLLDaySuite() {
                       </div>
                     </div>
                     <div className={`flex items-center gap-2 flex-shrink-0 ${locked ? 'opacity-35' : ''}`}>
-                      {stat?.best && <span className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">{stat.best.toFixed(2)}s</span>}
-                      <span className="text-slate-500 text-xs font-bold px-1">⋮⋮</span>
+                      {stat?.best && <span className="px-2.5 py-1 rounded-full bg-green-500/15 border border-green-500/30 font-mono text-[10px] font-black text-green-300">{stat.best.toFixed(2)}s</span>}
+                      <span className="w-7 h-7 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-400 text-xs font-bold">⋮⋮</span>
                     </div>
                   </div>
                 );
@@ -4555,18 +4594,18 @@ function OLLDaySuite() {
                 if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; }
                 emitBeep(560); openCurriculumBuilder(phaseKey);
               }}
-              className="px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-bold cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold cursor-pointer"
             >
               {isProUnlocked ? '+ Edit Chunks' : '🔒 Edit Chunks'}
             </button>
           </div>
 
-          <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex">
+          <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex">
             {[{ key: 'groups', label: meta.groupTabLabel }, { key: 'chunks', label: 'Curriculum Chunks' }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => { emitBeep(480); setLibMode(m.key); }}
-                className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${currentLib.mode === m.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${currentLib.mode === m.key ? 'bg-orange-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}`}
               >
                 {m.label}
               </button>
@@ -4583,7 +4622,7 @@ function OLLDaySuite() {
                     <button
                       key={group}
                       onClick={() => { emitBeep(520); setSelectedCategory({ type: 'group', name: group }); }}
-                      className={`relative overflow-hidden bg-slate-900/60 border rounded-[2rem] p-4 shadow-xl flex flex-col items-center text-center hover:bg-slate-800/80 active:scale-95 transition-all cursor-pointer space-y-2.5 ${groupLocked ? 'border-orange-500/20' : 'border-white/10'}`}
+                      className={`relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-[2rem] p-4 flex flex-col items-center text-center hover:border-orange-500/35 active:scale-95 transition-all cursor-pointer space-y-2.5 ${groupLocked ? 'border-orange-500/20' : 'border-white/10'}`}
                     >
                       {groupLocked && <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black uppercase text-orange-200 z-10">🔒 Pro</span>}
                       <div className={groupLocked ? 'opacity-45' : ''}>{renderCaseThumb(phaseKey, groupCases[0], isF2L ? 'w-24 h-24' : 'w-16 h-16')}</div>
@@ -4601,17 +4640,17 @@ function OLLDaySuite() {
                     <button
                       key={chk.id}
                       onClick={() => { emitBeep(520); setSelectedCategory({ type: 'chunk', chunk: chk }); }}
-                      className={`relative overflow-hidden w-full bg-slate-900/60 border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:bg-slate-800/80 cursor-pointer ${chunkLocked ? 'border-orange-500/20' : 'border-white/10'}`}
+                      className={`relative overflow-hidden w-full liquid-glass-card liquid-rim-muted border rounded-[1.75rem] p-3.5 flex items-center gap-3.5 text-left hover:border-orange-500/35 cursor-pointer ${chunkLocked ? 'border-orange-500/20' : 'border-white/10'}`}
                     >
                       <div className={chunkLocked ? 'opacity-45' : ''}>{renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-20 h-20' : 'w-14 h-14')}</div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <h3 className="text-sm font-black text-white truncate">{chk.title}</h3>
-                          {chunkLocked && <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">🔒 PRO</span>}
+                          {chunkLocked && <span className="px-1.5 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-[8.5px] font-black text-orange-200 flex-shrink-0">🔒 PRO</span>}
                         </div>
                         <p className="text-[11px] text-slate-400 mt-0.5">{chk.ids.length} {phaseKey.toUpperCase()} {meta.unitLabel}</p>
                       </div>
-                      <span className="text-orange-400 font-black text-sm">→</span>
+                      <span className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-300 font-black text-xs">→</span>
                     </button>
                   );
                 })}
@@ -4640,7 +4679,7 @@ function OLLDaySuite() {
                         if (locked) { openProPaywall(item.name); return; }
                         emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                       }}
-                      className={`case-row-opt relative overflow-hidden bg-slate-900/70 border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'}`}
+                      className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:border-orange-500/35'}`}
                     >
                       {locked && <ProLockOverlay label={`${item.name} • Unlock Pro`} />}
                       <div className={`flex items-center gap-3.5 min-w-0 flex-1 ${locked ? 'opacity-40 select-none' : ''}`}>
@@ -4648,7 +4687,7 @@ function OLLDaySuite() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-black text-white truncate">{item.name}</span>
-                            {stat?.best && <span className="px-1.5 py-0.5 rounded bg-green-500/15 text-[10px] font-mono font-black text-green-300">{stat.best.toFixed(2)}s</span>}
+                            {stat?.best && <span className="px-2 py-0.5 rounded-full bg-green-500/15 text-[10px] font-mono font-black text-green-300">{stat.best.toFixed(2)}s</span>}
                             <CustomAlgSwitcherPills
                               item={item}
                               stopPropagation
@@ -4668,7 +4707,7 @@ function OLLDaySuite() {
                             <div className="mt-1.5 space-y-1">
                               <TriggerTagsList tags={itemTags} />
                               {!item.usingCustomAlg && (
-                                <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-lg px-2 py-0.5 leading-snug">
+                                <p className="text-[10px] text-orange-200/90 bg-orange-500/10 border border-orange-500/20 rounded-xl px-2.5 py-1 leading-snug">
                                   <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
                                 </p>
                               )}
@@ -4685,10 +4724,10 @@ function OLLDaySuite() {
                               e.stopPropagation();
                               openCustomAlgEditor(phaseKey, rawItem);
                             }}
-                            className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-black cursor-pointer transition-all ${
+                            className={`px-2.5 py-1.5 rounded-full border text-[10px] font-black cursor-pointer transition-all ${
                               item.hasCustomAlg
                                 ? 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30'
-                                : 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+                                : 'bg-white/[0.06] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.12]'
                             }`}
                           >
                             {isProUnlocked ? (item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ Custom') : '🔒 Custom'}
@@ -4696,7 +4735,7 @@ function OLLDaySuite() {
                           {fingertricksEnabled && (
                             <button
                               onClick={(e) => { e.stopPropagation(); emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-                              className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+                              className="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
                             >
                               Grip
                             </button>
@@ -4726,7 +4765,7 @@ function OLLDaySuite() {
             { label: 'Current Day', val: safeDay, color: 'text-orange-400' },
             { label: 'Target PB', val: `${getPhaseTargetPb(phaseKey).toFixed(3)}s`, color: 'text-amber-300' }
           ].map((s) => (
-            <div key={s.label} className="bg-slate-900/70 border border-white/10 rounded-2xl p-3.5 text-center">
+            <div key={s.label} className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-3.5 text-center">
               <span className="text-[10px] font-bold uppercase text-slate-400 block">{s.label}</span>
               <span className={`font-mono text-xl font-black ${s.color}`}>{s.val}</span>
             </div>
@@ -4747,7 +4786,7 @@ function OLLDaySuite() {
                   if (locked) { openProPaywall(item.name); return; }
                   emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
                 }}
-                className={`case-row-opt relative overflow-hidden bg-slate-900/60 border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:bg-slate-800/80'}`}
+                className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:border-orange-500/35'}`}
               >
                 {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
                 <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
@@ -4764,7 +4803,7 @@ function OLLDaySuite() {
                           emitBeep(560);
                           setEditingCaseTarget({ phase: phaseKey, caseId: item.id, name: item.name, draft: caseGoal.toFixed(3) });
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
                         title="Set Case Target PB"
                       >
                         Goal: {caseGoal.toFixed(3)}s ✎
@@ -4778,7 +4817,7 @@ function OLLDaySuite() {
                             emitBeep(520);
                             setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name });
                           }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-mono text-[9.5px] font-bold text-slate-300 cursor-pointer"
                           title="Inspect or Delete Logged Times"
                         >
                           Times ({stat.history.length}) ✎
@@ -4805,20 +4844,7 @@ function OLLDaySuite() {
     );
   };
 
-  // Tap-to-time handler and shared props for Daily Session & Isolated Drill overlays
-  const handlePracticeTap = (phaseKey, itemId) => (e) => {
-    if (!stopwatchEnabled || e.target.closest('button, input, a')) return;
-    if (!swRunning && e.target.closest('[data-no-timer-start="true"]')) return;
-    toggleStopwatch((sec) => recordCaseTime(phaseKey, itemId, sec));
-  };
-
-  const sharedPracticeProps = {
-    f2lSetupMode, f2lSetupSeed, setF2lSetupSeed, pllSetupSeed, setPllSetupSeed,
-    f2lOrbit, f2lViewIdx, setF2LPresetAngle, fingertricksEnabled, stopwatchEnabled,
-    swRunning, swDisplayRef, isLargeScreen: isTwoPane, emitBeep
-  };
-
-  // Unified Daily Session Runner (Mobile single-column vs. Fullscreen iPad/Tablet/Desktop)
+  // Unified Daily Session Runner (Liquid Glass Surface across Mobile, iPad, Tablet & Desktop)
   const renderUnifiedDailySession = () => {
     const activePhaseSession = f2lSession
       ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
@@ -4837,52 +4863,71 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#060913] flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#04060d]/95 backdrop-blur-xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`w-full ${
             isTwoPane
               ? 'max-w-none h-[100dvh] px-8 py-6'
               : 'max-w-md h-[100dvh] border-x border-white/10 p-5 shadow-2xl'
-          } bg-[#090e1c] flex flex-col justify-between overflow-y-auto no-scrollbar`}
+          } bg-[#060913]/90 flex flex-col justify-between overflow-y-auto no-scrollbar relative`}
         >
-          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between`}>
+          <AmbientGlows
+            topClass="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[34rem] h-[32vh]"
+            topGradient="radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0) 70%)"
+            bottomClass="pointer-events-none absolute bottom-0 right-1/4 w-[28rem] h-[28vh]"
+            bottomGradient="radial-gradient(circle at 50% 100%, rgba(251, 146, 60, 0.1) 0%, rgba(251, 146, 60, 0) 70%)"
+          />
+
+          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between relative z-10`}>
             <div className="flex items-center gap-2.5">
-              <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-3 py-1 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-widest text-orange-400`}>
+              <span className={`${isTwoPane ? 'px-4 py-1.5 text-xs' : 'px-3 py-1 text-[10px]'} rounded-full liquid-glass-well border border-orange-500/35 font-black uppercase tracking-widest text-orange-300`}>
                 {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
               </span>
               {isTwoPane && (
-                <span className="text-xs font-bold text-slate-400">
+                <span className="px-3.5 py-1.5 rounded-full liquid-glass-well border border-white/10 text-xs font-bold text-slate-300">
                   Day {safeDay} • {session.dayObj.chunkTitle}
                 </span>
               )}
             </div>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-9 h-9'} rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold cursor-pointer`}>✕</button>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-9 h-9'} rounded-full liquid-glass-well liquid-rim-muted border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer`}>✕</button>
           </div>
 
           <div
-            className={`w-full ${
-              isTwoPane ? 'max-w-3xl mx-auto rounded-[2.5rem] p-7 space-y-4' : 'rounded-[2rem] p-5 space-y-3'
-            } bg-slate-900/90 border border-white/10 flex flex-col items-center shadow-2xl my-auto`}
+            className={`w-full relative z-10 ${
+              isTwoPane ? 'max-w-3xl mx-auto pt-3' : ''
+            } my-auto`}
           >
-            <CasePracticeCard
-              {...sharedPracticeProps}
-              phaseKey={phaseKey}
-              item={item}
-              timerLabel={timerLabel}
-              showInlineGroup={phaseKey !== 'f2l'}
-              onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-              onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
-              onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
-              onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-            />
+            {isTwoPane && (
+              <>
+                <div className="mx-12 -mb-2.5 h-3.5 rounded-t-[2.25rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+                <div className="mx-6 -mb-2.5 h-3.5 rounded-t-[2.4rem] bg-white/[0.04] border-t border-x border-white/10" />
+              </>
+            )}
+            <div
+              className={`w-full ${
+                isTwoPane ? 'rounded-[2.5rem] p-8 space-y-5' : 'rounded-[2.25rem] p-5 space-y-3'
+              } liquid-glass-card liquid-rim-amber border border-white/10 flex flex-col items-center`}
+            >
+              <CasePracticeCard
+                {...sharedPracticeProps}
+                phaseKey={phaseKey}
+                item={item}
+                timerLabel={timerLabel}
+                showInlineGroup={phaseKey !== 'f2l'}
+                onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+                onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
+                onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
+                onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+              />
+            </div>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2.5'} grid grid-cols-2`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2.5'} grid grid-cols-2 relative z-10`}>
             <button
               onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 font-bold text-slate-300 disabled:opacity-30 cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-full liquid-glass-well liquid-rim-muted border border-white/10 font-bold text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer`}
             >
               ← Previous
             </button>
@@ -4897,7 +4942,7 @@ function OLLDaySuite() {
                   setSession(null);
                 }
               }}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-lg shadow-orange-500/20 cursor-pointer`}
             >
               {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
             </button>
@@ -4907,7 +4952,7 @@ function OLLDaySuite() {
     );
   };
 
-  // Unified Isolated Case Drill Modal (Mobile card vs. Fullscreen iPad/Tablet/Desktop)
+  // Unified Isolated Case Drill Modal (Liquid Glass Surface across Mobile, iPad, Tablet & Desktop)
   const renderUnifiedDrillModal = () => {
     const activeDrill = f2lDrillCase
       ? { phaseKey: 'f2l', item: f2lDrillCase, close: () => setF2lDrillCase(null), statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' }
@@ -4929,76 +4974,95 @@ function OLLDaySuite() {
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
         className={`fixed inset-0 z-[245] ${
-          isTwoPane ? 'bg-[#090e1c] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-[#040711]/95 flex items-center justify-center p-5'
+          isTwoPane ? 'bg-[#04060d]/95 backdrop-blur-xl flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-[#03050a]/85 backdrop-blur-md flex items-center justify-center p-5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         {isTwoPane && (
-          <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between">
-            <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-400">
+          <AmbientGlows
+            topClass="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[36rem] h-[32vh]"
+            topGradient="radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0) 70%)"
+            bottomClass="pointer-events-none fixed bottom-0 right-1/4 w-[28rem] h-[28vh]"
+            bottomGradient="radial-gradient(circle at 50% 100%, rgba(251, 146, 60, 0.1) 0%, rgba(251, 146, 60, 0) 70%)"
+          />
+        )}
+
+        {isTwoPane && (
+          <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between relative z-10">
+            <span className="px-4 py-1.5 rounded-full liquid-glass-well border border-orange-500/35 text-xs font-black uppercase tracking-widest text-orange-300">
               {phaseKey.toUpperCase()} Isolated Drill • {item.group}
             </span>
-            <button onClick={closeDrill} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-base font-bold cursor-pointer">✕</button>
+            <button onClick={closeDrill} className="w-10 h-10 rounded-full liquid-glass-well liquid-rim-muted border border-white/10 text-slate-300 hover:text-white text-base font-bold cursor-pointer">✕</button>
           </div>
         )}
 
-        <div
-          className={`bg-slate-900 border border-white/10 w-full shadow-2xl ${
-            isTwoPane
-              ? 'max-w-3xl mx-auto bg-slate-900/90 rounded-[2.5rem] p-7 space-y-4 my-auto flex flex-col items-center'
-              : 'rounded-[2.25rem] p-5 max-w-sm space-y-3 max-h-[92dvh] overflow-y-auto no-scrollbar'
-          }`}
-        >
-          {!isTwoPane && (
-            <div data-no-timer-start="true" className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
-              <button onClick={closeDrill} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
-            </div>
+        <div className={`w-full relative z-10 ${isTwoPane ? 'max-w-3xl mx-auto pt-3 my-auto' : 'max-w-sm'}`}>
+          {isTwoPane && (
+            <>
+              <div className="mx-12 -mb-2.5 h-3.5 rounded-t-[2.25rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+              <div className="mx-6 -mb-2.5 h-3.5 rounded-t-[2.4rem] bg-white/[0.04] border-t border-x border-white/10" />
+            </>
           )}
-
-          <CasePracticeCard
-            {...sharedPracticeProps}
-            phaseKey={phaseKey}
-            item={item}
-            timerLabel={timerLabel}
-            lastResultForThis={lastResultForThis}
-            recordedBest={caseStat.best}
-            onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-            onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
-            onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
-            onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+          <div
+            className={`liquid-glass-card liquid-rim-amber border border-white/10 w-full shadow-[0_28px_75px_rgba(0,0,0,0.85)] ${
+              isTwoPane
+                ? 'rounded-[2.5rem] p-8 space-y-5 flex flex-col items-center'
+                : 'rounded-[2.25rem] p-5 space-y-3 max-h-[92dvh] overflow-y-auto no-scrollbar'
+            }`}
           >
-            <div className={`w-full grid grid-cols-3 ${isTwoPane ? 'gap-3 pt-1' : 'gap-1.5'}`}>
-              {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-                <div key={w.label} className={`bg-slate-950/90 border border-white/10 text-center ${isTwoPane ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1.5 px-2'}`}>
-                  <span className={`${isTwoPane ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase text-slate-400 block`}>{w.label}</span>
-                  <span className={`font-mono ${isTwoPane ? 'text-sm' : 'text-xs'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-                </div>
-              ))}
-            </div>
-            {caseHist.length > 0 && (
-              <div data-no-timer-start="true" className="w-full pt-1 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold text-slate-400">
-                  {caseHist.length} logged time{caseHist.length === 1 ? '' : 's'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => { emitBeep(520); setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name }); }}
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black text-slate-300 hover:text-white cursor-pointer"
-                >
-                  Manage / Delete Times ({caseHist.length})
-                </button>
+            {!isTwoPane && (
+              <div data-no-timer-start="true" className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
+                <button onClick={closeDrill} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
               </div>
             )}
-          </CasePracticeCard>
+
+            <CasePracticeCard
+              {...sharedPracticeProps}
+              phaseKey={phaseKey}
+              item={item}
+              timerLabel={timerLabel}
+              lastResultForThis={lastResultForThis}
+              recordedBest={caseStat.best}
+              onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
+              onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
+              onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
+              onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
+            >
+              <div className={`w-full grid grid-cols-3 ${isTwoPane ? 'gap-3 pt-1' : 'gap-1.5'}`}>
+                {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
+                  <div key={w.label} className={`liquid-glass-well border border-white/10 text-center ${isTwoPane ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1.5 px-2'}`}>
+                    <span className={`${isTwoPane ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase text-slate-400 block`}>{w.label}</span>
+                    <span className={`font-mono ${isTwoPane ? 'text-sm' : 'text-xs'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
+                  </div>
+                ))}
+              </div>
+              {caseHist.length > 0 && (
+                <div data-no-timer-start="true" className="w-full pt-1 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {caseHist.length} logged time{caseHist.length === 1 ? '' : 's'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { emitBeep(520); setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name }); }}
+                    className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-black text-slate-300 hover:text-white cursor-pointer"
+                  >
+                    Manage / Delete Times ({caseHist.length})
+                  </button>
+                </div>
+              )}
+            </CasePracticeCard>
+          </div>
         </div>
 
         {isTwoPane && (
-          <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-slate-400">
-            <span>{viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}</span>
+          <div data-no-timer-start="true" className="w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-slate-400 relative z-10">
+            <span className="px-3.5 py-1.5 rounded-full liquid-glass-well border border-white/10">
+              {viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}
+            </span>
             <button
               type="button"
               onClick={closeDrill}
-              className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-slate-200 cursor-pointer"
+              className="px-5 py-2.5 rounded-full liquid-glass-well liquid-rim-muted border border-white/10 text-xs font-black uppercase tracking-wider text-slate-200 hover:text-white cursor-pointer"
             >
               Done Drilling
             </button>
@@ -5008,7 +5072,7 @@ function OLLDaySuite() {
     );
   };
 
-  // Dedicated Right-Hand Reference Pane for iPad, Tablets & Desktop (Notation Key + Fingertrick Dossier)
+  // Dedicated Right-Hand Reference Pane for iPad, Tablets & Desktop (Liquid Glass Companion)
   const renderTabletDesktopReferencePane = () => {
     const activeContextCase = f2lDrillCase || ollDrillCase || pllDrillCase ||
       (f2lSession ? f2lSession.queue[f2lSession.index] : ollSession ? ollSession.queue[ollSession.index] : pllSession ? pllSession.queue[pllSession.index] : null);
@@ -5026,19 +5090,23 @@ function OLLDaySuite() {
     );
 
     return (
-      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-[#070b16] border-l border-white/10 p-5 space-y-3.5 overflow-hidden`}>
-        <div className="flex items-center justify-between gap-2 flex-shrink-0">
+      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-[#050811]/75 backdrop-blur-xl border-l border-white/[0.08] p-5 pb-24 space-y-3.5 overflow-hidden relative`}>
+        <div
+          style={{ background: 'radial-gradient(circle at 80% 10%, rgba(249, 115, 22, 0.11) 0%, rgba(249, 115, 22, 0) 65%)' }}
+          className="pointer-events-none absolute inset-0"
+        />
+
+        <div className="flex items-center justify-between gap-2 flex-shrink-0 relative">
           <div>
             <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Companion Reference</p>
             <h2 className="text-lg font-black tracking-tight text-white">Notation &amp; Mechanics</h2>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[9.5px] font-black uppercase tracking-wider text-slate-400">
+          <span className="px-3 py-1 rounded-full liquid-glass-well border border-white/10 text-[9.5px] font-black uppercase tracking-wider text-slate-300">
             {viewportDevice.kind === 'tablet' ? 'iPad / Tablet' : 'Desktop'} • {activePhase === 'cross' ? 'Cross' : activePhase === 'f2l' ? 'F2L' : activePhase === 'oll' ? 'OLL' : 'PLL'}
           </span>
         </div>
 
-        {/* Segmented Switcher: Notation Key vs Fingertrick Dossier */}
-        <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 grid grid-cols-2 flex-shrink-0">
+        <div className="liquid-glass-well liquid-rim-muted p-1 rounded-full border border-white/10 grid grid-cols-2 flex-shrink-0 relative">
           {[
             { key: 'notation', label: 'Notation Key' },
             { key: 'fingertricks', label: 'Fingertrick Dossier' }
@@ -5047,8 +5115,8 @@ function OLLDaySuite() {
               key={tab.key}
               type="button"
               onClick={() => { emitBeep(520); setRightPaneTab(tab.key); }}
-              className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
-                rightPaneTab === tab.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+              className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${
+                rightPaneTab === tab.key ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
               {tab.label}
@@ -5056,29 +5124,27 @@ function OLLDaySuite() {
           ))}
         </div>
 
-        {/* Quick Search Filter */}
         <div className="relative flex-shrink-0">
           <input
             type="text"
             value={rightPaneSearch}
             onChange={(e) => setRightPaneSearch(e.target.value)}
             placeholder={rightPaneTab === 'notation' ? 'Filter moves (e.g., Rw, M2, U2, y)...' : 'Search triggers (e.g., Sexy, Sledge, M-slice)...'}
-            className="w-full rounded-xl bg-slate-950/90 border border-white/10 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/40"
+            className="w-full rounded-full liquid-glass-well border border-white/10 px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/40"
           />
           {rightPaneSearch && (
             <button
               type="button"
               onClick={() => setRightPaneSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-white cursor-pointer"
             >
               ✕
             </button>
           )}
         </div>
 
-        {/* Active Drill / Case Trigger Callout Banner */}
         {activeContextCase && (
-          <div className="bg-gradient-to-r from-orange-500/15 to-amber-500/10 border border-orange-500/35 rounded-2xl p-3 space-y-1.5 flex-shrink-0">
+          <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[1.5rem] p-3.5 space-y-1.5 flex-shrink-0 relative">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400">Active Case Triggers</span>
               <span className="text-[10px] font-bold text-white truncate">{activeContextCase.name}</span>
@@ -5088,16 +5154,15 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* Category Filter Pills */}
         {rightPaneTab === 'notation' ? (
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 flex-shrink-0">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 flex-shrink-0 relative">
             {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
               <button
                 key={sec}
                 type="button"
                 onClick={() => { emitBeep(480); setNotationFilter(sec); }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
-                  notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
+                  notationFilter === sec ? 'bg-orange-500 text-slate-950 shadow-sm' : 'liquid-glass-well border border-white/[0.08] text-slate-400 hover:text-white'
                 }`}
               >
                 {sec}
@@ -5105,14 +5170,14 @@ function OLLDaySuite() {
             ))}
           </div>
         ) : (
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 flex-shrink-0">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 flex-shrink-0 relative">
             {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
               <button
                 key={cat}
                 type="button"
                 onClick={() => { emitBeep(480); setDossierFilter(cat); }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
-                  dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
+                  dossierFilter === cat ? 'bg-orange-500 text-slate-950 shadow-sm' : 'liquid-glass-well border border-white/[0.08] text-slate-400 hover:text-white'
                 }`}
               >
                 {cat}
@@ -5121,12 +5186,11 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* Scrollable Reference Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5 relative">
           {rightPaneTab === 'notation' ? (
             filteredNotation.length > 0 ? (
               filteredNotation.map((item) => (
-                <div key={item.move} className="bg-slate-900/75 border border-white/10 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3">
+                <div key={item.move} className="liquid-glass-card liquid-rim-muted border border-white/[0.09] rounded-[1.35rem] px-3.5 py-2.5 flex items-center justify-between gap-3">
                   <div>
                     <span className="font-mono text-xs font-black text-amber-300 block">{item.move}</span>
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{item.section}</span>
@@ -5143,8 +5207,8 @@ function OLLDaySuite() {
               return (
                 <div
                   key={trig.id}
-                  className={`border rounded-2xl p-3.5 space-y-1.5 transition-all ${
-                    isHighlighted ? 'bg-orange-500/15 border-orange-500/45 shadow-md' : 'bg-slate-900/75 border-white/10'
+                  className={`border rounded-[1.5rem] p-3.5 space-y-1.5 transition-all ${
+                    isHighlighted ? 'liquid-glass-card liquid-rim-amber border-orange-500/45 shadow-md' : 'liquid-glass-card liquid-rim-muted border-white/[0.09]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -5164,8 +5228,7 @@ function OLLDaySuite() {
           )}
         </div>
 
-        {/* Desktop/Tablet Orientation & Shortcut Footer */}
-        <div className="bg-slate-950/90 border border-white/10 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 text-[10px] text-slate-400 flex-shrink-0">
+        <div className="liquid-glass-well liquid-rim-muted border border-white/10 rounded-full px-4 py-2 flex items-center justify-between gap-2 text-[10px] text-slate-400 flex-shrink-0 relative">
           <span>Hold <strong className="text-white">White (D)</strong> • <strong className="text-green-400">Green (F)</strong></span>
           <span className="font-mono text-[9.5px] text-orange-300">
             {viewportDevice.isTouchPrimary ? 'Touch & Drag • 2-Pane' : 'Spacebar: Timer'}
@@ -5175,40 +5238,119 @@ function OLLDaySuite() {
     );
   };
 
+  // Cross-in-X Arc Telemetry Dial Gauge (Distinct Tactical Instrument Feel)
+  const renderCrossArcGauge = () => {
+    const targetMoves = Math.max(1, Math.min(8, activeCrossMoveCount || activeTierObj.moves));
+    const clampedMoves = Math.min(12, Math.max(1, crossUserMoves));
+    const ratio = Math.min(1, clampedMoves / 8);
+    const isOptimal = clampedMoves <= targetMoves;
+    const arcRadius = 56;
+    const circumference = Math.PI * arcRadius;
+    const dashOffset = circumference * (1 - ratio);
+
+    return (
+      <div className="liquid-glass-well liquid-rim-muted border border-white/10 rounded-[1.75rem] p-3.5 flex flex-col items-center justify-center relative overflow-hidden">
+        <div
+          style={{ background: isOptimal ? 'radial-gradient(circle at 50% 65%, rgba(249,115,22,0.16) 0%, transparent 70%)' : 'radial-gradient(circle at 50% 65%, rgba(251,191,36,0.12) 0%, transparent 70%)' }}
+          className="pointer-events-none absolute inset-0"
+        />
+        <div className="w-full flex items-center justify-between px-1 mb-1">
+          <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-400">Efficiency Arc</span>
+          <span className="font-mono text-[10px] font-black text-orange-400">Cap: ≤{targetMoves} HTM</span>
+        </div>
+        <div className="relative w-40 h-24 flex items-end justify-center">
+          <svg viewBox="0 0 140 80" className="w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id="crossArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#fb923c" />
+                <stop offset="60%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#fbbf24" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 14 70 A 56 56 0 0 1 126 70"
+              fill="none"
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+            <path
+              d="M 14 70 A 56 56 0 0 1 126 70"
+              fill="none"
+              stroke="url(#crossArcGrad)"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              style={{ transition: 'stroke-dashoffset 0.28s cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
+          </svg>
+          <div className="absolute bottom-0.5 flex flex-col items-center">
+            <span className="font-mono text-2xl font-black text-white leading-none">{crossUserMoves}</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">Turns</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Bottom Navigation Tabs (2 Left + Center Liquid 3x3 Orange Cube Switcher + 2 Right)
+  const navTabsForPhase = activePhase === 'cross'
+    ? [
+        { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
+        { id: 'blind', label: 'Blind Run', Icon: EyeOff },
+        { id: 'mechanics', label: 'Mechanics', Icon: Layers },
+        { id: 'settings', label: 'Settings', Icon: Settings }
+      ]
+    : [
+        { id: 'grind', label: 'The Grind', Icon: Zap },
+        { id: 'algorithms', label: 'Algorithms', Icon: Grid },
+        { id: 'stats', label: 'Statistics', Icon: BarChart3 },
+        { id: 'settings', label: 'Settings', Icon: Settings }
+      ];
+
+  const leftNavTabs = navTabsForPhase.slice(0, 2);
+  const rightNavTabs = navTabsForPhase.slice(2, 4);
+
   return (
     <>
       <style>{APP_GLOBAL_CSS}</style>
 
-      <div className={`min-h-[100dvh] w-full bg-[#060913] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
+      <div className={`min-h-[100dvh] w-full bg-[#05070e] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
         <AmbientGlows
           topClass="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[42vh] z-0"
           topGradient="radial-gradient(circle at 50% 0%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)"
           bottomClass="fixed bottom-0 right-0 w-3/4 h-[38vh] z-0"
-          bottomGradient="radial-gradient(circle at 80% 100%, rgba(37, 99, 235, 0.13) 0%, rgba(37, 99, 235, 0) 68%)"
+          bottomGradient="radial-gradient(circle at 80% 100%, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0) 68%)"
         />
 
-        <div className={`w-full ${isTwoPane ? 'max-w-5xl lg:max-w-6xl' : 'max-w-md'} h-[100dvh] flex flex-col relative z-10 shadow-2xl bg-[#090e1c] border-x border-white/5 overflow-hidden`}>
-          {/* PERSISTENT HEADER */}
-          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/5 bg-[#090e1c] flex-shrink-0 z-40`}>
+        <div className={`w-full ${isTwoPane ? 'max-w-5xl lg:max-w-6xl my-3 rounded-[2.5rem] h-[calc(100dvh-1.5rem)] liquid-rim-muted' : 'max-w-md h-[100dvh]'} flex flex-col relative z-10 shadow-2xl bg-[#070a14]/95 border border-white/[0.08] overflow-hidden`}>
+          {/* PERSISTENT HEADER (Unified Liquid Glass across Mobile, iPad, Tablet & Desktop) */}
+          <header className={`px-4 ${isTwoPane ? 'px-6 py-4' : 'pt-4 pb-3'} flex items-center justify-between gap-2 border-b border-white/[0.08] liquid-glass-card flex-shrink-0 z-40`}>
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl liquid-glass-well border border-orange-500/30 p-1 flex items-center justify-center flex-shrink-0 shadow-[0_0_16px_rgba(249,115,22,0.2)]">
                 <SuneEmblemSvg className="w-full h-full" />
               </div>
-              <h1 className={`${isTwoPane ? 'text-base' : 'text-sm'} font-black tracking-tight text-white whitespace-nowrap`}>
-                OLLDay <span className="text-orange-400">Everyday</span>
-              </h1>
+              <div className="min-w-0">
+                <h1 className={`${isTwoPane ? 'text-base' : 'text-sm'} font-black tracking-tight text-white whitespace-nowrap leading-none`}>
+                  OLLDay <span className="text-orange-400">Everyday</span>
+                </h1>
+                <span className="text-[9.5px] font-bold uppercase tracking-widest text-slate-400 block mt-0.5">
+                  Phase {activePhase === 'cross' ? 'C • Cross' : activePhase === 'f2l' ? 'F • F2L' : activePhase === 'oll' ? 'O • OLL' : 'P • PLL'}
+                </span>
+              </div>
               {isTwoPane && (
-                <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-slate-400">
+                <span className="inline-block px-3 py-1 rounded-full liquid-glass-well border border-white/10 text-[10px] font-bold text-slate-300">
                   {viewportDevice.kind === 'tablet' ? 'iPad / Tablet Workspace' : 'Desktop Workspace'}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 relative">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
-                className={`${isTwoPane ? 'w-auto px-3' : 'w-8'} h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer`}
+                className={`${isTwoPane ? 'w-auto px-3.5' : 'w-8'} h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer`}
                 title="Scan 3x3 Cube & Predict Next Case"
                 aria-label="Scan Cube"
               >
@@ -5218,53 +5360,19 @@ function OLLDaySuite() {
 
               <button
                 onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
-                className={`flex items-center gap-1 ${isTwoPane ? 'px-3' : 'px-2'} py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 active:scale-95 transition-all cursor-pointer`}
+                className={`flex items-center gap-1.5 ${isTwoPane ? 'px-3.5' : 'px-2.5'} py-1.5 rounded-full liquid-glass-well hover:bg-white/[0.1] border border-white/10 text-[11px] font-bold text-slate-200 active:scale-95 transition-all cursor-pointer`}
                 title="Switch Solver Account"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                <span className={`${isTwoPane ? 'max-w-[110px]' : 'max-w-[52px]'} truncate`}>{String(activeUserKey || 'Account')}</span>
+                <span className={`${isTwoPane ? 'max-w-[110px]' : 'max-w-[64px]'} truncate`}>{String(activeUserKey || 'Account')}</span>
               </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => { emitBeep(580); setCfopMenuOpen((v) => !v); }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-400 text-xs font-black tracking-wider active:scale-95 transition-all cursor-pointer"
-                >
-                  <span>{activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}</span>
-                  {isTwoPane && (
-                    <span className="text-[11px]">
-                      • {activePhase === 'cross' ? 'Cross' : activePhase === 'f2l' ? 'F2L' : activePhase === 'oll' ? 'OLL' : 'PLL'}
-                    </span>
-                  )}
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-
-                {cfopMenuOpen && (
-                  <div className={`absolute right-0 mt-2 ${isTwoPane ? 'w-32' : 'w-14'} bg-[#0c1326] border border-white/15 rounded-2xl p-1.5 shadow-2xl z-50 flex flex-col gap-1`}>
-                    {[
-                      { key: 'cross', label: 'C', full: 'C • Cross' },
-                      { key: 'f2l', label: 'F', full: 'F • F2L' },
-                      { key: 'oll', label: 'O', full: 'O • OLL' },
-                      { key: 'pll', label: 'P', full: 'P • PLL' }
-                    ].map((p) => (
-                      <button
-                        key={p.key}
-                        onClick={() => { emitBeep(620); setCfopMenuOpen(false); setActivePhase(p.key); }}
-                        className={`w-full py-2 px-2.5 rounded-xl text-xs font-black ${isTwoPane ? 'text-left' : 'text-center'} cursor-pointer transition-all ${activePhase === p.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
-                      >
-                        {isTwoPane ? p.full : p.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </header>
 
-          {/* RESPONSIVE WORKSPACE BODY: Single-Column on Mobile, Two-Pane Split on iPad/Tablet/Desktop */}
+          {/* RESPONSIVE WORKSPACE BODY */}
           <div className={`flex-1 min-h-0 ${isTwoPane ? 'grid grid-cols-12' : 'flex flex-col'} overflow-hidden`}>
             {/* LEFT PANE: MAIN DAY TRAINING & CROSS WORKSPACE */}
-            <main className={`${isTwoPane ? 'col-span-7' : 'flex-1'} min-h-0 overflow-y-auto no-scrollbar`}>
+            <main className={`${isTwoPane ? 'col-span-7' : 'flex-1'} min-h-0 overflow-y-auto no-scrollbar pb-24`}>
               <div className={isTwoPane ? 'max-w-2xl mx-auto' : ''}>
                 {activePhase === 'cross' && (
                   <>
@@ -5272,15 +5380,15 @@ function OLLDaySuite() {
                       <div className="p-5 pb-10 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Phase 1</p>
+                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Phase 1 • Tactical Instrument</p>
                             <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
                           </div>
-                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 cursor-pointer">
+                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold active:scale-95 cursor-pointer">
                             Color Orbit
                           </button>
                         </div>
 
-                        <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
+                        <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex items-center">
                           <button
                             type="button"
                             onClick={() => {
@@ -5288,7 +5396,7 @@ function OLLDaySuite() {
                               const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
                               setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                             }}
-                            className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                            className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/[0.12] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
                           >
                             Standard (2–6 Moves)
                           </button>
@@ -5300,7 +5408,7 @@ function OLLDaySuite() {
                               const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
                               setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                             }}
-                            className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                            className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}`}
                           >
                             <span className={!isProUnlocked ? 'opacity-65' : ''}>Advanced Full Scramble</span>
                             {!isProUnlocked && <span className="ml-1 text-[9px] text-orange-300">🔒</span>}
@@ -5317,8 +5425,8 @@ function OLLDaySuite() {
                                   if (locked) { openProPaywall(crossDifficulty === 'advanced' ? `Advanced Full-Scramble Cross L${t.tier}` : `Cross Ladder Level ${t.tier}`); return; }
                                   emitBeep(540); setCrossTier(t.tier); setCrossUserMoves(t.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                                 }}
-                                className={`relative overflow-hidden py-2 text-[11px] font-black rounded-xl cursor-pointer transition-all ${
-                                  crossTier === t.tier ? 'bg-orange-500 text-slate-950 shadow-md' : locked ? 'bg-white/5 text-slate-400 border border-orange-500/20' : 'bg-white/5 text-slate-400 hover:text-white'
+                                className={`relative overflow-hidden py-2.5 text-[11px] font-black rounded-full cursor-pointer transition-all ${
+                                  crossTier === t.tier ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/25' : locked ? 'liquid-glass-well text-slate-400 border border-orange-500/20' : 'liquid-glass-well text-slate-400 hover:text-white border border-white/[0.07]'
                                 }`}
                               >
                                 <span className={locked ? 'opacity-45' : ''}>L{t.tier}</span>
@@ -5328,19 +5436,20 @@ function OLLDaySuite() {
                           })}
                         </div>
 
-                        <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 flex items-center">
+                        <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex items-center">
                           {[{ key: 'efficiency', label: 'Move Efficiency' }, { key: 'blind', label: 'Blind Practice' }].map((m) => (
                             <button
                               key={m.key}
                               onClick={() => { emitBeep(480); setCrossLadderMode(m.key); }}
-                              className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${crossLadderMode === m.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+                              className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${crossLadderMode === m.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
                             >
                               {m.label}
                             </button>
                           ))}
                         </div>
 
-                        <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
+                        {/* Cross Bento Instrument Card */}
+                        <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-[2.25rem] p-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
                               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
@@ -5350,20 +5459,20 @@ function OLLDaySuite() {
                             </div>
                             <button
                               onClick={() => { emitBeep(560); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }}
-                              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-orange-400 active:scale-95 cursor-pointer"
+                              className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-orange-300 active:scale-95 cursor-pointer"
                             >
                               New Scramble
                             </button>
                           </div>
 
-                          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3 text-center shadow-inner">
+                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 text-center">
                             <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Hold White (D) • Green (F) • Red (L) • Orange (R)</span>
                             <div className={`font-mono font-black text-amber-300 tracking-wider select-all ${crossDifficulty === 'advanced' ? 'text-xs sm:text-sm leading-relaxed' : 'text-xl'}`}>
                               {activeCrossScramble}
                             </div>
                           </div>
 
-                          <div className="bg-slate-950/85 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner space-y-1.5">
+                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center space-y-1.5">
                             <div className="w-full flex items-center justify-between px-1">
                               <span className="text-[10px] font-bold text-slate-400">
                                 {crossOrbit.rot.pitch > 15 ? '3D Bottom-Right View (D-Face)' : crossOrbit.rot.pitch < -15 ? '3D Top-Right View (U-Face)' : '3D Front-Right View'}
@@ -5372,14 +5481,14 @@ function OLLDaySuite() {
                                 <button
                                   type="button"
                                   onClick={() => { emitBeep(540); crossOrbit.setOrbit((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }}
-                                  className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-400 cursor-pointer active:scale-95 transition-all"
+                                  className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer active:scale-95 transition-all"
                                 >
                                   {crossOrbit.rot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => { emitBeep(480); crossOrbit.setOrbit({ yaw: -35, pitch: 38 }); }}
-                                  className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                                  className="px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
                                 >
                                   Reset
                                 </button>
@@ -5406,71 +5515,72 @@ function OLLDaySuite() {
                             </div>
                           </div>
 
-                          <p className="text-xs text-slate-300 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5">{activeTierObj.hint}</p>
+                          <p className="text-xs text-slate-300 leading-relaxed bg-white/[0.04] rounded-2xl p-3 border border-white/[0.06]">{activeTierObj.hint}</p>
 
-                          <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                              Optimal Cross Solution ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'Move' : 'Moves'} • ≤8 Cap)
-                            </span>
+                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                Optimal Cross Solution ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'Move' : 'Moves'} • ≤8 Cap)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
+                                className="px-3 py-1 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
+                              >
+                                {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
+                              </button>
+                            </div>
+                            {crossSolutionRevealed && (
+                              <div className="pt-1.5 border-t border-white/10 text-center space-y-1">
+                                <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
+                                <span className="text-[9.5px] text-slate-400 block">
+                                  Guaranteed shortest HTM path solving all 4 White Cross edges on D ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'move' : 'moves'})
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {crossLadderMode === 'efficiency' ? (
+                          <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-4 space-y-3">
+                            {renderCrossArcGauge()}
+                            <div className="flex items-center justify-between px-1">
+                              <div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Adjust Turn Count</span>
+                                <span className="text-xs font-bold text-orange-400 font-mono">Optimal Target: Cross in {activeCrossMoveCount || activeTierObj.moves}</span>
+                              </div>
+                              <div className="flex items-center gap-2.5">
+                                <button onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }} className="w-10 h-10 rounded-full liquid-glass-well border border-white/15 font-black text-white active:scale-90 cursor-pointer">-</button>
+                                <span className="font-mono text-xl font-black text-white w-8 text-center">{crossUserMoves}</span>
+                                <button onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }} className="w-10 h-10 rounded-full liquid-glass-well border border-white/15 font-black text-white active:scale-90 cursor-pointer">+</button>
+                              </div>
+                            </div>
                             <button
-                              type="button"
-                              onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
-                              className="px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
+                              onClick={() => {
+                                const targetCap = Math.min(8, activeCrossMoveCount || activeTierObj.moves);
+                                const optimal = crossUserMoves <= targetCap;
+                                emitBeep(optimal ? 920 : 420, 'sine', 0.1);
+                                if (optimal) {
+                                  const updated = { ...currentUser, crossClears: (currentUser.crossClears || 0) + 1 };
+                                  setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
+                                  saveUserToCloud(activeUserKey, updated);
+                                }
+                                setEfficiencyFeedback({
+                                  optimal,
+                                  title: optimal ? `Optimal! Solved in ${crossUserMoves} Moves` : `${crossUserMoves} Moves (Optimal: ${targetCap})`,
+                                  detail: optimal ? 'Sub-8 efficiency unlocked. Keep building lookahead into your first F2L pair!' : `Try using D-layer keyhole shifts to trim ${crossUserMoves - targetCap} extra turn(s).`
+                                });
+                              }}
+                              className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
                             >
-                              {crossSolutionRevealed ? 'Hide Solution ▲' : 'Show Solution ▼'}
+                              Check My Turn Count
                             </button>
                           </div>
-                          {crossSolutionRevealed && (
-                            <div className="pt-1 border-t border-white/10 text-center space-y-1">
-                              <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
-                              <span className="text-[9.5px] text-slate-400 block">
-                                Guaranteed shortest HTM path solving all 4 White Cross edges on D ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'move' : 'moves'})
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {crossLadderMode === 'efficiency' ? (
-                        <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-4 shadow-xl space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Your Turn Count</span>
-                              <span className="text-xs font-bold text-orange-400 font-mono">Optimal Target: Cross in {activeCrossMoveCount || activeTierObj.moves}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">-</button>
-                              <span className="font-mono text-xl font-black text-white w-8 text-center">{crossUserMoves}</span>
-                              <button onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 font-black text-white active:scale-90 cursor-pointer">+</button>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const targetCap = Math.min(8, activeCrossMoveCount || activeTierObj.moves);
-                              const optimal = crossUserMoves <= targetCap;
-                              emitBeep(optimal ? 920 : 420, 'sine', 0.1);
-                              if (optimal) {
-                                const updated = { ...currentUser, crossClears: (currentUser.crossClears || 0) + 1 };
-                                setUsers((prev) => ({ ...prev, [activeUserKey]: updated }));
-                                saveUserToCloud(activeUserKey, updated);
-                              }
-                              setEfficiencyFeedback({
-                                optimal,
-                                title: optimal ? `Optimal! Solved in ${crossUserMoves} Moves` : `${crossUserMoves} Moves (Optimal: ${targetCap})`,
-                                detail: optimal ? 'Sub-8 efficiency unlocked. Keep building lookahead into your first F2L pair!' : `Try using D-layer keyhole shifts to trim ${crossUserMoves - targetCap} extra turn(s).`
-                              });
-                            }}
-                            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
-                          >
-                            Check My Turn Count
-                          </button>
-                        </div>
-                      ) : (
-                          <div className="relative overflow-hidden bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl text-center space-y-3">
+                        ) : (
+                          <div className="relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 text-center space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill</span>
-                              <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindPracticeHelp'); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer">
+                              <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindPracticeHelp'); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[10px] font-bold active:scale-95 transition-all cursor-pointer">
                                 <span className="w-3.5 h-3.5 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black">?</span>
                                 <span>How It Works</span>
                               </button>
@@ -5484,7 +5594,7 @@ function OLLDaySuite() {
                                 if (!isProUnlocked) { openProPaywall('WCA Blindfold Timer Mat'); return; }
                                 emitBeep(620); setTabForPhase('cross', 'blind');
                               }}
-                              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
+                              className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 cursor-pointer"
                             >
                               {isProUnlocked ? 'Open Blindfold Timer Mat' : '🔒 Unlock Blindfold Timer Mat (Pro)'}
                             </button>
@@ -5497,11 +5607,11 @@ function OLLDaySuite() {
                       <div className="relative p-5 pb-10 space-y-4">
                         {!isProUnlocked && (
                           <div className="flex items-center justify-center p-2">
-                            <div className="max-w-xs w-full rounded-[2rem] bg-slate-900/95 border border-orange-500/40 p-5 text-center shadow-2xl space-y-3">
+                            <div className="max-w-xs w-full rounded-[2.25rem] liquid-glass-card liquid-rim-amber border border-orange-500/35 p-5 text-center space-y-3">
                               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">🔒 OLLDay Pro Feature</span>
                               <h3 className="text-lg font-black text-white">WCA Blindfold Timer Mat</h3>
                               <p className="text-xs text-slate-300 leading-relaxed">Train 15-second inspection and eyes-closed execution on the dual-thumb Speedstack mat.</p>
-                              <button type="button" onClick={() => openProPaywall('WCA Blindfold Timer Mat')} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
+                              <button type="button" onClick={() => openProPaywall('WCA Blindfold Timer Mat')} className="w-full py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
                                 Unlock Lifetime Pro — $5.99
                               </button>
                             </div>
@@ -5514,13 +5624,13 @@ function OLLDaySuite() {
                               <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Sub-15 Execution Protocol</p>
                               <h2 className="text-2xl font-black tracking-tight text-white">Blind Inspection</h2>
                             </div>
-                            <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindHelp'); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[11px] font-bold active:scale-95 transition-all cursor-pointer">
+                            <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindHelp'); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[11px] font-bold active:scale-95 transition-all cursor-pointer">
                               <span className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-black">?</span>
                               <span>How It Works</span>
                             </button>
                           </div>
 
-                          <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-6 shadow-xl text-center">
+                          <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-6 text-center">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">WCA Inspection Timer</span>
                             <div ref={inspectionDisplayRef} className="font-mono text-5xl font-black text-white my-3">{inspectionLeftRef.current.toFixed(1)}</div>
                             <p className="text-xs font-bold text-orange-400">
@@ -5533,12 +5643,12 @@ function OLLDaySuite() {
                           </div>
 
                           {blindState === 'idle' && (
-                            <button onClick={() => { emitBeep(800); inspectionLeftRef.current = 15.0; if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = '15.0'; setBlindState('inspecting'); }} className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
+                            <button onClick={() => { emitBeep(800); inspectionLeftRef.current = 15.0; if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = '15.0'; setBlindState('inspecting'); }} className="w-full py-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 cursor-pointer">
                               Start 15s Countdown
                             </button>
                           )}
 
-                          <div onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }} className={`bg-slate-950/80 border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+                          <div onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }} className={`liquid-glass-well border border-white/10 rounded-[2.25rem] p-5 select-none transition-opacity ${blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center mb-3">Speedstack Touch Pads (Hold Both Thumbs &amp; Release)</p>
                             <div className="grid grid-cols-2 gap-3">
                               {[{ side: 'left', label: 'LEFT THUMB', held: leftPadHeld, setHeld: setLeftPadHeld, freq: 520 }, { side: 'right', label: 'RIGHT THUMB', held: rightPadHeld, setHeld: setRightPadHeld, freq: 560 }].map((pad) => (
@@ -5557,9 +5667,9 @@ function OLLDaySuite() {
                                     pad.setHeld(false);
                                   }}
                                   onPointerCancel={() => pad.setHeld(false)}
-                                  className={`h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
+                                  className={`h-28 rounded-[1.5rem] border-2 flex flex-col items-center justify-center gap-1.5 font-black text-[10px] tracking-widest transition-all cursor-pointer touch-none ${
                                     blindState === 'armed' ? 'bg-green-500/25 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.35)] scale-[1.02]' :
-                                    pad.held ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]' : 'bg-white/5 border-white/10 text-slate-400'
+                                    pad.held ? 'bg-orange-500/25 border-orange-400 text-orange-200 scale-[0.98]' : 'bg-white/[0.04] border-white/10 text-slate-400'
                                   }`}
                                 >
                                   <span>{pad.label}</span>
@@ -5570,19 +5680,19 @@ function OLLDaySuite() {
                           </div>
 
                           {blindState === 'done' && (
-                            <div className="bg-slate-900/70 border border-white/10 rounded-2xl p-4 space-y-2">
+                            <div className="liquid-glass-card border border-white/10 rounded-2xl p-4 space-y-2">
                               <span className="text-xs font-bold text-slate-300 block">Log Execution Result:</span>
                               <div className="grid grid-cols-3 gap-2">
                                 {['Clean', '+2', 'DNF'].map((res) => (
                                   <button
                                     key={res}
                                     onClick={() => {
-                                  emitBeep(600);
-                                  setBlindLogs((l) => [{ id: Date.now(), result: res, time: `${(15 - inspectionLeftRef.current).toFixed(1)}s insp` }, ...l.slice(0, 7)]);
-                                  inspectionLeftRef.current = 15.0; if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = '15.0'; setBlindState('idle');
-                                }}
-                                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black text-white cursor-pointer"
-                              >
+                                      emitBeep(600);
+                                      setBlindLogs((l) => [{ id: Date.now(), result: res, time: `${(15 - inspectionLeftRef.current).toFixed(1)}s insp` }, ...l.slice(0, 7)]);
+                                      inspectionLeftRef.current = 15.0; if (inspectionDisplayRef.current) inspectionDisplayRef.current.textContent = '15.0'; setBlindState('idle');
+                                    }}
+                                    className="py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-black text-white cursor-pointer"
+                                  >
                                     {res}
                                   </button>
                                 ))}
@@ -5594,7 +5704,7 @@ function OLLDaySuite() {
                             <div className="space-y-1.5">
                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Runs</span>
                               {blindLogs.map((log) => (
-                                <div key={log.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs">
+                                <div key={log.id} className="flex items-center justify-between liquid-glass-well border border-white/10 rounded-full px-4 py-2 text-xs">
                                   <span className="font-bold text-white">{log.result}</span>
                                   <span className="font-mono text-slate-400">{log.time}</span>
                                 </div>
@@ -5617,18 +5727,18 @@ function OLLDaySuite() {
                             <button
                               key={m.id}
                               onClick={() => { emitBeep(540); setActiveMechanicId(m.id); setActiveMechApproachIdx(0); setActiveMechCaseIdx(0); }}
-                              className={`py-3 px-2 rounded-xl text-xs font-black cursor-pointer transition-all ${activeMechanicId === m.id ? 'bg-orange-500 text-slate-950 shadow-md' : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'}`}
+                              className={`py-3 px-2.5 rounded-2xl text-xs font-black cursor-pointer transition-all ${activeMechanicId === m.id ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/20' : 'liquid-glass-card border border-white/10 text-slate-300 hover:border-orange-500/30'}`}
                             >
                               {m.id}. {m.title}
                             </button>
                           ))}
                         </div>
 
-                        <div className="bg-slate-900/90 border border-white/10 rounded-[2rem] p-5 shadow-xl space-y-3.5">
+                        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 space-y-3.5">
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{activeMechanicObj.badge}</span>
                           <h3 className="text-lg font-black text-white">{activeMechanicObj.title}</h3>
                           <p className="text-xs text-slate-300 leading-relaxed">{activeMechanicObj.summary}</p>
-                          <div className="bg-[#050811] border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">{activeMechanicObj.example}</div>
+                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 font-mono text-xs font-bold text-amber-300 text-center">{activeMechanicObj.example}</div>
 
                           {activeMechanicObj.approaches && (() => {
                             const activeApproach = activeMechanicObj.approaches[activeMechApproachIdx] || activeMechanicObj.approaches[0];
@@ -5644,32 +5754,32 @@ function OLLDaySuite() {
                                     <button
                                       key={app.id} type="button"
                                       onClick={() => { emitBeep(520); setActiveMechApproachIdx(aIdx); setActiveMechCaseIdx(0); }}
-                                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${activeMechApproachIdx === aIdx ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/5 border border-white/10 text-slate-300 hover:text-white'}`}
+                                      className={`px-3 py-1.5 rounded-full text-[10px] font-black whitespace-nowrap cursor-pointer transition-all ${activeMechApproachIdx === aIdx ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/[0.06] border border-white/10 text-slate-300 hover:text-white'}`}
                                     >
                                       {app.name}
                                     </button>
                                   ))}
                                 </div>
-                                <p className="text-[11px] text-slate-300 leading-relaxed bg-white/5 border border-white/5 rounded-xl p-3">{activeApproach.rule}</p>
+                                <p className="text-[11px] text-slate-300 leading-relaxed bg-white/[0.04] border border-white/[0.06] rounded-2xl p-3">{activeApproach.rule}</p>
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {activeApproach.cases.map((cItem, cIdx) => (
                                     <button
                                       key={cItem.label} type="button"
                                       onClick={() => { emitBeep(580); setActiveMechCaseIdx(cIdx); }}
-                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all ${activeMechCaseIdx === cIdx ? 'bg-amber-400/20 border border-amber-400/50 text-amber-300' : 'bg-slate-950 border border-white/10 text-slate-400 hover:text-white'}`}
+                                      className={`px-3 py-1 rounded-full text-[10px] font-black cursor-pointer transition-all ${activeMechCaseIdx === cIdx ? 'bg-amber-400/20 border border-amber-400/50 text-amber-300' : 'liquid-glass-well border border-white/10 text-slate-400 hover:text-white'}`}
                                     >
                                       {cItem.label.split('•')[0].trim()}
                                     </button>
                                   ))}
                                 </div>
-                                <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                                <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2.5">
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs font-black text-white">{activeCase.label}</span>
                                     <div className="flex items-center gap-1">
-                                      <button type="button" onClick={() => { emitBeep(540); setMechCubeRot((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }} className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-300 cursor-pointer">
+                                      <button type="button" onClick={() => { emitBeep(540); setMechCubeRot((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }} className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black text-orange-300 cursor-pointer">
                                         {mechCubeRot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
                                       </button>
-                                      <button type="button" onClick={() => { emitBeep(520); setMechCubeRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch })); }} className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9.5px] font-bold text-slate-300 cursor-pointer">
+                                      <button type="button" onClick={() => { emitBeep(520); setMechCubeRot((prev) => ({ yaw: prev.yaw - 90, pitch: prev.pitch })); }} className="px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[9.5px] font-bold text-slate-300 cursor-pointer">
                                         Spin 90°
                                       </button>
                                     </div>
@@ -5678,7 +5788,7 @@ function OLLDaySuite() {
                                     <CrossSpatial3DCube scramble={activeCase.setup} yaw={mechCubeRot.yaw} pitch={mechCubeRot.pitch} isDragging={false} />
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-center font-mono">
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-slate-400 block">Setup</span><span className="text-xs font-black text-amber-300">{activeCase.setup}</span></div>
+                                    <div className="bg-white/[0.04] border border-white/10 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-slate-400 block">Setup</span><span className="text-xs font-black text-amber-300">{activeCase.setup}</span></div>
                                     <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-2"><span className="text-[9px] font-sans font-bold uppercase text-green-300 block">Optimal Solve</span><span className="text-xs font-black text-green-300">{activeCase.solve}</span></div>
                                   </div>
                                   <p className="text-[11px] text-slate-300 leading-relaxed">{activeCase.note}</p>
@@ -5702,58 +5812,147 @@ function OLLDaySuite() {
             {renderTabletDesktopReferencePane()}
           </div>
 
-          {/* SYMMETRICAL 4-COLUMN BOTTOM NAVIGATION BAR */}
-          <nav className={`w-full flex-shrink-0 bg-[#090e1c] border-t border-white/10 pt-2.5 pb-6 ${isTwoPane ? 'px-6' : 'px-3'} z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.5)]`}>
-            <div className={`grid grid-cols-4 ${isTwoPane ? 'gap-3 max-w-2xl mx-auto' : 'gap-1.5'} w-full`}>
-              {(activePhase === 'cross'
-                ? [
-                    { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
-                    { id: 'blind', label: 'Blind Run', Icon: EyeOff },
-                    { id: 'mechanics', label: 'Mechanics', Icon: Layers },
-                    { id: 'settings', label: 'Settings', Icon: Settings }
-                  ]
-                : [
-                    { id: 'grind', label: 'The Grind', Icon: Zap },
-                    { id: 'algorithms', label: 'Algorithms', Icon: Grid },
-                    { id: 'stats', label: 'Statistics', Icon: BarChart3 },
-                    { id: 'settings', label: 'Settings', Icon: Settings }
-                  ]
-              ).map(({ id, label, Icon }) => {
-                const currentTab = phaseTabs[activePhase];
-                return (
-                  <button
-                    key={id}
-                    onClick={() => { emitBeep(460); setTabForPhase(activePhase, id); }}
-                    className={`${isTwoPane ? 'py-2.5 px-3 flex-row gap-2 text-[11px]' : 'py-2 px-1 flex-col gap-1 text-[9.5px]'} rounded-xl flex items-center justify-center font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
-                      currentTab === id ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-slate-400 hover:text-slate-200 border border-transparent'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
+          {/* FLOATING LIQUID GLASS PILL DOCK WITH ELEVATED CENTER-NOTCHED ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
+          <nav
+            className={`${
+              isTwoPane
+                ? 'w-full max-w-3xl mx-auto mb-4 px-4 py-2 rounded-full border border-white/12 liquid-rim-muted'
+                : 'w-full border-t border-white/[0.08] pt-2 pb-5 px-3 rounded-t-[2rem]'
+            } flex-shrink-0 liquid-glass-dock z-40 shadow-[0_14px_38px_rgba(0,0,0,0.75)] relative`}
+          >
+            <div className="w-full relative flex items-center justify-between gap-1.5">
+              {/* Left 2 Navigation Tabs */}
+              <div className="flex-1 grid grid-cols-2 gap-1.5">
+                {leftNavTabs.map(({ id, label, Icon }) => {
+                  const currentTab = phaseTabs[activePhase];
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => { emitBeep(460); setCfopMenuOpen(false); setTabForPhase(activePhase, id); }}
+                      className={`${isTwoPane ? 'py-2.5 px-3 flex-row gap-2 text-[11px]' : 'py-2 px-1 flex-col gap-1 text-[9.5px]'} rounded-full flex items-center justify-center font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
+                        currentTab === id ? 'bg-orange-500/15 text-orange-400 border border-orange-500/35' : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Center-Notched Elevated All-Orange 3x3 Cube Switcher */}
+              <div className="w-16 flex-shrink-0 flex items-center justify-center relative">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(620, 'sine', 0.07); setCfopMenuOpen((v) => !v); }}
+                  aria-label="Switch CFOP Phase"
+                  style={{
+                    boxShadow: cfopMenuOpen
+                      ? '0 0 28px rgba(249, 115, 22, 0.55), inset 0 1px 0 rgba(255,255,255,0.22)'
+                      : '0 0 22px rgba(249, 115, 22, 0.35), inset 0 1px 0 rgba(255,255,255,0.16)'
+                  }}
+                  className={`${isTwoPane ? '-mt-5' : '-mt-6'} w-14 h-14 rounded-full liquid-glass-card border border-orange-500/45 flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-all cursor-pointer relative z-20`}
+                >
+                  <OrangeCube3x3Icon className="w-6 h-6" />
+                  <span className="text-[8.5px] font-black uppercase tracking-widest text-orange-300 leading-none">
+                    {activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Right 2 Navigation Tabs */}
+              <div className="flex-1 grid grid-cols-2 gap-1.5">
+                {rightNavTabs.map(({ id, label, Icon }) => {
+                  const currentTab = phaseTabs[activePhase];
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => { emitBeep(460); setCfopMenuOpen(false); setTabForPhase(activePhase, id); }}
+                      className={`${isTwoPane ? 'py-2.5 px-3 flex-row gap-2 text-[11px]' : 'py-2 px-1 flex-col gap-1 text-[9.5px]'} rounded-full flex items-center justify-center font-black uppercase tracking-tight whitespace-nowrap text-center transition-all cursor-pointer ${
+                        currentTab === id ? 'bg-orange-500/15 text-orange-400 border border-orange-500/35' : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Fluid Rounded Liquid-Water Horizontal CFOP Pour Pill */}
+              <div
+                aria-hidden={!cfopMenuOpen}
+                style={{
+                  width: cfopMenuOpen ? (isTwoPane ? '360px' : '296px') : '56px',
+                  boxShadow: cfopMenuOpen
+                    ? '0 14px 40px rgba(0, 0, 0, 0.82), 0 0 32px rgba(249, 115, 22, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.14)'
+                    : '0 0 0 rgba(0,0,0,0)'
+                }}
+                className={`liquid-phase-pour absolute left-1/2 -translate-x-1/2 -top-14 h-14 overflow-hidden flex items-center justify-between px-2 liquid-glass-card border z-30 ${
+                  cfopMenuOpen
+                    ? 'opacity-100 scale-100 border-orange-500/45 pointer-events-auto'
+                    : 'opacity-0 scale-75 border-transparent pointer-events-none'
+                }`}
+              >
+                <div className="flex items-center justify-around flex-1 gap-1.5">
+                  {[
+                    { key: 'cross', letter: 'C', name: 'Cross' },
+                    { key: 'f2l', letter: 'F', name: 'F2L' },
+                    { key: 'oll', letter: 'O', name: 'OLL' },
+                    { key: 'pll', letter: 'P', name: 'PLL' }
+                  ].map((ph) => {
+                    const isActive = activePhase === ph.key;
+                    return (
+                      <button
+                        key={ph.key}
+                        type="button"
+                        onClick={() => {
+                          emitBeep(680, 'sine', 0.07);
+                          setActivePhase(ph.key);
+                          setCfopMenuOpen(false);
+                        }}
+                        className={`h-10 flex-1 rounded-full flex items-center justify-center gap-1 text-xs font-black tracking-wider transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-md shadow-orange-500/30'
+                            : 'bg-white/[0.05] hover:bg-white/[0.12] text-slate-200 border border-white/[0.08]'
+                        }`}
+                      >
+                        <span>{ph.letter}</span>
+                        <span className="text-[9px] font-extrabold opacity-85 hidden sm:inline">{ph.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setCfopMenuOpen(false); }}
+                  aria-label="Close Phase Switcher"
+                  className="ml-1.5 w-8 h-8 rounded-full bg-white/[0.07] hover:bg-white/[0.15] text-slate-300 text-xs font-black flex items-center justify-center flex-shrink-0 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           </nav>
         </div>
 
-        {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
+        {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL (LIQUID GLASS) */}
         {fullTimerOpen && (
-          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-slate-950/95 flex flex-col justify-between p-6 select-none cursor-pointer">
+          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-[#04060d]/95 backdrop-blur-xl flex flex-col justify-between p-6 select-none cursor-pointer">
             <AmbientGlows
               topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
               topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)"
               bottomClass="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)"
+              bottomGradient="radial-gradient(circle, rgba(14, 165, 233, 0.14) 0%, rgba(14, 165, 233, 0) 70%)"
             />
 
             <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">OLLDay Everyday • 3x3x3 CFOP Timer</span>
-                <button type="button" onClick={() => { emitBeep(440); setFullTimerState('idle'); setFullTimerOpen(false); }} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white font-bold cursor-pointer">✕</button>
+                <button type="button" onClick={() => { emitBeep(440); setFullTimerState('idle'); setFullTimerOpen(false); }} className="w-9 h-9 rounded-full liquid-glass-well border border-white/15 text-white font-bold cursor-pointer">✕</button>
               </div>
               {fullTimerState !== 'running' && (
-                <div className="rounded-2xl bg-slate-900/95 border border-white/15 p-3.5 text-center shadow-lg">
+                <div className="rounded-[1.75rem] liquid-glass-card liquid-rim-muted border border-white/10 p-3.5 text-center">
                   <p className="font-mono text-xs sm:text-sm font-bold text-white leading-relaxed">{fullScramble}</p>
                   <button type="button" onClick={() => { emitBeep(540); setFullScramble(generate3x3Scramble(20)); }} className="mt-1.5 text-[10px] font-black uppercase tracking-wider text-orange-300 hover:text-white cursor-pointer">New Scramble ↻</button>
                 </div>
@@ -5770,120 +5969,133 @@ function OLLDaySuite() {
             <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-2.5">
               {fullTimerState === 'stopped' && currentUser.fullSolveHistory?.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => toggleFullSolvePenalty('+2')} className={`py-2.5 rounded-xl border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === '+2' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-white/10 border-white/15 text-amber-300'}`}>+2</button>
-                  <button type="button" onClick={() => toggleFullSolvePenalty('DNF')} className={`py-2.5 rounded-xl border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === 'DNF' ? 'bg-red-500 text-white border-red-400' : 'bg-white/10 border-white/15 text-red-300'}`}>DNF</button>
-                  <button type="button" onClick={deleteLastFullSolve} className="py-2.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-slate-300 hover:text-white cursor-pointer">Delete</button>
+                  <button type="button" onClick={() => toggleFullSolvePenalty('+2')} className={`py-2.5 rounded-full border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === '+2' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'liquid-glass-well border-white/15 text-amber-300'}`}>+2</button>
+                  <button type="button" onClick={() => toggleFullSolvePenalty('DNF')} className={`py-2.5 rounded-full border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === 'DNF' ? 'bg-red-500 text-white border-red-400' : 'liquid-glass-well border-white/15 text-red-300'}`}>DNF</button>
+                  <button type="button" onClick={deleteLastFullSolve} className="py-2.5 rounded-full liquid-glass-well border border-white/15 text-xs font-bold text-slate-300 hover:text-white cursor-pointer">Delete</button>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-2xl bg-slate-900/95 border border-white/15 p-3 text-center"><span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">Ao5</span><span className="font-mono text-xl font-black text-green-400">{ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}</span></div>
-                <div className="rounded-2xl bg-slate-900/95 border border-white/15 p-3 text-center"><span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">Ao12</span><span className="font-mono text-xl font-black text-sky-400">{ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}</span></div>
+                <div className="rounded-2xl liquid-glass-card liquid-rim-muted border border-white/10 p-3 text-center"><span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">Ao5</span><span className="font-mono text-xl font-black text-green-400">{ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2)}</span></div>
+                <div className="rounded-2xl liquid-glass-card liquid-rim-muted border border-white/10 p-3 text-center"><span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">Ao12</span><span className="font-mono text-xl font-black text-sky-400">{ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2)}</span></div>
               </div>
             </div>
           </div>
         )}
 
-        {/* SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
+        {/* LIQUID GLASS SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-slate-950/95 flex flex-col items-center justify-center p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-[255] bg-[#04060d]/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 overflow-y-auto">
             <AmbientGlows
-              topClass="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 70%)"
+              topClass="absolute -top-16 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
               bottomClass="absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 70%)"
+              bottomGradient="radial-gradient(circle, rgba(251, 146, 60, 0.14) 0%, rgba(251, 146, 60, 0) 70%)"
             />
 
-            <div className="relative z-10 w-full max-w-sm rounded-[2.25rem] bg-slate-900/95 border border-white/15 p-6 shadow-2xl space-y-5">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-2 flex items-center justify-center shadow-lg"><SuneEmblemSvg className="w-full h-full" /></div>
-                <div>
-                  <h2 className="text-xl font-black tracking-tight text-white">OLLDay <span className="text-orange-400">Everyday</span></h2>
-                  <p className="text-xs text-white/65 mt-0.5">Sign in or create a solver account to save your PBs &amp; solve history</p>
-                </div>
-              </div>
+            {/* Layered Liquid Glass Depth Stack inspired by Reference Images 3 & 4 */}
+            <div className="relative z-10 w-full max-w-sm pt-4">
+              <div className="mx-9 -mb-2.5 h-3.5 rounded-t-[2rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+              <div className="mx-4 -mb-2.5 h-3.5 rounded-t-[2.15rem] bg-white/[0.04] border-t border-x border-white/10" />
 
-              <div className="bg-black/30 p-1 rounded-2xl border border-white/10 grid grid-cols-2">
-                {[{ key: 'signin', label: 'Sign In', active: 'bg-white/20 text-white shadow-sm' }, { key: 'signup', label: 'Create Account', active: 'bg-orange-500 text-slate-950 shadow-sm' }].map((tab) => (
-                  <button
-                    key={tab.key} type="button"
-                    onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode(tab.key); }}
-                    className={`py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${authMode === tab.key ? tab.active : 'text-white/55 hover:text-white'}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <div className="rounded-[2.35rem] liquid-glass-card liquid-rim-amber border border-white/15 p-6 shadow-[0_32px_80px_rgba(0,0,0,0.85)] space-y-5 relative overflow-hidden">
+                <div
+                  style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0) 65%)' }}
+                  className="pointer-events-none absolute inset-0"
+                />
 
-              {authMode === 'signin' ? (
-                <div className="space-y-3">
-                  <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
-                    {Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k])).map((uKey) => {
-                      const uData = sanitizeUserRecord(users[uKey]);
-                      return (
-                        <button
-                          key={uKey} type="button"
-                          onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
-                          className="w-full p-3.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
-                        >
-                          <div className="text-left">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-black text-white">{String(uKey)}</span>
-                              {uData.isPro && <span className="px-1.5 py-0.5 rounded bg-orange-500/25 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
-                            </div>
-                            <span className="text-[10px] text-white/55">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
-                          </div>
-                          <span className="text-xs font-black text-orange-300">Continue →</span>
-                        </button>
-                      );
-                    })}
+                <div className="flex flex-col items-center text-center space-y-2.5 relative">
+                  <div className="w-14 h-14 rounded-2xl liquid-glass-well liquid-rim-muted border border-orange-500/35 p-2.5 flex items-center justify-center shadow-[0_0_28px_rgba(249,115,22,0.28)]">
+                    <SuneEmblemSvg className="w-full h-full" />
                   </div>
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight text-white">OLLDay <span className="text-orange-400">Everyday</span></h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Sign in or create a solver profile to sync PBs &amp; solve telemetry</p>
+                  </div>
+                </div>
 
-                  <div className="pt-2 border-t border-white/10 space-y-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block">Sign In From Another Device</span>
-                    <div className="flex items-center gap-1.5">
-                      <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Enter your Solver Name or Email" className="flex-1 rounded-2xl bg-black/35 border border-white/15 px-3.5 py-2.5 text-xs font-bold text-white placeholder-white/40" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const query = authNameInput.trim();
-                          if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
-                          const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === query.toLowerCase() || (typeof users[k]?.email === 'string' && users[k].email.trim() !== '' && users[k].email.toLowerCase() === query.toLowerCase()));
-                          if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
-                          emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
-                        }}
-                        className="px-4 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 text-xs font-black text-white cursor-pointer"
-                      >
-                        Sign In
-                      </button>
+                <div className="liquid-glass-well p-1 rounded-full border border-white/10 grid grid-cols-2 relative">
+                  {[{ key: 'signin', label: 'Sign In', active: 'bg-white/[0.14] text-white shadow-sm' }, { key: 'signup', label: 'Create Account', active: 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' }].map((tab) => (
+                    <button
+                      key={tab.key} type="button"
+                      onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode(tab.key); }}
+                      className={`py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${authMode === tab.key ? tab.active : 'text-slate-400 hover:text-white'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {authMode === 'signin' ? (
+                  <div className="space-y-3 relative">
+                    <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                      {Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k])).map((uKey) => {
+                        const uData = sanitizeUserRecord(users[uKey]);
+                        return (
+                          <button
+                            key={uKey} type="button"
+                            onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
+                            className="w-full p-3.5 rounded-2xl liquid-glass-well hover:bg-white/[0.08] border border-white/10 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
+                          >
+                            <div className="text-left">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-black text-white">{String(uKey)}</span>
+                                {uData.isPro && <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
+                              </div>
+                              <span className="text-[10px] text-slate-400">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
+                            </div>
+                            <span className="text-xs font-black text-orange-300">Continue →</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-2 border-t border-white/10 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Sign In From Another Device</span>
+                      <div className="flex items-center gap-1.5">
+                        <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-well border border-white/15 px-4 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/40" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const query = authNameInput.trim();
+                            if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
+                            const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === query.toLowerCase() || (typeof users[k]?.email === 'string' && users[k].email.trim() !== '' && users[k].email.toLowerCase() === query.toLowerCase()));
+                            if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
+                            emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
+                          }}
+                          className="px-4 py-2.5 rounded-full bg-white/[0.12] hover:bg-white/[0.2] border border-white/15 text-xs font-black text-white cursor-pointer"
+                        >
+                          Sign In
+                        </button>
+                      </div>
+                      {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 relative">
+                    <div className="space-y-2">
+                      <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name (e.g., Alex)" className="w-full rounded-full liquid-glass-well border border-white/15 px-4 py-3 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/40" />
+                      <input type="email" value={authEmailInput} onChange={(e) => setAuthEmailInput(e.target.value)} placeholder="Email for Cloud Backup (Optional)" className="w-full rounded-full liquid-glass-well border border-white/15 px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/40" />
                     </div>
                     {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cleanName = authNameInput.trim();
+                        if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
+                        if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
+                        emitBeep(820, 'sine', 0.1);
+                        const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
+                        setUsers((prev) => ({ ...prev, [cleanName]: created }));
+                        saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
+                        setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
+                      }}
+                      className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                    >
+                      Create Account &amp; Start
+                    </button>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name (e.g., Alex)" className="w-full rounded-2xl bg-black/35 border border-white/15 px-3.5 py-3 text-xs font-bold text-white placeholder-white/40" />
-                    <input type="email" value={authEmailInput} onChange={(e) => setAuthEmailInput(e.target.value)} placeholder="Email for Cloud Backup (Optional)" className="w-full rounded-2xl bg-black/35 border border-white/15 px-3.5 py-3 text-xs text-white placeholder-white/40" />
-                  </div>
-                  {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cleanName = authNameInput.trim();
-                      if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
-                      if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
-                      emitBeep(820, 'sine', 0.1);
-                      const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
-                      setUsers((prev) => ({ ...prev, [cleanName]: created }));
-                      saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
-                      setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
-                    }}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
-                  >
-                    Create Account &amp; Start
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -5896,8 +6108,8 @@ function OLLDaySuite() {
               <h3 className="text-xl font-black text-white">Are you new to CFOP?</h3>
               <p className="text-xs text-slate-300 leading-relaxed">Choose your experience level and we&apos;ll walk you through the app live, showing you where every phase and tool lives.</p>
               <div className="space-y-2.5 pt-1">
-                <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Yes, show me whats going on here.</button>
-                <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-black text-xs uppercase tracking-wider cursor-pointer">No, I know CFOP.</button>
+                <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Yes, show me whats going on here.</button>
+                <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full py-3.5 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white font-black text-xs uppercase tracking-wider cursor-pointer">No, I know CFOP.</button>
               </div>
             </div>
           </ModalShell>
@@ -5910,7 +6122,7 @@ function OLLDaySuite() {
           const isLast = tourStepIdx + 1 >= steps.length;
           return (
             <div className="fixed inset-x-0 bottom-24 z-[268] px-4 flex justify-center pointer-events-none">
-              <div className="pointer-events-auto w-full max-w-md rounded-[2rem] bg-slate-900 border border-orange-500/45 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.85)] space-y-3">
+              <div className="pointer-events-auto w-full max-w-md rounded-[2.25rem] liquid-glass-card liquid-rim-amber border border-orange-500/40 p-5 shadow-[0_24px_65px_rgba(0,0,0,0.88)] space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">{step.badge}</span>
                   <button type="button" onClick={() => { emitBeep(440); setActiveModal(null); }} className="text-[11px] font-bold text-slate-400 hover:text-white cursor-pointer">Skip Tour ✕</button>
@@ -5919,7 +6131,7 @@ function OLLDaySuite() {
                   <h3 className="text-base font-black text-white">{step.title}</h3>
                   <p className="text-xs text-slate-300 leading-relaxed mt-1">{step.desc}</p>
                 </div>
-                <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5">
+                <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5">
                   <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-300 block">How to Navigate Here Yourself:</span>
                   <p className="text-[11px] text-slate-200 mt-0.5">{step.howToReach}</p>
                 </div>
@@ -5928,21 +6140,21 @@ function OLLDaySuite() {
                     <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">Jump Directly to a Phase:</span>
                     <div className="grid grid-cols-4 gap-1.5">
                       {[{ key: 'cross', label: 'C • Cross', tab: 'ladder' }, { key: 'f2l', label: 'F • F2L', tab: 'grind' }, { key: 'oll', label: 'O • OLL', tab: 'grind' }, { key: 'pll', label: 'P • PLL', tab: 'grind' }].map((dest) => (
-                        <button key={dest.key} type="button" onClick={() => { emitBeep(760, 'sine', 0.08); applyTourNavigation({ phase: dest.key, tab: dest.tab }); setActiveModal(null); }} className="py-2 px-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/40 text-[10px] font-black text-orange-200 transition-all active:scale-95 cursor-pointer">{dest.label}</button>
+                        <button key={dest.key} type="button" onClick={() => { emitBeep(760, 'sine', 0.08); applyTourNavigation({ phase: dest.key, tab: dest.tab }); setActiveModal(null); }} className="py-2 px-1 rounded-full bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/40 text-[10px] font-black text-orange-200 transition-all active:scale-95 cursor-pointer">{dest.label}</button>
                       ))}
                     </div>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  <button type="button" disabled={tourStepIdx === 0} onClick={() => { emitBeep(460); const prevIdx = Math.max(0, tourStepIdx - 1); setTourStepIdx(prevIdx); applyTourNavigation(steps[prevIdx]); }} className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer">← Back</button>
-                  <button type="button" onClick={() => { emitBeep(720, 'sine', 0.07); if (!isLast) { const nextIdx = tourStepIdx + 1; setTourStepIdx(nextIdx); applyTourNavigation(steps[nextIdx]); } else setActiveModal(null); }} className="py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">{isLast ? 'Finish Tour ✓' : 'Next Step →'}</button>
+                  <button type="button" disabled={tourStepIdx === 0} onClick={() => { emitBeep(460); const prevIdx = Math.max(0, tourStepIdx - 1); setTourStepIdx(prevIdx); applyTourNavigation(steps[prevIdx]); }} className="py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 disabled:opacity-30 cursor-pointer">← Back</button>
+                  <button type="button" onClick={() => { emitBeep(720, 'sine', 0.07); if (!isLast) { const nextIdx = tourStepIdx + 1; setTourStepIdx(nextIdx); applyTourNavigation(steps[nextIdx]); } else setActiveModal(null); }} className="py-2.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">{isLast ? 'Finish Tour ✓' : 'Next Step →'}</button>
                 </div>
               </div>
             </div>
           );
         })()}
 
-        {/* CUBE SCANNER MODAL */}
+        {/* CUBE SCANNER MODAL (LIQUID GLASS) */}
         {scannerOpen && (() => {
           const FACE_CAPTURE_SPECS = {
             U: { title: 'Top Face (U • Yellow Center)', short: 'Top (U)', accent: '#facc15', topEdge: '▲ BLUE (BACK)', bottomEdge: '▼ GREEN (FRONT)', leftEdge: '◀ RED', rightEdge: 'ORANGE ▶', instruction: 'Tilt Yellow (U) straight toward camera: Blue edge on TOP, Green edge on BOTTOM, Red LEFT, Orange RIGHT.' },
@@ -5994,18 +6206,18 @@ function OLLDaySuite() {
           const posLabels = ['Top-Left Corner', 'Top Edge', 'Top-Right Corner', 'Left Edge', 'Center', 'Right Edge', 'Bottom-Left Corner', 'Bottom Edge', 'Bottom-Right Corner'];
 
           return (
-            <div className="fixed inset-0 z-[285] bg-[#060913] flex justify-center overflow-hidden">
-              <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-[#090e1c] border-x border-white/10 shadow-2xl flex flex-col">
-                <div className="px-4 pt-4 pb-3 border-b border-white/10 bg-[#090e1c] flex items-center justify-between flex-shrink-0">
+            <div className="fixed inset-0 z-[285] bg-[#04060d]/95 backdrop-blur-xl flex justify-center overflow-hidden">
+              <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-[#070a14]/90 border-x border-white/10 shadow-2xl flex flex-col">
+                <div className="px-4 pt-4 pb-3 border-b border-white/10 bg-[#070a14]/90 flex items-center justify-between flex-shrink-0">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Live AI Scanner • {capturedCount} Face{capturedCount === 1 ? '' : 's'} Captured</span>
                     <h2 className="text-lg font-black text-white">Cube Scanner &amp; Solver</h2>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={() => { emitBeep(520); setScannerAutoSnap((v) => !v); }} className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase border cursor-pointer ${scannerAutoSnap ? 'bg-green-500/20 border-green-500/40 text-green-300' : 'bg-white/5 border-white/10 text-slate-400'}`}>
+                    <button type="button" onClick={() => { emitBeep(520); setScannerAutoSnap((v) => !v); }} className={`px-3 py-1 rounded-full text-[9.5px] font-black uppercase border cursor-pointer ${scannerAutoSnap ? 'bg-green-500/20 border-green-500/40 text-green-300' : 'bg-white/[0.06] border-white/10 text-slate-400'}`}>
                       {scannerAutoSnap ? 'Auto-Snap ON' : 'Manual Snap'}
                     </button>
-                    <button type="button" onClick={() => { emitBeep(440); stopScannerCamera(); setScannerOpen(false); }} className="w-9 h-9 rounded-full bg-white/10 border border-white/15 text-slate-200 font-bold cursor-pointer">✕</button>
+                    <button type="button" onClick={() => { emitBeep(440); stopScannerCamera(); setScannerOpen(false); }} className="w-9 h-9 rounded-full liquid-glass-well border border-white/15 text-slate-200 font-bold cursor-pointer">✕</button>
                   </div>
                 </div>
 
@@ -6018,7 +6230,7 @@ function OLLDaySuite() {
                         <button
                           key={fKey} type="button"
                           onClick={() => { emitBeep(540); setSelectedStickerEdit(null); setScannerCaptureStep(fKey); if (!scannerCapturedThumbs[fKey] && !scannerCameraReady) startScannerCamera(fKey, false); }}
-                          className={`py-2 rounded-xl text-[10px] font-black uppercase border transition-all cursor-pointer ${isCurrent ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-sm' : isDone ? 'bg-green-500/15 text-green-300 border-green-500/35' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'}`}
+                          className={`py-2 rounded-full text-[10px] font-black uppercase border transition-all cursor-pointer ${isCurrent ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-sm' : isDone ? 'bg-green-500/15 text-green-300 border-green-500/35' : 'liquid-glass-well text-slate-300 border-white/10 hover:bg-white/10'}`}
                         >
                           {isDone ? `${fKey} ✓` : fKey}
                         </button>
@@ -6026,9 +6238,9 @@ function OLLDaySuite() {
                     })}
                   </div>
 
-                  <div className="bg-slate-900 border border-white/10 rounded-2xl px-3 py-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cube Finish Calibration:</span>
-                    <div className="bg-slate-950 p-0.5 rounded-xl border border-white/10 flex items-center">
+                  <div className="liquid-glass-card border border-white/10 rounded-full px-3.5 py-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cube Finish:</span>
+                    <div className="liquid-glass-well p-0.5 rounded-full border border-white/10 flex items-center">
                       {[{ key: 'uv', label: 'UV Glossy' }, { key: 'matte', label: 'Matte Finish' }].map((fin) => (
                         <button
                           key={fin.key} type="button"
@@ -6036,7 +6248,7 @@ function OLLDaySuite() {
                             emitBeep(540); setScannerSurfaceFinish(fin.key);
                             if (Object.keys(scannerRawSamples).length > 0) setScannedFaces((prev) => classifyCapturedFaceBatch(scannerRawSamples, prev, scannerLockedFaces, savedCubePalette));
                           }}
-                          className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase cursor-pointer transition-all ${scannerSurfaceFinish === fin.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                          className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase cursor-pointer transition-all ${scannerSurfaceFinish === fin.key ? 'bg-orange-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
                         >
                           {fin.label}
                         </button>
@@ -6044,7 +6256,7 @@ function OLLDaySuite() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900 border border-white/10 rounded-2xl px-3.5 py-2.5 space-y-1">
+                  <div className="liquid-glass-card border border-white/10 rounded-2xl px-3.5 py-2.5 space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-black text-white">{currentSpec.title}</span>
                       <span className="text-[9.5px] font-bold text-orange-300">{scannerFramingHint}</span>
@@ -6052,7 +6264,7 @@ function OLLDaySuite() {
                     <p className="text-[10.5px] text-slate-300 leading-snug">{currentSpec.instruction}</p>
                   </div>
 
-                  <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-[1.75rem] overflow-hidden bg-slate-950 border border-white/15 shadow-inner">
+                  <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-[2rem] overflow-hidden bg-black/70 border border-white/15 shadow-inner">
                     {activePreviewImg ? (
                       <img src={activePreviewImg} alt={`Captured ${currentSpec.short} face`} className="w-full h-full object-cover" />
                     ) : (
@@ -6075,16 +6287,16 @@ function OLLDaySuite() {
                           </g>
                         );
                       })}
-                      <rect x="46" y="8" width="108" height="16" rx="6" fill="rgba(2,6,23,0.82)" />
+                      <rect x="46" y="8" width="108" height="16" rx="8" fill="rgba(2,6,23,0.82)" />
                       <text x="100" y="19" textAnchor="middle" fill="#ffffff" fontSize="8.5" fontWeight="900">{currentSpec.topEdge}</text>
-                      <rect x="42" y="176" width="116" height="16" rx="6" fill="rgba(2,6,23,0.82)" />
+                      <rect x="42" y="176" width="116" height="16" rx="8" fill="rgba(2,6,23,0.82)" />
                       <text x="100" y="187" textAnchor="middle" fill="#fde047" fontSize="8.5" fontWeight="900">{currentSpec.bottomEdge}</text>
                       <text x="16" y="102" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" transform="rotate(-90 16 102)">{currentSpec.leftEdge}</text>
                       <text x="184" y="102" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="900" transform="rotate(90 184 102)">{currentSpec.rightEdge}</text>
                     </svg>
 
                     {scannerCameraError && !activePreviewImg && (
-                      <div className="absolute inset-0 bg-slate-950/90 p-4 flex items-center justify-center text-center">
+                      <div className="absolute inset-0 bg-[#05070e]/90 p-4 flex items-center justify-center text-center">
                         <p className="text-xs text-slate-300 leading-relaxed">{scannerCameraError}</p>
                       </div>
                     )}
@@ -6098,17 +6310,17 @@ function OLLDaySuite() {
                         else if (!scannerCameraReady) startScannerCamera(scannerCaptureStep, false);
                         else captureAndAnalyzeCubeFrame();
                       }}
-                      className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer"
+                      className="py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer"
                     >
                       {activePreviewImg ? `Retake ${currentSpec.short} ↻` : scannerCameraReady ? (scannerAutoSnap && scannerStabilityCount > 0 ? `Hold Steady (${scannerStabilityCount}/5)...` : `Capture ${currentSpec.short}`) : `Start Camera (${currentSpec.short})`}
                     </button>
-                    <button type="button" onClick={() => { emitBeep(460); startScannerCamera('U', true); }} className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">
+                    <button type="button" onClick={() => { emitBeep(460); startScannerCamera('U', true); }} className="py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">
                       Reset All Faces
                     </button>
                   </div>
 
                   {!scannerHasFull6Faces && (
-                    <div className="bg-slate-900 border border-orange-500/35 rounded-[1.75rem] p-3.5 space-y-3 shadow-lg">
+                    <div className="liquid-glass-card border border-orange-500/35 rounded-[1.75rem] p-3.5 space-y-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{hasFront3Captured ? '3-Face Quick Check • Refine Solve' : '3-Face State Check'}</span>
                         {(scannerThreeFaceHints.crossSolved !== null || scannerThreeFaceHints.f2lCompletedStatus !== null) && (
@@ -6118,8 +6330,8 @@ function OLLDaySuite() {
                       <div className="space-y-1.5">
                         <p className="text-xs font-black text-white">1. Is Cross solved?</p>
                         <div className="grid grid-cols-2 gap-2">
-                          <button type="button" onClick={() => { emitBeep(640, 'sine', 0.05); setScannerThreeFaceHints((prev) => ({ ...prev, crossSolved: true })); }} className={`py-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${scannerThreeFaceHints.crossSolved === true ? 'bg-green-500/20 border-green-400 text-green-300' : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'}`}>Yes, Cross Solved ✓</button>
-                          <button type="button" onClick={() => { emitBeep(520, 'sine', 0.05); setScannerThreeFaceHints({ crossSolved: false, f2lCompletedStatus: null }); }} className={`py-2 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${scannerThreeFaceHints.crossSolved === false ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'}`}>No, Not Yet ✕</button>
+                          <button type="button" onClick={() => { emitBeep(640, 'sine', 0.05); setScannerThreeFaceHints((prev) => ({ ...prev, crossSolved: true })); }} className={`py-2 rounded-full text-[11px] font-black border transition-all cursor-pointer ${scannerThreeFaceHints.crossSolved === true ? 'bg-green-500/20 border-green-400 text-green-300' : 'liquid-glass-well border-white/10 text-slate-300 hover:bg-white/5'}`}>Yes, Cross Solved ✓</button>
+                          <button type="button" onClick={() => { emitBeep(520, 'sine', 0.05); setScannerThreeFaceHints({ crossSolved: false, f2lCompletedStatus: null }); }} className={`py-2 rounded-full text-[11px] font-black border transition-all cursor-pointer ${scannerThreeFaceHints.crossSolved === false ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'liquid-glass-well border-white/10 text-slate-300 hover:bg-white/5'}`}>No, Not Yet ✕</button>
                         </div>
                       </div>
                       {scannerThreeFaceHints.crossSolved === true && (
@@ -6127,7 +6339,7 @@ function OLLDaySuite() {
                           <p className="text-xs font-black text-white">2. Are any F2L pairs completed?</p>
                           <div className="grid grid-cols-3 gap-1.5">
                             {[{ key: 'none', label: 'None (0/4)' }, { key: 'some', label: 'Some (1–3)' }, { key: 'all', label: 'All 4 Done ✓' }].map((opt) => (
-                              <button key={opt.key} type="button" onClick={() => { emitBeep(660, 'sine', 0.05); setScannerThreeFaceHints((prev) => ({ ...prev, f2lCompletedStatus: opt.key })); }} className={`py-2 px-1 rounded-xl text-[10.5px] font-black border transition-all cursor-pointer ${scannerThreeFaceHints.f2lCompletedStatus === opt.key ? 'bg-orange-500 text-slate-950 border-orange-400' : 'bg-slate-950 border-white/10 text-slate-300 hover:bg-white/5'}`}>{opt.label}</button>
+                              <button key={opt.key} type="button" onClick={() => { emitBeep(660, 'sine', 0.05); setScannerThreeFaceHints((prev) => ({ ...prev, f2lCompletedStatus: opt.key })); }} className={`py-2 px-1 rounded-full text-[10.5px] font-black border transition-all cursor-pointer ${scannerThreeFaceHints.f2lCompletedStatus === opt.key ? 'bg-orange-500 text-slate-950 border-orange-400' : 'liquid-glass-well border-white/10 text-slate-300 hover:bg-white/5'}`}>{opt.label}</button>
                             ))}
                           </div>
                         </div>
@@ -6141,7 +6353,7 @@ function OLLDaySuite() {
                               <><strong>Recommended:</strong> With open F2L slots on the back/left sides, capturing <strong>D • B • L</strong> lets our engine track hidden corners &amp; edges across all 4 slots for an accurate multi-pair F2L solve.</>
                             )}
                           </p>
-                          <button type="button" onClick={() => { emitBeep(740, 'sine', 0.07); startScannerCamera('D', false); }} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md cursor-pointer">
+                          <button type="button" onClick={() => { emitBeep(740, 'sine', 0.07); startScannerCamera('D', false); }} className="w-full py-2.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md cursor-pointer">
                             Capture Remaining Faces (D • B • L) →
                           </button>
                         </div>
@@ -6149,14 +6361,14 @@ function OLLDaySuite() {
                     </div>
                   )}
 
-                  <div className="bg-slate-900 border border-white/10 rounded-[1.75rem] p-3.5 space-y-2.5">
+                  <div className="liquid-glass-card border border-white/10 rounded-[1.75rem] p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between gap-1.5">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Verify Stickers</span>
                       <div className="flex items-center gap-1.5">
                         {savedCubePalette && (
-                          <button type="button" onClick={() => { emitBeep(460); setSavedCubePalette(null); storage.setStr(STORAGE_KEYS.cubePalette, ''); }} className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[9px] font-bold text-slate-300 hover:text-white cursor-pointer">Reset Palette</button>
+                          <button type="button" onClick={() => { emitBeep(460); setSavedCubePalette(null); storage.setStr(STORAGE_KEYS.cubePalette, ''); }} className="px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[9px] font-bold text-slate-300 hover:text-white cursor-pointer">Reset Palette</button>
                         )}
-                        <button type="button" onClick={() => { emitBeep(720, 'sine', 0.05); setScannerLockedFaces((prev) => ({ ...prev, [scannerCaptureStep]: [...(scannedFaces[scannerCaptureStep] || [])] })); }} className="px-2 py-0.5 rounded-lg bg-green-500/15 border border-green-500/35 text-[9.5px] font-black text-green-300 cursor-pointer">
+                        <button type="button" onClick={() => { emitBeep(720, 'sine', 0.05); setScannerLockedFaces((prev) => ({ ...prev, [scannerCaptureStep]: [...(scannedFaces[scannerCaptureStep] || [])] })); }} className="px-2.5 py-0.5 rounded-full bg-green-500/15 border border-green-500/35 text-[9.5px] font-black text-green-300 cursor-pointer">
                           {scannerLockedFaces[scannerCaptureStep] ? `✓ ${scannerCaptureStep} Locked` : `Lock ${scannerCaptureStep} Tiles`}
                         </button>
                       </div>
@@ -6170,13 +6382,13 @@ function OLLDaySuite() {
                       </div>
                     )}
 
-                    <p className="text-[10px] text-slate-400 leading-snug bg-slate-950/70 border border-white/5 rounded-xl px-2.5 py-1.5">
+                    <p className="text-[10px] text-slate-400 leading-snug liquid-glass-well border border-white/[0.06] rounded-xl px-2.5 py-1.5">
                       Tap any tile to fix its color—edited or locked tiles <strong className="text-green-300">stay locked in place</strong> when capturing other faces.
                     </p>
 
                     <div className="grid grid-cols-3 gap-2">
                       {visibleFaceList.map((fObj) => (
-                        <div key={fObj.key} className="bg-slate-950/90 border border-white/10 rounded-2xl p-2 space-y-1">
+                        <div key={fObj.key} className="liquid-glass-well border border-white/10 rounded-2xl p-2 space-y-1">
                           <span className="text-[9px] font-black uppercase tracking-wider text-white block text-center">{fObj.title}</span>
                           <div className="flex justify-center">{renderEdgeDot(fObj.top, 'Top')}</div>
                           <div className="flex items-center gap-1">
@@ -6203,7 +6415,7 @@ function OLLDaySuite() {
                     </div>
 
                     {selectedStickerEdit && (
-                      <div className="flex items-center justify-between gap-2 bg-slate-950 border border-orange-500/35 rounded-xl px-2.5 py-2">
+                      <div className="flex items-center justify-between gap-2 liquid-glass-well border border-orange-500/35 rounded-full px-3.5 py-2">
                         <div className="min-w-0">
                           <span className="text-[9.5px] font-black uppercase text-orange-300 block truncate">{selectedStickerEdit.faceTitle || selectedStickerEdit.face}</span>
                           <span className="text-[9px] text-slate-400 block truncate">{selectedStickerEdit.posLabel || `Tile #${selectedStickerEdit.idx + 1}`}</span>
@@ -6223,7 +6435,7 @@ function OLLDaySuite() {
                                 });
                               }}
                               style={{ backgroundColor: SCANNER_COLOR_META[cCode].hex }}
-                              className="w-6 h-6 rounded-lg border border-black/40 text-[9px] font-black text-slate-950 cursor-pointer active:scale-90"
+                              className="w-6 h-6 rounded-full border border-black/40 text-[9px] font-black text-slate-950 cursor-pointer active:scale-90"
                               title={SCANNER_COLOR_META[cCode].label}
                             >
                               {cCode}
@@ -6235,16 +6447,16 @@ function OLLDaySuite() {
                   </div>
 
                   {/* Analysis Card */}
-                  <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/35 border border-orange-500/35 rounded-[1.75rem] p-4 space-y-3 shadow-xl">
+                  <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[2rem] p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-wider text-orange-300">{analysis.phaseLabel}</span>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${analysis.crossSolved ? 'bg-green-500/15 border-green-500/35 text-green-300' : 'bg-red-500/15 border-red-500/35 text-red-300'}`}>{analysis.crossSolved ? 'Cross ✓' : 'Cross ✕'}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-[9px] font-black uppercase text-slate-200">{analysis.remainingF2lPairs === 0 ? 'F2L Done ✓' : `${analysis.remainingF2lPairs} F2L Left`}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-white/[0.08] border border-white/15 text-[9px] font-black uppercase text-slate-200">{analysis.remainingF2lPairs === 0 ? 'F2L Done ✓' : `${analysis.remainingF2lPairs} F2L Left`}</span>
                       </div>
                     </div>
 
-                    <div className="bg-slate-950/90 border border-orange-500/30 rounded-2xl p-3 space-y-2.5">
+                    <div className="liquid-glass-well border border-orange-500/30 rounded-2xl p-3 space-y-2.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400">Focused Stage • Full Algorithm</span>
                         <button
@@ -6254,7 +6466,7 @@ function OLLDaySuite() {
                             emitBeep(result.status === 'warning' ? 420 : 780, 'sine', 0.07);
                             setScannerStageVerification(result);
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/40 text-[9.5px] font-black uppercase tracking-wider text-sky-300 active:scale-95 transition-all cursor-pointer"
+                          className="px-2.5 py-1 rounded-full bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/40 text-[9.5px] font-black uppercase tracking-wider text-sky-300 active:scale-95 transition-all cursor-pointer"
                         >
                           {activeStagePhase === 'oll'
                             ? 'Verify Top Layer (OLL) ✓'
@@ -6311,7 +6523,7 @@ function OLLDaySuite() {
                           {activeSubSteps.map((sub) => {
                             const subTags = getAlgorithmTriggerTags(sub.alg);
                             return (
-                              <div key={sub.slotNumber} className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 space-y-1">
+                              <div key={sub.slotNumber} className="bg-white/[0.04] border border-white/10 rounded-xl px-2.5 py-2 space-y-1">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-[10px] font-black text-white flex-shrink-0">Pair {sub.slotNumber} ({sub.caseObj.name})</span>
                                   <span className="font-mono text-[10.5px] font-bold text-amber-300 text-right break-all">{sub.alg}</span>
@@ -6339,7 +6551,7 @@ function OLLDaySuite() {
                                 <button
                                   key={st.stage} type="button"
                                   onClick={() => { emitBeep(640, 'sine', 0.05); setScannerFocusedStageIdx(idx); setScannerStageVerification(null); }}
-                                  className={`text-left rounded-xl p-2.5 border transition-all cursor-pointer ${isFocused ? 'bg-orange-500/20 border-orange-400 shadow-md ring-1 ring-orange-400/50' : isStageDone ? 'bg-green-500/10 border-green-500/35' : 'bg-slate-950 border-white/10 hover:bg-white/5'}`}
+                                  className={`text-left rounded-2xl p-2.5 border transition-all cursor-pointer ${isFocused ? 'bg-orange-500/20 border-orange-400 shadow-md ring-1 ring-orange-400/50' : isStageDone ? 'bg-green-500/10 border-green-500/35' : 'liquid-glass-well border-white/10 hover:bg-white/5'}`}
                                 >
                                   <div className="flex items-center justify-between gap-1">
                                     <span className={`text-[9px] font-black uppercase ${isStageDone ? 'text-green-400' : 'text-orange-400'}`}>{isStageDone ? `${st.stage} ✓` : st.stage}</span>
@@ -6353,7 +6565,7 @@ function OLLDaySuite() {
                           </div>
                         </div>
 
-                        <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-2">
+                        <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-[9.5px] font-black uppercase tracking-wider text-green-400">Interactive Solve Progression ({scannerCompletedStages.length}/{stagesList.length} Stages Done)</span>
                             {scannerCompletedStages.length > 0 && (
@@ -6361,18 +6573,18 @@ function OLLDaySuite() {
                             )}
                           </div>
                           {focusedStage?.phaseKey === 'f2l' && focusedStage.subSteps?.length > 0 && (
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                            <div className="bg-white/[0.04] border border-white/10 rounded-xl p-2.5 flex items-center justify-between gap-2">
                               <div className="min-w-0">
                                 <span className="text-[9px] font-black uppercase text-orange-300 block">Active F2L Sub-Step {Math.min(scannerF2lPairIdx + 1, focusedStage.subSteps.length)} of {focusedStage.subSteps.length}</span>
                                 <span className="font-mono text-xs font-black text-amber-300 block truncate">{focusedStage.subSteps[Math.min(scannerF2lPairIdx, focusedStage.subSteps.length - 1)]?.alg}</span>
                               </div>
                               {scannerF2lPairIdx + 1 < focusedStage.subSteps.length && (
-                                <button type="button" onClick={() => { emitBeep(720, 'sine', 0.06); setScannerF2lPairIdx((p) => p + 1); }} className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-400/40 text-[10px] font-black text-amber-200 flex-shrink-0 cursor-pointer">Next F2L Pair →</button>
+                                <button type="button" onClick={() => { emitBeep(720, 'sine', 0.06); setScannerF2lPairIdx((p) => p + 1); }} className="px-2.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-[10px] font-black text-amber-200 flex-shrink-0 cursor-pointer">Next F2L Pair →</button>
                               )}
                             </div>
                           )}
                           <div className="grid grid-cols-2 gap-2">
-                            <button type="button" disabled={activeFocusedIdx === 0} onClick={() => { emitBeep(480); setScannerFocusedStageIdx((idx) => Math.max(0, idx - 1)); setScannerStageVerification(null); }} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer">← Previous Stage</button>
+                            <button type="button" disabled={activeFocusedIdx === 0} onClick={() => { emitBeep(480); setScannerFocusedStageIdx((idx) => Math.max(0, idx - 1)); setScannerStageVerification(null); }} className="py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[11px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer">← Previous Stage</button>
                             <button
                               type="button"
                               onClick={() => {
@@ -6381,7 +6593,7 @@ function OLLDaySuite() {
                                 setScannerStageVerification(null);
                                 if (activeFocusedIdx + 1 < stagesList.length) { setScannerFocusedStageIdx(activeFocusedIdx + 1); setScannerF2lPairIdx(0); }
                               }}
-                              className="py-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-[11px] font-black text-green-300 cursor-pointer"
+                              className="py-2 rounded-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-[11px] font-black text-green-300 cursor-pointer"
                             >
                               {activeFocusedIdx + 1 < stagesList.length ? `Done • Go to ${stagesList[activeFocusedIdx + 1].stage} →` : scannerCompletedStages.includes(activeFocusedIdx) ? 'Cube Solved ✓' : 'Complete Final PLL ✓'}
                             </button>
@@ -6390,7 +6602,7 @@ function OLLDaySuite() {
                       </>
                     )}
 
-                    <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-3 space-y-1.5">
+                    <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[9.5px] font-black uppercase tracking-wider text-sky-400">{analysis.nextUpBadge}</span>
                         {nextCase && <span className="font-mono text-[10px] font-bold text-slate-300">{nextCase.alg}</span>}
@@ -6410,7 +6622,7 @@ function OLLDaySuite() {
                         else if (activeStagePhase === 'oll') setOllDrillCase(matched);
                         else if (activeStagePhase === 'pll') setPllDrillCase(matched);
                       }}
-                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
+                      className="w-full py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
                     >
                       {activeStagePhase === 'cross' ? 'Practice Cross in X Ladder →' : `Drill ${matched.name} Now →`}
                     </button>
@@ -6421,7 +6633,7 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* CUSTOM ALTERNATIVE ALGORITHMS & NOTATION PICKER MODAL (PRO, UP TO 7 PER CASE) */}
+        {/* CUSTOM ALTERNATIVE ALGORITHMS & NOTATION PICKER MODAL (LIQUID GLASS) */}
         {customAlgEditor && (() => {
           const { phaseKey, caseId, name, defaultAlg, editingAltId, draftAlg, assignFingertricks, makeActiveOnSave, keypadCategory, error } = customAlgEditor;
           const { list: savedAlts, activeId: currentActiveAltId } = normalizeCaseCustomAlgs(currentUser.customAlgs?.[phaseKey]?.[caseId]);
@@ -6451,7 +6663,7 @@ function OLLDaySuite() {
           };
 
           return (
-            <ModalShell onClose={() => setCustomAlgEditor(null)} zClass="z-[282]" maxWidth="max-w-md" borderClass="border-orange-500/40">
+            <ModalShell onClose={() => setCustomAlgEditor(null)} zClass="z-[282]" maxWidth="max-w-md" borderClass="border-orange-500/35">
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
@@ -6460,11 +6672,10 @@ function OLLDaySuite() {
                     </span>
                     <h3 className="text-base font-black text-white">{name}</h3>
                   </div>
-                  <button type="button" onClick={() => setCustomAlgEditor(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                  <button type="button" onClick={() => setCustomAlgEditor(null)} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
                 </div>
 
-                {/* Saved Custom Algorithms List + Default Selector */}
-                <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 space-y-1.5">
+                <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
                       Saved Algorithms (Tap to Set Active)
@@ -6490,16 +6701,15 @@ function OLLDaySuite() {
                     )}
                   </div>
 
-                  {/* Built-in Default Row */}
                   <div
                     onClick={() => selectCaseAlgSource(phaseKey, caseId, null)}
                     className={`rounded-xl px-2.5 py-2 border flex items-center justify-between gap-2 cursor-pointer transition-all ${
-                      !currentActiveAltId ? 'bg-white/10 border-white/30' : 'bg-white/[0.03] border-white/10 hover:bg-white/5'
+                      !currentActiveAltId ? 'bg-white/[0.08] border-white/25' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'
                     }`}
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-white/15 text-white">Ours</span>
+                        <span className="text-[9px] font-black uppercase px-2 py-0.2 rounded-full bg-white/15 text-white">Ours</span>
                         <span className="font-mono text-xs font-bold text-slate-200 truncate">{defaultAlg}</span>
                       </div>
                     </div>
@@ -6508,7 +6718,6 @@ function OLLDaySuite() {
                     </span>
                   </div>
 
-                  {/* Up to 7 Saved Custom Alternatives */}
                   {savedAlts.length > 0 && (
                     <div className="max-h-32 overflow-y-auto no-scrollbar space-y-1.5 pt-0.5">
                       {savedAlts.map((alt, idx) => {
@@ -6523,12 +6732,12 @@ function OLLDaySuite() {
                                 ? 'bg-orange-500/20 border-orange-400'
                                 : isSelectedActive
                                 ? 'bg-orange-500/10 border-orange-500/40'
-                                : 'bg-white/[0.03] border-white/10 hover:bg-white/5'
+                                : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'
                             }`}
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${isSelectedActive ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-orange-300'}`}>
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.2 rounded-full ${isSelectedActive ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-orange-300'}`}>
                                   #{idx + 1}
                                 </span>
                                 <span className="font-mono text-xs font-bold text-amber-300 truncate">{alt.alg}</span>
@@ -6551,7 +6760,7 @@ function OLLDaySuite() {
                                     error: ''
                                   }));
                                 }}
-                                className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[9.5px] font-black text-slate-200 cursor-pointer"
+                                className="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-[9.5px] font-black text-slate-200 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -6563,7 +6772,7 @@ function OLLDaySuite() {
                                     setCustomAlgEditor((prev) => ({ ...prev, editingAltId: null, draftAlg: '', error: '' }));
                                   }
                                 }}
-                                className="px-1.5 py-0.5 rounded bg-red-500/15 hover:bg-red-500/25 text-[9.5px] font-black text-red-300 cursor-pointer"
+                                className="px-2 py-0.5 rounded-full bg-red-500/15 hover:bg-red-500/25 text-[9.5px] font-black text-red-300 cursor-pointer"
                               >
                                 ✕
                               </button>
@@ -6575,7 +6784,6 @@ function OLLDaySuite() {
                   )}
                 </div>
 
-                {/* Add / Edit Algorithm Form */}
                 {atLimit ? (
                   <div className="bg-amber-500/15 border border-amber-500/40 rounded-2xl p-3 text-center space-y-1">
                     <p className="text-xs font-black text-amber-200">Maximum 7 Custom Algorithms Reached</p>
@@ -6595,7 +6803,7 @@ function OLLDaySuite() {
                             type="button"
                             onClick={backspaceMoveToken}
                             disabled={!draftAlg.trim()}
-                            className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                            className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
                           >
                             ⌫ Undo
                           </button>
@@ -6603,7 +6811,7 @@ function OLLDaySuite() {
                             type="button"
                             onClick={() => { emitBeep(420); setCustomAlgEditor((prev) => ({ ...prev, draftAlg: '', error: '' })); }}
                             disabled={!draftAlg.trim()}
-                            className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
+                            className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-slate-300 disabled:opacity-35 cursor-pointer"
                           >
                             Clear
                           </button>
@@ -6614,21 +6822,20 @@ function OLLDaySuite() {
                         value={draftAlg}
                         onChange={(e) => setCustomAlgEditor((prev) => ({ ...prev, draftAlg: e.target.value, error: '' }))}
                         placeholder="Tap moves below or type e.g. R U R' U R U2 R'"
-                        className="w-full rounded-2xl bg-slate-950 border border-orange-500/35 px-3.5 py-2.5 font-mono text-sm font-black text-amber-300 placeholder-slate-600 focus:outline-none focus:border-orange-400"
+                        className="w-full rounded-full liquid-glass-well border border-orange-500/35 px-4 py-2.5 font-mono text-sm font-black text-amber-300 placeholder-slate-600 focus:outline-none focus:border-orange-400"
                       />
                       {error && <p className="text-[11px] font-bold text-rose-300">{error}</p>}
                     </div>
 
-                    {/* Notation Library Picker */}
-                    <div className="bg-slate-950/90 border border-white/10 rounded-2xl p-2.5 space-y-2">
+                    <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5 space-y-2">
                       <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar pb-0.5">
                         {['All', ...NOTATION_KEYPAD_GROUPS.map((g) => g.label)].map((cat) => (
                           <button
                             key={cat}
                             type="button"
                             onClick={() => { emitBeep(480); setCustomAlgEditor((prev) => ({ ...prev, keypadCategory: cat })); }}
-                            className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
-                              keypadCategory === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${
+                              keypadCategory === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-slate-400 hover:text-white'
                             }`}
                           >
                             {cat}
@@ -6645,7 +6852,7 @@ function OLLDaySuite() {
                                   key={mv}
                                   type="button"
                                   onClick={() => appendMoveToken(mv)}
-                                  className="py-1.5 rounded-lg bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 font-mono text-xs font-black text-white active:scale-95 transition-all cursor-pointer"
+                                  className="py-1.5 rounded-xl bg-white/[0.05] hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 font-mono text-xs font-black text-white active:scale-95 transition-all cursor-pointer"
                                 >
                                   {mv}
                                 </button>
@@ -6656,7 +6863,6 @@ function OLLDaySuite() {
                       </div>
                     </div>
 
-                    {/* Automatic Fingertrick Detection & Bracket Confirmation */}
                     {cleanPreview && (
                       <div className="bg-gradient-to-r from-orange-500/15 to-amber-500/10 border border-orange-500/35 rounded-2xl p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2">
@@ -6672,7 +6878,7 @@ function OLLDaySuite() {
 
                         {detectedTags.length > 0 && <TriggerTagsList tags={detectedTags} />}
 
-                        <div className="bg-slate-950/85 border border-white/10 rounded-xl px-2.5 py-2 space-y-0.5">
+                        <div className="liquid-glass-well border border-white/10 rounded-xl px-2.5 py-2 space-y-0.5">
                           <span className="text-[9px] font-bold uppercase text-slate-400 block">
                             {assignFingertricks ? 'Preview With Trigger Brackets:' : 'Preview Without Brackets:'}
                           </span>
@@ -6681,7 +6887,7 @@ function OLLDaySuite() {
                           </p>
                         </div>
 
-                        <label className="flex items-center justify-between gap-2 bg-slate-950/70 border border-white/10 rounded-xl px-3 py-2 cursor-pointer">
+                        <label className="flex items-center justify-between gap-2 liquid-glass-well border border-white/10 rounded-xl px-3 py-2 cursor-pointer">
                           <span className="text-[11px] font-bold text-slate-200">
                             Assign fingertrick pills &amp; trigger brackets
                           </span>
@@ -6695,12 +6901,11 @@ function OLLDaySuite() {
                       </div>
                     )}
 
-                    {/* Save / Cancel Actions */}
                     <div className="flex items-center gap-2 pt-0.5">
                       <button
                         type="button"
                         onClick={() => setCustomAlgEditor(null)}
-                        className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                        className="flex-1 py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                       >
                         Close
                       </button>
@@ -6721,7 +6926,7 @@ function OLLDaySuite() {
                             error: ''
                           }));
                         }}
-                        className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                        className="flex-1 py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
                       >
                         {editingAltId ? 'Update Algorithm' : `+ Save Custom #${savedAlts.length + 1}`}
                       </button>
@@ -6733,7 +6938,7 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* COLOR ORBIT COMPASS MODAL */}
+        {/* COLOR ORBIT COMPASS MODAL (LIQUID GLASS) */}
         {activeModal === 'compass' && (() => {
           const ORBIT_QUESTIONS = [
             { prompt: 'White bottom, Blue is front — what color is to the right?', answer: 'Red' },
@@ -6750,22 +6955,22 @@ function OLLDaySuite() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Color Orbit</span>
                     {orbitQuizActive && <span className="font-mono text-[10px] font-bold text-slate-400">Streak: {orbitStreak}</span>}
                   </div>
-                  <button type="button" onClick={() => { emitBeep(620); setOrbitFeedback(null); setOrbitQuizActive(true); setOrbitQuizIdx((i) => i + 1); }} className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer">Hit Me</button>
+                  <button type="button" onClick={() => { emitBeep(620); setOrbitFeedback(null); setOrbitQuizActive(true); setOrbitQuizIdx((i) => i + 1); }} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer">Hit Me</button>
                 </div>
                 {!orbitQuizActive ? (
-                  <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 space-y-2.5 text-center shadow-inner">
+                  <div className="liquid-glass-well border border-white/10 rounded-2xl p-4 space-y-2.5 text-center">
                     <p className="text-xs text-slate-300 leading-relaxed">Hold <strong className="text-white">White</strong> on the bottom (<strong className="text-white">D</strong>). Clockwise:</p>
                     <p className="font-mono text-sm font-black tracking-wide"><span className="text-green-400">Green</span> → <span className="text-orange-400">Orange</span> → <span className="text-blue-400">Blue</span> → <span className="text-red-400">Red</span></p>
                   </div>
                 ) : (
-                  <div className="bg-[#050811] border border-white/10 rounded-2xl p-4 space-y-3.5 text-center shadow-inner">
+                  <div className="liquid-glass-well border border-white/10 rounded-2xl p-4 space-y-3.5 text-center">
                     <p className="text-sm font-bold text-white">{currentQ.prompt}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {['Green', 'Red', 'Orange', 'Blue'].map((colorName) => (
                         <button
                           key={colorName} type="button"
                           onClick={() => { const correct = colorName === currentQ.answer; emitBeep(correct ? 880 : 320); setOrbitStreak((s) => (correct ? s + 1 : 0)); setOrbitFeedback({ correct, chosen: colorName }); }}
-                          className="py-2.5 px-3 rounded-xl border border-white/15 bg-slate-900 text-xs font-black text-white cursor-pointer"
+                          className="py-2.5 px-3 rounded-full border border-white/15 liquid-glass-card text-xs font-black text-white cursor-pointer"
                         >
                           {colorName}
                         </button>
@@ -6774,13 +6979,13 @@ function OLLDaySuite() {
                     {orbitFeedback && <p className={`text-[11px] font-black ${orbitFeedback.correct ? 'text-green-400' : 'text-red-400'}`}>{orbitFeedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}</p>}
                   </div>
                 )}
-                <button type="button" onClick={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-bold text-xs uppercase cursor-pointer">Close</button>
+                <button type="button" onClick={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-300 font-bold text-xs uppercase cursor-pointer">Close</button>
               </div>
             </ModalShell>
           );
         })()}
 
-        {/* CURRICULUM BUILDER MODAL */}
+        {/* CURRICULUM BUILDER MODAL (LIQUID GLASS) */}
         {activeModal === 'curriculum' && (() => {
           const phaseDataList = builderPhase === 'f2l' ? F2L_DATA : builderPhase === 'pll' ? PLL_DATA : OLL_DATA;
           const phaseLookupMap = builderPhase === 'f2l' ? F2L_BY_ID : builderPhase === 'pll' ? PLL_BY_ID : OLL_BY_ID;
@@ -6811,15 +7016,15 @@ function OLLDaySuite() {
                         setNewChunkName('');
                         setNewChunkSelectedIds([]);
                       }}
-                      className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
+                      className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-slate-300 cursor-pointer"
                     >
                       Reset Default
                     </button>
-                    <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                    <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
                   </div>
                 </div>
 
-                <div className="bg-slate-950/90 p-1 rounded-2xl border border-white/10 grid grid-cols-2">
+                <div className="liquid-glass-well p-1 rounded-full border border-white/10 grid grid-cols-2">
                   {[
                     { key: 'handpick', label: 'Hand-Pick Cases' },
                     { key: 'autosplit', label: 'Auto-Split (3–7)' }
@@ -6828,7 +7033,7 @@ function OLLDaySuite() {
                       key={tab.key}
                       type="button"
                       onClick={() => { emitBeep(520); setBuilderMode(tab.key); }}
-                      className={`py-2 text-[10.5px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${
+                      className={`py-2 text-[10.5px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${
                         builderMode === tab.key ? 'bg-orange-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
                       }`}
                     >
@@ -6839,7 +7044,7 @@ function OLLDaySuite() {
 
                 <div className="max-h-[55dvh] overflow-y-auto no-scrollbar space-y-3 pr-0.5">
                   {builderMode === 'autosplit' ? (
-                    <div className="bg-slate-950/90 border border-orange-500/30 rounded-2xl p-3.5 space-y-3">
+                    <div className="liquid-glass-well border border-orange-500/30 rounded-2xl p-3.5 space-y-3">
                       <div className="space-y-1">
                         <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">1. Algorithms Per Chunk (3–7)</span>
                         <p className="text-[11px] text-slate-300 leading-snug">
@@ -6852,8 +7057,8 @@ function OLLDaySuite() {
                             key={sz}
                             type="button"
                             onClick={() => { emitBeep(560); setAutoSplitSize(sz); }}
-                            className={`py-2.5 rounded-xl font-mono text-xs font-black border transition-all cursor-pointer ${
-                              autoSplitSize === sz ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                            className={`py-2.5 rounded-full font-mono text-xs font-black border transition-all cursor-pointer ${
+                              autoSplitSize === sz ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-md' : 'bg-white/[0.05] border-white/10 text-slate-300 hover:bg-white/10'
                             }`}
                           >
                             {sz}
@@ -6871,8 +7076,8 @@ function OLLDaySuite() {
                               key={src.key}
                               type="button"
                               onClick={() => { emitBeep(520); setAutoSplitSource(src.key); }}
-                              className={`py-2 px-2 rounded-xl text-[10.5px] font-black border transition-all cursor-pointer ${
-                                autoSplitSource === src.key ? 'bg-white/15 border-orange-400/50 text-white' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                              className={`py-2 px-2 rounded-full text-[10.5px] font-black border transition-all cursor-pointer ${
+                                autoSplitSource === src.key ? 'bg-white/[0.14] border-orange-400/50 text-white' : 'bg-white/[0.05] border-white/10 text-slate-400 hover:text-white'
                               }`}
                             >
                               {src.label}
@@ -6883,13 +7088,13 @@ function OLLDaySuite() {
                       <button
                         type="button"
                         onClick={() => applyAutoSplitChunks(autoSplitSize, autoSplitSource)}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 cursor-pointer"
+                        className="w-full py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 cursor-pointer"
                       >
                         Generate Chunks of {autoSplitSize} →
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-slate-950 border border-white/10 rounded-2xl p-3 space-y-2.5">
+                    <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
                           {editingChunkId ? 'Editing Selected Chunk' : 'Hand-Pick New Chunk'}
@@ -6901,14 +7106,14 @@ function OLLDaySuite() {
                         value={newChunkName}
                         onChange={(e) => setNewChunkName(e.target.value)}
                         placeholder={`Chunk Title (e.g., My ${builderPhase.toUpperCase()} Set)`}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                        className="w-full bg-white/[0.05] border border-white/10 rounded-full px-3.5 py-2 text-xs text-white placeholder-slate-500"
                       />
                       <input
                         type="text"
                         value={builderSearchQuery}
                         onChange={(e) => setBuilderSearchQuery(e.target.value)}
                         placeholder="Filter by case name, group, or alg..."
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder-slate-500"
+                        className="w-full bg-white/[0.05] border border-white/10 rounded-full px-3.5 py-1.5 text-[11px] text-white placeholder-slate-500"
                       />
                       <div className="max-h-40 overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
                         {filteredCases.map((item) => {
@@ -6921,8 +7126,8 @@ function OLLDaySuite() {
                                 emitBeep(selected ? 480 : 680, 'sine', 0.04);
                                 setNewChunkSelectedIds((prev) => (selected ? prev.filter((id) => id !== item.id) : [...prev, item.id]));
                               }}
-                              className={`w-full p-2 rounded-xl flex items-center justify-between gap-2 text-left border transition-all cursor-pointer ${
-                                selected ? 'bg-orange-500/20 border-orange-500/50' : 'bg-white/5 border-transparent hover:bg-white/10'
+                              className={`w-full p-2 rounded-2xl flex items-center justify-between gap-2 text-left border transition-all cursor-pointer ${
+                                selected ? 'bg-orange-500/20 border-orange-500/50' : 'bg-white/[0.04] border-transparent hover:bg-white/[0.08]'
                               }`}
                             >
                               <div className="flex items-center gap-2 min-w-0">
@@ -6931,13 +7136,13 @@ function OLLDaySuite() {
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-xs font-black text-white truncate">{item.name}</span>
                                     {assignedIdsSet.has(item.id) && !selected && (
-                                      <span className="px-1.5 py-0.2 rounded bg-white/10 text-[8.5px] font-bold text-slate-400 flex-shrink-0">In Chunk</span>
+                                      <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[8.5px] font-bold text-slate-400 flex-shrink-0">In Chunk</span>
                                     )}
                                   </div>
                                   <span className="font-mono text-[10px] text-amber-300 block truncate">{item.alg}</span>
                                 </div>
                               </div>
-                              <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${selected ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-orange-400'}`}>
+                              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${selected ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-orange-400'}`}>
                                 {selected ? '✓' : '+'}
                               </span>
                             </button>
@@ -6949,7 +7154,7 @@ function OLLDaySuite() {
                           <button
                             type="button"
                             onClick={() => { setEditingChunkId(null); setNewChunkName(''); setNewChunkSelectedIds([]); }}
-                            className="px-3 py-2 rounded-xl bg-white/5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                            className="px-3.5 py-2 rounded-full bg-white/[0.06] text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -6972,7 +7177,7 @@ function OLLDaySuite() {
                             setNewChunkName('');
                             setNewChunkSelectedIds([]);
                           }}
-                          className="flex-1 py-2.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-xs font-black text-orange-300 disabled:opacity-35 cursor-pointer"
+                          className="flex-1 py-2.5 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-xs font-black text-orange-300 disabled:opacity-35 cursor-pointer"
                         >
                           {editingChunkId ? `Update Chunk (${newChunkSelectedIds.length})` : `+ Add Chunk (${newChunkSelectedIds.length} Selected)`}
                         </button>
@@ -6988,8 +7193,8 @@ function OLLDaySuite() {
                     {builderChunks.map((chk, idx) => (
                       <div
                         key={chk.id}
-                        className={`border rounded-xl px-3 py-2 flex items-center justify-between gap-2 transition-all ${
-                          editingChunkId === chk.id ? 'bg-orange-500/15 border-orange-500/45' : 'bg-white/5 border-white/10'
+                        className={`border rounded-2xl px-3 py-2 flex items-center justify-between gap-2 transition-all ${
+                          editingChunkId === chk.id ? 'bg-orange-500/15 border-orange-500/45' : 'bg-white/[0.04] border-white/10'
                         }`}
                       >
                         <div className="min-w-0">
@@ -7010,7 +7215,7 @@ function OLLDaySuite() {
                               setNewChunkName(chk.title);
                               setNewChunkSelectedIds([...chk.ids]);
                             }}
-                            className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-orange-300 text-[10px] font-black cursor-pointer"
+                            className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/15 text-orange-300 text-[10px] font-black cursor-pointer"
                           >
                             Edit
                           </button>
@@ -7026,7 +7231,7 @@ function OLLDaySuite() {
                                 }
                                 setBuilderChunks((prev) => prev.filter((_, i) => i !== idx));
                               }}
-                              className="px-2 py-1 rounded-lg bg-red-500/15 text-red-300 text-[10px] font-black cursor-pointer"
+                              className="px-2.5 py-1 rounded-full bg-red-500/15 text-red-300 text-[10px] font-black cursor-pointer"
                             >
                               ✕
                             </button>
@@ -7040,7 +7245,7 @@ function OLLDaySuite() {
                 <button
                   type="button"
                   onClick={saveCurriculumBuilder}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
                 >
                   Save {builderPhase.toUpperCase()} Schedule ({builderChunks.length} Chunks)
                 </button>
@@ -7049,7 +7254,7 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* GRANULAR RESET MODAL */}
+        {/* GRANULAR RESET MODAL (LIQUID GLASS) */}
         {activeModal === 'reset' && (
           <ModalShell onClose={() => setActiveModal(null)}>
             <div className="space-y-3.5">
@@ -7062,38 +7267,38 @@ function OLLDaySuite() {
                 { label: 'Phase O • OLL (57 Cases)', dayScope: 'oll-day', statsScope: 'oll-stats', clearText: 'Clear OLL PBs' },
                 { label: 'Phase P • PLL (25 Algs)', dayScope: 'pll-day', statsScope: 'pll-stats', clearText: 'Clear PLL PBs' }
               ].map((ph) => (
-                <div key={ph.label} className="bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2">
+                <div key={ph.label} className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">{ph.label}</span>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => executeGranularReset(ph.dayScope)} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer">Reset Day to 1</button>
-                    <button type="button" onClick={() => executeGranularReset(ph.statsScope)} className="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold text-slate-200 cursor-pointer">{ph.clearText}</button>
+                    <button type="button" onClick={() => executeGranularReset(ph.dayScope)} className="py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-[11px] font-bold text-slate-200 cursor-pointer">Reset Day to 1</button>
+                    <button type="button" onClick={() => executeGranularReset(ph.statsScope)} className="py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-[11px] font-bold text-slate-200 cursor-pointer">{ph.clearText}</button>
                   </div>
                 </div>
               ))}
-              <button type="button" onClick={() => executeGranularReset('full-timer')} className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer">Clear 3x3x3 CFOP Timer (Ao5 / Ao12)</button>
+              <button type="button" onClick={() => executeGranularReset('full-timer')} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer">Clear 3x3x3 CFOP Timer (Ao5 / Ao12)</button>
               <div className="grid grid-cols-2 gap-2 pt-1">
-                <button type="button" onClick={() => setActiveModal(null)} className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Cancel</button>
-                <button type="button" onClick={() => executeGranularReset('both')} className="py-3 rounded-2xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-black text-red-300 cursor-pointer">Reset Everything</button>
+                <button type="button" onClick={() => setActiveModal(null)} className="py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Cancel</button>
+                <button type="button" onClick={() => executeGranularReset('both')} className="py-3 rounded-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-xs font-black text-red-300 cursor-pointer">Reset Everything</button>
               </div>
             </div>
           </ModalShell>
         )}
 
-        {/* TURN-COUNT FEEDBACK MODAL */}
+        {/* TURN-COUNT FEEDBACK MODAL (LIQUID GLASS) */}
         {efficiencyFeedback && (
           <ModalShell onClose={() => setEfficiencyFeedback(null)} zClass="z-[270]" maxWidth="max-w-xs" borderClass={efficiencyFeedback.optimal ? 'border-green-500/40' : 'border-amber-500/40'}>
             <div className="space-y-3 text-center">
               <h3 className={`text-lg font-black ${efficiencyFeedback.optimal ? 'text-green-300' : 'text-amber-300'}`}>{efficiencyFeedback.title}</h3>
               <p className="text-xs text-slate-200 leading-relaxed">{efficiencyFeedback.detail}</p>
               <div className="grid grid-cols-2 gap-2 pt-1">
-                <button type="button" onClick={() => setEfficiencyFeedback(null)} className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs cursor-pointer">Retry Scramble</button>
-                <button type="button" onClick={() => { emitBeep(620, 'sine', 0.08); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }} className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Next Scramble →</button>
+                <button type="button" onClick={() => setEfficiencyFeedback(null)} className="py-2.5 px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 font-bold text-xs cursor-pointer">Retry Scramble</button>
+                <button type="button" onClick={() => { emitBeep(620, 'sine', 0.08); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }} className="py-2.5 px-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs cursor-pointer">Next Scramble →</button>
               </div>
             </div>
           </ModalShell>
         )}
 
-        {/* BLIND HELP MODALS */}
+        {/* BLIND HELP MODALS (LIQUID GLASS) */}
         {(activeModal === 'blindHelp' || activeModal === 'blindPracticeHelp') && (
           <ModalShell onClose={() => setActiveModal(null)} zClass="z-[265]">
             <div className="space-y-3.5">
@@ -7103,12 +7308,12 @@ function OLLDaySuite() {
                   ? <>Scramble your cube (White bottom • Green front) and tap <strong>Start 15s Countdown</strong>. Hold both touch pads for 0.35s until green, then release to close the visor and execute your cross blindfolded.</>
                   : <>Trace every white edge mentally during inspection, then launch the Blindfold Timer Mat to execute all {activeTierObj.moves} cross turns without looking.</>}
               </p>
-              <button type="button" onClick={() => setActiveModal(null)} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer">Got It</button>
+              <button type="button" onClick={() => setActiveModal(null)} className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer">Got It</button>
             </div>
           </ModalShell>
         )}
 
-        {/* PER-CASE TARGET PB EDITOR MODAL */}
+        {/* PER-CASE TARGET PB EDITOR MODAL (LIQUID GLASS) */}
         {editingCaseTarget && (() => {
           const { phase, caseId, name, draft } = editingCaseTarget;
           const phaseDefault = getPhaseTargetPb(phase);
@@ -7119,13 +7324,13 @@ function OLLDaySuite() {
               <div className="space-y-3.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Case Target PB • {phase.toUpperCase()}</span>
-                  <button type="button" onClick={() => setEditingCaseTarget(null)} className="w-8 h-8 rounded-full bg-white/5 text-slate-300 font-bold cursor-pointer">✕</button>
+                  <button type="button" onClick={() => setEditingCaseTarget(null)} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-white">{name}</h3>
                   <p className="text-[11px] text-slate-400">Phase {phase.toUpperCase()} Default: <span className="font-mono text-slate-200">{phaseDefault.toFixed(3)}s</span></p>
                 </div>
-                <div className="bg-slate-950 border border-white/10 rounded-2xl p-3 space-y-2">
+                <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase text-slate-400">Custom Case Goal</span>
                     <span className="font-mono text-sm font-black text-amber-300">{numericVal.toFixed(3)}s</span>
@@ -7139,18 +7344,18 @@ function OLLDaySuite() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {hasCustom ? (
-                    <button type="button" onClick={() => { emitBeep(460); updateCaseTargetPb(phase, caseId, null); setEditingCaseTarget(null); }} className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Use Phase Default</button>
+                    <button type="button" onClick={() => { emitBeep(460); updateCaseTargetPb(phase, caseId, null); setEditingCaseTarget(null); }} className="py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Use Phase Default</button>
                   ) : (
-                    <button type="button" onClick={() => setEditingCaseTarget(null)} className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Cancel</button>
+                    <button type="button" onClick={() => setEditingCaseTarget(null)} className="py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer">Cancel</button>
                   )}
-                  <button type="button" onClick={() => { emitBeep(760); updateCaseTargetPb(phase, caseId, numericVal); setEditingCaseTarget(null); }} className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer">Save Goal</button>
+                  <button type="button" onClick={() => { emitBeep(760); updateCaseTargetPb(phase, caseId, numericVal); setEditingCaseTarget(null); }} className="py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer">Save Goal</button>
                 </div>
               </div>
             </ModalShell>
           );
         })()}
 
-        {/* FINGERTRICK DOSSIER MODAL */}
+        {/* FINGERTRICK DOSSIER MODAL (LIQUID GLASS) */}
         {activeModal === 'fingertrick' && ftCase && (() => {
           const breakdown = buildFingertrickBreakdown(ftCase);
           return (
@@ -7158,13 +7363,13 @@ function OLLDaySuite() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Fingertrick Dossier • {ftPhaseContext.toUpperCase()}</span>
-                  <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                  <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
                 </div>
-                <div className="flex items-center gap-3 bg-[#050811] border border-white/10 rounded-2xl p-3">
+                <div className="flex items-center gap-3 liquid-glass-well border border-white/10 rounded-2xl p-3">
                   <CachedVisualCubeImg
                     url={ftPhaseContext === 'f2l' ? getF2LImageUrl(ftCase.alg) : ftPhaseContext === 'pll' ? getPLLImageUrl(ftCase.alg) : getOLLImageUrl(ftCase.alg)}
                     alt={ftCase.name} lazy={false}
-                    className={ftPhaseContext === 'f2l' ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0' : 'w-12 h-12 rounded-xl bg-slate-200 p-1 flex-shrink-0 object-contain'}
+                    className={ftPhaseContext === 'f2l' ? 'w-14 h-14 object-contain f2l-cube-satin flex-shrink-0' : 'w-12 h-12 rounded-xl bg-white/[0.08] border border-white/10 p-1 flex-shrink-0 object-contain'}
                   />
                   <div className="min-w-0">
                     <h3 className="text-base font-black text-white truncate">{ftCase.name}</h3>
@@ -7177,19 +7382,19 @@ function OLLDaySuite() {
                     { title: '2. Execution Sequence', color: 'text-amber-300', body: breakdown.cue },
                     { title: '3. Flow & Regrip Tip', color: 'text-green-400', body: breakdown.flow }
                   ].map((s) => (
-                    <div key={s.title} className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-0.5">
+                    <div key={s.title} className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-0.5">
                       <span className={`text-[10px] font-black uppercase tracking-widest ${s.color} block`}>{s.title}</span>
                       <p className="text-xs text-slate-300 leading-relaxed">{s.body}</p>
                     </div>
                   ))}
                 </div>
-                <button type="button" onClick={() => setActiveModal(null)} className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">Close</button>
+                <button type="button" onClick={() => setActiveModal(null)} className="w-full py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">Close</button>
               </div>
             </ModalShell>
           );
         })()}
 
-        {/* PER-CASE LOGGED TIMES MANAGER MODAL (DELETE ACCIDENTAL TIMES) */}
+        {/* PER-CASE LOGGED TIMES MANAGER MODAL (LIQUID GLASS) */}
         {managingCaseHistory && (() => {
           const { phase, caseId, name } = managingCaseHistory;
           const statField = phase === 'f2l' ? 'f2lStats' : phase === 'pll' ? 'pllStats' : 'stats';
@@ -7206,20 +7411,20 @@ function OLLDaySuite() {
                     </span>
                     <h3 className="text-base font-black text-white">{name}</h3>
                   </div>
-                  <button type="button" onClick={() => setManagingCaseHistory(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                  <button type="button" onClick={() => setManagingCaseHistory(null)} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
                 </div>
 
                 {timesList.length > 0 && (
                   <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="bg-slate-950 border border-white/10 rounded-xl p-2">
+                    <div className="liquid-glass-well border border-white/10 rounded-xl p-2">
                       <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Best PB</span>
                       <span className="font-mono text-xs font-black text-green-400">{currentBest !== null ? `${currentBest.toFixed(3)}s` : '—'}</span>
                     </div>
-                    <div className="bg-slate-950 border border-white/10 rounded-xl p-2">
+                    <div className="liquid-glass-well border border-white/10 rounded-xl p-2">
                       <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Ao20</span>
                       <span className="font-mono text-xs font-black text-sky-400">{computeCaseWindowAvg(timesList, 20) !== null ? `${computeCaseWindowAvg(timesList, 20).toFixed(2)}s` : '—'}</span>
                     </div>
-                    <div className="bg-slate-950 border border-white/10 rounded-xl p-2">
+                    <div className="liquid-glass-well border border-white/10 rounded-xl p-2">
                       <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Runs</span>
                       <span className="font-mono text-xs font-black text-amber-300">{timesList.length}</span>
                     </div>
@@ -7227,7 +7432,7 @@ function OLLDaySuite() {
                 )}
 
                 {timesList.length === 0 ? (
-                  <div className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-center">
+                  <div className="liquid-glass-well border border-white/10 rounded-2xl p-4 text-center">
                     <p className="text-xs text-slate-400">All logged times for this case have been cleared.</p>
                   </div>
                 ) : (
@@ -7238,7 +7443,7 @@ function OLLDaySuite() {
                         <div
                           key={`${idx}-${sec}`}
                           className={`rounded-xl px-3 py-2 border flex items-center justify-between gap-2 ${
-                            isPbRow ? 'bg-green-500/10 border-green-500/35' : 'bg-slate-950 border-white/10'
+                            isPbRow ? 'bg-green-500/10 border-green-500/35' : 'liquid-glass-well border-white/10'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -7247,7 +7452,7 @@ function OLLDaySuite() {
                               {Number(sec).toFixed(3)}s
                             </span>
                             {isPbRow && (
-                              <span className="px-1.5 py-0.2 rounded bg-green-500/20 border border-green-500/40 text-[8.5px] font-black uppercase text-green-300">
+                              <span className="px-1.5 py-0.2 rounded-full bg-green-500/20 border border-green-500/40 text-[8.5px] font-black uppercase text-green-300">
                                 PB
                               </span>
                             )}
@@ -7255,7 +7460,7 @@ function OLLDaySuite() {
                           <button
                             type="button"
                             onClick={() => deleteCaseTimeEntry(phase, caseId, idx)}
-                            className="px-2 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[10px] font-black text-red-300 cursor-pointer"
+                            className="px-2.5 py-1 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[10px] font-black text-red-300 cursor-pointer"
                             title="Delete This Time"
                           >
                             Delete
@@ -7266,7 +7471,7 @@ function OLLDaySuite() {
                   </div>
                 )}
 
-                <button type="button" onClick={() => setManagingCaseHistory(null)} className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer">
+                <button type="button" onClick={() => setManagingCaseHistory(null)} className="w-full py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-black text-white uppercase tracking-wider cursor-pointer">
                   Done
                 </button>
               </div>
@@ -7274,7 +7479,7 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* PRO PAYWALL MODAL */}
+        {/* PRO PAYWALL MODAL (LIQUID GLASS) */}
         {activeModal === 'proPaywall' && (
           <ModalShell onClose={() => setActiveModal(null)} zClass="z-[275]" maxWidth="max-w-xs" borderClass="border-orange-500/40">
             <div className="space-y-4 text-center">
@@ -7287,28 +7492,27 @@ function OLLDaySuite() {
                 <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
               ) : (
                 <div className="space-y-2 pt-1">
-                  <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $5.99</button>
-                  <button type="button" onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-2xl bg-white/5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer">Maybe Later</button>
+                  <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $5.99</button>
+                  <button type="button" onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-full bg-white/[0.05] text-xs font-bold text-slate-400 hover:text-white cursor-pointer">Maybe Later</button>
                 </div>
               )}
             </div>
           </ModalShell>
         )}
 
-        {/* SHAREABLE STATS SUMMARY MODAL */}
+        {/* SHAREABLE STATS SUMMARY MODAL (LIQUID GLASS) */}
         {activeModal === 'shareStats' && (
           <ModalShell onClose={() => setActiveModal(null)} zClass="z-[278]" maxWidth="max-w-sm" borderClass="border-orange-500/40">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Solver Snapshot</span>
-                <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold cursor-pointer">✕</button>
+                <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full liquid-glass-well border border-white/10 text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
               </div>
 
-              {/* Preview Card */}
-              <div className="bg-gradient-to-br from-slate-950 via-[#0b1222] to-orange-950/30 border border-white/15 rounded-[1.75rem] p-4 space-y-3.5 shadow-inner">
+              <div className="liquid-glass-well border border-white/15 rounded-[1.75rem] p-4 space-y-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 p-1 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-white/[0.08] border border-white/15 p-1 flex-shrink-0">
                       <SuneEmblemSvg className="w-full h-full" />
                     </div>
                     <div className="min-w-0">
@@ -7321,7 +7525,6 @@ function OLLDaySuite() {
                   </span>
                 </div>
 
-                {/* 3x3x3 Best PB, Ao5, Ao12 */}
                 <div className="space-y-1.5">
                   <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 block">3x3x3 Full-Solve Records</span>
                   <div className="grid grid-cols-3 gap-2">
@@ -7330,7 +7533,7 @@ function OLLDaySuite() {
                       { label: 'Ao5', val: ao5Full === 'DNF' ? 'DNF' : formatMsTime(ao5Full, 2), color: 'text-green-400' },
                       { label: 'Ao12', val: ao12Full === 'DNF' ? 'DNF' : formatMsTime(ao12Full, 2), color: 'text-sky-400' }
                     ].map((st) => (
-                      <div key={st.label} className="bg-slate-900/90 border border-white/10 rounded-2xl p-2.5 text-center">
+                      <div key={st.label} className="liquid-glass-card border border-white/10 rounded-2xl p-2.5 text-center">
                         <span className="text-[9px] font-bold uppercase text-slate-400 block">{st.label}</span>
                         <span className={`font-mono text-sm font-black ${st.color}`}>{st.val}</span>
                       </div>
@@ -7338,11 +7541,10 @@ function OLLDaySuite() {
                   </div>
                 </div>
 
-                {/* Top 5 Fastest Algorithm PBs */}
                 <div className="space-y-1.5">
                   <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 block">Top 5 Fastest Algorithm PBs</span>
                   {top5FastestAlgs.length === 0 ? (
-                    <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 text-center">
+                    <div className="liquid-glass-card border border-white/10 rounded-2xl p-4 text-center">
                       <p className="text-xs text-slate-400">No algorithm PBs logged yet. Time any F2L, OLL, or PLL case to build your Top 5!</p>
                     </div>
                   ) : (
@@ -7351,11 +7553,11 @@ function OLLDaySuite() {
                         <div
                           key={entry.key}
                           className={`rounded-xl px-3 py-2 border flex items-center justify-between gap-2 ${
-                            idx === 0 ? 'bg-orange-500/15 border-orange-500/40' : 'bg-slate-900/85 border-white/10'
+                            idx === 0 ? 'bg-orange-500/15 border-orange-500/40' : 'liquid-glass-card border-white/10'
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className={`w-5 h-5 rounded-md font-mono text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+                            <span className={`w-5 h-5 rounded-full font-mono text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
                               idx === 0 ? 'bg-orange-500 text-slate-950' : 'bg-white/10 text-slate-300'
                             }`}>
                               #{idx + 1}
@@ -7389,14 +7591,14 @@ function OLLDaySuite() {
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
+                  className="py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-300 cursor-pointer"
                 >
                   Close
                 </button>
                 <button
                   type="button"
                   onClick={shareStatsSummaryImage}
-                  className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                  className="py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
                 >
                   Share Image ↗
                 </button>
@@ -7408,18 +7610,18 @@ function OLLDaySuite() {
         {renderUnifiedDailySession()}
         {renderUnifiedDrillModal()}
 
-        {/* FULLSCREEN BLIND EXECUTION VISOR */}
+        {/* FULLSCREEN BLIND EXECUTION VISOR (LIQUID GLASS) */}
         {blindState === 'visor' && (
-          <div onClick={() => { emitBeep(960, 'sine', 0.1); setBlindState('done'); }} className="fixed inset-0 z-[295] bg-[#04060d] flex flex-col items-center justify-between p-8 text-center select-none cursor-pointer">
-            <div className="pt-4"><span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">Blind Execution Active • Eyes Closed</span></div>
+          <div onClick={() => { emitBeep(960, 'sine', 0.1); setBlindState('done'); }} className="fixed inset-0 z-[295] bg-[#04060d]/98 backdrop-blur-xl flex flex-col items-center justify-between p-8 text-center select-none cursor-pointer">
+            <div className="pt-4"><span className="px-3.5 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">Blind Execution Active • Eyes Closed</span></div>
             <div className="space-y-4 my-auto">
-              <div className="w-20 h-20 rounded-full bg-orange-500/15 border-2 border-orange-500/40 mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(249,115,22,0.25)]">
+              <div className="w-20 h-20 rounded-full liquid-glass-card liquid-rim-amber border border-orange-500/40 mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(249,115,22,0.25)]">
                 <EyeOff className="w-9 h-9 text-orange-400" />
               </div>
               <h3 className="text-2xl font-black text-white tracking-tight">Execute Your Cross Blindfolded</h3>
               <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">Inspection locked at <strong className="text-orange-300">{(15 - inspectionLeftRef.current).toFixed(1)}s</strong>. Tap anywhere on the screen as soon as you finish your last turn.</p>
             </div>
-            <div className="w-full max-w-xs pb-4"><div className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25">Tap Anywhere When Finished ✓</div></div>
+            <div className="w-full max-w-xs pb-4"><div className="w-full py-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-500/25">Tap Anywhere When Finished ✓</div></div>
           </div>
         )}
       </div>
@@ -7429,7 +7631,7 @@ function OLLDaySuite() {
 
 export default function App() {
   return (
-    <AppErrorBoundary>
+    <AppErrorBoundary key="ollday-liquid-glass-v1">
       <OLLDaySuite />
     </AppErrorBoundary>
   );
