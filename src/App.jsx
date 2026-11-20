@@ -2598,6 +2598,26 @@ const APP_GLOBAL_CSS = `
     contain: layout paint;
     transform: translateZ(0);
   }
+  .liquid-glass-uv {
+    background:
+      linear-gradient(132deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(168, 85, 247, 0.055) 54%, rgba(255, 255, 255, 0.02) 76%, rgba(251, 146, 60, 0.11) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(14, 17, 29, 0.28) 46%, rgba(7, 9, 16, 0.44) 100%);
+    backdrop-filter: blur(11px) saturate(168%) contrast(106%);
+    -webkit-backdrop-filter: blur(11px) saturate(168%) contrast(106%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.36),
+      inset 0 2px 10px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -1px 0 0 rgba(251, 146, 60, 0.24),
+      0 26px 64px -12px rgba(0, 0, 0, 0.84);
+  }
+  .liquid-glass-uv-well {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.015) 48%, rgba(251, 146, 60, 0.045) 100%),
+      rgba(7, 9, 17, 0.34);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.38);
+  }
   .liquid-rim-muted {
     box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 18px 44px -14px rgba(0, 0, 0, 0.78);
   }
@@ -6050,32 +6070,36 @@ function OLLDaySuite() {
 
         {/* LIQUID GLASS SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
         {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-[#050507]/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-[255] bg-[#050507]/62 backdrop-blur-md flex flex-col items-center justify-center p-6 overflow-y-auto">
             <AmbientGlows
-              topClass="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.28) 0%, rgba(249, 115, 22, 0) 70%)"
-              bottomClass="absolute bottom-6 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.18) 0%, rgba(234, 88, 12, 0) 70%)"
+              topClass="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full"
+              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.34) 0%, rgba(168, 85, 247, 0.12) 44%, rgba(249, 115, 22, 0) 72%)"
+              bottomClass="absolute bottom-6 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
+              bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.24) 0%, rgba(168, 85, 247, 0.09) 45%, rgba(234, 88, 12, 0) 72%)"
             />
 
             <div className="relative z-10 w-full max-w-sm">
-              <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
-              <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
-              <div className="-mt-1.5 rounded-[2.35rem] liquid-glass-card liquid-rim-amber border border-white/15 p-6 shadow-2xl space-y-5">
-                <div className="flex flex-col items-center text-center space-y-2">
-                  <div className="w-13 h-13 rounded-2xl bg-orange-500/15 border border-orange-400/35 p-2 flex items-center justify-center shadow-[0_0_24px_rgba(249,115,22,0.3)]"><SuneEmblemSvg className="w-9 h-9" /></div>
+              <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25 backdrop-blur-sm" />
+              <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20 backdrop-blur-sm" />
+              <div className="relative overflow-hidden -mt-1.5 rounded-[2.35rem] liquid-glass-uv border border-white/25 p-6 space-y-5">
+                <div
+                  className="pointer-events-none absolute -top-16 -left-10 w-64 h-36 rounded-full rotate-[-14deg] opacity-75"
+                  style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%)' }}
+                />
+                <div className="relative z-10 flex flex-col items-center text-center space-y-2">
+                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-orange-500/25 via-white/10 to-purple-500/15 border border-white/30 p-2 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_0_26px_rgba(249,115,22,0.38)]"><SuneEmblemSvg className="w-9 h-9" /></div>
                   <div>
                     <h2 className="text-xl font-black tracking-tight text-white">OLLDay <span className="text-orange-400">Everyday</span></h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">Sign in or create a solver account to save your PBs &amp; solve history</p>
+                    <p className="text-xs text-zinc-200/80 mt-0.5">Sign in or create a solver account to save your PBs &amp; solve history</p>
                   </div>
                 </div>
 
-                <div className="liquid-glass-well p-1 rounded-full border border-white/10 grid grid-cols-2">
-                  {[{ key: 'signin', label: 'Sign In', active: 'bg-white/[0.15] text-white shadow-sm' }, { key: 'signup', label: 'Create Account', active: 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' }].map((tab) => (
+                <div className="relative z-10 liquid-glass-uv-well p-1 rounded-full border border-white/20 grid grid-cols-2">
+                  {[{ key: 'signin', label: 'Sign In', active: 'bg-white/[0.18] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]' }, { key: 'signup', label: 'Create Account', active: 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' }].map((tab) => (
                     <button
                       key={tab.key} type="button"
                       onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode(tab.key); }}
-                      className={`py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${authMode === tab.key ? tab.active : 'text-zinc-400 hover:text-white'}`}
+                      className={`py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${authMode === tab.key ? tab.active : 'text-zinc-300 hover:text-white'}`}
                     >
                       {tab.label}
                     </button>
@@ -6083,7 +6107,7 @@ function OLLDaySuite() {
                 </div>
 
                 {authMode === 'signin' ? (
-                  <div className="space-y-3">
+                  <div className="relative z-10 space-y-3">
                     <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
                       {Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k])).map((uKey) => {
                         const uData = sanitizeUserRecord(users[uKey]);
@@ -6091,14 +6115,14 @@ function OLLDaySuite() {
                           <button
                             key={uKey} type="button"
                             onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
-                            className="w-full p-3.5 rounded-[1.5rem] liquid-glass-well hover:bg-white/[0.08] border border-white/10 hover:border-orange-500/35 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
+                            className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
                           >
                             <div className="text-left">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-sm font-black text-white">{String(uKey)}</span>
                                 {uData.isPro && <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
                               </div>
-                              <span className="text-[10px] text-zinc-400">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
+                              <span className="text-[10px] text-zinc-300/80">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
                             </div>
                             <span className="text-xs font-black text-orange-300">Continue →</span>
                           </button>
@@ -6106,10 +6130,10 @@ function OLLDaySuite() {
                       })}
                     </div>
 
-                    <div className="pt-2 border-t border-white/10 space-y-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Sign In From Another Device</span>
+                    <div className="pt-2 border-t border-white/15 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
                       <div className="flex items-center gap-1.5">
-                        <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-well border border-white/15 px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-500" />
+                        <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-uv-well border border-white/20 px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
                         <button
                           type="button"
                           onClick={() => {
@@ -6119,7 +6143,7 @@ function OLLDaySuite() {
                             if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
                             emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
                           }}
-                          className="px-4 py-2.5 rounded-full bg-white/[0.12] hover:bg-white/[0.2] border border-white/15 text-xs font-black text-white cursor-pointer"
+                          className="px-4 py-2.5 rounded-full bg-white/[0.15] hover:bg-white/[0.24] border border-white/25 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
                         >
                           Sign In
                         </button>
@@ -6128,10 +6152,10 @@ function OLLDaySuite() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="relative z-10 space-y-3">
                     <div className="space-y-2">
-                      <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name (e.g., Alex)" className="w-full rounded-full liquid-glass-well border border-white/15 px-4 py-3 text-xs font-bold text-white placeholder-zinc-500" />
-                      <input type="email" value={authEmailInput} onChange={(e) => setAuthEmailInput(e.target.value)} placeholder="Email for Cloud Backup (Optional)" className="w-full rounded-full liquid-glass-well border border-white/15 px-4 py-3 text-xs text-white placeholder-zinc-500" />
+                      <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name (e.g., Alex)" className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                      <input type="email" value={authEmailInput} onChange={(e) => setAuthEmailInput(e.target.value)} placeholder="Email for Cloud Backup (Optional)" className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
                     </div>
                     {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
                     <button
@@ -6146,7 +6170,7 @@ function OLLDaySuite() {
                         saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
                         setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
                       }}
-                      className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                      className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
                     >
                       Create Account &amp; Start
                     </button>
