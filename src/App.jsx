@@ -2585,9 +2585,16 @@ const APP_GLOBAL_CSS = `
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 45%, rgba(249, 115, 22, 0.05) 100%);
   }
   .liquid-glass-dock {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(12, 17, 30, 0.24) 48%, rgba(7, 10, 18, 0.34) 100%);
-    backdrop-filter: blur(8px) saturate(135%);
-    -webkit-backdrop-filter: blur(8px) saturate(135%);
+    background:
+      linear-gradient(125deg, rgba(255, 255, 255, 0.19) 0%, rgba(255, 255, 255, 0.04) 28%, rgba(168, 85, 247, 0.045) 52%, rgba(255, 255, 255, 0.02) 74%, rgba(251, 146, 60, 0.08) 100%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(12, 16, 28, 0.16) 44%, rgba(6, 9, 16, 0.28) 100%);
+    backdrop-filter: blur(7px) saturate(165%) contrast(106%);
+    -webkit-backdrop-filter: blur(7px) saturate(165%) contrast(106%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
+      inset 0 2px 6px 0 rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 0 rgba(251, 146, 60, 0.16),
+      0 18px 40px -10px rgba(0, 0, 0, 0.78);
     contain: layout paint;
     transform: translateZ(0);
   }
@@ -4888,58 +4895,60 @@ function OLLDaySuite() {
   const renderCrossArcGauge = () => {
     const targetMoves = activeCrossMoveCount || activeTierObj.moves;
     const progressRatio = Math.min(1, Math.max(0.12, targetMoves / Math.max(targetMoves, crossUserMoves)));
-    const arcLength = 157;
+    const arcLength = 214;
     const strokeOffset = arcLength * (1 - progressRatio);
     return (
-      <div className="relative flex flex-col items-center justify-center py-2">
-        <svg viewBox="0 0 140 86" className="w-40 h-24 overflow-visible">
-          <defs>
-            <linearGradient id="crossArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#f97316" />
-              <stop offset="100%" stopColor="#fbbf24" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 20 74 A 50 50 0 0 1 120 74"
-            fill="none"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth="7"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 20 74 A 50 50 0 0 1 120 74"
-            fill="none"
-            stroke="url(#crossArcGrad)"
-            strokeWidth="7"
-            strokeLinecap="round"
-            strokeDasharray={arcLength}
-            strokeDashoffset={strokeOffset}
-            style={{ transition: 'stroke-dashoffset 0.35s cubic-bezier(0.22, 1, 0.36, 1)' }}
-          />
-        </svg>
-        <div className="absolute bottom-2 flex flex-col items-center text-center">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Your Moves</span>
-          <div className="flex items-center gap-3 mt-0.5">
-            <button
-              type="button"
-              onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }}
-              className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 font-black text-white text-sm flex items-center justify-center active:scale-90 cursor-pointer"
-            >
-              -
-            </button>
-            <span className="font-mono text-2xl font-black text-white w-8 text-center">{crossUserMoves}</span>
-            <button
-              type="button"
-              onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }}
-              className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 font-black text-white text-sm flex items-center justify-center active:scale-90 cursor-pointer"
-            >
-              +
-            </button>
+      <div className="flex flex-col items-center justify-center pt-1 pb-2 space-y-1.5">
+        <div className="relative flex items-center justify-center w-52 h-28">
+          <svg viewBox="0 0 180 102" className="w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id="crossArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#fbbf24" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M 22 92 A 68 68 0 0 1 158 92"
+              fill="none"
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+            <path
+              d="M 22 92 A 68 68 0 0 1 158 92"
+              fill="none"
+              stroke="url(#crossArcGrad)"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={arcLength}
+              strokeDashoffset={strokeOffset}
+              style={{ transition: 'stroke-dashoffset 0.35s cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
+          </svg>
+          <div className="absolute bottom-1.5 flex flex-col items-center text-center">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Your Moves</span>
+            <div className="flex items-center gap-3 mt-1">
+              <button
+                type="button"
+                onClick={() => { emitBeep(440); setCrossUserMoves((m) => Math.max(1, m - 1)); }}
+                className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 font-black text-white text-sm flex items-center justify-center active:scale-90 cursor-pointer"
+              >
+                -
+              </button>
+              <span className="font-mono text-2xl font-black text-white w-8 text-center">{crossUserMoves}</span>
+              <button
+                type="button"
+                onClick={() => { emitBeep(660); setCrossUserMoves((m) => Math.min(20, m + 1)); }}
+                className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 font-black text-white text-sm flex items-center justify-center active:scale-90 cursor-pointer"
+              >
+                +
+              </button>
+            </div>
           </div>
-          <span className="text-[9.5px] font-mono font-bold text-orange-400 mt-1">
-            Target ≤ {targetMoves} Turns • {currentUser.crossClears || 0} Clears
-          </span>
         </div>
+        <span className="px-3 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[9.5px] font-mono font-bold text-orange-400">
+          Target ≤ {targetMoves} Turns • {currentUser.crossClears || 0} Clears
+        </span>
       </div>
     );
   };
@@ -5559,7 +5568,7 @@ function OLLDaySuite() {
                           <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                Optimal Solution ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'Move' : 'Moves'})
+                                Optimal Solution
                               </span>
                               <button
                                 type="button"
@@ -5573,7 +5582,7 @@ function OLLDaySuite() {
                               <div className="pt-1.5 border-t border-white/10 text-center space-y-1">
                                 <p className="font-mono text-sm font-black text-green-400 tracking-wider select-all">{activeCrossSolution}</p>
                                 <span className="text-[9.5px] text-zinc-400 block">
-                                  Guaranteed shortest HTM path solving all 4 White Cross edges on D ({activeCrossMoveCount} {activeCrossMoveCount === 1 ? 'move' : 'moves'})
+                                  Guaranteed shortest HTM path solving all 4 White Cross edges on D
                                 </span>
                               </div>
                             )}
@@ -5915,8 +5924,8 @@ function OLLDaySuite() {
                     <path
                       d={
                         isTwoPane
-                          ? 'M 0.032,0 L 0.422,0 C 0.438,0 0.446,0.08 0.446,0.22 L 0.446,0.66 C 0.446,0.74 0.456,0.78 0.470,0.78 L 0.530,0.78 C 0.544,0.78 0.554,0.74 0.554,0.66 L 0.554,0.22 C 0.554,0.08 0.562,0 0.578,0 L 0.968,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.955,1 L 0.045,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.032,0 Z'
-                          : 'M 0.045,0 L 0.386,0 C 0.402,0 0.410,0.08 0.410,0.22 L 0.410,0.66 C 0.410,0.74 0.422,0.78 0.438,0.78 L 0.562,0.78 C 0.578,0.78 0.590,0.74 0.590,0.66 L 0.590,0.22 C 0.590,0.08 0.598,0 0.614,0 L 0.955,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.94,1 L 0.06,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.045,0 Z'
+                          ? 'M 0.032,0 L 0.422,0 C 0.438,0 0.446,0.08 0.446,0.22 L 0.446,0.52 C 0.446,0.60 0.456,0.64 0.470,0.64 L 0.530,0.64 C 0.544,0.64 0.554,0.60 0.554,0.52 L 0.554,0.22 C 0.554,0.08 0.562,0 0.578,0 L 0.968,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.955,1 L 0.045,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.032,0 Z'
+                          : 'M 0.045,0 L 0.386,0 C 0.402,0 0.410,0.08 0.410,0.22 L 0.410,0.52 C 0.410,0.60 0.422,0.64 0.438,0.64 L 0.562,0.64 C 0.578,0.64 0.590,0.60 0.590,0.52 L 0.590,0.22 C 0.590,0.08 0.598,0 0.614,0 L 0.955,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.94,1 L 0.06,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.045,0 Z'
                       }
                     />
                   </clipPath>
@@ -5936,8 +5945,8 @@ function OLLDaySuite() {
                   <path
                     d={
                       isTwoPane
-                        ? 'M 3.2,1 L 42.2,1 C 43.8,1 44.6,8 44.6,22 L 44.6,66 C 44.6,74 45.6,78 47.0,78 L 53.0,78 C 54.4,78 55.4,74 55.4,66 L 55.4,22 C 55.4,8 56.2,1 57.8,1 L 96.8,1'
-                        : 'M 4.5,1 L 38.6,1 C 40.2,1 41.0,8 41.0,22 L 41.0,66 C 41.0,74 42.2,78 43.8,78 L 56.2,78 C 57.8,78 59.0,74 59.0,66 L 59.0,22 C 59.0,8 59.8,1 61.4,1 L 95.5,1'
+                        ? 'M 3.2,1 L 42.2,1 C 43.8,1 44.6,8 44.6,22 L 44.6,52 C 44.6,60 45.6,64 47.0,64 L 53.0,64 C 54.4,64 55.4,60 55.4,52 L 55.4,22 C 55.4,8 56.2,1 57.8,1 L 96.8,1'
+                        : 'M 4.5,1 L 38.6,1 C 40.2,1 41.0,8 41.0,22 L 41.0,52 C 41.0,60 42.2,64 43.8,64 L 56.2,64 C 57.8,64 59.0,60 59.0,52 L 59.0,22 C 59.0,8 59.8,1 61.4,1 L 95.5,1'
                     }
                     fill="none"
                     stroke="rgba(255,255,255,0.22)"
