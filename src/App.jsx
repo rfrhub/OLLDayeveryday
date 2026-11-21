@@ -1652,6 +1652,109 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
   return <Spatial3DCube stickers={stickers} isStickerMuted={isF2LStickerMuted} yaw={yaw} pitch={pitch} isDragging={isDragging} cubeRef={cubeRef} />;
 }
 
+const STREAK_FACE_ORDER = [
+  { offset: 0, color: 'Y' },   // Day 1: Top (Yellow)
+  { offset: 18, color: 'G' },  // Day 2: Front (Green)
+  { offset: 9, color: 'O' },   // Day 3: Right (Orange)
+  { offset: 36, color: 'R' },  // Day 4: Left (Red)
+  { offset: 45, color: 'B' },  // Day 5: Back (Blue)
+  { offset: 27, color: 'W' }   // Day 6: Bottom (White) — Full UV Glow + Spin!
+];
+
+function Streak3DCube({ streakDays = 0 }) {
+  const filledFaces = Math.min(6, Math.max(0, Number(streakDays) || 0));
+  const isComplete = filledFaces >= 6;
+  const half = 16;
+  const miniFaces = [
+    { offset: 18, transform: `rotateY(0deg) translateZ(${half}px)` },
+    { offset: 45, transform: `rotateY(180deg) translateZ(${half}px)` },
+    { offset: 9, transform: `rotateY(90deg) translateZ(${half}px)` },
+    { offset: 36, transform: `rotateY(-90deg) translateZ(${half}px)` },
+    { offset: 0, transform: `rotateX(90deg) translateZ(${half}px)` },
+    { offset: 27, transform: `rotateX(-90deg) translateZ(${half}px)` }
+  ];
+
+  const stickerColors = useMemo(() => {
+    const arr = Array(54).fill(null);
+    for (let i = 0; i < filledFaces; i++) {
+      const { offset, color } = STREAK_FACE_ORDER[i];
+      for (let s = 0; s < 9; s++) arr[offset + s] = color;
+    }
+    return arr;
+  }, [filledFaces]);
+
+  return (
+    <div
+      title={isComplete ? `${streakDays}d Streak — Full UV Cube Unlocked!` : `${streakDays}d Streak (${filledFaces}/6 faces lit)`}
+      className={`relative inline-flex items-center gap-2 px-2.5 py-1 rounded-full border transition-all ${
+        isComplete
+          ? 'liquid-glass-uv border-purple-400/60 uv-streak-pill-glow'
+          : 'bg-black/50 border-white/15'
+      }`}
+    >
+      <div style={{ width: '36px', height: '36px', perspective: '180px' }} className="flex items-center justify-center flex-shrink-0">
+        <div
+          className={isComplete ? 'uv-streak-cube-spin' : ''}
+          style={{
+            width: `${half * 2}px`,
+            height: `${half * 2}px`,
+            position: 'relative',
+            transformStyle: 'preserve-3d',
+            transform: isComplete ? undefined : 'rotateX(-24deg) rotateY(-36deg)'
+          }}
+        >
+          {miniFaces.map(({ offset, transform }) => (
+            <div
+              key={offset}
+              style={{
+                position: 'absolute',
+                width: `${half * 2}px`,
+                height: `${half * 2}px`,
+                transform,
+                backfaceVisibility: 'hidden',
+                backgroundColor: '#05060a',
+                borderRadius: '4px',
+                padding: '1.5px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateRows: 'repeat(3, 1fr)',
+                gap: '1.2px',
+                boxShadow: isComplete
+                  ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.55)'
+                  : 'inset 0 0 0 0.75px rgba(255,255,255,0.12)'
+              }}
+            >
+              {Array.from({ length: 9 }).map((_, idx) => {
+                const code = stickerColors[offset + idx];
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      backgroundColor: code ? STICKER_HEX[code] : '#141722',
+                      borderRadius: '1.5px',
+                      boxShadow: code
+                        ? 'inset 0 0.5px 1px rgba(255,255,255,0.55)'
+                        : 'inset 0 0.5px 0.5px rgba(255,255,255,0.05)'
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="pr-0.5 leading-tight">
+        <span className={`font-mono text-[10.5px] font-black block ${isComplete ? 'text-purple-200' : 'text-white'}`}>
+          {streakDays}d Streak
+        </span>
+        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isComplete ? 'text-amber-300' : 'text-zinc-400'}`}>
+          {isComplete ? 'UV Coated ✦' : `${filledFaces}/6 Faces`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-black/80 backdrop-blur-xl flex items-center justify-center p-5`}>
@@ -2603,6 +2706,35 @@ const APP_GLOBAL_CSS = `
   .uv-card-enter-down {
     animation: uvCardMaterializeDown 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     will-change: transform, opacity;
+  }
+  @keyframes uvStreakSpin3D {
+    0% { transform: rotateX(-24deg) rotateY(0deg); }
+    100% { transform: rotateX(-24deg) rotateY(360deg); }
+  }
+  @keyframes uvStreakPulseGlow {
+    0%, 100% {
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+        0 0 12px rgba(168, 85, 247, 0.45),
+        0 0 22px rgba(249, 115, 22, 0.3);
+    }
+    50% {
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+        0 0 22px rgba(192, 132, 252, 0.85),
+        0 0 34px rgba(251, 146, 60, 0.65);
+    }
+  }
+  .uv-streak-cube-spin {
+    animation: uvStreakSpin3D 5.5s linear infinite;
+    will-change: transform;
+  }
+  .uv-streak-pill-glow {
+    animation: uvStreakPulseGlow 2.4s ease-in-out infinite;
+    will-change: box-shadow;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .uv-streak-cube-spin, .uv-streak-pill-glow { animation: none; }
   }
   .liquid-glass-uv {
     background:
@@ -4177,7 +4309,7 @@ function OLLDaySuite() {
   };
 
   const renderSettingsDeck = () => {
-    const TOTAL_SETTINGS_CARDS = 5;
+    const TOTAL_SETTINGS_CARDS = 6;
     const stepSettingsCard = (dir) => {
       emitBeep(dir === 'up' ? 620 : 500, 'sine', 0.05);
       setSettingsSwipeDir(dir);
@@ -4378,43 +4510,41 @@ function OLLDaySuite() {
       },
       {
         num: 3,
-        category: 'Cubing Lab & Guides',
-        title: 'Timer, Notation & Mechanics',
+        category: '3x3x3 Timer',
+        title: 'WCA Speedcube Timer',
+        content: (
+          <div className="space-y-3.5">
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Full-screen WCA 20-move scramble timer with +2 / DNF penalties and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> session tracking.
+            </p>
+            {renderWcaTelemetryGrid('liquid-glass-uv-well rounded-2xl')}
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-center justify-between text-xs">
+              <span className="text-zinc-300">Logged 3x3x3 Solves</span>
+              <span className="font-mono font-black text-white">{currentUser.fullSolveHistory?.length || 0}</span>
+            </div>
+            <button
+              type="button"
+              onClick={openFullTimerModal}
+              className="w-full h-11 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
+            >
+              Launch Full-Screen 3x3x3 Timer
+            </button>
+          </div>
+        )
+      },
+      {
+        num: 4,
+        category: 'Notation & Fingertricks',
+        title: 'WCA Key & Trigger Dossier',
         content: (
           <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
-            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-xs font-black text-white block">3x3x3 CFOP Timer</span>
-                  <span className="text-[10px] text-zinc-300/80">WCA 20-move scrambles &amp; Ao5/Ao12</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={openFullTimerModal}
-                  className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center cursor-pointer"
-                >
-                  Open Timer
-                </button>
-              </div>
-              {renderWcaTelemetryGrid('bg-black/40 rounded-xl')}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={startGuidedTour}
-                className="h-10 px-3 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/40 text-[10.5px] font-black text-orange-200 flex items-center justify-center cursor-pointer"
-              >
-                Quick-Start Guide
-              </button>
-              <button
-                type="button"
-                onClick={() => { emitBeep(520); setActiveModal('compass'); }}
-                className="h-10 px-3 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-[10.5px] font-black text-white flex items-center justify-center cursor-pointer"
-              >
-                Color Orbit Compass
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={startGuidedTour}
+              className="w-full h-9 px-3.5 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/40 text-[10.5px] font-black text-orange-200 flex items-center justify-center cursor-pointer"
+            >
+              Open Quick-Start Guide →
+            </button>
 
             <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -4465,6 +4595,7 @@ function OLLDaySuite() {
                       <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
                     </div>
                     <p className="text-[10px] text-zinc-200 leading-snug"><strong className="text-orange-400">Grip:</strong> {trig.grip}</p>
+                    <p className="text-[10px] text-zinc-300 leading-snug">{trig.execution}</p>
                   </div>
                 ))}
               </div>
@@ -4473,7 +4604,7 @@ function OLLDaySuite() {
         )
       },
       {
-        num: 4,
+        num: 5,
         category: 'Feedback & Sensory',
         title: 'Haptics, Audio & Triggers',
         content: (
@@ -4497,7 +4628,7 @@ function OLLDaySuite() {
         )
       },
       {
-        num: 5,
+        num: 6,
         category: 'Account & Data',
         title: 'Reset & Privacy Controls',
         content: (
@@ -4677,42 +4808,29 @@ function OLLDaySuite() {
       ).length;
       const totalInLineup = Math.max(1, lineupOrder.length);
       const completionPct = Math.round((completedInLineup / totalInLineup) * 100);
-      const streakDays = Math.max(1, (safeF2lDay - 1) + (safeOllDay - 1) + (safePllDay - 1) + (currentUser.crossClears > 0 ? 1 : 0));
+      const streakDays = (safeF2lDay - 1) + (safeOllDay - 1) + (safePllDay - 1) + (currentUser.crossClears > 0 ? 1 : 0);
 
       return (
         <div className="p-5 pb-28 space-y-5">
-          {/* Today's Guided Lesson Hero Card */}
+          {/* Focused Phase Daily Session Card */}
           <div className="relative pt-3">
             <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
             <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
             <div className="-mt-1.5 liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[2.25rem] p-5 space-y-4 shadow-[0_20px_50px_rgba(249,115,22,0.16)]">
               <div className="flex items-center justify-between gap-2">
-                <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
-                  Today&apos;s Guided Lesson — Day {safeDay}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/35 text-[10px] font-black text-amber-300">
-                    🔥 {streakDays}d Streak
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    Day {safeDay} • {dayObj.mode} Mode
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.07] hover:bg-white/[0.14] border border-white/15 text-[10px] font-black text-zinc-200 cursor-pointer transition-all"
-                    title="Scan Your 3x3 Cube"
-                  >
-                    <Camera className="w-3 h-3 text-orange-400" />
-                    <span>Scan</span>
-                  </button>
+                  <span className="text-[10px] font-bold text-zinc-400">
+                    {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered
+                  </span>
                 </div>
+                <Streak3DCube streakDays={streakDays} />
               </div>
 
               <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    {dayObj.mode} Mode • {masteredCount}/{dataList.length} Total Mastered
-                  </span>
-                </div>
-                <h2 className="text-xl font-black text-white leading-tight mt-0.5">{dayObj.chunkTitle}</h2>
+                <h2 className="text-xl font-black text-white leading-tight">{dayObj.chunkTitle}</h2>
                 <p className="text-xs text-zinc-400 mt-1">{meta.subtitle}</p>
               </div>
 
@@ -4728,33 +4846,6 @@ function OLLDaySuite() {
                     style={{ width: `${Math.max(6, completionPct)}%` }}
                   />
                 </div>
-              </div>
-
-              {/* Compact CFOP Progression Tracker */}
-              <div className="grid grid-cols-4 gap-1.5">
-                {[
-                  { key: 'cross', label: 'Cross in X', sub: `${currentUser.crossClears || 0} clears` },
-                  { key: 'f2l', label: 'F2L', sub: `${f2lMasteredCount}/41` },
-                  { key: 'oll', label: 'OLL', sub: `${ollMasteredCount}/57` },
-                  { key: 'pll', label: 'PLL', sub: `${pllMasteredCount}/25` }
-                ].map((stage) => {
-                  const isCur = activePhase === stage.key;
-                  return (
-                    <button
-                      key={stage.key}
-                      type="button"
-                      onClick={() => { emitBeep(540); setActivePhase(stage.key); }}
-                      className={`py-2 px-1.5 rounded-2xl border text-center cursor-pointer transition-all ${
-                        isCur
-                          ? 'bg-orange-500/20 border-orange-400/50 text-orange-200 shadow-sm'
-                          : 'bg-white/[0.03] border-white/[0.08] text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-[9.5px] font-black uppercase block truncate">{stage.label}</span>
-                      <span className="font-mono text-[9px] font-bold opacity-80 block mt-0.5">{stage.sub}</span>
-                    </button>
-                  );
-                })}
               </div>
 
               {isF2L && (
@@ -6352,7 +6443,7 @@ function OLLDaySuite() {
               scramble: "R' F R D'",
               yaw: -35 + landingStepIdx * 90,
               pitch: 36,
-              isCross: true
+              mode: 'cross'
             },
             {
               phase: 'F • F2L',
@@ -6361,25 +6452,25 @@ function OLLDaySuite() {
               scramble: "R U' R' U'",
               yaw: -35 + landingStepIdx * 90,
               pitch: -24,
-              isCross: false
+              mode: 'f2l'
             },
             {
               phase: 'O • OLL',
-              title: '57 One-Look Shapes',
+              title: '57 One-Look Shapes (Sune)',
               metric: 'Inline Trigger Tags',
               scramble: "R U2 R' U' R U' R'",
               yaw: -35 + landingStepIdx * 90,
-              pitch: -26,
-              isCross: false
+              pitch: -32,
+              mode: 'full'
             },
             {
               phase: 'P • PLL',
-              title: '25 Last-Layer Perms',
+              title: '25 Last-Layer Perms (T-Perm)',
               metric: 'Ao5 • Ao12 • PB Goals',
-              scramble: "R U R' U' R' F R2 U' R' U' R U R' F'",
+              scramble: "F R U' R' U R U R2 F' R U R U' R'",
               yaw: -35 + landingStepIdx * 90,
-              pitch: -24,
-              isCross: false
+              pitch: -28,
+              mode: 'full'
             }
           ];
           const activeReel = HERO_CFOP_REEL[landingStepIdx % HERO_CFOP_REEL.length];
@@ -6458,10 +6549,12 @@ function OLLDaySuite() {
                           className="pointer-events-none absolute w-32 h-32 rounded-full"
                           style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)' }}
                         />
-                        {activeReel.isCross ? (
+                        {activeReel.mode === 'cross' ? (
                           <CrossSpatial3DCube scramble={activeReel.scramble} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
-                        ) : (
+                        ) : activeReel.mode === 'f2l' ? (
                           <F2LSpatial3DCube setupScramble={activeReel.scramble} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
+                        ) : (
+                          <Spatial3DCube stickers={simulateCrossCubeState(activeReel.scramble)} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
                         )}
                       </div>
 
