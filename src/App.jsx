@@ -6439,11 +6439,11 @@ function OLLDaySuite() {
 
           {/* SADDLE-NOTCHED LIQUID GLASS BOTTOM DOCK + ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
           {(() => {
-            const dw = 392;
-            const dh = 60;
+            const dw = isTwoPane ? 576 : Math.max(332, Math.min(420, (viewportDevice.width || 390) - 28));
+            const dh = 68;
             const cx = dw / 2;
             const cradleHalfW = 31.5; // 26px half-switcher + 5.5px uniform side clearance
-            const floorY = Math.min(dh - 10, 41.5); // 36px switcher bottom + 5.5px uniform floor clearance
+            const floorY = 41.5; // 36px switcher bottom + 5.5px uniform floor clearance (matches 5.5px side clearance)
             const lipW = 11, cornerR = 17, outerR = 20;
 
             const buildNotchSegments = (sx, sy, topY) => [
