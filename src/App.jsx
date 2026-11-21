@@ -1737,13 +1737,7 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
           ? `${displayStreakDays}d Streak • Halfway Mark Reached (Matte Finish)`
           : `${displayStreakDays}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
       }
-      className={`relative inline-flex items-center gap-2 px-2.5 py-1 rounded-full border transition-all cursor-pointer active:scale-95 ${
-        isUvCoated
-          ? 'bg-gradient-to-r from-purple-500/20 via-orange-500/15 to-amber-500/20 border-purple-400/60 uv-streak-pill-glow'
-          : isHalfwayDay
-          ? 'bg-gradient-to-r from-zinc-700/35 via-amber-500/15 to-zinc-700/35 border-amber-300/45 uv-streak-pill-glow'
-          : 'bg-black/50 hover:bg-white/[0.07] border-white/15'
-      }`}
+      className="relative inline-flex items-center gap-2 bg-transparent border-0 p-0 transition-transform cursor-pointer active:scale-95"
     >
       <div style={{ width: '36px', height: '36px', perspective: '180px' }} className="flex items-center justify-center flex-shrink-0">
         <div
@@ -1770,7 +1764,7 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                   height: `${MINI_STREAK_HALF * 2}px`,
                   transform,
                   backfaceVisibility: 'hidden',
-                  backgroundColor: '#05060a',
+                  backgroundColor: '#f8fafc',
                   borderRadius: '4px',
                   padding: '1.5px',
                   display: 'grid',
@@ -1778,10 +1772,10 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                   gridTemplateRows: 'repeat(3, 1fr)',
                   gap: '1.2px',
                   boxShadow: isUvCoated
-                    ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.55)'
+                    ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.75), 0 0 10px rgba(192, 132, 252, 0.35)'
                     : isHalfwayDay
-                    ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.45)'
-                    : 'inset 0 0 0 0.75px rgba(255,255,255,0.12)'
+                    ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.65)'
+                    : 'inset 0 0 0 0.75px rgba(148, 163, 184, 0.35)'
                 }}
               >
                 {MINI_STREAK_SLOTS.map((idx) => {
@@ -1791,14 +1785,14 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                     <div
                       key={idx}
                       style={{
-                        backgroundColor: isLit ? STICKER_HEX[faceColor] : '#141722',
+                        backgroundColor: isLit ? STICKER_HEX[faceColor] : '#e2e8f0',
                         borderRadius: '1.5px',
                         filter: isHalfwayDay && isLit ? 'contrast(0.92) saturate(0.88)' : undefined,
                         boxShadow: isLatestTile
-                          ? '0 0 4px rgba(255,255,255,0.95), inset 0 0.5px 1px rgba(255,255,255,0.75)'
+                          ? '0 0 4px rgba(249,115,22,0.95), inset 0 0.5px 1px rgba(255,255,255,0.85)'
                           : isLit && !isHalfwayDay
                           ? 'inset 0 0.5px 1px rgba(255,255,255,0.55)'
-                          : 'inset 0 0.5px 0.5px rgba(255,255,255,0.05)'
+                          : 'inset 0 0.5px 0.75px rgba(15, 23, 42, 0.14)'
                       }}
                     />
                   );
@@ -1808,7 +1802,7 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
           })}
         </div>
       </div>
-      <div className="pr-0.5 leading-tight text-left">
+      <div className="leading-tight text-left">
         <span className={`font-mono text-[10.5px] font-black block ${isUvCoated ? 'text-purple-200' : isHalfwayDay ? 'text-amber-200' : 'text-white'}`}>
           {displayStreakDays}d Streak
         </span>
@@ -1837,9 +1831,9 @@ function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
   );
 }
 
-function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', children }) {
+function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-black/88', children }) {
   return (
-    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-black/88 flex items-center justify-center p-5`}>
+    <div onClick={onClose} className={`fixed inset-0 ${zClass} ${backdropClass} flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
         className={`relative liquid-glass-card liquid-rim-muted border ${borderClass} rounded-3xl p-5 ${maxWidth} w-full shadow-[0_28px_75px_rgba(0,0,0,0.85)] max-h-[90dvh] overflow-y-auto no-scrollbar`}
@@ -8031,7 +8025,7 @@ function OLLDaySuite() {
           ];
           const currentQ = ORBIT_QUESTIONS[orbitQuiz.idx % 4];
           return (
-            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs">
+            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs" backdropClass="bg-black/72 backdrop-blur-md">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
