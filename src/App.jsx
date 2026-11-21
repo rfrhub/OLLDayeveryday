@@ -1292,14 +1292,20 @@ function resolveEffectiveCase(item, customAlgsMap, phaseKey) {
   if (list.length === 0) {
     return { ...item, defaultAlg: item.alg, customAlgList: [], activeCustomId: null, hasCustomAlg: false, usingCustomAlg: false, customEntry: null };
   }
-  const activeEntry = activeId ? list.find((c) => c.id === activeId) || null : null;
+  const activeIdx = activeId ? list.findIndex((c) => c.id === activeId) : -1;
+  const activeEntry = activeIdx >= 0 ? list[activeIdx] : null;
   const usingCustom = Boolean(activeEntry);
+  const customCode = usingCustom ? `C#${activeIdx + 1}` : '';
+  const effectiveName = usingCustom ? `${item.name} • ${customCode}` : item.name;
   const effectiveAlg = usingCustom ? activeEntry.alg : item.alg;
   const effectiveFingertrick = usingCustom
     ? buildDynamicCustomFingertrickText(effectiveAlg, item.fingertrick)
     : item.fingertrick;
   return {
     ...item,
+    baseName: item.name,
+    name: effectiveName,
+    customCode,
     defaultAlg: item.alg,
     alg: effectiveAlg,
     fingertrick: effectiveFingertrick,
@@ -2140,7 +2146,7 @@ function CasePracticeCard({
         </div>
       )}
 
-      <div className={`w-full liquid-glass-well liquid-rim-muted border border-white/10 ${isLargeScreen ? 'rounded-2xl p-4 space-y-2.5' : 'rounded-2xl p-3 space-y-1.5'} text-center`}>
+      <div className={`w-full ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-well liquid-rim-muted border-white/10'} border ${isLargeScreen ? 'rounded-2xl p-4 space-y-2.5' : 'rounded-2xl p-3 space-y-1.5'} text-center transition-all`}>
         <div className="flex items-center justify-between gap-1 flex-wrap">
           <div className="flex items-center gap-1 flex-wrap">
             <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
@@ -2978,6 +2984,16 @@ const APP_GLOBAL_CSS = `
   }
   .liquid-rim-amber {
     box-shadow: inset 0 1px 0 0 rgba(251, 146, 60, 0.24), inset 0 0 0 1px rgba(249, 115, 22, 0.14), 0 18px 44px -14px rgba(0, 0, 0, 0.82);
+  }
+  .custom-alg-card {
+    background:
+      linear-gradient(155deg, rgba(249, 115, 22, 0.22) 0%, rgba(251, 146, 60, 0.10) 48%, rgba(18, 12, 9, 0.94) 100%);
+    border-color: rgba(249, 115, 22, 0.55) !important;
+    box-shadow:
+      inset 0 1px 0 0 rgba(251, 146, 60, 0.34),
+      inset 0 0 0 1px rgba(249, 115, 22, 0.18),
+      0 0 28px -4px rgba(249, 115, 22, 0.32),
+      0 18px 44px -14px rgba(0, 0, 0, 0.82);
   }
   .liquid-pour-container {
     transform-origin: center bottom;
@@ -5194,8 +5210,8 @@ function OLLDaySuite() {
                       if (locked) { openProPaywall(item.name); return; }
                       emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                     }}
-                    className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                      draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : 'border-white/10 hover:border-white/20'
+                    className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-card liquid-rim-muted'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : item.usingCustomAlg ? 'hover:border-orange-400/75' : 'border-white/10 hover:border-white/20'
                     }`}
                   >
                     {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
@@ -5204,11 +5220,6 @@ function OLLDaySuite() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-black text-white block truncate">{item.name}</span>
-                          {item.usingCustomAlg && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-[8.5px] font-black uppercase text-orange-300 flex-shrink-0">
-                              Custom #{(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}
-                            </span>
-                          )}
                         </div>
                         <p className="font-mono text-xs font-bold text-amber-300 truncate">{item.alg}</p>
                         {(item.step1 || item.recognition) && <p className="text-[10px] text-zinc-400 truncate mt-0.5">{item.step1 || item.recognition}</p>}
@@ -5332,7 +5343,7 @@ function OLLDaySuite() {
                         if (trainingLocked) { openProPaywall(`${item.name} • Day Training & Drills`); return; }
                         emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                       }}
-                      className="case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 hover:border-white/20 rounded-2xl p-3.5 flex items-center justify-between gap-3 cursor-pointer"
+                      className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card hover:border-orange-400/75' : 'liquid-glass-card liquid-rim-muted border-white/10 hover:border-white/20'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer`}
                     >
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         {renderCaseThumb(phaseKey, rawItem, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
@@ -5429,7 +5440,8 @@ function OLLDaySuite() {
         {renderFullSolveStatsBlock()}
 
         <div className="space-y-2.5">
-          {dataList.map((item) => {
+          {dataList.map((rawItem) => {
+            const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
             const stat = statsMap?.[item.id];
             const caseGoal = getEffectiveCaseTargetPb(phaseKey, item.id);
             const locked = !isCaseUnlockedForTraining(phaseKey, item.id, isProUnlocked);
@@ -5438,9 +5450,9 @@ function OLLDaySuite() {
                 key={item.id}
                 onClick={() => {
                   if (locked) { openProPaywall(item.name); return; }
-                  emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
+                  emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                 }}
-                className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-2xl p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:border-white/20'}`}
+                className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-card liquid-rim-muted'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${locked ? 'border-orange-500/20' : item.usingCustomAlg ? 'hover:border-orange-400/75' : 'border-white/10 hover:border-white/20'}`}
               >
                 {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
                 <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
