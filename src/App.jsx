@@ -2586,17 +2586,25 @@ const APP_GLOBAL_CSS = `
   }
   .liquid-glass-dock {
     background:
-      linear-gradient(125deg, rgba(255, 255, 255, 0.19) 0%, rgba(255, 255, 255, 0.04) 28%, rgba(168, 85, 247, 0.045) 52%, rgba(255, 255, 255, 0.02) 74%, rgba(251, 146, 60, 0.08) 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(12, 16, 28, 0.16) 44%, rgba(6, 9, 16, 0.28) 100%);
-    backdrop-filter: blur(7px) saturate(165%) contrast(106%);
-    -webkit-backdrop-filter: blur(7px) saturate(165%) contrast(106%);
+      linear-gradient(125deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(168, 85, 247, 0.05) 54%, rgba(251, 146, 60, 0.09) 100%),
+      linear-gradient(180deg, rgba(20, 22, 34, 0.84) 0%, rgba(10, 12, 20, 0.92) 48%, rgba(6, 8, 14, 0.96) 100%);
+    backdrop-filter: blur(18px) saturate(155%) contrast(108%);
+    -webkit-backdrop-filter: blur(18px) saturate(155%) contrast(108%);
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
-      inset 0 2px 6px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 0 rgba(251, 146, 60, 0.16),
-      0 18px 40px -10px rgba(0, 0, 0, 0.78);
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
+      inset 0 2px 8px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 0 rgba(251, 146, 60, 0.2),
+      0 20px 44px -8px rgba(0, 0, 0, 0.88);
     contain: layout paint;
     transform: translateZ(0);
+  }
+  @keyframes heroCubeFloat {
+    0%, 100% { transform: translate3d(0, 0px, 0) rotate(-1.5deg); }
+    50% { transform: translate3d(0, -7px, 0) rotate(1.5deg); }
+  }
+  .hero-cube-float {
+    animation: heroCubeFloat 4.6s ease-in-out infinite;
+    will-change: transform;
   }
   .liquid-glass-uv {
     background:
@@ -3105,7 +3113,37 @@ function OLLDaySuite() {
   const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
 
   const [authScreenOpen, setAuthScreenOpen] = useState(() => !storage.getStr(STORAGE_KEYS.activeAccount, ''));
-  const [authMode, setAuthMode] = useState('signin');
+  const [authMode, setAuthMode] = useState('landing');
+  const [landingStepIdx, setLandingStepIdx] = useState(0);
+  const dockRef = useRef(null);
+  const [dockSize, setDockSize] = useState({ width: 392, height: 60 });
+
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDockSize((prev) =>
+          Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5
+            ? prev
+            : { width: rect.width, height: rect.height }
+        );
+      }
+    };
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isTwoPane, activePhase]);
+
+  useEffect(() => {
+    if (!authScreenOpen || authMode !== 'landing' || !isAppVisible) return undefined;
+    const id = setInterval(() => {
+      setLandingStepIdx((prev) => (prev + 1) % 4);
+    }, 2400);
+    return () => clearInterval(id);
+  }, [authScreenOpen, authMode, isAppVisible]);
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
@@ -5878,158 +5916,186 @@ function OLLDaySuite() {
           </div>
 
           {/* SADDLE-NOTCHED LIQUID GLASS BOTTOM DOCK + ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
-          <nav className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 pt-7 pb-4 ${isTwoPane ? 'px-6' : 'px-3.5'}`}>
-            <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
-              {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
-              <div
-                className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/95 backdrop-blur-xl border border-orange-500/40 shadow-[0_14px_38px_rgba(249,115,22,0.35)] ${
-                  cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
-                }`}
-              >
-                {[
-                  { key: 'cross', label: 'C', title: 'Cross' },
-                  { key: 'f2l', label: 'F', title: 'F2L' },
-                  { key: 'oll', label: 'O', title: 'OLL' },
-                  { key: 'pll', label: 'P', title: 'PLL' }
-                ].map((p, idx) => {
-                  const isActive = activePhase === p.key;
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => {
-                        emitBeep(640 + idx * 45, 'sine', 0.06);
-                        setCfopMenuOpen(false);
-                        setActivePhase(p.key);
-                      }}
-                      className={`liquid-droplet-item px-3.5 py-1.5 text-xs font-black tracking-wider cursor-pointer flex items-center gap-1 ${
-                        isActive
-                          ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.5)]'
-                          : 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.14] hover:text-white'
-                      }`}
-                    >
-                      <span>{p.label}</span>
-                      <span className="text-[9.5px] font-bold opacity-80">{p.title}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          {(() => {
+            const dw = Math.max(280, dockSize.width);
+            const dh = Math.max(54, dockSize.height);
+            const cx = dw / 2;
+            const cradleHalfW = 31.5; // 26px half-switcher + 5.5px uniform side clearance
+            const floorY = Math.min(dh - 10, 41.5); // 36px switcher bottom + 5.5px uniform floor clearance
+            const lipW = 11, cornerR = 17, outerR = 20;
 
-              {/* Elevated All-Orange 3x3 Rubik's Cube Phase Switcher Seated Inside Saddle Notch */}
-              <button
-                type="button"
-                onClick={() => {
-                  emitBeep(cfopMenuOpen ? 480 : 720, 'sine', 0.07);
-                  setCfopMenuOpen((v) => !v);
-                }}
-                aria-label="Switch CFOP Phase"
-                title={`Active Phase: ${activePhase.toUpperCase()} — Tap to Switch C / F / O / P`}
-                className={`absolute left-1/2 -translate-x-1/2 -top-4 z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
-                  cfopMenuOpen
-                    ? 'bg-gradient-to-b from-orange-500/35 to-[#16100c] border-orange-400 shadow-[0_0_28px_rgba(249,115,22,0.65)] scale-105'
-                    : 'bg-gradient-to-b from-[#1f1611]/95 to-[#0b0d15]/95 border-orange-500/45 shadow-[0_8px_24px_rgba(249,115,22,0.38)] hover:border-orange-400'
-                }`}
-              >
-                <div className="grid grid-cols-3 gap-[2.5px] p-1">
-                  {Array.from({ length: 9 }).map((_, sqIdx) => (
-                    <span
-                      key={sqIdx}
-                      className={`w-[7px] h-[7px] rounded-[2px] ${
-                        sqIdx === 4
-                          ? 'bg-amber-300 shadow-[0_0_6px_rgba(251,191,36,0.9)]'
-                          : 'bg-orange-500'
-                      }`}
-                    />
-                  ))}
+            const buildNotchSegments = (sx, sy, topY) => [
+              `M ${sx(outerR)},${sy(topY)}`,
+              `L ${sx(cx - cradleHalfW - lipW)},${sy(topY)}`,
+              `C ${sx(cx - cradleHalfW - 3)},${sy(topY)} ${sx(cx - cradleHalfW)},${sy(topY + 4)} ${sx(cx - cradleHalfW)},${sy(12)}`,
+              `L ${sx(cx - cradleHalfW)},${sy(floorY - cornerR)}`,
+              `Q ${sx(cx - cradleHalfW)},${sy(floorY)} ${sx(cx - cradleHalfW + cornerR)},${sy(floorY)}`,
+              `L ${sx(cx + cradleHalfW - cornerR)},${sy(floorY)}`,
+              `Q ${sx(cx + cradleHalfW)},${sy(floorY)} ${sx(cx + cradleHalfW)},${sy(floorY - cornerR)}`,
+              `L ${sx(cx + cradleHalfW)},${sy(12)}`,
+              `C ${sx(cx + cradleHalfW)},${sy(topY + 4)} ${sx(cx + cradleHalfW + 3)},${sy(topY)} ${sx(cx + cradleHalfW + lipW)},${sy(topY)}`,
+              `L ${sx(dw - outerR)},${sy(topY)}`
+            ];
+
+            const rimStrokePath = buildNotchSegments((x) => x, (y) => y, 0.75).join(' ');
+            const nx = (x) => (x / dw).toFixed(4);
+            const ny = (y) => (y / dh).toFixed(4);
+            const normClipPath = [
+              ...buildNotchSegments(nx, ny, 0),
+              `Q ${nx(dw)},${ny(0)} ${nx(dw)},${ny(outerR)}`,
+              `L ${nx(dw)},${ny(dh - outerR)}`,
+              `Q ${nx(dw)},${ny(dh)} ${nx(dw - outerR)},${ny(dh)}`,
+              `L ${nx(outerR)},${ny(dh)}`,
+              `Q ${nx(0)},${ny(dh)} ${nx(0)},${ny(dh - outerR)}`,
+              `L ${nx(0)},${ny(outerR)}`,
+              `Q ${nx(0)},${ny(0)} ${nx(outerR)},${ny(0)} Z`
+            ].join(' ');
+
+            return (
+              <nav className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 pt-7 pb-4 ${isTwoPane ? 'px-6' : 'px-3.5'}`}>
+                <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
+                  {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
+                  <div
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/95 backdrop-blur-xl border border-orange-500/45 shadow-[0_14px_38px_rgba(249,115,22,0.38)] ${
+                      cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
+                    }`}
+                  >
+                    {[
+                      { key: 'cross', label: 'C', title: 'Cross' },
+                      { key: 'f2l', label: 'F', title: 'F2L' },
+                      { key: 'oll', label: 'O', title: 'OLL' },
+                      { key: 'pll', label: 'P', title: 'PLL' }
+                    ].map((p, idx) => {
+                      const isActive = activePhase === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => {
+                            emitBeep(640 + idx * 45, 'sine', 0.06);
+                            setCfopMenuOpen(false);
+                            setActivePhase(p.key);
+                          }}
+                          className={`liquid-droplet-item px-3.5 py-1.5 text-xs font-black tracking-wider cursor-pointer flex items-center gap-1 ${
+                            isActive
+                              ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.5)]'
+                              : 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.14] hover:text-white'
+                          }`}
+                        >
+                          <span>{p.label}</span>
+                          <span className="text-[9.5px] font-bold opacity-80">{p.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Elevated All-Orange 3x3 Rubik's Cube Phase Switcher Seated Inside Saddle Notch */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(cfopMenuOpen ? 480 : 720, 'sine', 0.07);
+                      setCfopMenuOpen((v) => !v);
+                    }}
+                    aria-label="Switch CFOP Phase"
+                    title={`Active Phase: ${activePhase.toUpperCase()} — Tap to Switch C / F / O / P`}
+                    className={`absolute left-1/2 -translate-x-1/2 -top-4 z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
+                      cfopMenuOpen
+                        ? 'bg-gradient-to-b from-orange-500/40 to-[#16100c] border-orange-400 shadow-[0_0_28px_rgba(249,115,22,0.65)] scale-105'
+                        : 'bg-gradient-to-b from-[#231812] to-[#0b0d15] border-orange-500/50 shadow-[0_8px_24px_rgba(249,115,22,0.4)] hover:border-orange-400'
+                    }`}
+                  >
+                    <div className="grid grid-cols-3 gap-[2.5px] p-1">
+                      {Array.from({ length: 9 }).map((_, sqIdx) => (
+                        <span
+                          key={sqIdx}
+                          className={`w-[7px] h-[7px] rounded-[2px] ${
+                            sqIdx === 4
+                              ? 'bg-amber-300 shadow-[0_0_6px_rgba(251,191,36,0.9)]'
+                              : 'bg-orange-500'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-orange-300 leading-none">
+                      {activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}
+                    </span>
+                  </button>
+
+                  {/* SVG ClipPath for Exact Concentric Saddle-Notched Glass Bar */}
+                  <svg width="0" height="0" className="absolute pointer-events-none">
+                    <defs>
+                      <clipPath id="olldaySaddleDockClip" clipPathUnits="objectBoundingBox">
+                        <path d={normClipPath} />
+                      </clipPath>
+                    </defs>
+                  </svg>
+
+                  {/* High-Legibility Liquid Glass Saddle Dock */}
+                  <div
+                    ref={dockRef}
+                    style={{
+                      clipPath: 'url(#olldaySaddleDockClip)',
+                      WebkitClipPath: 'url(#olldaySaddleDockClip)'
+                    }}
+                    className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
+                  >
+                    {/* Specular Glass Top & Notch Rim Stroke */}
+                    <svg viewBox={`0 0 ${dw} ${dh}`} className="pointer-events-none absolute inset-0 w-full h-full">
+                      <path
+                        d={rimStrokePath}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.26)"
+                        strokeWidth="1.25"
+                      />
+                    </svg>
+
+                    <div className="grid grid-cols-5 items-center gap-1">
+                      {(activePhase === 'cross'
+                        ? [
+                            { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
+                            { id: 'blind', label: 'Blind Run', Icon: EyeOff },
+                            null,
+                            { id: 'mechanics', label: 'Mechanics', Icon: Layers },
+                            { id: 'settings', label: 'Settings', Icon: Settings }
+                          ]
+                        : [
+                            { id: 'grind', label: 'The Grind', Icon: Zap },
+                            { id: 'algorithms', label: 'Algorithms', Icon: Grid },
+                            null,
+                            { id: 'stats', label: 'Statistics', Icon: BarChart3 },
+                            { id: 'settings', label: 'Settings', Icon: Settings }
+                          ]
+                      ).map((item, slotIdx) => {
+                        if (!item) return <div key={`spacer-${slotIdx}`} className="w-full h-10 pointer-events-none" />;
+                        const { id, label, Icon } = item;
+                        const currentTab = phaseTabs[activePhase];
+                        const isSelected = currentTab === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                              emitBeep(460);
+                              setCfopMenuOpen(false);
+                              setTabForPhase(activePhase, id);
+                            }}
+                            className={`py-2 px-1 rounded-full flex flex-col items-center justify-center gap-0.5 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-orange-500/24 text-orange-200 border border-orange-400/45 shadow-[0_0_16px_rgba(249,115,22,0.26)]'
+                                : 'text-zinc-200/90 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-orange-300 leading-none">
-                  {activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}
-                </span>
-              </button>
-
-              {/* SVG ClipPath for True Transparent Saddle-Notched Glass Bar */}
-              <svg width="0" height="0" className="absolute pointer-events-none">
-                <defs>
-                  <clipPath id="olldaySaddleDockClip" clipPathUnits="objectBoundingBox">
-                    <path
-                      d={
-                        isTwoPane
-                          ? 'M 0.032,0 L 0.422,0 C 0.438,0 0.446,0.08 0.446,0.22 L 0.446,0.52 C 0.446,0.60 0.456,0.64 0.470,0.64 L 0.530,0.64 C 0.544,0.64 0.554,0.60 0.554,0.52 L 0.554,0.22 C 0.554,0.08 0.562,0 0.578,0 L 0.968,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.955,1 L 0.045,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.032,0 Z'
-                          : 'M 0.045,0 L 0.386,0 C 0.402,0 0.410,0.08 0.410,0.22 L 0.410,0.52 C 0.410,0.60 0.422,0.64 0.438,0.64 L 0.562,0.64 C 0.578,0.64 0.590,0.60 0.590,0.52 L 0.590,0.22 C 0.590,0.08 0.598,0 0.614,0 L 0.955,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.94,1 L 0.06,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.045,0 Z'
-                      }
-                    />
-                  </clipPath>
-                </defs>
-              </svg>
-
-              {/* Transparent Sheen Liquid Glass Saddle Dock */}
-              <div
-                style={{
-                  clipPath: 'url(#olldaySaddleDockClip)',
-                  WebkitClipPath: 'url(#olldaySaddleDockClip)'
-                }}
-                className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_18px_40px_rgba(0,0,0,0.75)]"
-              >
-                {/* Specular Glass Top Rim Stroke */}
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 w-full h-full">
-                  <path
-                    d={
-                      isTwoPane
-                        ? 'M 3.2,1 L 42.2,1 C 43.8,1 44.6,8 44.6,22 L 44.6,52 C 44.6,60 45.6,64 47.0,64 L 53.0,64 C 54.4,64 55.4,60 55.4,52 L 55.4,22 C 55.4,8 56.2,1 57.8,1 L 96.8,1'
-                        : 'M 4.5,1 L 38.6,1 C 40.2,1 41.0,8 41.0,22 L 41.0,52 C 41.0,60 42.2,64 43.8,64 L 56.2,64 C 57.8,64 59.0,60 59.0,52 L 59.0,22 C 59.0,8 59.8,1 61.4,1 L 95.5,1'
-                    }
-                    fill="none"
-                    stroke="rgba(255,255,255,0.22)"
-                    strokeWidth="1.5"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-
-                <div className="grid grid-cols-5 items-center gap-1">
-                  {(activePhase === 'cross'
-                    ? [
-                        { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
-                        { id: 'blind', label: 'Blind Run', Icon: EyeOff },
-                        null,
-                        { id: 'mechanics', label: 'Mechanics', Icon: Layers },
-                        { id: 'settings', label: 'Settings', Icon: Settings }
-                      ]
-                    : [
-                        { id: 'grind', label: 'The Grind', Icon: Zap },
-                        { id: 'algorithms', label: 'Algorithms', Icon: Grid },
-                        null,
-                        { id: 'stats', label: 'Statistics', Icon: BarChart3 },
-                        { id: 'settings', label: 'Settings', Icon: Settings }
-                      ]
-                  ).map((item, slotIdx) => {
-                    if (!item) return <div key={`spacer-${slotIdx}`} className="w-full h-10 pointer-events-none" />;
-                    const { id, label, Icon } = item;
-                    const currentTab = phaseTabs[activePhase];
-                    const isSelected = currentTab === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          emitBeep(460);
-                          setCfopMenuOpen(false);
-                          setTabForPhase(activePhase, id);
-                        }}
-                        className={`py-2 px-1 rounded-full flex flex-col items-center justify-center gap-0.5 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-orange-500/20 text-orange-300 border border-orange-400/35 shadow-[0_0_16px_rgba(249,115,22,0.22)]'
-                            : 'text-zinc-300/85 hover:text-white border border-transparent'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </nav>
+              </nav>
+            );
+          })()}
         </div>
 
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
@@ -6078,118 +6144,323 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* LIQUID GLASS SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
-        {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-[#050507]/62 backdrop-blur-md flex flex-col items-center justify-center p-6 overflow-y-auto">
-            <AmbientGlows
-              topClass="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full"
-              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.34) 0%, rgba(168, 85, 247, 0.12) 44%, rgba(249, 115, 22, 0) 72%)"
-              bottomClass="absolute bottom-6 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.24) 0%, rgba(168, 85, 247, 0.09) 45%, rgba(234, 88, 12, 0) 72%)"
-            />
+        {/* LANDING HERO & ONBOARDING GATE */}
+        {authScreenOpen && (() => {
+          const HERO_CFOP_REEL = [
+            {
+              phase: 'C • CROSS',
+              title: '8-Move White Cross',
+              metric: '3D Orbit + Blind Mat',
+              scramble: "R' F R D'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: 36,
+              isCross: true
+            },
+            {
+              phase: 'F • F2L',
+              title: '41 Pair Setups in 3D',
+              metric: 'Isolated Slot Drills',
+              scramble: "R U' R' U'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: -24,
+              isCross: false
+            },
+            {
+              phase: 'O • OLL',
+              title: '57 One-Look Shapes',
+              metric: 'Inline Trigger Tags',
+              scramble: "R U2 R' U' R U' R'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: -26,
+              isCross: false
+            },
+            {
+              phase: 'P • PLL',
+              title: '25 Last-Layer Perms',
+              metric: 'Ao5 • Ao12 • PB Goals',
+              scramble: "R U R' U' R' F R2 U' R' U' R U R' F'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: -24,
+              isCross: false
+            }
+          ];
+          const activeReel = HERO_CFOP_REEL[landingStepIdx % HERO_CFOP_REEL.length];
+          const savedAccountKeys = Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k]));
 
-            <div className="relative z-10 w-full max-w-sm">
-              <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25 backdrop-blur-sm" />
-              <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20 backdrop-blur-sm" />
-              <div className="relative overflow-hidden -mt-1.5 rounded-[2.35rem] liquid-glass-uv border border-white/25 p-6 space-y-5">
+          return (
+            <div className="fixed inset-0 z-[255] bg-[#050507] flex flex-col justify-between overflow-y-auto no-scrollbar">
+              {/* Looping 3D CFOP Spatial Showcase Backdrop */}
+              <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
                 <div
-                  className="pointer-events-none absolute -top-16 -left-10 w-64 h-36 rounded-full rotate-[-14deg] opacity-75"
-                  style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%)' }}
+                  className="absolute -top-24 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full opacity-90"
+                  style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.28) 0%, rgba(168, 85, 247, 0.09) 45%, rgba(5, 5, 7, 0) 72%)' }}
                 />
-                <div className="relative z-10 flex flex-col items-center text-center space-y-2">
-                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-orange-500/25 via-white/10 to-purple-500/15 border border-white/30 p-2 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_0_26px_rgba(249,115,22,0.38)]"><SuneEmblemSvg className="w-9 h-9" /></div>
-                  <div>
-                    <h2 className="text-xl font-black tracking-tight text-white">OLLDay <span className="text-orange-400">Everyday</span></h2>
-                    <p className="text-xs text-zinc-200/80 mt-0.5">Sign in or create a solver account to save your PBs &amp; solve history</p>
+                <div
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full opacity-80"
+                  style={{ background: 'radial-gradient(circle, rgba(234, 88, 12, 0.18) 0%, rgba(5, 5, 7, 0) 70%)' }}
+                />
+                {/* Subtle Architectural Grid Lines */}
+                <div
+                  className="absolute inset-0 opacity-[0.07]"
+                  style={{
+                    backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.35) 1px, transparent 1px)',
+                    backgroundSize: '44px 44px',
+                    maskImage: 'radial-gradient(circle at 50% 35%, black 20%, transparent 78%)',
+                    WebkitMaskImage: 'radial-gradient(circle at 50% 35%, black 20%, transparent 78%)'
+                  }}
+                />
+              </div>
+
+              {/* Minimal Landing Top Bar */}
+              <div className="relative z-10 w-full max-w-md md:max-w-2xl mx-auto px-5 pt-5 pb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-orange-500/25 via-white/10 to-purple-500/15 border border-white/25 p-1.5 flex items-center justify-center shadow-[0_0_20px_rgba(249,115,22,0.32)]">
+                    <SuneEmblemSvg className="w-full h-full" />
                   </div>
+                  <span className="text-sm font-black tracking-tight text-white">
+                    OLLDay <span className="text-orange-400">Everyday</span>
+                  </span>
                 </div>
 
-                <div className="relative z-10 liquid-glass-uv-well p-1 rounded-full border border-white/20 grid grid-cols-2">
-                  {[{ key: 'signin', label: 'Sign In', active: 'bg-white/[0.18] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]' }, { key: 'signup', label: 'Create Account', active: 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' }].map((tab) => (
-                    <button
-                      key={tab.key} type="button"
-                      onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode(tab.key); }}
-                      className={`py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${authMode === tab.key ? tab.active : 'text-zinc-300 hover:text-white'}`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+                {authMode === 'landing' ? (
+                  <button
+                    type="button"
+                    onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                    className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-200 transition-all cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { emitBeep(460); setAuthErrorMsg(''); setAuthMode('landing'); }}
+                    className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    ← Back
+                  </button>
+                )}
+              </div>
 
-                {authMode === 'signin' ? (
-                  <div className="relative z-10 space-y-3">
-                    <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
-                      {Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k])).map((uKey) => {
-                        const uData = sanitizeUserRecord(users[uKey]);
-                        return (
-                          <button
-                            key={uKey} type="button"
-                            onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
-                            className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
-                          >
-                            <div className="text-left">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-black text-white">{String(uKey)}</span>
-                                {uData.isPro && <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
-                              </div>
-                              <span className="text-[10px] text-zinc-300/80">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
-                            </div>
-                            <span className="text-xs font-black text-orange-300">Continue →</span>
-                          </button>
-                        );
-                      })}
+              {/* Main Hero & Action Stage */}
+              <div className="relative z-10 w-full max-w-md md:max-w-lg mx-auto px-5 my-auto py-4 flex flex-col items-center">
+                {authMode === 'landing' && (
+                  <div className="w-full flex flex-col items-center text-center space-y-5">
+                    {/* Looping 3D Cube Showcase Stage (Simulates Live Video Reel) */}
+                    <div className="relative w-full max-w-[310px] rounded-[2.25rem] liquid-glass-card liquid-rim-amber border border-orange-500/30 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.85)] overflow-hidden">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black uppercase tracking-widest text-orange-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.9)]" />
+                          {activeReel.phase}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-zinc-400">{activeReel.metric}</span>
+                      </div>
+
+                      <div className="relative h-36 flex items-center justify-center hero-cube-float">
+                        <div
+                          className="pointer-events-none absolute w-32 h-32 rounded-full"
+                          style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)' }}
+                        />
+                        {activeReel.isCross ? (
+                          <CrossSpatial3DCube scramble={activeReel.scramble} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
+                        ) : (
+                          <F2LSpatial3DCube setupScramble={activeReel.scramble} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                        <span className="text-xs font-black text-white">{activeReel.title}</span>
+                        <div className="flex items-center gap-1">
+                          {HERO_CFOP_REEL.map((item, idx) => (
+                            <button
+                              key={item.phase}
+                              type="button"
+                              aria-label={`Preview ${item.phase}`}
+                              onClick={() => { emitBeep(520); setLandingStepIdx(idx); }}
+                              className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                                landingStepIdx === idx ? 'w-4 bg-orange-400' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="pt-2 border-t border-white/15 space-y-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
-                      <div className="flex items-center gap-1.5">
-                        <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-uv-well border border-white/20 px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                    {/* Strong Headline & Value Proposition */}
+                    <div className="space-y-2.5 px-1">
+                      <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-[1.08]">
+                        Master CFOP in <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500">10 Minutes a Day.</span>
+                      </h1>
+                      <p className="text-xs sm:text-sm text-zinc-300/90 max-w-sm mx-auto leading-relaxed">
+                        Interactive 3D Cross &amp; F2L drills, 123 bite-sized algorithms with inline fingertricks, and millisecond PB tracking.
+                      </p>
+                    </div>
+
+                    {/* Single Prominent Sign-Up CTA */}
+                    <div className="w-full max-w-xs space-y-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => { emitBeep(720, 'sine', 0.08); setAuthErrorMsg(''); setAuthMode('signup'); }}
+                        className="w-full py-4 px-6 rounded-full bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_14px_34px_rgba(249,115,22,0.42)] active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        Start Training Free →
+                      </button>
+                      <p className="text-[11px] text-zinc-400">
+                        Already have a solver profile?{' '}
                         <button
                           type="button"
-                          onClick={() => {
-                            const query = authNameInput.trim();
-                            if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
-                            const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === query.toLowerCase() || (typeof users[k]?.email === 'string' && users[k].email.trim() !== '' && users[k].email.toLowerCase() === query.toLowerCase()));
-                            if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
-                            emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
-                          }}
-                          className="px-4 py-2.5 rounded-full bg-white/[0.15] hover:bg-white/[0.24] border border-white/25 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                          className="font-bold text-orange-300 hover:text-orange-200 underline underline-offset-2 cursor-pointer"
+                        >
+                          Sign in
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {authMode === 'signup' && (
+                  <div className="w-full max-w-sm">
+                    <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25" />
+                    <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20" />
+                    <div className="relative overflow-hidden -mt-1.5 rounded-[2.35rem] liquid-glass-uv border border-white/25 p-6 space-y-4">
+                      <div className="text-center space-y-1">
+                        <span className="inline-block px-3 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-widest text-orange-300">
+                          Free Solver Profile
+                        </span>
+                        <h2 className="text-xl font-black tracking-tight text-white">Create Your Account</h2>
+                        <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <input
+                          type="text"
+                          value={authNameInput}
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }}
+                          placeholder="Solver Name (e.g., Alex)"
+                          className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                        <input
+                          type="email"
+                          value={authEmailInput}
+                          onChange={(e) => setAuthEmailInput(e.target.value)}
+                          placeholder="Email for Cloud Sync (Optional)"
+                          className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                      </div>
+
+                      {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanName = authNameInput.trim();
+                          if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
+                          if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
+                          emitBeep(820, 'sine', 0.1);
+                          const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
+                          setUsers((prev) => ({ ...prev, [cleanName]: created }));
+                          saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
+                          setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
+                        }}
+                        className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
+                      >
+                        Create Account &amp; Start
+                      </button>
+
+                      <p className="text-center text-[11px] text-zinc-400">
+                        Already registered?{' '}
+                        <button
+                          type="button"
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                          className="font-bold text-orange-300 hover:underline cursor-pointer"
                         >
                           Sign In
                         </button>
-                      </div>
-                      {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <div className="relative z-10 space-y-3">
-                    <div className="space-y-2">
-                      <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name (e.g., Alex)" className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
-                      <input type="email" value={authEmailInput} onChange={(e) => setAuthEmailInput(e.target.value)} placeholder="Email for Cloud Backup (Optional)" className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                )}
+
+                {authMode === 'signin' && (
+                  <div className="w-full max-w-sm">
+                    <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25" />
+                    <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20" />
+                    <div className="relative overflow-hidden -mt-1.5 rounded-[2.35rem] liquid-glass-uv border border-white/25 p-6 space-y-4">
+                      <div className="text-center space-y-1">
+                        <h2 className="text-xl font-black tracking-tight text-white">Welcome Back</h2>
+                        <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                        {savedAccountKeys.map((uKey) => {
+                          const uData = sanitizeUserRecord(users[uKey]);
+                          return (
+                            <button
+                              key={uKey} type="button"
+                              onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
+                              className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
+                            >
+                              <div className="text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-black text-white">{String(uKey)}</span>
+                                  {uData.isPro && <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
+                                </div>
+                                <span className="text-[10px] text-zinc-300/80">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
+                              </div>
+                              <span className="text-xs font-black text-orange-300">Continue →</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-2 border-t border-white/15 space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
+                        <div className="flex items-center gap-1.5">
+                          <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-uv-well border border-white/20 px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const query = authNameInput.trim();
+                              if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
+                              const qLower = query.toLowerCase();
+                              const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === qLower || users[k]?.email?.trim().toLowerCase() === qLower);
+                              if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
+                              emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
+                            }}
+                            className="px-4 py-2.5 rounded-full bg-white/[0.15] hover:bg-white/[0.24] border border-white/25 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
+                          >
+                            Sign In
+                          </button>
+                        </div>
+                        {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                      </div>
+
+                      <p className="text-center text-[11px] text-zinc-400">
+                        New to OLLDay?{' '}
+                        <button
+                          type="button"
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signup'); }}
+                          className="font-bold text-orange-300 hover:underline cursor-pointer"
+                        >
+                          Create Account
+                        </button>
+                      </p>
                     </div>
-                    {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cleanName = authNameInput.trim();
-                        if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
-                        if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
-                        emitBeep(820, 'sine', 0.1);
-                        const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
-                        setUsers((prev) => ({ ...prev, [cleanName]: created }));
-                        saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
-                        setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
-                      }}
-                      className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
-                    >
-                      Create Account &amp; Start
-                    </button>
                   </div>
                 )}
               </div>
+
+              {/* Minimal Social Proof / Feature Strip Footer */}
+              <div className="relative z-10 w-full max-w-md mx-auto px-5 pb-5 pt-2 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                <span>123 CFOP Cases</span>
+                <span>•</span>
+                <span>AI Cube Scanner</span>
+                <span>•</span>
+                <span>WCA Timer</span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* WELCOME MODAL */}
         {activeModal === 'cfopExperienceChoice' && (
