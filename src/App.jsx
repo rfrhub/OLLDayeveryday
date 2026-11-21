@@ -1682,12 +1682,12 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
 }
 
 const STREAK_FACE_ORDER = [
-  { offset: 18, color: 'G', yaw: -24, pitch: -16 },  // Tiles 1-9: Front (Green)
-  { offset: 9, color: 'O', yaw: -114, pitch: -16 },  // Tiles 10-18: Right (Orange - rotates into front-center)
-  { offset: 45, color: 'B', yaw: -204, pitch: -16 }, // Tiles 19-27: Back (Blue - rotates into front-center)
-  { offset: 36, color: 'R', yaw: -294, pitch: -16 }, // Tiles 28-36: Left (Red - rotates into front-center)
-  { offset: 0, color: 'Y', yaw: -24, pitch: -68 },   // Tiles 37-45: Top (Yellow - pitches down toward viewer)
-  { offset: 27, color: 'W', yaw: -24, pitch: 68 }    // Tiles 46-54: Bottom (White - pitches up toward viewer)
+  { offset: 0, color: 'Y', yaw: -22, pitch: -54 },   // Tiles 1-9: Top (Yellow - tilted toward viewer)
+  { offset: 18, color: 'G', yaw: -22, pitch: -16 },  // Tiles 10-18: Front (Green)
+  { offset: 9, color: 'O', yaw: -112, pitch: -16 },  // Tiles 19-27: Right (Orange)
+  { offset: 45, color: 'B', yaw: -202, pitch: -16 }, // Tiles 28-36: Back (Blue)
+  { offset: 36, color: 'R', yaw: -292, pitch: -16 }, // Tiles 37-45: Left (Red)
+  { offset: 27, color: 'W', yaw: -22, pitch: 66 }    // Tiles 46-54: Bottom (White - pitched up clearly toward viewer)
 ];
 
 const MINI_STREAK_HALF = 16;
@@ -1707,21 +1707,24 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const safeCurDay = Math.min(safeTotalDays, Math.max(1, Number(currentDay) || 1));
   const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
 
-  // Day 1 starts at 0 progressed days (all 54 black squares); each day progressed fills proportional squares up to 54
+  // Day 1 always starts as all 54 black squares (0/54); every subsequent day (Days 2, 3, ...) fills progressive squares
   const daysProgressed = Math.max(0, safeCurDay - 1);
   const displayStreakDays = Math.max(safeStreak, daysProgressed);
-  const scaledDayTiles = safeTotalDays <= 54
-    ? Math.max(daysProgressed, Math.round((daysProgressed / safeTotalDays) * 54))
-    : Math.min(54, daysProgressed);
-  const rawFilledSquares = daysProgressed === 0 && safeStreak === 0
+  const dayFractionTiles = safeTotalDays > 1
+    ? Math.max(daysProgressed * 2, Math.round((daysProgressed / (safeTotalDays - 1)) * 54))
+    : 54;
+  const rawFilledSquares = safeCurDay === 1
     ? 0
-    : Math.min(54, Math.max(displayStreakDays, scaledDayTiles, Math.round((pct / 100) * 54)));
+    : Math.min(54, Math.max(daysProgressed, dayFractionTiles, Math.round((pct / 100) * 54)));
 
   // 50% milestone = Matte Finish (rotates & pulse glows); 75%+ (or 54/54) = UV Coated (pulsates, glows & rotates 2x faster than Matte)
-  const effectivePct = Math.max(pct, Math.round((rawFilledSquares / 54) * 100));
-  const isUvCoated = effectivePct >= 75 || rawFilledSquares >= 54;
-  const isMatteFinish = !isUvCoated && effectivePct >= 50;
-  const isSpinGlowActive = isMatteFinish || isUvCoated;
+  const dayMilestonePct = safeTotalDays > 1 ? Math.round((daysProgressed / (safeTotalDays - 1)) * 100) : 0;
+  const effectivePct = safeCurDay === 1 ? 0 : Math.max(pct, dayMilestonePct, Math.round((rawFilledSquares / 54) * 100));
+  const isUvCoated = safeCurDay > 1 && (effectivePct >= 75 || rawFilledSquares >= 54);
+  const isMatteFinish = safeCurDay > 1 && !isUvCoated && effectivePct >= 50;
+  const isWhiteFaceActive = rawFilledSquares >= 46;
+  // When White face (tiles 46-54) is actively being filled, orient directly to show the White face clearly
+  const isSpinGlowActive = (isMatteFinish || isUvCoated) && !isWhiteFaceActive;
   const filledSquares = isUvCoated ? 54 : rawFilledSquares;
 
   // Automatically rotates to face whichever side of the cube is actively being populated
@@ -1731,10 +1734,10 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
 
   useEffect(() => {
     setManualSpinOffset(0);
-  }, [activeFaceIdx]);
+  }, [activeFaceIdx, safeCurDay]);
 
   const withinFaceTile = filledSquares === 0 ? 0 : ((filledSquares - 1) % 9);
-  const tileSweepYaw = filledSquares === 0 ? 0 : (withinFaceTile - 4) * 3.5;
+  const tileSweepYaw = filledSquares === 0 ? 0 : (withinFaceTile - 4) * 3;
   const targetYaw = activeFaceSpec.yaw - tileSweepYaw + manualSpinOffset;
   const targetPitch = activeFaceSpec.pitch;
 
