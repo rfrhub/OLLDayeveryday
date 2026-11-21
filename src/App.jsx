@@ -2840,11 +2840,14 @@ const APP_GLOBAL_CSS = `
     background-color: #071127;
     background-image:
       radial-gradient(ellipse 95% 65% at 14% 12%, rgba(23, 56, 118, 0.78) 0%, rgba(14, 34, 76, 0.35) 46%, transparent 74%),
-      radial-gradient(ellipse 85% 70% at 86% 24%, rgba(3, 6, 15, 0.88) 0%, rgba(5, 11, 24, 0.42) 48%, transparent 76%),
+      radial-gradient(ellipse 75% 55% at 78% 18%, rgba(249, 115, 22, 0.26) 0%, rgba(234, 88, 12, 0.10) 44%, transparent 72%),
+      radial-gradient(ellipse 85% 70% at 86% 24%, rgba(3, 6, 15, 0.86) 0%, rgba(5, 11, 24, 0.40) 48%, transparent 76%),
       radial-gradient(ellipse 105% 60% at 62% 52%, rgba(28, 66, 134, 0.68) 0%, rgba(13, 32, 72, 0.28) 44%, transparent 72%),
-      radial-gradient(ellipse 80% 65% at 18% 72%, rgba(2, 5, 13, 0.86) 0%, rgba(6, 13, 29, 0.38) 50%, transparent 78%),
-      radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.74) 0%, rgba(10, 25, 58, 0.32) 48%, transparent 75%),
-      linear-gradient(138deg, #0b1d42 0%, #050a16 26%, #112a5c 52%, #040812 76%, #0d234d 100%);
+      radial-gradient(ellipse 70% 52% at 22% 56%, rgba(249, 115, 22, 0.22) 0%, rgba(251, 146, 60, 0.08) 45%, transparent 72%),
+      radial-gradient(ellipse 80% 65% at 18% 72%, rgba(2, 5, 13, 0.84) 0%, rgba(6, 13, 29, 0.36) 50%, transparent 78%),
+      radial-gradient(ellipse 80% 58% at 74% 84%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.09) 44%, transparent 74%),
+      radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.72) 0%, rgba(10, 25, 58, 0.30) 48%, transparent 75%),
+      linear-gradient(138deg, #0b1d42 0%, #050a16 24%, #112a5c 48%, #26140c 66%, #040812 80%, #0d234d 100%);
   }
   button, label, span, p, input, select, textarea, .font-mono, code, pre {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
