@@ -1795,6 +1795,23 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   );
 }
 
+function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
+  return (
+    <div className={`w-full grid grid-cols-3 ${isLargeScreen ? 'gap-3 pt-1' : 'gap-1.5'}`}>
+      {[
+        { label: 'Ao20', val: computeCaseWindowAvg(history, 20), color: 'text-green-400' },
+        { label: 'Ao40', val: computeCaseWindowAvg(history, 40), color: 'text-sky-400' },
+        { label: 'Ao60', val: computeCaseWindowAvg(history, 60), color: 'text-purple-300' }
+      ].map((w) => (
+        <div key={w.label} className={`liquid-glass-well border border-white/10 text-center ${isLargeScreen ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1 px-1.5'}`}>
+          <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase text-zinc-400 block`}>{w.label}</span>
+          <span className={`font-mono ${isLargeScreen ? 'text-sm' : 'text-[11px]'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-black/80 backdrop-blur-xl flex items-center justify-center p-5`}>
@@ -1949,17 +1966,17 @@ function useViewportDevice() {
 
 function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, setF2LPresetAngle, emitBeep, isLargeScreen = false }) {
   return (
-    <div data-no-timer-start="true" className="w-full space-y-3">
-      <div className="w-full flex items-center justify-between">
-        <span className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-black uppercase tracking-widest text-zinc-400`}>
+    <div data-no-timer-start="true" className={`w-full ${isLargeScreen ? 'space-y-3' : 'space-y-0.5'}`}>
+      <div className="w-full flex items-center justify-between gap-1">
+        <span className={`${isLargeScreen ? 'text-xs' : 'text-[9px]'} font-black uppercase tracking-wider text-zinc-400 truncate`}>
           Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(orbit.rot.yaw, orbit.rot.pitch)}</strong>
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {(orbit.rot.yaw !== -35 || orbit.rot.pitch !== -25) && (
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 cursor-pointer`}
+              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 cursor-pointer`}
             >
               Reset
             </button>
@@ -1967,9 +1984,9 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
+            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
           >
-            Rotate Cube ↻
+            Rotate ↻
           </button>
         </div>
       </div>
@@ -1978,10 +1995,10 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
         {...orbit.handlers}
         onPointerCancel={orbit.handlers.onPointerUp}
         style={{ touchAction: 'none' }}
-        className={`relative ${isLargeScreen ? 'w-56 h-56' : 'w-44 h-44'} mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none`}
+        className={`relative ${isLargeScreen ? 'w-56 h-56' : 'w-28 h-28'} mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none`}
       >
         <div
-          className="pointer-events-none absolute inset-1.5 rounded-full"
+          className="pointer-events-none absolute inset-1 rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.14) 0%, rgba(249, 115, 22, 0) 68%)' }}
         />
         <svg viewBox="0 0 180 180" className="pointer-events-none absolute inset-0 w-full h-full">
@@ -1992,7 +2009,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <circle cx="90" cy="174" r="2" fill="rgba(255,255,255,0.22)" />
           <circle cx="6" cy="90" r="2" fill="rgba(255,255,255,0.22)" />
         </svg>
-        <div style={isLargeScreen ? { transform: 'scale(1.22)' } : undefined}>
+        <div style={{ transform: isLargeScreen ? 'scale(1.22)' : 'scale(0.68)' }}>
           <F2LSpatial3DCube
             setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
             yaw={orbit.rot.yaw}
@@ -2001,8 +2018,8 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             cubeRef={orbit.domRef}
           />
         </div>
-        <span ref={orbit.labelRef} className={`${isLargeScreen ? 'text-[10.5px] mt-1' : 'text-[9px] -mt-1'} font-bold uppercase tracking-widest text-zinc-500`}>
-          3D Orbit • Drag to Spin ({((orbit.rot.yaw % 360) + 360) % 360}°)
+        <span ref={orbit.labelRef} className={`${isLargeScreen ? 'text-[10.5px] mt-1' : 'text-[8px] -mt-6'} font-bold uppercase tracking-wider text-zinc-500 whitespace-nowrap`}>
+          3D Orbit • Drag ({((orbit.rot.yaw % 360) + 360) % 360}°)
         </span>
       </div>
     </div>
@@ -2024,7 +2041,7 @@ function CasePracticeCard({
       {isF2L ? (
         <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
       ) : (
-        <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-32 h-32'} mx-auto flex items-center justify-center`}>
+        <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-24 h-24'} mx-auto flex items-center justify-center`}>
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
             style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0) 70%)' }}
@@ -2034,7 +2051,7 @@ function CasePracticeCard({
             <circle cx="70" cy="70" r="59" fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1.2" />
             <circle cx="70" cy="4" r="2" fill="rgba(251,146,60,0.7)" />
           </svg>
-          <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-24 h-24 p-1.5'} rounded-[1.5rem] bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
+          <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-20 h-20 p-1.5'} rounded-2xl bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
             <CachedVisualCubeImg
               url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
               alt={item.name} lazy={false} className="w-full h-full object-contain"
@@ -2043,53 +2060,53 @@ function CasePracticeCard({
         </div>
       )}
 
-      <div className="text-center">
-        {showInlineGroup && <span className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-black uppercase tracking-widest text-orange-400`}>{item.group}</span>}
-        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-xl'} font-black text-white`}>{item.name}</h3>
-        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-zinc-400 mt-1`}>{item.recognition}</p>}
+      <div className="text-center w-full">
+        {showInlineGroup && <span className={`${isLargeScreen ? 'text-xs' : 'text-[9px]'} font-black uppercase tracking-widest text-orange-400 block`}>{item.group}</span>}
+        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-base leading-tight'} font-black text-white`}>{item.name}</h3>
+        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm mt-1' : 'text-[10px] mt-0.5 line-clamp-1'} text-zinc-400`}>{item.recognition}</p>}
       </div>
 
       {(isF2L || isPLL) && (
-        <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-3 space-y-1.5' : 'pt-2.5 space-y-1'} text-center`}>
+        <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-3 space-y-1.5' : 'pt-1.5 space-y-0.5'} text-center`}>
           <div className="flex items-center justify-between">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-zinc-400`}>
-              {isF2L ? `Setup (${f2lSetupMode})` : showInlineGroup ? 'Setup Scramble' : 'Setup Scramble (From Solved Cube)'}
+            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
+              {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
             </span>
-            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
+            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[9.5px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
               {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
             </button>
           </div>
-          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-xs'} font-black text-amber-300 select-all`}>
+          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-[11px]'} font-black text-amber-300 select-all truncate`}>
             {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
           </p>
         </div>
       )}
 
-      <div className={`w-full liquid-glass-well liquid-rim-muted border border-white/10 rounded-[1.5rem] ${isLargeScreen ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5'} text-center`}>
-        <div className="flex items-center justify-between gap-1.5 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-zinc-400`}>
+      <div className={`w-full liquid-glass-well liquid-rim-muted border border-white/10 ${isLargeScreen ? 'rounded-[1.5rem] p-4 space-y-2.5' : 'rounded-2xl p-2.5 space-y-1'} text-center`}>
+        <div className="flex items-center justify-between gap-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
               {item.usingCustomAlg
                 ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
-                : isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}
+                : isF2L ? 'Solution (FR Slot)' : 'Algorithm'}
             </span>
             <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {onOpenCustomAlgEditor && (
-              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} rounded-full bg-white/[0.06] border border-white/10 font-black text-zinc-200 hover:bg-white/[0.12] cursor-pointer`}>
-                {item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ My Alg'}
+              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-white/[0.06] border border-white/10 font-black text-zinc-200 hover:bg-white/[0.12] cursor-pointer`}>
+                {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
               </button>
             )}
             {fingertricksEnabled && (
-              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
-                Grip Guide →
+              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
+                Grip →
               </button>
             )}
           </div>
         </div>
-        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-base'} font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-        {item.hasCustomAlg && (
+        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-sm'} font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+        {item.hasCustomAlg && isLargeScreen && (
           <p className="text-[10px] font-mono text-zinc-400">
             {item.usingCustomAlg
               ? `Default: ${item.defaultAlg}`
@@ -2097,22 +2114,26 @@ function CasePracticeCard({
           </p>
         )}
         {fingertricksEnabled && (
-          <div className="space-y-2 text-left">
-            <TriggerTagsList tags={triggerTags} centered />
+          <div className={`${isLargeScreen ? 'space-y-2' : 'space-y-1'} text-left`}>
+            <TriggerTagsList tags={triggerTags} centered compact={!isLargeScreen} />
             {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && (
-              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[11px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
+              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[10px] px-2 py-1 line-clamp-2'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
                 <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
               </p>
             )}
           </div>
         )}
-        {isF2L && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-zinc-300 text-left pt-1`}>• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
+        {isF2L && (
+          <p className={`${isLargeScreen ? 'text-xs sm:text-sm pt-1' : 'text-[10px] leading-tight line-clamp-2'} text-zinc-300 text-left`}>
+            • <strong>1:</strong> {item.step1} • <strong>2:</strong> {item.step2}
+          </p>
+        )}
       </div>
 
       {stopwatchEnabled && (
         <button
           onClick={onToggleStopwatch}
-          className={`w-full ${isLargeScreen ? 'py-4 px-4' : 'py-3 px-3'} rounded-[1.5rem] border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 transition-all ${
+          className={`w-full ${isLargeScreen ? 'py-4 px-4 rounded-[1.5rem]' : 'py-2 px-3 rounded-2xl'} border font-mono cursor-pointer flex flex-col items-center justify-center gap-0.5 transition-all ${
             swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-zinc-200 hover:border-orange-500/35'
           }`}
         >
@@ -2121,26 +2142,25 @@ function CasePracticeCard({
           ) : lastResultForThis ? (
             <>
               <div className="flex items-center gap-2">
-                <span className={`${isLargeScreen ? 'text-xl' : 'text-base'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
+                <span className={`${isLargeScreen ? 'text-xl' : 'text-sm'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
                 {lastResultForThis.isNewPb ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[11px] font-black uppercase text-green-300">★ New PB!</span>
+                  <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">★ New PB!</span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
                 )}
               </div>
-              <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
                 {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
               </span>
             </>
           ) : (
             <div className="flex flex-col items-center">
-              <span className={`${isLargeScreen ? 'text-lg' : 'text-base'} font-black`}>{timerLabel}</span>
-              {!showInlineGroup && (
-                <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-zinc-400">
-                  {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
-                </span>
-              )}
-              {!showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
+              <span className={`${isLargeScreen ? 'text-lg' : 'text-sm'} font-black`}>{timerLabel}</span>
+              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+                {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
+                {!isLargeScreen && typeof recordedBest === 'number' ? ` • PB: ${recordedBest.toFixed(3)}s` : ''}
+              </span>
+              {isLargeScreen && !showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
             </div>
           )}
         </button>
@@ -2769,7 +2789,7 @@ const APP_GLOBAL_CSS = `
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .f2l-cube-satin { filter: contrast(0.94) saturate(0.9) brightness(0.98); transition: transform 0.25s ease; }
   .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
-  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
+  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .liquid-glass-card {
     background: linear-gradient(155deg, rgba(28, 26, 36, 0.86) 0%, rgba(12, 14, 22, 0.94) 55%, rgba(9, 11, 18, 0.96) 100%);
     backdrop-filter: blur(12px) saturate(130%);
@@ -2855,8 +2875,9 @@ const APP_GLOBAL_CSS = `
     background:
       linear-gradient(132deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(168, 85, 247, 0.055) 54%, rgba(255, 255, 255, 0.02) 76%, rgba(251, 146, 60, 0.11) 100%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(14, 17, 29, 0.28) 46%, rgba(7, 9, 16, 0.44) 100%);
-    backdrop-filter: blur(11px) saturate(168%) contrast(106%);
-    -webkit-backdrop-filter: blur(11px) saturate(168%) contrast(106%);
+    backdrop-filter: blur(8px) saturate(145%);
+    -webkit-backdrop-filter: blur(8px) saturate(145%);
+    contain: paint;
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.36),
       inset 0 2px 10px 0 rgba(255, 255, 255, 0.08),
@@ -3561,44 +3582,9 @@ function OLLDaySuite() {
     };
   }, [currentUser.f2lStats, currentUser.stats, currentUser.pllStats, currentUser.phaseTargetPbs, currentUser.caseTargetPbs]);
 
-  const crossSchedule = useMemo(() => {
-    const tiers = crossDifficulty === 'advanced' ? CROSS_ADVANCED_TIERS : CROSS_TIERS;
-    const schedule = [];
-    let dayCounter = 1;
-    const learnedSoFar = [];
-    tiers.forEach((tierObj, idx) => {
-      const items = tierObj.scrambles.map((scr, sIdx) => ({
-        id: `${crossDifficulty}-t${tierObj.tier}-s${sIdx}`,
-        tier: tierObj.tier,
-        moves: tierObj.moves,
-        title: tierObj.title,
-        hint: tierObj.hint,
-        scramble: scr
-      }));
-      learnedSoFar.push(...items);
-      schedule.push({ day: dayCounter++, mode: 'Learn', tier: tierObj.tier, chunkTitle: `L${tierObj.tier} • ${tierObj.title}`, cases: items, randomize: false });
-      schedule.push({ day: dayCounter++, mode: 'Drill • Random', tier: tierObj.tier, chunkTitle: `L${tierObj.tier} • ${tierObj.title}`, cases: items, randomize: true });
-      schedule.push({ day: dayCounter++, mode: 'Drill • Random', tier: tierObj.tier, chunkTitle: `L${tierObj.tier} • ${tierObj.title}`, cases: items, randomize: true });
-      if (idx % 2 === 1) {
-        schedule.push({
-          day: dayCounter++,
-          mode: 'Cumulative Review',
-          tier: tierObj.tier,
-          chunkTitle: `All Learned Cross Drills (L1–L${tierObj.tier})`,
-          cases: [...learnedSoFar],
-          randomize: true
-        });
-      }
-    });
-    return schedule;
-  }, [crossDifficulty]);
-
-  const safeCrossDay = Math.min(Math.max(1, currentUser.crossDay || 1), Math.max(1, crossSchedule.length));
   const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay), Math.max(1, f2lSchedule.length));
   const safeOllDay = Math.min(Math.max(1, currentUser.day), Math.max(1, ollSchedule.length));
   const safePllDay = Math.min(Math.max(1, currentUser.pllDay), Math.max(1, pllSchedule.length));
-
-  const currentCrossDayObj = crossSchedule[safeCrossDay - 1] || crossSchedule[0];
   const currentF2lDayObj = f2lSchedule[safeF2lDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: F2L_DATA.slice(0, 4) };
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: OLL_DATA.slice(0, 4) };
   const currentPllDayObj = pllSchedule[safePllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: PLL_DATA.slice(0, 4) };
@@ -5549,18 +5535,21 @@ function OLLDaySuite() {
   // Unified Daily Session Runner (Liquid Glass)
   const renderUnifiedDailySession = () => {
     const activePhaseSession = f2lSession
-      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
+      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
       : ollSession
-      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
+      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', statsMap: currentUser.stats, itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
       : pllSession
-      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
+      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', statsMap: currentUser.pllStats, itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
       : null;
 
     if (!activePhaseSession) return null;
-    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, itemLabel, timerLabel } = activePhaseSession;
+    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, statsMap, itemLabel, timerLabel } = activePhaseSession;
     const rawItem = session.queue[session.index];
     if (!rawItem) return null;
     const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
+    const caseStat = statsMap?.[item.id] || {};
+    const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
+    const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
 
     return (
       <div
@@ -5576,13 +5565,13 @@ function OLLDaySuite() {
         <div
           className={`relative z-10 w-full ${
             isTwoPane
-              ? 'max-w-none h-[100dvh] px-8 py-6'
-              : 'max-w-md h-[100dvh] border-x border-white/10 p-5 shadow-2xl'
-          } flex flex-col justify-between overflow-y-auto no-scrollbar`}
+              ? 'max-w-none h-[100dvh] px-8 py-6 overflow-y-auto no-scrollbar'
+              : 'max-w-md h-[100dvh] border-x border-white/10 px-3.5 py-2.5 shadow-2xl overflow-hidden'
+          } flex flex-col justify-between`}
         >
-          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between`}>
-            <div className="flex items-center gap-2.5">
-              <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-3 py-1 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-widest text-orange-300`}>
+          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
+            <div className="flex items-center gap-2">
+              <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-0.5 text-[9.5px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-wider text-orange-300`}>
                 {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
               </span>
               {isTwoPane && (
@@ -5591,36 +5580,42 @@ function OLLDaySuite() {
                 </span>
               )}
             </div>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-9 h-9'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold cursor-pointer`}>✕</button>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold cursor-pointer`}>✕</button>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} my-auto pt-2.5`}>
-            <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
-            <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto pt-2.5' : 'my-auto'}`}>
+            {isTwoPane && (
+              <>
+                <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+                <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+              </>
+            )}
             <div
-              className={`-mt-1.5 w-full ${
-                isTwoPane ? 'rounded-[2.5rem] p-7 space-y-4' : 'rounded-3xl p-5 space-y-3'
-              } liquid-glass-card liquid-rim-muted border border-white/15 flex flex-col items-center`}
+              className={`${isTwoPane ? '-mt-1.5 rounded-[2.5rem] p-7 space-y-4' : 'rounded-3xl p-3 space-y-1.5'} w-full liquid-glass-card liquid-rim-muted border border-white/15 flex flex-col items-center`}
             >
               <CasePracticeCard
                 {...sharedPracticeProps}
                 phaseKey={phaseKey}
                 item={item}
                 timerLabel={timerLabel}
+                lastResultForThis={lastResultForThis}
+                recordedBest={caseStat.best}
                 showInlineGroup={phaseKey !== 'f2l'}
                 onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
                 onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
                 onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
                 onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-              />
+              >
+                <CaseWindowAvgGrid history={caseHist} isLargeScreen={isTwoPane} />
+              </CasePracticeCard>
             </div>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2.5'} grid grid-cols-2`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
             <button
               onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 disabled:opacity-30 cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 disabled:opacity-30 cursor-pointer`}
             >
               ← Previous
             </button>
@@ -5639,7 +5634,7 @@ function OLLDaySuite() {
                   setSession(null);
                 }
               }}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
             >
               {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
             </button>
@@ -5671,7 +5666,7 @@ function OLLDaySuite() {
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
         className={`fixed inset-0 z-[245] ${
-          isTwoPane ? 'bg-[#050507]/[0.97] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-black/80 backdrop-blur-xl flex items-center justify-center p-5'
+          isTwoPane ? 'bg-[#050507]/[0.97] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-black/85 backdrop-blur-xl flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <AmbientGlows
@@ -5690,19 +5685,23 @@ function OLLDaySuite() {
         )}
 
         <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto' : 'max-w-sm'}`}>
-          <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
-          <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+          {isTwoPane && (
+            <>
+              <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+              <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+            </>
+          )}
           <div
-            className={`-mt-1.5 liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
+            className={`liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
               isTwoPane
-                ? 'rounded-[2.5rem] p-7 space-y-4 flex flex-col items-center'
-                : 'rounded-3xl p-5 space-y-3 max-h-[88dvh] overflow-y-auto no-scrollbar'
+                ? '-mt-1.5 rounded-[2.5rem] p-7 space-y-4 flex flex-col items-center'
+                : 'rounded-3xl p-3 space-y-1.5 overflow-hidden'
             }`}
           >
             {!isTwoPane && (
-              <div data-no-timer-start="true" className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
-                <button onClick={closeDrill} className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold cursor-pointer">✕</button>
+              <div data-no-timer-start="true" className="flex items-center justify-between gap-2">
+                <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 truncate">{item.group}</span>
+                <button onClick={closeDrill} className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 text-xs font-bold flex-shrink-0 cursor-pointer">✕</button>
               </div>
             )}
 
@@ -5718,25 +5717,18 @@ function OLLDaySuite() {
               onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
               onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
             >
-              <div className={`w-full grid grid-cols-3 ${isTwoPane ? 'gap-3 pt-1' : 'gap-1.5'}`}>
-                {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-                  <div key={w.label} className={`liquid-glass-well border border-white/10 text-center ${isTwoPane ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1.5 px-2'}`}>
-                    <span className={`${isTwoPane ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase text-zinc-400 block`}>{w.label}</span>
-                    <span className={`font-mono ${isTwoPane ? 'text-sm' : 'text-xs'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-                  </div>
-                ))}
-              </div>
+              <CaseWindowAvgGrid history={caseHist} isLargeScreen={isTwoPane} />
               {caseHist.length > 0 && (
-                <div data-no-timer-start="true" className="w-full pt-1 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold text-zinc-400">
+                <div data-no-timer-start="true" className="w-full flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-bold text-zinc-400">
                     {caseHist.length} logged time{caseHist.length === 1 ? '' : 's'}
                   </span>
                   <button
                     type="button"
                     onClick={() => { emitBeep(520); setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name }); }}
-                    className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-black text-zinc-300 hover:text-white cursor-pointer"
+                    className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[9.5px] font-black text-zinc-300 hover:text-white cursor-pointer"
                   >
-                    Manage / Delete Times ({caseHist.length})
+                    Manage / Delete ({caseHist.length})
                   </button>
                 </div>
               )}
@@ -5991,68 +5983,13 @@ function OLLDaySuite() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">
-                              Day {safeCrossDay} • {currentCrossDayObj?.mode || 'Learn'}
+                              8-Move White Cross
                             </p>
                             <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
                           </div>
                           <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-4 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer">
                             Color Orbit
                           </button>
-                        </div>
-
-                        {/* Cross 4-Day Cadence Banner (Day 1 Learn -> Days 2-3 Random Drill -> Day 4 Next / Day 7 Cumulative Review) */}
-                        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-orange-300 block truncate">
-                              {currentCrossDayObj?.chunkTitle}
-                            </span>
-                            <span className="text-[10.5px] text-zinc-400 block">
-                              {currentCrossDayObj?.mode === 'Cumulative Review'
-                                ? 'Cumulative Review • Random scrambles across all learned tiers'
-                                : currentCrossDayObj?.randomize
-                                ? 'Drill Day • Random scrambles from active tier'
-                                : 'Learn Day • Dedicated tier patterns'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              disabled={safeCrossDay <= 1}
-                              onClick={() => {
-                                emitBeep(480);
-                                const prevDay = Math.max(1, safeCrossDay - 1);
-                                const prevObj = crossSchedule[prevDay - 1];
-                                if (prevObj?.tier) setCrossTier(prevObj.tier);
-                                updateActiveUserRecord((u) => ({ ...u, crossDay: prevDay }));
-                              }}
-                              className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-zinc-300 disabled:opacity-30 cursor-pointer"
-                            >
-                              ←
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                emitBeep(540);
-                                const nextDay = safeCrossDay >= crossSchedule.length ? 1 : safeCrossDay + 1;
-                                const nextObj = crossSchedule[nextDay - 1];
-                                if (nextObj?.tier) setCrossTier(nextObj.tier);
-                                if (nextObj?.randomize) {
-                                  const pool = nextObj.cases || [];
-                                  const pick = pool[Math.floor(Math.random() * Math.max(1, pool.length))];
-                                  if (pick?.tier) setCrossTier(pick.tier);
-                                  setCrossScrambleIdx((p) => p + 1 + Math.floor(Math.random() * 4));
-                                }
-                                updateActiveUserRecord((u) => ({
-                                  ...u,
-                                  ...advanceDailyStreakFields(u),
-                                  crossDay: nextDay
-                                }));
-                              }}
-                              className="px-3 h-8 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/35 text-[10px] font-black uppercase text-orange-200 cursor-pointer"
-                            >
-                              Next Day →
-                            </button>
-                          </div>
                         </div>
 
                         {/* Top Mode Switcher Pill */}
@@ -6247,12 +6184,6 @@ function OLLDaySuite() {
                                     ...advanceDailyStreakFields(u),
                                     crossClears: (u.crossClears || 0) + 1
                                   }));
-                                  if (currentCrossDayObj?.randomize) {
-                                    const pool = currentCrossDayObj.cases || [];
-                                    const pick = pool[Math.floor(Math.random() * Math.max(1, pool.length))];
-                                    if (pick?.tier) setCrossTier(pick.tier);
-                                    setCrossScrambleIdx((p) => p + 1 + Math.floor(Math.random() * 3));
-                                  }
                                 }
                                 setEfficiencyFeedback({
                                   optimal,
@@ -7054,7 +6985,7 @@ function OLLDaySuite() {
         {(activeModal === 'cfopExperienceChoice' || activeModal === 'guidedTour') && (
           <div
             onClick={() => { emitBeep(440); setActiveModal(null); }}
-            className="fixed inset-0 z-[272] bg-black/70 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[272] bg-black/82 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -7082,13 +7013,13 @@ function OLLDaySuite() {
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-xl font-black text-white">Are You New to CFOP?</h3>
+                <h3 className="text-xl font-black text-white">Where Is Your CFOP Level?</h3>
                 <p className="text-xs text-zinc-200 leading-relaxed">
-                  Pick your starting experience—we&apos;ll route you to the exact right step.
+                  Pick your starting stage—we&apos;ll route you directly to the right training deck.
                 </p>
               </div>
 
-              <div className="space-y-2.5 pt-1 text-left">
+              <div className="space-y-2 pt-1 text-left">
                 <button
                   type="button"
                   onClick={() => {
@@ -7098,9 +7029,9 @@ function OLLDaySuite() {
                     setCrossTier(1);
                     setActiveModal(null);
                   }}
-                  className="w-full p-3.5 rounded-[1.5rem] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 shadow-lg shadow-orange-500/25 cursor-pointer transition-all"
+                  className="w-full p-3 rounded-[1.4rem] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 shadow-lg shadow-orange-500/25 cursor-pointer transition-all"
                 >
-                  <span className="text-xs font-black uppercase tracking-wider block">Brand New to 3×3 →</span>
+                  <span className="text-xs font-black uppercase tracking-wider block">1. Brand New to 3×3 (Cross) →</span>
                   <span className="text-[10.5px] font-bold opacity-85 block mt-0.5">
                     Start at Cross in X (Level 1) to build your white cross intuition first.
                   </span>
@@ -7114,13 +7045,47 @@ function OLLDaySuite() {
                     setTabForPhase('f2l', 'grind');
                     setActiveModal(null);
                   }}
-                  className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
+                  className="w-full p-3 rounded-[1.4rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
                 >
-                  <span className="text-xs font-black uppercase tracking-wider block">Know Layer-by-Layer →</span>
+                  <span className="text-xs font-black uppercase tracking-wider block">2. Know Layer-by-Layer (F2L) →</span>
                   <span className="text-[10.5px] text-zinc-200 block mt-0.5">
                     Jump into F2L Day 1 Guided Lesson to pair corners &amp; edges fast.
                   </span>
                 </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(700, 'sine', 0.08);
+                      setActivePhase('oll');
+                      setTabForPhase('oll', 'grind');
+                      setActiveModal(null);
+                    }}
+                    className="p-3 rounded-[1.4rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
+                  >
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-300 block">3. OLL →</span>
+                    <span className="text-[10px] text-zinc-200 block mt-0.5 leading-snug">
+                      Know F2L; train 57 yellow top shapes.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(720, 'sine', 0.08);
+                      setActivePhase('pll');
+                      setTabForPhase('pll', 'grind');
+                      setActiveModal(null);
+                    }}
+                    className="p-3 rounded-[1.4rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
+                  >
+                    <span className="text-xs font-black uppercase tracking-wider text-orange-300 block">4. PLL →</span>
+                    <span className="text-[10px] text-zinc-200 block mt-0.5 leading-snug">
+                      Know OLL; finish with 21+ perms.
+                    </span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/15">
@@ -7147,7 +7112,7 @@ function OLLDaySuite() {
         {activeModal === 'newToCfop' && (
           <div
             onClick={() => { emitBeep(440); setActiveModal(null); }}
-            className="fixed inset-0 z-[274] bg-black/65 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[274] bg-black/82 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -7231,7 +7196,7 @@ function OLLDaySuite() {
         {activeModal === 'appTutorial' && (
           <div
             onClick={() => { emitBeep(440); setActiveModal(null); }}
-            className="fixed inset-0 z-[274] bg-black/65 backdrop-blur-2xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[274] bg-black/82 backdrop-blur-md flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -8131,7 +8096,7 @@ function OLLDaySuite() {
                     {orbitQuiz.feedback && <p className={`text-[11px] font-black ${orbitQuiz.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>{orbitQuiz.feedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}</p>}
                   </div>
                 )}
-                <button type="button" onClick={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold text-xs uppercase cursor-pointer">Close</button>
+                <button type="button" onClick={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold text-xs uppercase cursor-pointer">Close</button>
               </div>
             </ModalShell>
           );
