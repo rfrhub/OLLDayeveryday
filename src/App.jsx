@@ -1182,6 +1182,7 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
   const frHasTargetEdge = [fGrid[5], rGrid[3]].every((c) => targetEdgeSet.has(c)) && fGrid[5] !== rGrid[3];
 
   let targetF2lId = 4;
+  let f2lPreU = '';
   if (dfrHasTargetCorner && frHasTargetEdge) {
     if (fGrid[8] === fCenter && rGrid[6] === rCenter && fGrid[5] === rCenter) targetF2lId = 37;
     else if (fGrid[5] === fCenter && rGrid[3] === rCenter) targetF2lId = fGrid[8] === 'W' ? 39 : 38;
@@ -1209,16 +1210,37 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
       else if (urHasTargetEdge) targetF2lId = uGrid[5] === rCenter ? 2 : 10;
       else targetF2lId = uGrid[1] === rCenter ? 6 : 8;
     }
-  } else if (urHasTargetEdge || ufHasTargetEdge) {
-    targetF2lId = urHasTargetEdge ? 4 : 3;
   } else {
-    targetF2lId = 31;
+    // Check other visible U-layer corners (UFL at uGrid[6]/fGrid[0] or UBR at uGrid[2]/rGrid[2]) and guide AUF to UFR
+    const uflHasTargetCorner = [uGrid[6], fGrid[0]].every((c) => targetCornerSet.has(c)) && uGrid[6] !== fGrid[0];
+    const ubrHasTargetCorner = [uGrid[2], rGrid[2]].every((c) => targetCornerSet.has(c)) && uGrid[2] !== rGrid[2];
+    if (uflHasTargetCorner) {
+      f2lPreU = "U'";
+      if (uGrid[6] === 'W') targetF2lId = urHasTargetEdge || ufHasTargetEdge ? 17 : 21;
+      else if (fGrid[0] === 'W') targetF2lId = urHasTargetEdge ? 11 : 1;
+      else targetF2lId = ufHasTargetEdge ? 13 : 2;
+    } else if (ubrHasTargetCorner) {
+      f2lPreU = 'U';
+      if (uGrid[2] === 'W') targetF2lId = urHasTargetEdge || ufHasTargetEdge ? 18 : 22;
+      else if (rGrid[2] === 'W') targetF2lId = ufHasTargetEdge ? 15 : 2;
+      else targetF2lId = urHasTargetEdge ? 14 : 1;
+    } else if (urHasTargetEdge || ufHasTargetEdge) {
+      targetF2lId = urHasTargetEdge ? 4 : 3;
+    } else {
+      targetF2lId = 4;
+    }
   }
 
-  const matchedF2L = F2L_BY_ID.get(targetF2lId) || F2L_DATA[0];
+  const baseMatchedF2L = F2L_BY_ID.get(targetF2lId) || F2L_DATA[0];
+  const combinedF2lAlg = f2lPreU ? simplifyMoveSequence(`${f2lPreU} ${baseMatchedF2L.alg}`, true) : baseMatchedF2L.alg;
+  const matchedF2L = { ...baseMatchedF2L, alg: combinedF2lAlg };
   const nextOllPreview = OLL_BY_ID.get(27) || OLL_DATA[0];
   const remAfter = pairsLeft - 1;
-  const aufHint = fullMeta?.unsolvedSlotNames?.length && frSlotSolved ? `Rotate y/y' to bring open ${fullMeta.unsolvedSlotNames[0]} slot to Front-Right` : 'Target Slot: Front-Right (White–Green–Orange)';
+  const aufHint = fullMeta?.unsolvedSlotNames?.length && frSlotSolved
+    ? `Rotate y/y' to bring open ${fullMeta.unsolvedSlotNames[0]} slot to Front-Right`
+    : f2lPreU
+    ? `Pre-AUF: ${f2lPreU} to bring target corner to Front-Right (UFR)`
+    : 'Target Slot: Front-Right (White–Green–Orange)';
 
   return {
     phase: 'f2l', crossSolved: true, remainingF2lPairs: pairsLeft,
@@ -3165,12 +3187,16 @@ function OLLDaySuite() {
   const [scannerSurfaceFinish, setScannerSurfaceFinish] = useState('uv');
   const [scannerThreeFaceHints, setScannerThreeFaceHints] = useState({ crossSolved: null, f2lCompletedStatus: null });
   const [savedCubePalette, setSavedCubePalette] = useState(() => storage.getJson(STORAGE_KEYS.cubePalette, null));
-  const [scannedFaces, setScannedFaces] = useState(() => ({
-    U: ['Y', 'Y', 'G', 'Y', 'Y', 'Y', 'R', 'Y', 'Y'],
-    F: ['O', 'B', 'Y', 'G', 'G', 'G', 'G', 'G', 'G'],
-    R: ['B', 'R', 'Y', 'O', 'O', 'O', 'O', 'O', 'O'],
-    D: Array(9).fill('W'), B: Array(9).fill('B'), L: Array(9).fill('R')
-  }));
+  const createBlankScannerFaces = () => ({
+    U: [null, null, null, null, 'Y', null, null, null, null],
+    F: [null, null, null, null, 'G', null, null, null, null],
+    R: [null, null, null, null, 'O', null, null, null, null],
+    D: [null, null, null, null, 'W', null, null, null, null],
+    B: [null, null, null, null, 'B', null, null, null, null],
+    L: [null, null, null, null, 'R', null, null, null, null]
+  });
+
+  const [scannedFaces, setScannedFaces] = useState(createBlankScannerFaces);
   const [selectedStickerEdit, setSelectedStickerEdit] = useState(null);
   const scannerVideoRef = useRef(null);
   const scannerStreamRef = useRef(null);
@@ -3253,7 +3279,37 @@ function OLLDaySuite() {
     return () => obs.disconnect();
   }, [scannerOpen]);
 
+  const resetAllScannerFaces = (restartCamera = true) => {
+    stopScannerCamera();
+    setScannerCameraError('');
+    setScannerCaptureStep('U');
+    setScannerCapturedThumbs({});
+    setScannerRawSamples({});
+    setScannerLockedFaces({});
+    setScannedFaces(createBlankScannerFaces());
+    setSelectedStickerEdit(null);
+    setScannerFocusedStageIdx(0);
+    setScannerCompletedStages([]);
+    setScannerF2lPairIdx(0);
+    setScannerStageVerification(null);
+    setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
+    setScannerLivePreviewCodes(null);
+    setScannerStabilityCount(0);
+    setScannerCubeDetected(false);
+    setScannerFramingHint('Line up the 9 stickers inside the square');
+    liveStableSignatureRef.current = '';
+    liveStableStreakRef.current = 0;
+    idleNoCubeStreakRef.current = 0;
+    if (restartCamera) {
+      startScannerCamera('U', false);
+    }
+  };
+
   const startScannerCamera = async (targetFace = 'U', resetAll = false) => {
+    if (resetAll) {
+      resetAllScannerFaces(true);
+      return;
+    }
     setScannerCameraError('');
     setScannerCaptureStep(targetFace);
     setScannerLivePreviewCodes(null);
@@ -3262,20 +3318,25 @@ function OLLDaySuite() {
     liveStableSignatureRef.current = '';
     liveStableStreakRef.current = 0;
     idleNoCubeStreakRef.current = 0;
-    if (resetAll) {
-      setScannerCapturedThumbs({});
-      setScannerRawSamples({});
-      setScannerLockedFaces({});
-      setScannerStageVerification(null);
-      setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
-    } else {
-      setScannerCapturedThumbs((prev) => { const copy = { ...prev }; delete copy[targetFace]; return copy; });
-    }
+    setScannerCapturedThumbs((prev) => { const copy = { ...prev }; delete copy[targetFace]; return copy; });
+
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setScannerCameraError('Camera unavailable in this browser — tap any sticker below to set colors manually.');
       return;
     }
     try {
+      const existingStream = scannerStreamRef.current;
+      const hasLiveTrack = existingStream && existingStream.getVideoTracks().some((t) => t.readyState === 'live');
+      if (hasLiveTrack) {
+        if (scannerVideoRef.current && scannerVideoRef.current.srcObject !== existingStream) {
+          scannerVideoRef.current.srcObject = existingStream;
+        }
+        await scannerVideoRef.current?.play().catch(() => {});
+        setScannerCameraReady(true);
+        setScannerFramingHint('Line up the 9 stickers inside the square');
+        return;
+      }
+
       stopScannerCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 480, max: 640 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 24 } },
@@ -3297,9 +3358,13 @@ function OLLDaySuite() {
     if (!scannerOpen || !scannerCameraReady || scannerCapturedThumbs[scannerCaptureStep]) return;
     const video = scannerVideoRef.current;
     const stream = scannerStreamRef.current;
-    if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
-      video.play().catch(() => {});
+    if (video && stream) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
     }
   }, [scannerOpen, scannerCameraReady, scannerCaptureStep, scannerCapturedThumbs]);
 
@@ -3399,8 +3464,9 @@ function OLLDaySuite() {
       });
     }
     const nextRaw = { ...scannerRawSamples, [scannerCaptureStep]: sampled9 };
+    const nextThumbs = { ...scannerCapturedThumbs, [scannerCaptureStep]: canvas.toDataURL('image/jpeg', 0.82) };
     setScannerRawSamples(nextRaw);
-    setScannerCapturedThumbs((prev) => ({ ...prev, [scannerCaptureStep]: canvas.toDataURL('image/jpeg', 0.82) }));
+    setScannerCapturedThumbs(nextThumbs);
     setScannedFaces((prev) => classifyCapturedFaceBatch(nextRaw, prev, scannerLockedFaces, savedCubePalette));
     setScannerCompletedStages([]);
     setScannerF2lPairIdx(0);
@@ -3412,12 +3478,23 @@ function OLLDaySuite() {
     liveStableStreakRef.current = 0;
     idleNoCubeStreakRef.current = 0;
 
-    if (scannerCaptureStep === 'U' && !nextRaw.F) setScannerCaptureStep('F');
-    else if (scannerCaptureStep === 'F' && !nextRaw.R) setScannerCaptureStep('R');
-    else if (scannerCaptureStep === 'R') stopScannerCamera();
-    else if (scannerCaptureStep === 'D' && !nextRaw.B) setScannerCaptureStep('B');
-    else if (scannerCaptureStep === 'B' && !nextRaw.L) setScannerCaptureStep('L');
-    else stopScannerCamera();
+    const frontOrder = ['U', 'F', 'R'];
+    const backOrder = ['D', 'B', 'L'];
+    const activeGroup = frontOrder.includes(scannerCaptureStep) ? frontOrder : backOrder;
+    const nextUnscannedInGroup = activeGroup.find((f) => !nextThumbs[f]);
+
+    if (nextUnscannedInGroup) {
+      setScannerCaptureStep(nextUnscannedInGroup);
+      setScannerFramingHint('Line up the 9 stickers inside the square');
+      const v = scannerVideoRef.current;
+      const st = scannerStreamRef.current;
+      if (v && st) {
+        if (v.srcObject !== st) v.srcObject = st;
+        if (v.paused) v.play().catch(() => {});
+      }
+    } else {
+      stopScannerCamera();
+    }
   };
 
   const scannerLiveRef = useRef({ scannerRawSamples, scannedFaces, scannerLockedFaces, savedCubePalette });
@@ -3464,18 +3541,38 @@ function OLLDaySuite() {
     return () => clearInterval(id);
   }, [scannerOpen, scannerCameraReady, isAppVisible, scannerViewfinderVisible, currentFaceAlreadyCaptured, scannerCaptureStep, scannerAutoSnap]);
 
-  const scannerHasFull6Faces = useMemo(
-    () => Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
-      [1, 3, 5, 7].some((i) => scannedFaces.D[i] !== 'W') || scannedFaces.B[7] !== 'B' || scannedFaces.L[7] !== 'R',
-    [scannerCapturedThumbs, scannedFaces]
-  );
+  const scannerHasAnyInput = useMemo(() => {
+    if (Object.keys(scannerCapturedThumbs).length > 0) return true;
+    return ['U', 'F', 'R', 'D', 'B', 'L'].some((fKey) =>
+      (scannedFaces[fKey] || []).some((c, idx) => idx !== 4 && Boolean(c))
+    );
+  }, [scannerCapturedThumbs, scannedFaces]);
+
+  const scannerHasFull6Faces = useMemo(() => {
+    const hasBackCapture = Boolean(scannerCapturedThumbs.D && scannerCapturedThumbs.B && scannerCapturedThumbs.L);
+    const hasManualBackInput = ['D', 'B', 'L'].every((fKey) =>
+      (scannedFaces[fKey] || []).every((c) => Boolean(c))
+    );
+    return hasBackCapture || hasManualBackInput;
+  }, [scannerCapturedThumbs, scannedFaces]);
 
   const scannerAnalysis = useMemo(() => {
-    if (!scannerOpen) return null;
-    return scannerHasFull6Faces
-      ? analyzeFull54Cube(scannedFaces.U, scannedFaces.F, scannedFaces.R, scannedFaces.D, scannedFaces.B, scannedFaces.L)
-      : analyzeScanned3FaceCube(scannedFaces.U, scannedFaces.F, scannedFaces.R, null, scannerThreeFaceHints);
-  }, [scannerOpen, scannerHasFull6Faces, scannedFaces, scannerThreeFaceHints]);
+    if (!scannerOpen || !scannerHasAnyInput) return null;
+    const fillFace = (faceKey, fallbackCenter) => {
+      const raw = scannedFaces[faceKey] || [];
+      return Array.from({ length: 9 }, (_, i) => (i === 4 ? fallbackCenter : raw[i] || fallbackCenter));
+    };
+    const uClean = fillFace('U', 'Y');
+    const fClean = fillFace('F', 'G');
+    const rClean = fillFace('R', 'O');
+    if (scannerHasFull6Faces) {
+      const dClean = fillFace('D', 'W');
+      const bClean = fillFace('B', 'B');
+      const lClean = fillFace('L', 'R');
+      return analyzeFull54Cube(uClean, fClean, rClean, dClean, bClean, lClean);
+    }
+    return analyzeScanned3FaceCube(uClean, fClean, rClean, null, scannerThreeFaceHints);
+  }, [scannerOpen, scannerHasAnyInput, scannerHasFull6Faces, scannedFaces, scannerThreeFaceHints]);
 
   // Timer, Cross, Curriculum & Modal States
   const [fullTimerOpen, setFullTimerOpen] = useState(false);
@@ -7181,26 +7278,27 @@ function OLLDaySuite() {
           const currentSpec = FACE_CAPTURE_SPECS[scannerCaptureStep] || FACE_CAPTURE_SPECS.U;
           const capturedCount = Object.keys(scannerCapturedThumbs).length;
           const analysis = scannerAnalysis;
-          if (!analysis) return null;
 
           const hasFront3Captured = Boolean(scannerCapturedThumbs.U && scannerCapturedThumbs.F && scannerCapturedThumbs.R);
           const needsBackFacesRecommendation = !scannerHasFull6Faces && (scannerThreeFaceHints.crossSolved === false || ['none', 'some'].includes(scannerThreeFaceHints.f2lCompletedStatus));
-          const stagesList = Array.isArray(analysis.cfopStages) ? analysis.cfopStages : null;
+          const stagesList = analysis && Array.isArray(analysis.cfopStages) ? analysis.cfopStages : null;
           const activeFocusedIdx = stagesList ? Math.min(scannerFocusedStageIdx, stagesList.length - 1) : 0;
           const focusedStage = stagesList ? stagesList[activeFocusedIdx] : null;
-          const baseMatched = focusedStage?.caseObj || analysis.matchedCase;
-          const activeStagePhase = focusedStage?.phaseKey || analysis.phase;
+          const baseMatched = focusedStage?.caseObj || analysis?.matchedCase || null;
+          const activeStagePhase = focusedStage?.phaseKey || analysis?.phase || 'cross';
           const activeVerification = scannerStageVerification?.stagePhase === activeStagePhase ? scannerStageVerification : null;
           const matched = activeVerification?.caseObj || baseMatched;
-          const activeStageTitle = activeVerification?.caseObj
-            ? (focusedStage ? `${focusedStage.stage}: ${activeVerification.caseObj.name}` : activeVerification.caseObj.name)
-            : (focusedStage ? `${focusedStage.stage}: ${focusedStage.label}` : matched.name);
-          const activeStageAlg = activeVerification?.alg || (focusedStage ? focusedStage.alg : matched.alg);
-          const activeStageFingertrick = activeVerification?.caseObj?.fingertrick || (focusedStage ? focusedStage.fingertrick : matched.fingertrick);
-          const activeStageOrientationTip = activeVerification?.orientationTip || focusedStage?.orientationTip || analysis.orientationTip || buildOrientationTipForStage(activeStagePhase, matched, activeStageAlg, analysis.aufHint);
-          const activeStageTags = getAlgorithmTriggerTags(activeStageAlg);
+          const activeStageTitle = matched
+            ? (activeVerification?.caseObj
+                ? (focusedStage ? `${focusedStage.stage}: ${activeVerification.caseObj.name}` : activeVerification.caseObj.name)
+                : (focusedStage ? `${focusedStage.stage}: ${focusedStage.label}` : matched.name))
+            : '';
+          const activeStageAlg = activeVerification?.alg || (focusedStage ? focusedStage.alg : matched?.alg || '');
+          const activeStageFingertrick = activeVerification?.caseObj?.fingertrick || (focusedStage ? focusedStage.fingertrick : matched?.fingertrick || '');
+          const activeStageOrientationTip = activeVerification?.orientationTip || focusedStage?.orientationTip || analysis?.orientationTip || (matched ? buildOrientationTipForStage(activeStagePhase, matched, activeStageAlg, analysis?.aufHint) : '');
+          const activeStageTags = activeStageAlg ? getAlgorithmTriggerTags(activeStageAlg) : [];
           const activeSubSteps = activeVerification?.subSteps || focusedStage?.subSteps;
-          const nextCase = analysis.nextUpCase;
+          const nextCase = analysis?.nextUpCase || null;
           const activePreviewImg = scannerCapturedThumbs[scannerCaptureStep] || null;
           const visibleFaceList = scannerHasFull6Faces
             ? [{ key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' }, { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' }, { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' }, { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'R', right: 'O' }, { key: 'B', title: 'Back (B)', top: 'Y', bottom: 'W', left: 'O', right: 'R' }, { key: 'L', title: 'Left (L)', top: 'Y', bottom: 'W', left: 'B', right: 'G' }]
@@ -7242,7 +7340,17 @@ function OLLDaySuite() {
                       return (
                         <button
                           key={fKey} type="button"
-                          onClick={() => { emitBeep(540); setSelectedStickerEdit(null); setScannerCaptureStep(fKey); if (!scannerCapturedThumbs[fKey] && !scannerCameraReady) startScannerCamera(fKey, false); }}
+                          onClick={() => {
+                            emitBeep(540);
+                            setSelectedStickerEdit(null);
+                            setScannerCaptureStep(fKey);
+                            setScannerLivePreviewCodes(null);
+                            setScannerStabilityCount(0);
+                            setScannerCubeDetected(false);
+                            liveStableSignatureRef.current = '';
+                            liveStableStreakRef.current = 0;
+                            if (!scannerCapturedThumbs[fKey]) startScannerCamera(fKey, false);
+                          }}
                           className={`py-2 rounded-xl text-[10px] font-black uppercase border transition-all cursor-pointer ${isCurrent ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-sm' : isDone ? 'bg-green-500/15 text-green-300 border-green-500/35' : 'bg-white/[0.05] text-zinc-300 hover:bg-white/[0.1]'}`}
                         >
                           {isDone ? <>{fKey} <Check className="w-2.5 h-2.5 inline-block -mt-0.5" /></> : fKey}
@@ -7279,10 +7387,26 @@ function OLLDaySuite() {
                   </div>
 
                   <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-2xl sm:rounded-3xl overflow-hidden bg-black border border-white/15 shadow-[0_18px_40px_rgba(0,0,0,0.8)]">
-                    {activePreviewImg ? (
-                      <img src={activePreviewImg} alt={`Captured ${currentSpec.short} face`} className="w-full h-full object-cover" />
-                    ) : (
-                      <video ref={scannerVideoRef} playsInline muted className="w-full h-full object-cover" />
+                    <video
+                      ref={scannerVideoRef}
+                      playsInline
+                      muted
+                      className={`w-full h-full object-cover ${activePreviewImg ? 'hidden' : 'block'}`}
+                    />
+                    {activePreviewImg && (
+                      <img
+                        key={`${scannerCaptureStep}-${capturedCount}`}
+                        src={activePreviewImg}
+                        alt=""
+                        onError={() => {
+                          setScannerCapturedThumbs((prev) => {
+                            const copy = { ...prev };
+                            delete copy[scannerCaptureStep];
+                            return copy;
+                          });
+                        }}
+                        className="w-full h-full object-cover"
+                      />
                     )}
 
                     <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full pointer-events-none">
@@ -7328,7 +7452,7 @@ function OLLDaySuite() {
                     >
                       {activePreviewImg ? <>Retake {currentSpec.short} <RotateCw className="w-3.5 h-3.5 inline-block ml-1 -mt-0.5" /></> : scannerCameraReady ? (scannerAutoSnap && scannerStabilityCount > 0 ? `Hold Steady (${scannerStabilityCount}/5)...` : `Capture ${currentSpec.short}`) : `Start Camera (${currentSpec.short})`}
                     </button>
-                    <button type="button" onClick={() => { emitBeep(460); startScannerCamera('U', true); }} className="py-3 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 cursor-pointer">
+                    <button type="button" onClick={() => { emitBeep(460); resetAllScannerFaces(true); }} className="py-3 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 cursor-pointer">
                       Reset All Faces
                     </button>
                   </div>
@@ -7414,10 +7538,12 @@ function OLLDaySuite() {
                                   <button
                                     key={idx} type="button"
                                     onClick={() => { emitBeep(620, 'sine', 0.04, 0.06); setSelectedStickerEdit({ face: fObj.key, idx, posLabel: posLabels[idx], faceTitle: fObj.title }); }}
-                                    style={{ backgroundColor: SCANNER_COLOR_META[cCode]?.hex || '#334155' }}
-                                    className={`aspect-square rounded-xl border transition-transform cursor-pointer ${isSelected ? 'border-white scale-110 ring-2 ring-orange-400' : 'border-black/40'}`}
-                                    title={`${fObj.title} • ${posLabels[idx]}: ${SCANNER_COLOR_META[cCode]?.label || cCode}`}
-                                  />
+                                    style={{ backgroundColor: cCode && SCANNER_COLOR_META[cCode] ? SCANNER_COLOR_META[cCode].hex : 'rgba(15, 23, 42, 0.72)' }}
+                                    className={`aspect-square rounded-xl border transition-transform cursor-pointer flex items-center justify-center ${isSelected ? 'border-white scale-110 ring-2 ring-orange-400' : cCode ? 'border-black/40' : 'border-dashed border-white/20'}`}
+                                    title={`${fObj.title} • ${posLabels[idx]}: ${cCode && SCANNER_COLOR_META[cCode] ? SCANNER_COLOR_META[cCode].label : 'Unscanned — tap to set'}`}
+                                  >
+                                    {!cCode && <span className="text-[8px] font-black text-zinc-500">?</span>}
+                                  </button>
                                 );
                               })}
                             </div>
@@ -7461,6 +7587,16 @@ function OLLDaySuite() {
                   </div>
 
                   {/* Analysis Card */}
+                  {!analysis ? (
+                    <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-3xl p-4 sm:p-5 text-center space-y-1.5 shadow-xl">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                        Ready to Scan • Solver Cleared
+                      </span>
+                      <p className="text-xs text-zinc-300 leading-relaxed">
+                        Capture <strong className="text-white">U • F • R</strong> (or tap any sticker tile above) to identify your cube state and generate orientation &amp; algorithm steps.
+                      </p>
+                    </div>
+                  ) : (
                   <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
                     <div className="flex items-center justify-between gap-2">
                       <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-wider text-orange-300">{analysis.phaseLabel}</span>
@@ -7641,6 +7777,7 @@ function OLLDaySuite() {
                       {activeStagePhase === 'cross' ? <>Practice Cross in X <ArrowRight className="w-3.5 h-3.5 inline-block ml-1 -mt-0.5" /></> : <>Drill {matched.name} Now <ArrowRight className="w-3.5 h-3.5 inline-block ml-1 -mt-0.5" /></>}
                     </button>
                   </div>
+                  )}
                 </div>
               </div>
             </div>
