@@ -1706,10 +1706,15 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const isUvCoated = (pct >= 75 || safeStreak >= 54) && (streakActive || pct >= 75);
   const isSpinGlowActive = isHalfwayDay || isUvCoated;
 
-  const displayStreakDays = Math.max(safeStreak, safeCurDay - 1);
+  const daysProgressed = Math.max(0, safeCurDay - 1);
+  const displayStreakDays = Math.max(safeStreak, daysProgressed);
+  // Guarantee every single day progressed lights up at least 1 additional tile (even if totalDays > 54)
+  const scaledDayTiles = safeTotalDays <= 54
+    ? Math.max(daysProgressed, Math.ceil((daysProgressed / safeTotalDays) * 54))
+    : Math.min(54, daysProgressed);
   const filledSquares = isUvCoated
     ? 54
-    : Math.min(54, Math.max(displayStreakDays, Math.round((pct / 100) * 54)));
+    : Math.min(54, Math.max(displayStreakDays, scaledDayTiles, Math.ceil((pct / 100) * 54)));
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
   const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
   const [manualSpinOffset, setManualSpinOffset] = useState(0);
@@ -1722,6 +1727,17 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
     : isHalfwayDay
     ? 'Matte Finish ✦'
     : `${filledSquares}/54 Tiles`;
+
+  const cubeSpinClass = isUvCoated
+    ? 'uv-streak-cube-spin'
+    : isHalfwayDay
+    ? 'matte-streak-cube-spin'
+    : '';
+  const cubeGlowClass = isUvCoated
+    ? 'uv-streak-glow-pulse'
+    : isHalfwayDay
+    ? 'matte-streak-glow-pulse'
+    : '';
 
   return (
     <button
@@ -1739,9 +1755,12 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
       }
       className="relative inline-flex items-center gap-2 bg-transparent border-0 p-0 transition-transform cursor-pointer active:scale-95"
     >
-      <div style={{ width: '36px', height: '36px', perspective: '180px' }} className="flex items-center justify-center flex-shrink-0">
+      <div
+        style={{ width: '36px', height: '36px', perspective: '180px' }}
+        className={`relative flex items-center justify-center flex-shrink-0 ${cubeGlowClass}`}
+      >
         <div
-          className={isSpinGlowActive ? 'uv-streak-cube-spin' : ''}
+          className={cubeSpinClass}
           style={{
             width: `${MINI_STREAK_HALF * 2}px`,
             height: `${MINI_STREAK_HALF * 2}px`,
@@ -2886,12 +2905,37 @@ const APP_GLOBAL_CSS = `
     0% { transform: rotateX(-24deg) rotateY(0deg); }
     100% { transform: rotateX(-24deg) rotateY(360deg); }
   }
-  @keyframes uvStreakPulseOpacity {
-    0%, 100% { opacity: 0.45; }
-    50% { opacity: 1; }
+  @keyframes streakAuraPulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.92); }
+    50% { opacity: 0.95; transform: scale(1.08); }
+  }
+  .matte-streak-cube-spin {
+    animation: uvStreakSpin3D 11s linear infinite;
+    will-change: transform;
   }
   .uv-streak-cube-spin {
-    transform: rotateX(-24deg) rotateY(-32deg);
+    animation: uvStreakSpin3D 6.5s linear infinite;
+    will-change: transform;
+  }
+  .matte-streak-glow-pulse::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.55) 0%, rgba(245, 158, 11, 0) 72%);
+    animation: streakAuraPulse 2.6s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+  .uv-streak-glow-pulse::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(216, 180, 254, 0.7) 0%, rgba(251, 146, 60, 0.38) 45%, rgba(0, 0, 0, 0) 74%);
+    animation: streakAuraPulse 2.1s ease-in-out infinite;
+    will-change: transform, opacity;
   }
   .uv-streak-pill-glow::after {
     content: '';
@@ -2904,7 +2948,13 @@ const APP_GLOBAL_CSS = `
       0 0 14px rgba(192, 132, 252, 0.45);
   }
   @media (prefers-reduced-motion: reduce) {
-    .uv-streak-cube-spin, .uv-streak-pill-glow::after { animation: none; }
+    .matte-streak-cube-spin,
+    .uv-streak-cube-spin,
+    .matte-streak-glow-pulse::before,
+    .uv-streak-glow-pulse::before,
+    .uv-streak-pill-glow::after {
+      animation: none;
+    }
   }
   .liquid-glass-uv {
     background:
@@ -3414,27 +3464,7 @@ function OLLDaySuite() {
   const [authScreenOpen, setAuthScreenOpen] = useState(() => !storage.getStr(STORAGE_KEYS.activeAccount, ''));
   const [authMode, setAuthMode] = useState('landing');
   const [landingStepIdx, setLandingStepIdx] = useState(0);
-  const dockRef = useRef(null);
-  const [dockSize, setDockSize] = useState({ width: 392, height: 60 });
 
-  useEffect(() => {
-    const el = dockRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const updateSize = () => {
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        setDockSize((prev) =>
-          Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5
-            ? prev
-            : { width: rect.width, height: rect.height }
-        );
-      }
-    };
-    updateSize();
-    const ro = new ResizeObserver(updateSize);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [isTwoPane, activePhase]);
 
   useEffect(() => {
     if (!authScreenOpen || authMode !== 'landing' || !isAppVisible) return undefined;
@@ -3504,9 +3534,9 @@ function OLLDaySuite() {
       setFullTimerState((prev) => (prev === 'running' ? 'idle' : prev));
     };
     const handleVis = () => (document.hidden ? enterBackgroundSleep() : setIsAppVisible(true));
-    document.addEventListener('visibilitychange', handleVis);
-    window.addEventListener('pagehide', enterBackgroundSleep);
-    window.addEventListener('pageshow', handleVis);
+    document.addEventListener('visibilitychange', handleVis, { passive: true });
+    window.addEventListener('pagehide', enterBackgroundSleep, { passive: true });
+    window.addEventListener('pageshow', handleVis, { passive: true });
     return () => {
       document.removeEventListener('visibilitychange', handleVis);
       window.removeEventListener('pagehide', enterBackgroundSleep);
@@ -3629,18 +3659,24 @@ function OLLDaySuite() {
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: OLL_DATA.slice(0, 4) };
   const currentPllDayObj = pllSchedule[safePllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: PLL_DATA.slice(0, 4) };
 
-  const [lineupOrders, setLineupOrders] = useState({ f2l: [], oll: [], pll: [] });
-  useEffect(() => {
-    const orderForDay = (dObj) => (dObj?.randomize ? shuffleCaseList(dObj.cases) : [...(dObj?.cases || [])]);
-    setLineupOrders({
-      f2l: orderForDay(currentF2lDayObj),
-      oll: orderForDay(currentOllDayObj),
-      pll: orderForDay(currentPllDayObj)
-    });
+  const [lineupOverrides, setLineupOverrides] = useState({});
+  const lineupOrders = useMemo(() => {
+    const resolveOrder = (key, dayNum, chunksRef, dObj) => {
+      const sig = `${dayNum}:${chunksRef?.length || 0}`;
+      const ov = lineupOverrides[key];
+      if (ov && ov.sig === sig) return ov.list;
+      return dObj?.randomize ? shuffleCaseList(dObj.cases) : [...(dObj?.cases || [])];
+    };
+    return {
+      f2l: resolveOrder('f2l', safeF2lDay, currentUser.f2lCustomChunks, currentF2lDayObj),
+      oll: resolveOrder('oll', safeOllDay, currentUser.customChunks, currentOllDayObj),
+      pll: resolveOrder('pll', safePllDay, currentUser.pllCustomChunks, currentPllDayObj)
+    };
   }, [
-    safeF2lDay, currentUser.f2lCustomChunks,
-    safeOllDay, currentUser.customChunks,
-    safePllDay, currentUser.pllCustomChunks
+    lineupOverrides,
+    safeF2lDay, currentUser.f2lCustomChunks, currentF2lDayObj,
+    safeOllDay, currentUser.customChunks, currentOllDayObj,
+    safePllDay, currentUser.pllCustomChunks, currentPllDayObj
   ]);
 
   useEffect(() => {
@@ -4230,11 +4266,13 @@ function OLLDaySuite() {
         if (row) {
           const targetIdx = Number(row.getAttribute('data-lineup-idx'));
           if (!Number.isNaN(targetIdx) && targetIdx !== draggedLineupIdx) {
-            setLineupOrders((prev) => {
-              const updated = [...(prev[activePhase] || [])];
+            setLineupOverrides((prev) => {
+              const updated = [...(lineupOrders[activePhase] || [])];
               const [moved] = updated.splice(draggedLineupIdx, 1);
               updated.splice(targetIdx, 0, moved);
-              return { ...prev, [activePhase]: updated };
+              const dayNum = activePhase === 'f2l' ? safeF2lDay : activePhase === 'pll' ? safePllDay : safeOllDay;
+              const chunksRef = activePhase === 'f2l' ? currentUser.f2lCustomChunks : activePhase === 'pll' ? currentUser.pllCustomChunks : currentUser.customChunks;
+              return { ...prev, [activePhase]: { sig: `${dayNum}:${chunksRef?.length || 0}`, list: updated } };
             });
             setDraggedLineupIdx(targetIdx);
             emitBeep(640, 'sine', 0.04, 0.08);
@@ -5937,7 +5975,7 @@ function OLLDaySuite() {
           } flex flex-col relative z-10 bg-midnight-marble overflow-hidden`}
         >
           {/* PERSISTENT HEADER */}
-          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.07] bg-black/25 backdrop-blur-md flex-shrink-0 z-40`}>
+          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.07] bg-[#070d1d]/90 flex-shrink-0 z-40`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-2xl bg-white/[0.07] border border-white/15 p-0.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                 <SuneEmblemSvg className="w-full h-full" />
@@ -6416,8 +6454,8 @@ function OLLDaySuite() {
 
           {/* SADDLE-NOTCHED LIQUID GLASS BOTTOM DOCK + ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
           {(() => {
-            const dw = Math.max(280, dockSize.width);
-            const dh = Math.max(54, dockSize.height);
+            const dw = 392;
+            const dh = 60;
             const cx = dw / 2;
             const cradleHalfW = 31.5; // 26px half-switcher + 5.5px uniform side clearance
             const floorY = Math.min(dh - 10, 41.5); // 36px switcher bottom + 5.5px uniform floor clearance
@@ -6455,7 +6493,7 @@ function OLLDaySuite() {
                 <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
-                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/95 backdrop-blur-xl border border-orange-500/45 shadow-[0_14px_38px_rgba(249,115,22,0.38)] ${
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/98 border border-orange-500/45 shadow-[0_14px_38px_rgba(249,115,22,0.38)] ${
                       cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
                     }`}
                   >
