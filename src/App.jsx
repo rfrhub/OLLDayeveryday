@@ -1672,15 +1672,28 @@ const MINI_STREAK_FACES = [
   { offset: 27, transform: `rotateX(-90deg) translateZ(${MINI_STREAK_HALF}px)` }
 ];
 
-function Streak3DCube({ streakDays = 0 }) {
-  const filledSquares = Math.min(54, Math.max(0, Number(streakDays) || 0));
-  const isComplete = filledSquares >= 54;
+function Streak3DCube({ streakDays = 0, progressPct = 0, streakActive = true }) {
+  const safeStreak = Math.max(0, Number(streakDays) || 0);
+  const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
+  const isHalfway = pct >= 50 && pct < 75;
+  const isFullUvUnlocked = (pct >= 75 || safeStreak >= 54) && (streakActive || pct >= 75);
+  const isSpinGlowActive = isHalfway || isFullUvUnlocked;
+
+  const filledSquares = isFullUvUnlocked
+    ? 54
+    : Math.min(54, Math.max(safeStreak, Math.round((pct / 100) * 54)));
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
   const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
   const [manualSpinOffset, setManualSpinOffset] = useState(0);
 
   const targetYaw = activeFaceSpec.yaw + manualSpinOffset;
   const targetPitch = activeFaceSpec.pitch;
+
+  const badgeLabel = isFullUvUnlocked
+    ? 'UV Full Spin ✦'
+    : isHalfway
+    ? 'Halfway Glow ✦'
+    : `${filledSquares}/54 • ${Math.round(pct)}%`;
 
   return (
     <button
@@ -1690,26 +1703,28 @@ function Streak3DCube({ streakDays = 0 }) {
         setManualSpinOffset((prev) => prev - 90);
       }}
       title={
-        isComplete
-          ? `${streakDays}d Streak — All 54 Squares Lit! UV Coated Cube Active`
-          : `${streakDays}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
+        isFullUvUnlocked
+          ? `${safeStreak}d Streak • 75%+ Full UV Spin Mode Active (Keep your daily streak alive to sustain!)`
+          : isHalfway
+          ? `${safeStreak}d Streak • Halfway Milestone Spin & Glow Active!`
+          : `${safeStreak}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
       }
       className={`relative inline-flex items-center gap-2 px-2.5 py-1 rounded-full border transition-all cursor-pointer active:scale-95 ${
-        isComplete
+        isSpinGlowActive
           ? 'bg-gradient-to-r from-purple-500/20 via-orange-500/15 to-amber-500/20 border-purple-400/60 uv-streak-pill-glow'
           : 'bg-black/50 hover:bg-white/[0.07] border-white/15'
       }`}
     >
       <div style={{ width: '36px', height: '36px', perspective: '180px' }} className="flex items-center justify-center flex-shrink-0">
         <div
-          className={isComplete ? 'uv-streak-cube-spin' : ''}
+          className={isSpinGlowActive ? 'uv-streak-cube-spin' : ''}
           style={{
             width: `${MINI_STREAK_HALF * 2}px`,
             height: `${MINI_STREAK_HALF * 2}px`,
             position: 'relative',
             transformStyle: 'preserve-3d',
-            transform: isComplete ? undefined : `rotateX(${targetPitch}deg) rotateY(${targetYaw}deg)`,
-            transition: isComplete ? undefined : 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)'
+            transform: isSpinGlowActive ? undefined : `rotateX(${targetPitch}deg) rotateY(${targetYaw}deg)`,
+            transition: isSpinGlowActive ? undefined : 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)'
           }}
         >
           {MINI_STREAK_FACES.map(({ offset, transform }) => {
@@ -1732,14 +1747,14 @@ function Streak3DCube({ streakDays = 0 }) {
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gridTemplateRows: 'repeat(3, 1fr)',
                   gap: '1.2px',
-                  boxShadow: isComplete
+                  boxShadow: isSpinGlowActive
                     ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.55)'
                     : 'inset 0 0 0 0.75px rgba(255,255,255,0.12)'
                 }}
               >
                 {MINI_STREAK_SLOTS.map((idx) => {
                   const isLit = idx < faceLitCount;
-                  const isLatestTile = !isComplete && faceOrderIdx === activeFaceIdx && idx === faceLitCount - 1;
+                  const isLatestTile = !isFullUvUnlocked && faceOrderIdx === activeFaceIdx && idx === faceLitCount - 1;
                   return (
                     <div
                       key={idx}
@@ -1761,11 +1776,11 @@ function Streak3DCube({ streakDays = 0 }) {
         </div>
       </div>
       <div className="pr-0.5 leading-tight text-left">
-        <span className={`font-mono text-[10.5px] font-black block ${isComplete ? 'text-purple-200' : 'text-white'}`}>
-          {streakDays}d Streak
+        <span className={`font-mono text-[10.5px] font-black block ${isSpinGlowActive ? 'text-purple-200' : 'text-white'}`}>
+          {safeStreak}d Streak
         </span>
-        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isComplete ? 'text-amber-300' : 'text-zinc-400'}`}>
-          {isComplete ? 'UV Coated ✦' : `${filledSquares}/54 Tiles`}
+        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isSpinGlowActive ? 'text-amber-300' : 'text-zinc-400'}`}>
+          {badgeLabel}
         </span>
       </div>
     </button>
@@ -2205,21 +2220,46 @@ function generateF2LSetupScramble(alg, mode = 'beginner', variationSeed = 0) {
   return `${triggers[variationSeed % triggers.length]} ${aufPrefix}${baseInverse}`.replace(/\s+/g, ' ').trim();
 }
 
+function shuffleCaseList(list) {
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function buildSchedule(chunks, dataList, lookupMap = null) {
   const schedule = [];
   let dayCounter = 1;
+  const learnedSoFar = [];
+  const seenIds = new Set();
   const resolveById = (id) => (lookupMap ? lookupMap.get(id) : dataList.find((item) => item.id === id));
   (Array.isArray(chunks) ? chunks : []).forEach((chunk, idx) => {
     if (!chunk || !Array.isArray(chunk.ids)) return;
     const safeTitle = typeof chunk.title === 'string' ? chunk.title : `Chunk ${idx + 1}`;
     const cases = chunk.ids.map(resolveById).filter(Boolean);
     if (!cases.length) return;
-    schedule.push({ day: dayCounter++, mode: 'Learn', chunkTitle: safeTitle, cases });
-    schedule.push({ day: dayCounter++, mode: 'Drill', chunkTitle: safeTitle, cases });
-    if (idx > 0 && idx % 2 === 1 && Array.isArray(chunks[idx - 1]?.ids)) {
-      const prevTitle = typeof chunks[idx - 1].title === 'string' ? chunks[idx - 1].title : `Chunk ${idx}`;
-      const prevCases = chunks[idx - 1].ids.map(resolveById).filter(Boolean);
-      schedule.push({ day: dayCounter++, mode: 'Refine', chunkTitle: `${prevTitle} + ${safeTitle}`, cases: [...prevCases, ...cases] });
+    cases.forEach((c) => {
+      if (!seenIds.has(c.id)) {
+        seenIds.add(c.id);
+        learnedSoFar.push(c);
+      }
+    });
+    // Day 1 of loop: Learn algorithms in dedicated chunk
+    schedule.push({ day: dayCounter++, mode: 'Learn', chunkTitle: safeTitle, cases, randomize: false });
+    // Day 2 & Day 3 of loop: Drill algorithms in random order
+    schedule.push({ day: dayCounter++, mode: 'Drill • Random', chunkTitle: safeTitle, cases, randomize: true });
+    schedule.push({ day: dayCounter++, mode: 'Drill • Random', chunkTitle: safeTitle, cases, randomize: true });
+    // After every 2 loops (6 days), insert cumulative review day covering everything learned up to this point
+    if (idx % 2 === 1) {
+      schedule.push({
+        day: dayCounter++,
+        mode: 'Cumulative Review',
+        chunkTitle: `All Learned So Far (${learnedSoFar.length} Cases)`,
+        cases: [...learnedSoFar],
+        randomize: true
+      });
     }
   });
   return schedule;
@@ -2491,10 +2531,43 @@ const PLL_DEFAULT_CHUNKS = [
 // =========================================================================
 // 3. CLOUD & LOCAL PERSISTENCE HOOK
 // =========================================================================
+const getLocalDateKey = (dateObj = new Date()) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getYesterdayDateKey = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return getLocalDateKey(d);
+};
+
+function computeActiveStreakDays(rawStreak, lastActiveDate) {
+  const count = Number.isFinite(Number(rawStreak)) && Number(rawStreak) >= 0 ? Number(rawStreak) : 0;
+  if (!lastActiveDate || count === 0) return 0;
+  const today = getLocalDateKey();
+  const yesterday = getYesterdayDateKey();
+  return (lastActiveDate === today || lastActiveDate === yesterday) ? count : 0;
+}
+
+function advanceDailyStreakFields(u) {
+  const today = getLocalDateKey();
+  const yesterday = getYesterdayDateKey();
+  const prevCount = computeActiveStreakDays(u.consecutiveStreakDays, u.lastActiveDate);
+  if (u.lastActiveDate === today) {
+    return { consecutiveStreakDays: Math.max(1, prevCount), lastActiveDate: today };
+  }
+  const nextCount = u.lastActiveDate === yesterday ? prevCount + 1 : 1;
+  return { consecutiveStreakDays: nextCount, lastActiveDate: today };
+}
+
 const DEFAULT_USERS = {
   Demo: {
-    day: 1, f2lDay: 1, pllDay: 1, stats: {}, f2lStats: {}, pllStats: {}, fullSolveHistory: [],
-    customChunks: null, f2lCustomChunks: null, pllCustomChunks: null, crossClears: 0, isPro: true,
+    day: 1, f2lDay: 1, pllDay: 1, crossDay: 1, stats: {}, f2lStats: {}, pllStats: {}, fullSolveHistory: [],
+    customChunks: null, f2lCustomChunks: null, pllCustomChunks: null, crossClears: 0,
+    consecutiveStreakDays: 0, lastActiveDate: '', isPro: true,
     email: '', fullSolveTargetPb: 15.0,
     phaseTargetPbs: { cross: 2.0, f2l: 2.5, oll: 2.0, pll: 2.0 },
     caseTargetPbs: { f2l: {}, oll: {}, pll: {} },
@@ -2508,6 +2581,9 @@ function sanitizeUserRecord(raw) {
     day: Number.isFinite(Number(base.day)) && Number(base.day) >= 1 ? Number(base.day) : 1,
     f2lDay: Number.isFinite(Number(base.f2lDay)) && Number(base.f2lDay) >= 1 ? Number(base.f2lDay) : 1,
     pllDay: Number.isFinite(Number(base.pllDay)) && Number(base.pllDay) >= 1 ? Number(base.pllDay) : 1,
+    crossDay: Number.isFinite(Number(base.crossDay)) && Number(base.crossDay) >= 1 ? Number(base.crossDay) : 1,
+    consecutiveStreakDays: Number.isFinite(Number(base.consecutiveStreakDays)) && Number(base.consecutiveStreakDays) >= 0 ? Number(base.consecutiveStreakDays) : 0,
+    lastActiveDate: typeof base.lastActiveDate === 'string' ? base.lastActiveDate : '',
     stats: base.stats && typeof base.stats === 'object' ? base.stats : {},
     f2lStats: base.f2lStats && typeof base.f2lStats === 'object' ? base.f2lStats : {},
     pllStats: base.pllStats && typeof base.pllStats === 'object' ? base.pllStats : {},
@@ -3481,20 +3557,55 @@ function OLLDaySuite() {
     };
   }, [currentUser.f2lStats, currentUser.stats, currentUser.pllStats, currentUser.phaseTargetPbs, currentUser.caseTargetPbs]);
 
+  const crossSchedule = useMemo(() => {
+    const tiers = crossDifficulty === 'advanced' ? CROSS_ADVANCED_TIERS : CROSS_TIERS;
+    const schedule = [];
+    let dayCounter = 1;
+    const learnedSoFar = [];
+    tiers.forEach((tierObj, idx) => {
+      const items = tierObj.scrambles.map((scr, sIdx) => ({
+        id: `${crossDifficulty}-t${tierObj.tier}-s${sIdx}`,
+        tier: tierObj.tier,
+        moves: tierObj.moves,
+        title: tierObj.title,
+        hint: tierObj.hint,
+        scramble: scr
+      }));
+      learnedSoFar.push(...items);
+      schedule.push({ day: dayCounter++, mode: 'Learn', tier: tierObj.tier, chunkTitle: `L${tierObj.tier} • ${tierObj.title}`, cases: items, randomize: false });
+      schedule.push({ day: dayCounter++, mode: 'Drill • Random', tier: tierObj.tier, chunkTitle: `L${tierObj.tier} • ${tierObj.title}`, cases: items, randomize: true });
+      schedule.push({ day: dayCounter++, mode: 'Drill • Random', tier: tierObj.tier, chunkTitle: `L${tierObj.tier} • ${tierObj.title}`, cases: items, randomize: true });
+      if (idx % 2 === 1) {
+        schedule.push({
+          day: dayCounter++,
+          mode: 'Cumulative Review',
+          tier: tierObj.tier,
+          chunkTitle: `All Learned Cross Drills (L1–L${tierObj.tier})`,
+          cases: [...learnedSoFar],
+          randomize: true
+        });
+      }
+    });
+    return schedule;
+  }, [crossDifficulty]);
+
+  const safeCrossDay = Math.min(Math.max(1, currentUser.crossDay || 1), Math.max(1, crossSchedule.length));
   const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay), Math.max(1, f2lSchedule.length));
   const safeOllDay = Math.min(Math.max(1, currentUser.day), Math.max(1, ollSchedule.length));
   const safePllDay = Math.min(Math.max(1, currentUser.pllDay), Math.max(1, pllSchedule.length));
 
+  const currentCrossDayObj = crossSchedule[safeCrossDay - 1] || crossSchedule[0];
   const currentF2lDayObj = f2lSchedule[safeF2lDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: F2L_DATA.slice(0, 4) };
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: OLL_DATA.slice(0, 4) };
   const currentPllDayObj = pllSchedule[safePllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: PLL_DATA.slice(0, 4) };
 
   const [lineupOrders, setLineupOrders] = useState({ f2l: [], oll: [], pll: [] });
   useEffect(() => {
+    const orderForDay = (dObj) => (dObj?.randomize ? shuffleCaseList(dObj.cases) : [...(dObj?.cases || [])]);
     setLineupOrders({
-      f2l: [...currentF2lDayObj.cases],
-      oll: [...currentOllDayObj.cases],
-      pll: [...currentPllDayObj.cases]
+      f2l: orderForDay(currentF2lDayObj),
+      oll: orderForDay(currentOllDayObj),
+      pll: orderForDay(currentPllDayObj)
     });
   }, [
     safeF2lDay, currentUser.f2lCustomChunks,
@@ -3672,6 +3783,7 @@ function OLLDaySuite() {
       isNewPb = prevBest === null || timeSec < prevBest;
       const updated = {
         ...u,
+        ...advanceDailyStreakFields(u),
         [statField]: {
           ...u[statField],
           [caseId]: { best: isNewPb ? timeSec : prevBest, attempts: (existing.attempts || 0) + 1, history: [timeSec, ...(existing.history || [])].slice(0, 60) }
@@ -4839,7 +4951,14 @@ function OLLDaySuite() {
       ).length;
       const totalInLineup = Math.max(1, lineupOrder.length);
       const completionPct = Math.round((completedInLineup / totalInLineup) * 100);
-      const streakDays = (safeF2lDay - 1) + (safeOllDay - 1) + (safePllDay - 1) + (currentUser.crossClears > 0 ? 1 : 0);
+      const phaseProgressPct = Math.round(
+        Math.max(
+          (masteredCount / Math.max(1, dataList.length)) * 100,
+          ((safeDay - 1) / Math.max(1, scheduleList.length)) * 100
+        )
+      );
+      const activeStreak = computeActiveStreakDays(currentUser.consecutiveStreakDays, currentUser.lastActiveDate);
+      const streakIntact = activeStreak > 0 || (safeDay === 1 && masteredCount === 0);
 
       return (
         <div className="p-4 sm:p-5 pb-28 space-y-3.5">
@@ -4851,13 +4970,13 @@ function OLLDaySuite() {
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
-                    Day {safeDay} • {dayObj.mode} Mode
+                    Day {safeDay} • {dayObj.mode}
                   </span>
                   <span className="text-[10px] font-bold text-zinc-400">
-                    {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered
+                    {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered ({phaseProgressPct}%)
                   </span>
                 </div>
-                <Streak3DCube streakDays={streakDays} />
+                <Streak3DCube streakDays={activeStreak} progressPct={phaseProgressPct} streakActive={streakIntact} />
               </div>
 
               <div>
@@ -4924,7 +5043,8 @@ function OLLDaySuite() {
                     }
                     emitBeep(720, 'sine', 0.08);
                     setSwRunning(false); setSwLastResult(null);
-                    setSession({ dayObj, index: 0, queue: [...lineupOrder] });
+                    const sessionQueue = dayObj.randomize ? shuffleCaseList(lineupOrder) : [...lineupOrder];
+                    setSession({ dayObj, index: 0, queue: sessionQueue });
                   }}
                   className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
                 >
@@ -5434,7 +5554,11 @@ function OLLDaySuite() {
                 emitBeep(760); setSwRunning(false);
                 if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
                 else {
-                  const updated = { ...currentUser, [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1 };
+                  const updated = {
+                    ...currentUser,
+                    ...advanceDailyStreakFields(currentUser),
+                    [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1
+                  };
                   setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
                   saveUserToCloud(resolvedUserKey, updated);
                   setSession(null);
@@ -5787,16 +5911,85 @@ function OLLDaySuite() {
               <div className={isTwoPane ? 'max-w-2xl mx-auto' : ''}>
                 {activePhase === 'cross' && (
                   <>
-                    {phaseTabs.cross === 'ladder' && (
+                    {phaseTabs.cross === 'ladder' && (() => {
+                      const crossProgressPct = Math.round(
+                        Math.max(
+                          (Math.min(15, currentUser.crossClears || 0) / 15) * 100,
+                          ((safeCrossDay - 1) / Math.max(1, crossSchedule.length)) * 100
+                        )
+                      );
+                      const crossActiveStreak = computeActiveStreakDays(currentUser.consecutiveStreakDays, currentUser.lastActiveDate);
+                      const crossStreakIntact = crossActiveStreak > 0 || (safeCrossDay === 1 && (currentUser.crossClears || 0) === 0);
+                      return (
                       <div className="p-4 sm:p-5 pb-28 space-y-3.5">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Phase 1 • Tactical Console</p>
+                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">
+                              Day {safeCrossDay} • {currentCrossDayObj?.mode || 'Learn'}
+                            </p>
                             <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
                           </div>
-                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-4 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer">
-                            Color Orbit
-                          </button>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <Streak3DCube streakDays={crossActiveStreak} progressPct={crossProgressPct} streakActive={crossStreakIntact} />
+                            <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-3.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex items-center justify-center active:scale-95 cursor-pointer">
+                              Orbit
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Cross 4-Day Cadence Banner (Day 1 Learn -> Days 2-3 Random Drill -> Day 4 Next / Day 7 Cumulative Review) */}
+                        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-orange-300 block truncate">
+                              {currentCrossDayObj?.chunkTitle}
+                            </span>
+                            <span className="text-[10.5px] text-zinc-400 block">
+                              {currentCrossDayObj?.mode === 'Cumulative Review'
+                                ? 'Cumulative Review • Random scrambles across all learned tiers'
+                                : currentCrossDayObj?.randomize
+                                ? 'Drill Day • Random scrambles from active tier'
+                                : 'Learn Day • Dedicated tier patterns'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              disabled={safeCrossDay <= 1}
+                              onClick={() => {
+                                emitBeep(480);
+                                const prevDay = Math.max(1, safeCrossDay - 1);
+                                const prevObj = crossSchedule[prevDay - 1];
+                                if (prevObj?.tier) setCrossTier(prevObj.tier);
+                                updateActiveUserRecord((u) => ({ ...u, crossDay: prevDay }));
+                              }}
+                              className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-zinc-300 disabled:opacity-30 cursor-pointer"
+                            >
+                              ←
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                emitBeep(540);
+                                const nextDay = safeCrossDay >= crossSchedule.length ? 1 : safeCrossDay + 1;
+                                const nextObj = crossSchedule[nextDay - 1];
+                                if (nextObj?.tier) setCrossTier(nextObj.tier);
+                                if (nextObj?.randomize) {
+                                  const pool = nextObj.cases || [];
+                                  const pick = pool[Math.floor(Math.random() * Math.max(1, pool.length))];
+                                  if (pick?.tier) setCrossTier(pick.tier);
+                                  setCrossScrambleIdx((p) => p + 1 + Math.floor(Math.random() * 4));
+                                }
+                                updateActiveUserRecord((u) => ({
+                                  ...u,
+                                  ...advanceDailyStreakFields(u),
+                                  crossDay: nextDay
+                                }));
+                              }}
+                              className="px-3 h-8 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/35 text-[10px] font-black uppercase text-orange-200 cursor-pointer"
+                            >
+                              Next Day →
+                            </button>
+                          </div>
                         </div>
 
                         {/* Top Mode Switcher Pill */}
@@ -5986,7 +6179,17 @@ function OLLDaySuite() {
                                 const optimal = crossUserMoves <= targetCap;
                                 emitBeep(optimal ? 920 : 420, 'sine', 0.1);
                                 if (optimal) {
-                                  updateActiveUserRecord((u) => ({ ...u, crossClears: (u.crossClears || 0) + 1 }));
+                                  updateActiveUserRecord((u) => ({
+                                    ...u,
+                                    ...advanceDailyStreakFields(u),
+                                    crossClears: (u.crossClears || 0) + 1
+                                  }));
+                                  if (currentCrossDayObj?.randomize) {
+                                    const pool = currentCrossDayObj.cases || [];
+                                    const pick = pool[Math.floor(Math.random() * Math.max(1, pool.length))];
+                                    if (pick?.tier) setCrossTier(pick.tier);
+                                    setCrossScrambleIdx((p) => p + 1 + Math.floor(Math.random() * 3));
+                                  }
                                 }
                                 setEfficiencyFeedback({
                                   optimal,
@@ -6024,7 +6227,8 @@ function OLLDaySuite() {
                           </div>
                         )}
                       </div>
-                    )}
+                      );
+                    })()}
 
                     {phaseTabs.cross === 'blind' && (
                       <div className="relative p-4 sm:p-5 pb-28 space-y-3.5">
