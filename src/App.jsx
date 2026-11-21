@@ -4544,25 +4544,91 @@ function OLLDaySuite() {
     if (tab === 'settings') return renderSettingsDeck();
 
     if (tab === 'grind') {
+      const completedInLineup = lineupOrder.filter(
+        (c) => typeof statsMap?.[c.id]?.best === 'number' && statsMap[c.id].best <= getEffectiveCaseTargetPb(phaseKey, c.id)
+      ).length;
+      const totalInLineup = Math.max(1, lineupOrder.length);
+      const completionPct = Math.round((completedInLineup / totalInLineup) * 100);
+      const streakDays = Math.max(1, (safeF2lDay - 1) + (safeOllDay - 1) + (safePllDay - 1) + (currentUser.crossClears > 0 ? 1 : 0));
+
       return (
         <div className="p-5 pb-28 space-y-5">
-          {/* Stacked Liquid Glass Playlist Card */}
+          {/* Today's Guided Lesson Hero Card */}
           <div className="relative pt-3">
             <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
             <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
-            <div className="-mt-1.5 liquid-glass-card liquid-rim-amber border border-white/15 rounded-[2.25rem] p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-300">
-                  Day {safeDay} • {dayObj.mode} Mode
+            <div className="-mt-1.5 liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[2.25rem] p-5 space-y-4 shadow-[0_20px_50px_rgba(249,115,22,0.16)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                  Today&apos;s Guided Lesson — Day {safeDay}
                 </span>
-                <span className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-xs font-black text-zinc-200 font-mono">
-                  {masteredCount}/{dataList.length} Mastered
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/35 text-[10px] font-black text-amber-300">
+                    🔥 {streakDays}d Streak
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/[0.07] hover:bg-white/[0.14] border border-white/15 text-[10px] font-black text-zinc-200 cursor-pointer transition-all"
+                    title="Scan Your 3x3 Cube"
+                  >
+                    <Camera className="w-3 h-3 text-orange-400" />
+                    <span>Scan</span>
+                  </button>
+                </div>
               </div>
+
               <div>
-                <h2 className="text-xl font-black text-white leading-tight">{dayObj.chunkTitle}</h2>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    {dayObj.mode} Mode • {masteredCount}/{dataList.length} Total Mastered
+                  </span>
+                </div>
+                <h2 className="text-xl font-black text-white leading-tight mt-0.5">{dayObj.chunkTitle}</h2>
                 <p className="text-xs text-zinc-400 mt-1">{meta.subtitle}</p>
               </div>
+
+              {/* Daily Completion Bar */}
+              <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                  <span className="text-zinc-300">{completedInLineup}/{lineupOrder.length} Cases Complete</span>
+                  <span className="font-mono text-orange-400">{completionPct}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-black/70 overflow-hidden border border-white/[0.06]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-300"
+                    style={{ width: `${Math.max(6, completionPct)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Compact CFOP Progression Tracker */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { key: 'cross', label: 'Cross in X', sub: `${currentUser.crossClears || 0} clears` },
+                  { key: 'f2l', label: 'F2L', sub: `${f2lMasteredCount}/41` },
+                  { key: 'oll', label: 'OLL', sub: `${ollMasteredCount}/57` },
+                  { key: 'pll', label: 'PLL', sub: `${pllMasteredCount}/25` }
+                ].map((stage) => {
+                  const isCur = activePhase === stage.key;
+                  return (
+                    <button
+                      key={stage.key}
+                      type="button"
+                      onClick={() => { emitBeep(540); setActivePhase(stage.key); }}
+                      className={`py-2 px-1.5 rounded-2xl border text-center cursor-pointer transition-all ${
+                        isCur
+                          ? 'bg-orange-500/20 border-orange-400/50 text-orange-200 shadow-sm'
+                          : 'bg-white/[0.03] border-white/[0.08] text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-[9.5px] font-black uppercase block truncate">{stage.label}</span>
+                      <span className="font-mono text-[9px] font-bold opacity-80 block mt-0.5">{stage.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {isF2L && (
                 <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
@@ -4586,6 +4652,7 @@ function OLLDaySuite() {
                   </p>
                 </div>
               )}
+
               <div className="flex items-center gap-2 pt-0.5">
                 <button
                   onClick={() => {
@@ -4611,7 +4678,7 @@ function OLLDaySuite() {
                   }}
                   className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
                 >
-                  Start Day {safeDay} Grind ({lineupOrder.length})
+                  Continue Today&apos;s Lesson →
                 </button>
                 <button
                   onClick={() => {
@@ -5444,12 +5511,12 @@ function OLLDaySuite() {
               <button
                 type="button"
                 onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
-                className={`${isTwoPane ? 'w-auto px-3.5' : 'w-8'} h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer`}
+                className="px-3 h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                 title="Scan 3x3 Cube & Predict Next Case"
                 aria-label="Scan Cube"
               >
-                <Camera className="w-4 h-4" />
-                {isTwoPane && <span className="text-[11px] font-black">Scan Cube</span>}
+                <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="text-[11px] font-black whitespace-nowrap">Scan Cube</span>
               </button>
 
               <button
@@ -6462,59 +6529,81 @@ function OLLDaySuite() {
           );
         })()}
 
-        {/* WELCOME MODAL */}
-        {activeModal === 'cfopExperienceChoice' && (
-          <ModalShell onClose={() => setActiveModal(null)} zClass="z-[272]" borderClass="border-orange-500/35">
-            <div className="space-y-4 text-center">
-              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">Welcome, {String(activeUserKey || 'Solver')}!</span>
-              <h3 className="text-xl font-black text-white">Are you new to CFOP?</h3>
-              <p className="text-xs text-zinc-300 leading-relaxed">Choose your experience level and we&apos;ll walk you through the app live, showing you where every phase and tool lives.</p>
-              <div className="space-y-2.5 pt-1">
-                <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Yes, show me whats going on here.</button>
-                <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full py-3.5 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white font-black text-xs uppercase tracking-wider cursor-pointer">No, I know CFOP.</button>
+        {/* CONSOLIDATED QUICK-START MODAL */}
+        {(activeModal === 'cfopExperienceChoice' || activeModal === 'guidedTour') && (
+          <div
+            onClick={() => { emitBeep(440); setActiveModal(null); }}
+            className="fixed inset-0 z-[272] bg-black/85 backdrop-blur-xl flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[2.35rem] p-6 max-w-sm w-full shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4 text-center"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  Quick-Start • {String(activeUserKey || 'Solver')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setActiveModal(null); }}
+                  className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  Skip ✕
+                </button>
               </div>
-            </div>
-          </ModalShell>
-        )}
 
-        {/* GUIDED TOUR OVERLAY */}
-        {activeModal === 'guidedTour' && (() => {
-          const steps = tourType === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
-          const step = steps[tourStepIdx] || steps[0];
-          const isLast = tourStepIdx + 1 >= steps.length;
-          return (
-            <div className="fixed inset-x-0 bottom-28 z-[268] px-4 flex justify-center pointer-events-none">
-              <div className="pointer-events-auto w-full max-w-md rounded-[2.25rem] liquid-glass-card liquid-rim-amber border border-orange-500/40 p-5 shadow-[0_24px_65px_rgba(0,0,0,0.9)] space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">{step.badge}</span>
-                  <button type="button" onClick={() => { emitBeep(440); setActiveModal(null); }} className="text-[11px] font-bold text-zinc-400 hover:text-white cursor-pointer">Skip Tour ✕</button>
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white">{step.title}</h3>
-                  <p className="text-xs text-zinc-300 leading-relaxed mt-1">{step.desc}</p>
-                </div>
-                <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5">
-                  <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-300 block">How to Navigate Here Yourself:</span>
-                  <p className="text-[11px] text-zinc-200 mt-0.5">{step.howToReach}</p>
-                </div>
-                {isLast && (
-                  <div className="space-y-1.5 pt-0.5">
-                    <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">Jump Directly to a Phase:</span>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[{ key: 'cross', label: 'C • Cross', tab: 'ladder' }, { key: 'f2l', label: 'F • F2L', tab: 'grind' }, { key: 'oll', label: 'O • OLL', tab: 'grind' }, { key: 'pll', label: 'P • PLL', tab: 'grind' }].map((dest) => (
-                        <button key={dest.key} type="button" onClick={() => { emitBeep(760, 'sine', 0.08); applyTourNavigation({ phase: dest.key, tab: dest.tab }); setActiveModal(null); }} className="py-2 px-1 rounded-full bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/40 text-[10px] font-black text-orange-200 transition-all active:scale-95 cursor-pointer">{dest.label}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  <button type="button" disabled={tourStepIdx === 0} onClick={() => { emitBeep(460); const prevIdx = Math.max(0, tourStepIdx - 1); setTourStepIdx(prevIdx); applyTourNavigation(steps[prevIdx]); }} className="py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-zinc-300 disabled:opacity-30 cursor-pointer">← Back</button>
-                  <button type="button" onClick={() => { emitBeep(720, 'sine', 0.07); if (!isLast) { const nextIdx = tourStepIdx + 1; setTourStepIdx(nextIdx); applyTourNavigation(steps[nextIdx]); } else setActiveModal(null); }} className="py-2.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">{isLast ? 'Finish Tour ✓' : 'Next Step →'}</button>
-                </div>
+              <div className="relative h-32 flex items-center justify-center hero-cube-float">
+                <div
+                  className="pointer-events-none absolute w-28 h-28 rounded-full"
+                  style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)' }}
+                />
+                <CrossSpatial3DCube scramble="R' F R D'" yaw={-35 + landingStepIdx * 90} pitch={34} isDragging={false} />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-white">Are You New to CFOP?</h3>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Pick your starting experience—we&apos;ll route you to the exact right step.
+                </p>
+              </div>
+
+              <div className="space-y-2.5 pt-1 text-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(760, 'sine', 0.08);
+                    setActivePhase('cross');
+                    setTabForPhase('cross', 'ladder');
+                    setCrossTier(1);
+                    setActiveModal(null);
+                  }}
+                  className="w-full p-3.5 rounded-[1.5rem] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 shadow-lg shadow-orange-500/25 cursor-pointer transition-all"
+                >
+                  <span className="text-xs font-black uppercase tracking-wider block">Brand New to 3×3 →</span>
+                  <span className="text-[10.5px] font-bold opacity-85 block mt-0.5">
+                    Start at Cross in X (Level 1) to build your white cross intuition first.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(680, 'sine', 0.08);
+                    setActivePhase('f2l');
+                    setTabForPhase('f2l', 'grind');
+                    setActiveModal(null);
+                  }}
+                  className="w-full p-3.5 rounded-[1.5rem] bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white cursor-pointer transition-all"
+                >
+                  <span className="text-xs font-black uppercase tracking-wider block">Know Layer-by-Layer →</span>
+                  <span className="text-[10.5px] text-zinc-300 block mt-0.5">
+                    Jump into F2L Day 1 Guided Lesson to pair corners &amp; edges fast.
+                  </span>
+                </button>
               </div>
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* CUBE SCANNER MODAL */}
         {scannerOpen && (() => {
