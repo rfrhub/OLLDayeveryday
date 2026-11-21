@@ -6569,7 +6569,6 @@ function OLLDaySuite() {
 
                   {/* High-Legibility Liquid Glass Saddle Dock */}
                   <div
-                    ref={dockRef}
                     style={{
                       clipPath: 'url(#olldaySaddleDockClip)',
                       WebkitClipPath: 'url(#olldaySaddleDockClip)'
