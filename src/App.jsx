@@ -2588,6 +2588,22 @@ const APP_GLOBAL_CSS = `
   @media (prefers-reduced-motion: reduce) {
     .hero-cube-float { animation: none; }
   }
+  @keyframes uvCardMaterializeUp {
+    0% { opacity: 0; transform: translate3d(0, 36px, 0) scale(0.92); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  @keyframes uvCardMaterializeDown {
+    0% { opacity: 0; transform: translate3d(0, -36px, 0) scale(0.92); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  .uv-card-enter-up {
+    animation: uvCardMaterializeUp 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
+  }
+  .uv-card-enter-down {
+    animation: uvCardMaterializeDown 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
+  }
   .liquid-glass-uv {
     background:
       linear-gradient(132deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(168, 85, 247, 0.055) 54%, rgba(255, 255, 255, 0.02) 76%, rgba(251, 146, 60, 0.11) 100%),
@@ -2703,6 +2719,9 @@ function OLLDaySuite() {
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
+  const [settingsCardIdx, setSettingsCardIdx] = useState(0);
+  const [settingsSwipeDir, setSettingsSwipeDir] = useState('up');
+  const settingsSwipeStartRef = useRef(null);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
   const [rightPaneTab, setRightPaneTab] = useState('notation');
@@ -4157,304 +4176,462 @@ function OLLDaySuite() {
     );
   };
 
-  const renderSettingsDeck = () => (
-    <div className="p-5 pb-28 space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Control Center</p>
-          <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
-        </div>
-        <button
-          type="button"
-          onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
-          className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-        >
-          Show My Stats
-        </button>
-      </div>
+  const renderSettingsDeck = () => {
+    const TOTAL_SETTINGS_CARDS = 5;
+    const stepSettingsCard = (dir) => {
+      emitBeep(dir === 'up' ? 620 : 500, 'sine', 0.05);
+      setSettingsSwipeDir(dir);
+      setSettingsCardIdx((prev) =>
+        dir === 'up'
+          ? (prev + 1) % TOTAL_SETTINGS_CARDS
+          : (prev + TOTAL_SETTINGS_CARDS - 1) % TOTAL_SETTINGS_CARDS
+      );
+    };
 
-      {/* 1. PROFILE & PRO */}
-      <section className="space-y-2">
-        <span className="px-1 text-[10px] font-black uppercase tracking-widest text-orange-400 block">Profile &amp; Pro</span>
-        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-white truncate">{String(activeUserKey || 'Solver')}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase ${isProUnlocked ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-orange-500/20 border border-orange-500/40 text-orange-300'}`}>
+    const handleCardTouchStart = (e) => {
+      const scrollable = e.target.closest('[data-card-scroll="true"]');
+      const touch = e.touches[0];
+      settingsSwipeStartRef.current = {
+        y: touch.clientY,
+        x: touch.clientX,
+        inScroll: Boolean(scrollable),
+        scrollTop: scrollable ? scrollable.scrollTop : 0,
+        scrollHeight: scrollable ? scrollable.scrollHeight : 0,
+        clientHeight: scrollable ? scrollable.clientHeight : 0
+      };
+    };
+
+    const handleCardTouchEnd = (e) => {
+      const start = settingsSwipeStartRef.current;
+      settingsSwipeStartRef.current = null;
+      if (!start) return;
+      const touch = e.changedTouches[0];
+      const dy = touch.clientY - start.y;
+      const dx = touch.clientX - start.x;
+      if (Math.abs(dy) < 42 || Math.abs(dy) < Math.abs(dx)) return;
+      if (start.inScroll) {
+        const atTop = start.scrollTop <= 2;
+        const atBottom = start.scrollTop + start.clientHeight >= start.scrollHeight - 2;
+        if (dy < 0 && !atBottom) return;
+        if (dy > 0 && !atTop) return;
+      }
+      stepSettingsCard(dy < 0 ? 'up' : 'down');
+    };
+
+    const handleCardWheel = (e) => {
+      if (Math.abs(e.deltaY) < 28) return;
+      const scrollable = e.target.closest('[data-card-scroll="true"]');
+      if (scrollable) {
+        const atTop = scrollable.scrollTop <= 2;
+        const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 2;
+        if (e.deltaY > 0 && !atBottom) return;
+        if (e.deltaY < 0 && !atTop) return;
+      }
+      if (settingsSwipeStartRef.current?.wheelLock) return;
+      settingsSwipeStartRef.current = { wheelLock: true };
+      setTimeout(() => { settingsSwipeStartRef.current = null; }, 340);
+      stepSettingsCard(e.deltaY > 0 ? 'up' : 'down');
+    };
+
+    const handleCardSurfaceClick = (e) => {
+      if (e.target.closest('button, input, select, textarea, a, label, [data-card-scroll="true"]')) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relY = (e.clientY - rect.top) / Math.max(1, rect.height);
+      stepSettingsCard(relY < 0.35 ? 'down' : 'up');
+    };
+
+    const CARDS = [
+      {
+        num: 1,
+        category: 'Profile & Pro',
+        title: 'Solver Identity & Plan',
+        content: (
+          <div className="space-y-3.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-base font-black text-white truncate">{String(activeUserKey || 'Solver')}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase ${isProUnlocked ? 'bg-green-500/20 border border-green-400/45 text-green-300' : 'bg-orange-500/20 border border-orange-400/45 text-orange-300'}`}>
                   {isProUnlocked ? 'Lifetime Pro' : 'Starter Tier'}
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 mt-0.5">
+              {currentUser.email && <p className="text-[11px] text-zinc-300 truncate">{currentUser.email}</p>}
+              <p className="text-[11px] text-zinc-300/80 pt-0.5">
                 {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '● Local Saved'} • F2L D{safeF2lDay} • OLL D{safeOllDay} • PLL D{safePllDay}
               </p>
             </div>
-          </div>
 
-          {!isProUnlocked && (
-            <button
-              type="button"
-              onClick={() => openProPaywall('Full 123-Case CFOP Suite')}
-              className="w-full h-10 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center cursor-pointer"
-            >
-              Unlock Lifetime Pro — $5.99
-            </button>
-          )}
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
-              className="h-9 px-3.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-[11px] font-black text-white flex items-center justify-center cursor-pointer"
-            >
-              Switch Account
-            </button>
-            <button
-              type="button"
-              onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }}
-              className="h-9 px-3.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-bold text-zinc-300 flex items-center justify-center cursor-pointer"
-            >
-              Restore Purchase
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. CURRICULUM & PACING */}
-      <section className="space-y-2">
-        <span className="px-1 text-[10px] font-black uppercase tracking-widest text-orange-400 block">Curriculum &amp; Pacing</span>
-        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-3">
-          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-2">
-            <div>
-              <span className="text-xs font-black text-white block">Pinned Home Screen</span>
-              <span className="text-[10px] text-zinc-400">Default phase on startup</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((item) => {
-                const isPinned = (pinnedHomePhase || 'cross') === item.key;
-                return (
-                  <button
-                    key={item.key} type="button"
-                    onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
-                    className={`w-8 h-8 rounded-full text-xs font-black transition-all flex items-center justify-center cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/50 border border-white/10 text-zinc-400 hover:text-white'}`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white">3x3x3 Full-Solve Target PB</span>
-              <span className="font-mono text-xs font-black text-orange-400">{fullSolveTargetSec.toFixed(3)}s</span>
-            </div>
-            <MillisecondSliderControl
-              value={fullSolveTargetSec} min={3.0} max={60.0} draftValue={targetPbInput} accentTextClass="text-orange-300"
-              onSliderChange={updateFullSolveTargetPb}
-              onStepDelta={(d) => { emitBeep(540); updateFullSolveTargetPb(fullSolveTargetSec + d); }}
-              onDraftChange={(val) => { setTargetPbInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 1 && p <= 120) updateFullSolveTargetPb(p); }}
-            />
-          </div>
-
-          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white">Phase Target PB</span>
-                <span className="font-mono text-xs font-black text-amber-300">{getPhaseTargetPb(selectedTargetPhase).toFixed(3)}s</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((ph) => (
-                  <button
-                    key={ph.key} type="button" onClick={() => { emitBeep(520); setSelectedTargetPhase(ph.key); }}
-                    className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center cursor-pointer transition-all ${selectedTargetPhase === ph.key ? 'bg-orange-500 text-slate-950' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
-                  >
-                    {ph.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <MillisecondSliderControl
-              value={getPhaseTargetPb(selectedTargetPhase)} min={0.15} max={15.0} draftValue={phaseTargetInput} accentTextClass="text-amber-300"
-              onSliderChange={(sec) => updatePhaseTargetPb(selectedTargetPhase, sec)}
-              onStepDelta={(d) => { emitBeep(540); updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + d); }}
-              onDraftChange={(val) => { setPhaseTargetInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 0.1 && p <= 30) updatePhaseTargetPb(selectedTargetPhase, p); }}
-            />
-          </div>
-
-          <div className="relative overflow-hidden liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
             {!isProUnlocked && (
-              <ProLockOverlay interactive label="Custom Chunks • Pro" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} />
-            )}
-            <div className={!isProUnlocked ? 'opacity-40 select-none space-y-2' : 'space-y-2'}>
-              <span className="text-xs font-black text-white block">Custom Learning Chunks</span>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[{ key: 'f2l', label: 'F2L Chunks' }, { key: 'oll', label: 'OLL Chunks' }, { key: 'pll', label: 'PLL Chunks' }].map((b) => (
-                  <button
-                    key={b.key} type="button"
-                    onClick={() => { if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; } emitBeep(560); openCurriculumBuilder(b.key); }}
-                    className="h-9 px-2.5 rounded-full bg-black/50 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/[0.08] flex items-center justify-center cursor-pointer"
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. CUBING LAB & GUIDES */}
-      <section className="space-y-2">
-        <span className="px-1 text-[10px] font-black uppercase tracking-widest text-orange-400 block">Cubing Lab &amp; Guides</span>
-        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-3">
-          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <span className="text-xs font-black text-white block">3x3x3 CFOP Timer</span>
-                <span className="text-[10px] text-zinc-400">WCA 20-move scrambles &amp; Ao5/Ao12</span>
-              </div>
               <button
                 type="button"
-                onClick={openFullTimerModal}
-                className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center cursor-pointer"
+                onClick={() => openProPaywall('Full 123-Case CFOP Suite')}
+                className="w-full h-11 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
               >
-                Open Timer
+                Unlock Lifetime Pro — $5.99
+              </button>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
+                className="h-10 px-3.5 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white flex items-center justify-center cursor-pointer"
+              >
+                Switch Account
+              </button>
+              <button
+                type="button"
+                onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }}
+                className="h-10 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-200 flex items-center justify-center cursor-pointer"
+              >
+                Restore Purchase
               </button>
             </div>
-            {renderWcaTelemetryGrid('bg-black/40 rounded-xl')}
           </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={startGuidedTour}
-              className="h-10 px-3 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10.5px] font-black text-orange-200 flex items-center justify-center cursor-pointer"
-            >
-              Quick-Start Guide
-            </button>
-            <button
-              type="button"
-              onClick={() => { emitBeep(520); setActiveModal('compass'); }}
-              className="h-10 px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10.5px] font-black text-zinc-200 flex items-center justify-center cursor-pointer"
-            >
-              Color Orbit Compass
-            </button>
-          </div>
-
-          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-white">WCA Notation Key</span>
-              <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
-                  <button
-                    key={sec} type="button" onClick={() => { emitBeep(480); setNotationFilter(sec); }}
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer ${notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-zinc-400 hover:text-white'}`}
-                  >
-                    {sec === 'All' ? 'All' : sec.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="max-h-40 overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
-              {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
-                <div key={item.move} className="bg-black/45 border border-white/10 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs font-black text-amber-300 flex-shrink-0">{item.move}</span>
-                  <span className="text-[11px] text-zinc-300 text-right">{item.desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-white">Fingertrick Dossier</span>
-              <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
-                  <button
-                    key={cat} type="button" onClick={() => { emitBeep(480); setDossierFilter(cat); }}
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer ${dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-zinc-400 hover:text-white'}`}
-                  >
-                    {cat === 'All' ? 'All' : cat.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
-              {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
-                <div key={trig.id} className="bg-black/45 border border-white/10 rounded-xl p-2.5 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
-                      <span className="text-xs font-black text-white">{trig.name}</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
-                  </div>
-                  <p className="text-[10px] text-zinc-300 leading-snug"><strong className="text-orange-400">Grip:</strong> {trig.grip}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. FEEDBACK & SENSORY */}
-      <section className="space-y-2">
-        <span className="px-1 text-[10px] font-black uppercase tracking-widest text-orange-400 block">Feedback &amp; Sensory</span>
-        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-2.5">
-          {[
-            { title: 'Speedcube Stopwatch', sub: 'Record solve times & track case PBs', val: stopwatchEnabled, toggle: () => { emitBeep(620); setStopwatchEnabled((v) => !v); } },
-            { title: 'Inline Fingertrick Highlights', sub: 'Show color-coded triggers & grip cues on cases', val: fingertricksEnabled, toggle: () => { emitBeep(620); setFingertricksEnabled((v) => !v); } },
-            { title: 'Acoustic Audio & Beeps', sub: 'Inspection warnings & tactile feedback', val: audioEnabled, toggle: () => setAudioEnabled((v) => !v) }
-          ].map((pref) => (
-            <div key={pref.title} className="flex items-center justify-between gap-3 liquid-glass-well border border-white/10 rounded-2xl p-3">
+        )
+      },
+      {
+        num: 2,
+        category: 'Curriculum & Pacing',
+        title: 'Targets, Home & Chunks',
+        content: (
+          <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-center justify-between gap-2">
               <div>
-                <p className="text-xs font-bold text-white">{pref.title}</p>
-                <p className="text-[10px] text-zinc-400">{pref.sub}</p>
+                <span className="text-xs font-black text-white block">Pinned Home Screen</span>
+                <span className="text-[10px] text-zinc-300/80">Default phase on startup</span>
               </div>
-              <button type="button" onClick={pref.toggle} className={`w-11 h-6 rounded-full transition-colors p-0.5 flex-shrink-0 cursor-pointer ${pref.val ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'bg-zinc-800'}`}>
-                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${pref.val ? 'translate-x-5' : ''}`} />
+              <div className="flex items-center gap-1.5">
+                {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((item) => {
+                  const isPinned = (pinnedHomePhase || 'cross') === item.key;
+                  return (
+                    <button
+                      key={item.key} type="button"
+                      onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
+                      className={`w-8 h-8 rounded-full text-xs font-black transition-all flex items-center justify-center cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/50 border border-white/15 text-zinc-300 hover:text-white'}`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white">3x3x3 Full-Solve Target PB</span>
+                <span className="font-mono text-xs font-black text-orange-300">{fullSolveTargetSec.toFixed(3)}s</span>
+              </div>
+              <MillisecondSliderControl
+                value={fullSolveTargetSec} min={3.0} max={60.0} draftValue={targetPbInput} accentTextClass="text-orange-300"
+                onSliderChange={updateFullSolveTargetPb}
+                onStepDelta={(d) => { emitBeep(540); updateFullSolveTargetPb(fullSolveTargetSec + d); }}
+                onDraftChange={(val) => { setTargetPbInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 1 && p <= 120) updateFullSolveTargetPb(p); }}
+              />
+            </div>
+
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Phase Target PB</span>
+                  <span className="font-mono text-xs font-black text-amber-300">{getPhaseTargetPb(selectedTargetPhase).toFixed(3)}s</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((ph) => (
+                    <button
+                      key={ph.key} type="button" onClick={() => { emitBeep(520); setSelectedTargetPhase(ph.key); }}
+                      className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center cursor-pointer transition-all ${selectedTargetPhase === ph.key ? 'bg-orange-500 text-slate-950' : 'bg-black/50 text-zinc-300 hover:text-white'}`}
+                    >
+                      {ph.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <MillisecondSliderControl
+                value={getPhaseTargetPb(selectedTargetPhase)} min={0.15} max={15.0} draftValue={phaseTargetInput} accentTextClass="text-amber-300"
+                onSliderChange={(sec) => updatePhaseTargetPb(selectedTargetPhase, sec)}
+                onStepDelta={(d) => { emitBeep(540); updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + d); }}
+                onDraftChange={(val) => { setPhaseTargetInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 0.1 && p <= 30) updatePhaseTargetPb(selectedTargetPhase, p); }}
+              />
+            </div>
+
+            <div className="relative overflow-hidden liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
+              {!isProUnlocked && (
+                <ProLockOverlay interactive label="Custom Chunks • Pro" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} />
+              )}
+              <div className={!isProUnlocked ? 'opacity-40 select-none space-y-2' : 'space-y-2'}>
+                <span className="text-xs font-black text-white block">Custom Learning Chunks</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[{ key: 'f2l', label: 'F2L Chunks' }, { key: 'oll', label: 'OLL Chunks' }, { key: 'pll', label: 'PLL Chunks' }].map((b) => (
+                    <button
+                      key={b.key} type="button"
+                      onClick={() => { if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; } emitBeep(560); openCurriculumBuilder(b.key); }}
+                      className="h-9 px-2.5 rounded-full bg-black/50 border border-white/15 text-[10px] font-black text-orange-300 hover:bg-white/[0.1] flex items-center justify-center cursor-pointer"
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        num: 3,
+        category: 'Cubing Lab & Guides',
+        title: 'Timer, Notation & Mechanics',
+        content: (
+          <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black text-white block">3x3x3 CFOP Timer</span>
+                  <span className="text-[10px] text-zinc-300/80">WCA 20-move scrambles &amp; Ao5/Ao12</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={openFullTimerModal}
+                  className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center cursor-pointer"
+                >
+                  Open Timer
+                </button>
+              </div>
+              {renderWcaTelemetryGrid('bg-black/40 rounded-xl')}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={startGuidedTour}
+                className="h-10 px-3 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/40 text-[10.5px] font-black text-orange-200 flex items-center justify-center cursor-pointer"
+              >
+                Quick-Start Guide
+              </button>
+              <button
+                type="button"
+                onClick={() => { emitBeep(520); setActiveModal('compass'); }}
+                className="h-10 px-3 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-[10.5px] font-black text-white flex items-center justify-center cursor-pointer"
+              >
+                Color Orbit Compass
               </button>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* 5. ACCOUNT & DATA */}
-      <section className="space-y-2">
-        <span className="px-1 text-[10px] font-black uppercase tracking-widest text-orange-400 block">Account &amp; Data</span>
-        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-2.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white">WCA Notation Key</span>
+                <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                  {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
+                    <button
+                      key={sec} type="button" onClick={() => { emitBeep(480); setNotationFilter(sec); }}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer ${notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
+                    >
+                      {sec === 'All' ? 'All' : sec.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
+                  <div key={item.move} className="bg-black/45 border border-white/10 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-black text-amber-300 flex-shrink-0">{item.move}</span>
+                    <span className="text-[11px] text-zinc-200 text-right">{item.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white">Fingertrick Dossier</span>
+                <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                  {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
+                    <button
+                      key={cat} type="button" onClick={() => { emitBeep(480); setDossierFilter(cat); }}
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer ${dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
+                    >
+                      {cat === 'All' ? 'All' : cat.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
+                  <div key={trig.id} className="bg-black/45 border border-white/10 rounded-xl p-2.5 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
+                        <span className="text-xs font-black text-white">{trig.name}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-200 leading-snug"><strong className="text-orange-400">Grip:</strong> {trig.grip}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        num: 4,
+        category: 'Feedback & Sensory',
+        title: 'Haptics, Audio & Triggers',
+        content: (
+          <div className="space-y-2.5">
+            {[
+              { title: 'Speedcube Stopwatch', sub: 'Record solve times & track case PBs', val: stopwatchEnabled, toggle: () => { emitBeep(620); setStopwatchEnabled((v) => !v); } },
+              { title: 'Inline Fingertrick Highlights', sub: 'Show color-coded triggers & grip cues on cases', val: fingertricksEnabled, toggle: () => { emitBeep(620); setFingertricksEnabled((v) => !v); } },
+              { title: 'Acoustic Audio & Beeps', sub: 'Inspection warnings & tactile feedback', val: audioEnabled, toggle: () => setAudioEnabled((v) => !v) }
+            ].map((pref) => (
+              <div key={pref.title} className="flex items-center justify-between gap-3 liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5">
+                <div>
+                  <p className="text-xs font-bold text-white">{pref.title}</p>
+                  <p className="text-[10px] text-zinc-300/80">{pref.sub}</p>
+                </div>
+                <button type="button" onClick={pref.toggle} className={`w-11 h-6 rounded-full transition-colors p-0.5 flex-shrink-0 cursor-pointer ${pref.val ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'bg-zinc-800'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${pref.val ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      },
+      {
+        num: 5,
+        category: 'Account & Data',
+        title: 'Reset & Privacy Controls',
+        content: (
+          <div className="space-y-3">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+              <span className="text-xs font-black text-white block">Granular Progress Reset</span>
+              <p className="text-[11px] text-zinc-300/80 leading-relaxed">
+                Clear individual phase days, logged PB times, custom chunks, or full 3x3x3 timer history without losing your account.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { emitBeep(420); setActiveModal('reset'); }}
+              className="w-full h-11 px-4 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-400/40 flex items-center justify-between text-xs font-black text-red-200 cursor-pointer"
+            >
+              <span>Manage Progress Reset</span>
+              <span>Open →</span>
+            </button>
+
+            {!deleteAccountConfirm ? (
+              <button
+                type="button"
+                onClick={() => { emitBeep(380); setDeleteAccountConfirm(true); }}
+                className="w-full h-10 px-4 rounded-full bg-white/[0.06] hover:bg-red-500/15 border border-white/15 hover:border-red-400/40 text-xs font-bold text-zinc-200 hover:text-red-200 flex items-center justify-center cursor-pointer"
+              >
+                Delete My Account &amp; Data
+              </button>
+            ) : (
+              <div className="bg-red-950/65 border border-red-400/45 rounded-2xl p-3 space-y-2 text-center">
+                <p className="text-[11px] font-bold text-red-200">Permanently delete &ldquo;{String(activeUserKey)}&rdquo; and all PB history?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="h-9 px-3 rounded-full bg-white/15 text-xs font-bold text-white flex items-center justify-center cursor-pointer">Cancel</button>
+                  <button type="button" onClick={deleteCurrentSolverAccount} className="h-9 px-3 rounded-full bg-red-500 text-white text-xs font-black flex items-center justify-center cursor-pointer">Confirm Delete</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
+    ];
+
+    const activeCard = CARDS[settingsCardIdx % TOTAL_SETTINGS_CARDS] || CARDS[0];
+
+    return (
+      <div className="p-5 pb-28 flex flex-col justify-between min-h-[calc(100dvh-9rem)] space-y-4 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">UV Liquid Glass Stack</p>
+            <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
+          </div>
           <button
             type="button"
-            onClick={() => { emitBeep(420); setActiveModal('reset'); }}
-            className="w-full h-10 px-4 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 flex items-center justify-between text-xs font-black text-red-300 cursor-pointer"
+            onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
+            className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
           >
-            <span>Granular Progress Reset</span>
-            <span>Manage →</span>
+            Show My Stats
           </button>
+        </div>
 
-          {!deleteAccountConfirm ? (
-            <button
-              type="button"
-              onClick={() => { emitBeep(380); setDeleteAccountConfirm(true); }}
-              className="w-full h-10 px-4 rounded-full bg-white/[0.04] hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-xs font-bold text-zinc-300 hover:text-red-300 flex items-center justify-center cursor-pointer"
-            >
-              Delete My Account &amp; Data
-            </button>
-          ) : (
-            <div className="bg-red-950/50 border border-red-500/40 rounded-2xl p-3 space-y-2 text-center">
-              <p className="text-[11px] font-bold text-red-200">Permanently delete &ldquo;{String(activeUserKey)}&rdquo; and all PB history?</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="h-9 px-3 rounded-full bg-white/10 text-xs font-bold text-zinc-200 flex items-center justify-center cursor-pointer">Cancel</button>
-                <button type="button" onClick={deleteCurrentSolverAccount} className="h-9 px-3 rounded-full bg-red-500 text-white text-xs font-black flex items-center justify-center cursor-pointer">Confirm Delete</button>
+        {/* Single Visible Transparent UV-Coated Liquid Glass Card Stage */}
+        <div
+          onTouchStart={handleCardTouchStart}
+          onTouchEnd={handleCardTouchEnd}
+          onWheel={handleCardWheel}
+          onClick={handleCardSurfaceClick}
+          style={{ touchAction: 'pan-x' }}
+          className="relative my-auto py-3 select-none cursor-pointer"
+        >
+          {/* Ambient UV Iridescent Glow Behind Active Card */}
+          <div
+            className="pointer-events-none absolute -inset-2 rounded-[2.6rem] opacity-85"
+            style={{ background: 'radial-gradient(circle at 30% 15%, rgba(168, 85, 247, 0.22) 0%, rgba(249, 115, 22, 0.2) 48%, rgba(5, 5, 7, 0) 75%)' }}
+          />
+
+          <div
+            key={`${activeCard.num}-${settingsSwipeDir}`}
+            className={`relative liquid-glass-uv border border-white/25 rounded-[2.35rem] p-5 space-y-4 ${
+              settingsSwipeDir === 'up' ? 'uv-card-enter-up' : 'uv-card-enter-down'
+            }`}
+          >
+            {/* Card Header */}
+            <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-300 block">
+                  Card {activeCard.num} of {TOTAL_SETTINGS_CARDS} • {activeCard.category}
+                </span>
+                <h3 className="text-lg font-black text-white mt-0.5">{activeCard.title}</h3>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Previous Settings Card"
+                  onClick={(e) => { e.stopPropagation(); stepSettingsCard('down'); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-xs font-black text-white flex items-center justify-center cursor-pointer"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next Settings Card"
+                  onClick={(e) => { e.stopPropagation(); stepSettingsCard('up'); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-xs font-black text-white flex items-center justify-center cursor-pointer"
+                >
+                  ↓
+                </button>
               </div>
             </div>
-          )}
+
+            {/* Active Card Body */}
+            <div>{activeCard.content}</div>
+          </div>
         </div>
-      </section>
-    </div>
-  );
+
+        {/* Minimal Stack Indicator & Gesture Hint */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <div className="flex items-center gap-1.5">
+            {CARDS.map((c, idx) => (
+              <span
+                key={c.num}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  settingsCardIdx === idx
+                    ? 'w-6 bg-gradient-to-r from-orange-400 to-amber-300 shadow-[0_0_10px_rgba(251,146,60,0.8)]'
+                    : 'w-1.5 bg-white/25'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            {viewportDevice.isTouchPrimary ? 'Swipe Up or Down to Cycle Cards' : 'Click Card or Scroll to Cycle Stack'}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
     const isF2L = phaseKey === 'f2l';
