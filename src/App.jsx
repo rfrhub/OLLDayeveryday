@@ -1552,12 +1552,12 @@ function CustomAlgSwitcherPills({ item, onSelect, stopPropagation = false }) {
   return (
     <div
       onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
-      className="bg-black/50 p-0.5 rounded-full border border-white/10 inline-flex items-center flex-wrap gap-0.5"
+      className="bg-white/[0.04] p-0.5 rounded-xl inline-flex items-center flex-wrap gap-0.5"
     >
       <button
         type="button"
         onClick={() => onSelect(null)}
-        className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase cursor-pointer transition-all ${!item.usingCustomAlg ? 'bg-white/[0.14] text-white' : 'text-zinc-400 hover:text-white'}`}
+        className={`px-2 py-0.5 rounded-lg text-[8.5px] font-black uppercase cursor-pointer transition-all ${!item.usingCustomAlg ? 'bg-white/[0.14] text-white' : 'text-zinc-400 hover:text-white'}`}
       >
         Ours
       </button>
@@ -1566,7 +1566,7 @@ function CustomAlgSwitcherPills({ item, onSelect, stopPropagation = false }) {
           key={cAlt.id}
           type="button"
           onClick={() => onSelect(cAlt.id)}
-          className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase cursor-pointer transition-all ${item.activeCustomId === cAlt.id ? 'bg-orange-500 text-slate-950' : 'text-zinc-400 hover:text-white'}`}
+          className={`px-2 py-0.5 rounded-lg text-[8.5px] font-black uppercase cursor-pointer transition-all ${item.activeCustomId === cAlt.id ? 'bg-orange-500 text-slate-950' : 'text-zinc-400 hover:text-white'}`}
         >
           #{idx + 1}
         </button>
@@ -2052,7 +2052,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 cursor-pointer`}
+              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer`}
             >
               Reset
             </button>
@@ -2060,7 +2060,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
+            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-orange-500/12 hover:bg-orange-500/22 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
           >
             Rotate ↻
           </button>
@@ -2158,12 +2158,12 @@ function CasePracticeCard({
           </div>
           <div className="flex items-center gap-1">
             {onOpenCustomAlgEditor && (
-              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-white/[0.06] border border-white/10 font-black text-zinc-200 hover:bg-white/[0.12] cursor-pointer`}>
+              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-black text-zinc-300 hover:text-white transition-all cursor-pointer`}>
                 {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
               </button>
             )}
             {fingertricksEnabled && (
-              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
+              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-orange-500/15 font-black text-orange-300 transition-all cursor-pointer`}>
                 Grip →
               </button>
             )}
@@ -2259,7 +2259,7 @@ function MillisecondSliderControl({ value, min, max, draftValue, onSliderChange,
         {[{ label: '-10ms', delta: -0.01 }, { label: '-1ms', delta: -0.001 }, { label: '+1ms', delta: 0.001 }, { label: '+10ms', delta: 0.01 }].map((btn) => (
           <button
             key={btn.label} type="button" onClick={() => onStepDelta(btn.delta)}
-            className="flex-1 py-1 rounded-full bg-black/50 border border-white/10 font-mono text-[9.5px] font-bold text-zinc-300 hover:text-white cursor-pointer"
+            className="flex-1 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] font-mono text-[9.5px] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
           >
             {btn.label}
           </button>
@@ -2859,25 +2859,35 @@ const APP_GLOBAL_CSS = `
   .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
   .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .liquid-glass-card {
-    background: linear-gradient(155deg, rgba(28, 26, 36, 0.95) 0%, rgba(12, 14, 22, 0.98) 55%, rgba(9, 11, 18, 0.99) 100%);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.095) 0%, rgba(255, 255, 255, 0.025) 46%, rgba(249, 115, 22, 0.055) 100%),
+      rgba(10, 17, 36, 0.36);
+    backdrop-filter: blur(20px) saturate(145%);
+    -webkit-backdrop-filter: blur(20px) saturate(145%);
     contain: paint;
   }
   .liquid-glass-well {
-    background: linear-gradient(180deg, rgba(6, 8, 15, 0.88) 0%, rgba(15, 17, 27, 0.78) 100%);
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 0 rgba(0, 0, 0, 0.45);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%),
+      rgba(6, 11, 26, 0.34);
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.09), inset 0 -1px 0 0 rgba(0, 0, 0, 0.28);
   }
   .liquid-tile-sheen {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 45%, rgba(249, 115, 22, 0.05) 100%);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(249, 115, 22, 0.07) 100%),
+      rgba(10, 18, 38, 0.34);
   }
   .liquid-glass-dock {
     background:
-      linear-gradient(125deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(168, 85, 247, 0.07) 54%, rgba(251, 146, 60, 0.1) 100%),
-      rgba(9, 11, 18, 0.82);
-    backdrop-filter: blur(18px) saturate(155%) contrast(108%);
-    -webkit-backdrop-filter: blur(18px) saturate(155%) contrast(108%);
+      linear-gradient(125deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(168, 85, 247, 0.07) 54%, rgba(251, 146, 60, 0.11) 100%),
+      rgba(8, 14, 30, 0.44);
+    backdrop-filter: blur(22px) saturate(160%) contrast(106%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%) contrast(106%);
     box-shadow:
-      inset 0 -1px 0 0 rgba(251, 146, 60, 0.2),
-      0 20px 44px -8px rgba(0, 0, 0, 0.88);
+      inset 0 -1px 0 0 rgba(251, 146, 60, 0.22),
+      0 20px 44px -8px rgba(0, 0, 0, 0.72);
     contain: layout paint;
     transform: translateZ(0);
   }
@@ -2962,38 +2972,45 @@ const APP_GLOBAL_CSS = `
   }
   .liquid-glass-uv {
     background:
-      linear-gradient(132deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(168, 85, 247, 0.06) 54%, rgba(255, 255, 255, 0.02) 76%, rgba(251, 146, 60, 0.1) 100%),
-      linear-gradient(180deg, rgba(22, 25, 38, 0.94) 0%, rgba(12, 14, 24, 0.97) 46%, rgba(7, 9, 16, 0.99) 100%);
+      linear-gradient(132deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 30%, rgba(168, 85, 247, 0.08) 54%, rgba(255, 255, 255, 0.03) 76%, rgba(251, 146, 60, 0.12) 100%),
+      rgba(12, 19, 40, 0.48);
+    backdrop-filter: blur(24px) saturate(155%);
+    -webkit-backdrop-filter: blur(24px) saturate(155%);
     contain: paint;
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.36),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
       inset 0 2px 10px 0 rgba(255, 255, 255, 0.08),
       inset 0 -1px 0 0 rgba(251, 146, 60, 0.24),
-      0 26px 64px -12px rgba(0, 0, 0, 0.84);
+      0 26px 64px -12px rgba(0, 0, 0, 0.72);
   }
   .liquid-glass-uv-well {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.015) 48%, rgba(251, 146, 60, 0.045) 100%),
-      rgba(7, 9, 17, 0.34);
+      linear-gradient(145deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 48%, rgba(251, 146, 60, 0.05) 100%),
+      rgba(7, 13, 28, 0.32);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 0 rgba(0, 0, 0, 0.38);
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.28);
   }
   .liquid-rim-muted {
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 18px 44px -14px rgba(0, 0, 0, 0.78);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 44px -14px rgba(0, 0, 0, 0.62);
   }
   .liquid-rim-amber {
-    box-shadow: inset 0 1px 0 0 rgba(251, 146, 60, 0.24), inset 0 0 0 1px rgba(249, 115, 22, 0.14), 0 18px 44px -14px rgba(0, 0, 0, 0.82);
+    box-shadow: inset 0 1px 0 0 rgba(251, 146, 60, 0.32), inset 0 0 0 1px rgba(249, 115, 22, 0.18), 0 18px 44px -14px rgba(0, 0, 0, 0.65);
   }
   .custom-alg-card {
     background:
-      linear-gradient(155deg, rgba(249, 115, 22, 0.22) 0%, rgba(251, 146, 60, 0.10) 48%, rgba(18, 12, 9, 0.94) 100%);
+      linear-gradient(155deg, rgba(249, 115, 22, 0.24) 0%, rgba(251, 146, 60, 0.11) 48%, rgba(249, 115, 22, 0.05) 100%),
+      rgba(16, 15, 28, 0.42);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
     border-color: rgba(249, 115, 22, 0.55) !important;
     box-shadow:
-      inset 0 1px 0 0 rgba(251, 146, 60, 0.34),
-      inset 0 0 0 1px rgba(249, 115, 22, 0.18),
-      0 0 28px -4px rgba(249, 115, 22, 0.32),
-      0 18px 44px -14px rgba(0, 0, 0, 0.82);
+      inset 0 1px 0 0 rgba(251, 146, 60, 0.38),
+      inset 0 0 0 1px rgba(249, 115, 22, 0.20),
+      0 0 28px -4px rgba(249, 115, 22, 0.34),
+      0 18px 44px -14px rgba(0, 0, 0, 0.65);
   }
   .liquid-pour-container {
     transform-origin: center bottom;
@@ -4463,7 +4480,7 @@ function OLLDaySuite() {
           <button
             type="button"
             onClick={openFullTimerModal}
-            className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md shadow-orange-500/20 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-md shadow-orange-500/20 cursor-pointer"
           >
             Open Timer
           </button>
@@ -4631,7 +4648,7 @@ function OLLDaySuite() {
               <button
                 type="button"
                 onClick={startGuidedTour}
-                className="w-full h-10 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
+                className="w-full h-10 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
               >
                 Open Quick-Start Guide →
               </button>
@@ -4706,14 +4723,14 @@ function OLLDaySuite() {
               <button
                 type="button"
                 onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
-                className="h-10 px-3.5 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white flex items-center justify-center cursor-pointer"
+                className="h-10 px-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.14] text-[11px] font-black text-white flex items-center justify-center transition-all cursor-pointer"
               >
                 Switch Account
               </button>
               <button
                 type="button"
                 onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }}
-                className="h-10 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-200 flex items-center justify-center cursor-pointer"
+                className="h-10 px-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-[11px] font-bold text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer"
               >
                 Restore Purchase
               </button>
@@ -4804,7 +4821,7 @@ function OLLDaySuite() {
             <button
               type="button"
               onClick={openFullTimerModal}
-              className="w-full h-11 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
+              className="w-full h-11 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
             >
               Launch Full-Screen 3x3x3 Timer
             </button>
@@ -4933,7 +4950,7 @@ function OLLDaySuite() {
                 <p className="text-[11px] font-bold text-red-200">Permanently delete &ldquo;{String(activeUserKey)}&rdquo; and all PB history?</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="h-9 px-3 rounded-full bg-white/15 text-xs font-bold text-white flex items-center justify-center cursor-pointer">Cancel</button>
-                  <button type="button" onClick={deleteCurrentSolverAccount} className="h-9 px-3 rounded-full bg-red-500 text-white text-xs font-black flex items-center justify-center cursor-pointer">Confirm Delete</button>
+                  <button type="button" onClick={deleteCurrentSolverAccount} className="h-9 px-3 rounded-2xl bg-red-500 text-white text-xs font-black flex items-center justify-center cursor-pointer">Confirm Delete</button>
                 </div>
               </div>
             )}
@@ -4953,7 +4970,7 @@ function OLLDaySuite() {
           <button
             type="button"
             onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
-            className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            className="h-9 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
           >
             Show My Stats
           </button>
@@ -5147,7 +5164,7 @@ function OLLDaySuite() {
                     saveUserToCloud(resolvedUserKey, updated);
                   }}
                   disabled={safeDay <= 1}
-                  className="px-3.5 py-3.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-bold text-zinc-300 disabled:opacity-30 cursor-pointer"
+                  className="px-3.5 py-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer"
                 >
                   ← Prev
                 </button>
@@ -5162,7 +5179,7 @@ function OLLDaySuite() {
                     const sessionQueue = dayObj.randomize ? shuffleCaseList(lineupOrder) : [...lineupOrder];
                     setSession({ dayObj, index: 0, queue: sessionQueue });
                   }}
-                  className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
+                  className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
                 >
                   Continue Today&apos;s Lesson →
                 </button>
@@ -5177,7 +5194,7 @@ function OLLDaySuite() {
                     setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
                     saveUserToCloud(resolvedUserKey, updated);
                   }}
-                  className="px-3.5 py-3.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-bold text-zinc-300 cursor-pointer"
+                  className="px-3.5 py-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
                 >
                   Next →
                 </button>
@@ -5250,18 +5267,18 @@ function OLLDaySuite() {
                 if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; }
                 emitBeep(560); openCurriculumBuilder(phaseKey);
               }}
-              className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold cursor-pointer"
+              className="px-3 py-1.5 rounded-2xl bg-transparent hover:bg-orange-500/15 text-orange-300 text-[11px] font-bold transition-all cursor-pointer"
             >
               {isProUnlocked ? '+ Edit Chunks' : '🔒 Edit Chunks'}
             </button>
           </div>
 
-          <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex">
+          <div className="liquid-glass-well p-1 rounded-2xl border border-white/[0.08] flex">
             {[{ key: 'groups', label: meta.groupTabLabel }, { key: 'chunks', label: 'Curriculum Chunks' }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => { emitBeep(480); setLibMode(m.key); }}
-                className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${currentLib.mode === m.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-zinc-400 hover:text-white'}`}
+                className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all ${currentLib.mode === m.key ? 'bg-orange-500 text-slate-950 shadow-md' : 'text-zinc-400 hover:text-white'}`}
               >
                 {m.label}
               </button>
@@ -5322,7 +5339,7 @@ function OLLDaySuite() {
             )
           ) : (
             <div className="space-y-3">
-              <button onClick={() => { emitBeep(460); setSelectedCategory(null); }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-xs font-bold text-orange-400 cursor-pointer">
+              <button onClick={() => { emitBeep(460); setSelectedCategory(null); }} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-transparent hover:bg-white/[0.06] text-xs font-bold text-orange-400 transition-all cursor-pointer">
                 ← Back to All {currentLib.mode === 'groups' ? 'Groups' : 'Chunks'}
               </button>
               <h3 className="text-lg font-black text-white">{currentLib.category.type === 'group' ? currentLib.category.name : currentLib.category.chunk.title}</h3>
@@ -5391,10 +5408,10 @@ function OLLDaySuite() {
                             e.stopPropagation();
                             openCustomAlgEditor(phaseKey, rawItem);
                           }}
-                          className={`px-2.5 py-1.5 rounded-full border text-[10px] font-black cursor-pointer transition-all ${
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black cursor-pointer transition-all ${
                             item.hasCustomAlg
-                              ? 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30'
-                              : 'bg-white/[0.06] border-white/10 text-zinc-300 hover:text-white hover:bg-white/[0.12]'
+                              ? 'bg-orange-500/15 text-orange-300 hover:bg-orange-500/25'
+                              : 'bg-transparent text-zinc-300 hover:text-white hover:bg-white/[0.08]'
                           }`}
                         >
                           {isProUnlocked ? (item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ Custom') : '🔒 Custom'}
@@ -5402,7 +5419,7 @@ function OLLDaySuite() {
                         {fingertricksEnabled && (
                           <button
                             onClick={(e) => { e.stopPropagation(); emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
-                            className="px-2.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-zinc-300 hover:text-white cursor-pointer"
+                            className="px-2.5 py-1 rounded-xl bg-transparent hover:bg-white/[0.08] text-[10px] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
                           >
                             Grip
                           </button>
@@ -5469,7 +5486,7 @@ function OLLDaySuite() {
                           emitBeep(560);
                           setEditingCaseTarget({ phase: phaseKey, caseId: item.id, name: item.name, draft: caseGoal.toFixed(3) });
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/25 cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/12 font-mono text-[9.5px] font-black text-amber-300 hover:bg-amber-500/22 transition-all cursor-pointer"
                         title="Set Case Target PB"
                       >
                         Goal: {caseGoal.toFixed(3)}s ✎
@@ -5483,7 +5500,7 @@ function OLLDaySuite() {
                             emitBeep(520);
                             setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name });
                           }}
-                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-mono text-[9.5px] font-bold text-zinc-300 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.12] font-mono text-[9.5px] font-bold text-zinc-300 transition-all cursor-pointer"
                           title="Inspect or Delete Logged Times"
                         >
                           Times ({stat.history.length}) ✎
@@ -5662,7 +5679,7 @@ function OLLDaySuite() {
             <button
               onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 disabled:opacity-30 cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer`}
             >
               ← Previous
             </button>
@@ -5681,7 +5698,7 @@ function OLLDaySuite() {
                   setSession(null);
                 }
               }}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
             >
               {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
             </button>
@@ -5721,7 +5738,7 @@ function OLLDaySuite() {
             <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-300">
               {phaseKey.toUpperCase()} Isolated Drill • {item.group}
             </span>
-            <button onClick={closeDrill} className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 text-base font-bold cursor-pointer">✕</button>
+            <button onClick={closeDrill} className="w-10 h-10 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12]  text-zinc-300 text-base font-bold cursor-pointer">✕</button>
           </div>
         )}
 
@@ -5741,7 +5758,7 @@ function OLLDaySuite() {
           >
             {!isTwoPane && (
               <div data-no-timer-start="true" className="flex items-center justify-end">
-                <button onClick={closeDrill} className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 text-xs font-bold flex-shrink-0 cursor-pointer">✕</button>
+                <button onClick={closeDrill} className="w-7 h-7 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12]  text-zinc-300 text-xs font-bold flex-shrink-0 cursor-pointer">✕</button>
               </div>
             )}
 
@@ -5782,7 +5799,7 @@ function OLLDaySuite() {
             <button
               type="button"
               onClick={closeDrill}
-              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-black uppercase tracking-wider text-zinc-200 cursor-pointer"
+              className="px-4 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12]  text-xs font-black uppercase tracking-wider text-zinc-200 cursor-pointer"
             >
               Done Drilling
             </button>
@@ -5810,7 +5827,7 @@ function OLLDaySuite() {
     );
 
     return (
-      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-black/35 border-l border-white/[0.08] p-5 pb-28 space-y-3.5 overflow-hidden`}>
+      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-[#070f24]/25 backdrop-blur-xl border-l border-white/[0.09] p-5 pb-28 space-y-3.5 overflow-hidden`}>
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
           <div>
             <h2 className="text-lg font-black tracking-tight text-white">Notation &amp; Mechanics</h2>
@@ -5972,7 +5989,7 @@ function OLLDaySuite() {
           } flex flex-col relative z-10 bg-midnight-marble overflow-hidden`}
         >
           {/* PERSISTENT HEADER */}
-          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.07] bg-[#070d1d]/90 flex-shrink-0 z-40`}>
+          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.09] bg-[#070f24]/45 backdrop-blur-xl flex-shrink-0 z-40`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-2xl bg-white/[0.07] border border-white/15 p-0.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                 <SuneEmblemSvg className="w-full h-full" />
@@ -5991,7 +6008,7 @@ function OLLDaySuite() {
               <button
                 type="button"
                 onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
-                className="px-3 h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                className="px-3 h-8 rounded-2xl bg-orange-500/12 hover:bg-orange-500/22 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                 title="Scan 3x3 Cube & Predict Next Case"
                 aria-label="Scan Cube"
               >
@@ -6001,7 +6018,7 @@ function OLLDaySuite() {
 
               <button
                 onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
-                className={`flex items-center gap-1.5 ${isTwoPane ? 'px-3.5' : 'px-2.5'} py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-[11px] font-bold text-zinc-200 active:scale-95 transition-all cursor-pointer`}
+                className={`flex items-center gap-1.5 ${isTwoPane ? 'px-3.5' : 'px-2.5'} py-1 rounded-2xl bg-white/[0.04] hover:bg-white/[0.1] text-[11px] font-bold text-zinc-200 active:scale-95 transition-all cursor-pointer`}
                 title="Switch Solver Account"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.8)] flex-shrink-0" />
@@ -6023,13 +6040,13 @@ function OLLDaySuite() {
                           <div className="min-w-0">
                             <h2 className="text-2xl font-black tracking-tight text-white">Cross in X</h2>
                           </div>
-                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-4 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer">
+                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-3.5 rounded-2xl bg-orange-500/12 hover:bg-orange-500/22 text-orange-300 text-[11px] font-bold whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 transition-all cursor-pointer">
                             Color Orbit
                           </button>
                         </div>
 
                         {/* Top Mode Switcher Pill */}
-                        <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex items-center gap-1">
+                        <div className="liquid-glass-well p-1 rounded-2xl border border-white/[0.08] flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => {
@@ -6037,7 +6054,7 @@ function OLLDaySuite() {
                               const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
                               setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                             }}
-                            className={`flex-1 h-9 px-3 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap rounded-full flex items-center justify-center cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/[0.14] text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                            className={`flex-1 h-9 px-3 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap rounded-xl flex items-center justify-center cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/[0.14] text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
                           >
                             Standard (2–6)
                           </button>
@@ -6049,7 +6066,7 @@ function OLLDaySuite() {
                               const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
                               setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                             }}
-                            className={`relative overflow-hidden flex-1 h-9 px-3 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap rounded-full flex items-center justify-center gap-1 cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                            className={`relative overflow-hidden flex-1 h-9 px-3 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap rounded-xl flex items-center justify-center gap-1 cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
                           >
                             <span className={!isProUnlocked ? 'opacity-65' : ''}>
                               <span className="sm:hidden">Full Scramble</span>
@@ -6090,7 +6107,7 @@ function OLLDaySuite() {
                             </div>
                             <button
                               onClick={() => { emitBeep(560); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }}
-                              className="h-9 px-4 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-orange-300 whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer"
+                              className="h-9 px-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-orange-300 whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
                             >
                               New ↻
                             </button>
@@ -6113,14 +6130,14 @@ function OLLDaySuite() {
                                 <button
                                   type="button"
                                   onClick={() => { emitBeep(540); crossOrbit.setOrbit((prev) => (prev.pitch > 15 ? { yaw: -35, pitch: -28 } : { yaw: -35, pitch: 38 })); }}
-                                  className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black text-orange-300 cursor-pointer active:scale-95 transition-all"
+                                  className="px-2.5 py-0.5 rounded-xl bg-transparent hover:bg-orange-500/15 text-[10px] font-black text-orange-300 cursor-pointer active:scale-95 transition-all"
                                 >
                                   {crossOrbit.rot.pitch > 15 ? 'Top View ↻' : 'Bottom (D) ↻'}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => { emitBeep(480); crossOrbit.setOrbit({ yaw: -35, pitch: 38 }); }}
-                                  className="px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-zinc-300 cursor-pointer"
+                                  className="px-2.5 py-0.5 rounded-xl bg-transparent hover:bg-white/[0.08] text-[10px] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
                                 >
                                   Reset
                                 </button>
@@ -6176,7 +6193,7 @@ function OLLDaySuite() {
                               <button
                                 type="button"
                                 onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
-                                className="h-8 px-4 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 flex items-center justify-center cursor-pointer transition-all"
+                                className="h-8 px-3 rounded-xl bg-transparent hover:bg-orange-500/15 text-[10px] font-black uppercase tracking-wider text-orange-300 flex items-center justify-center cursor-pointer transition-all"
                               >
                                 {crossSolutionRevealed ? 'Hide ▲' : 'Reveal ▼'}
                               </button>
@@ -6490,7 +6507,7 @@ function OLLDaySuite() {
                 <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
-                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#080b14] backdrop-blur-2xl border border-orange-400/60 shadow-[0_18px_44px_rgba(0,0,0,0.92),0_0_24px_rgba(249,115,22,0.35)] ${
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 backdrop-blur-2xl border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
                       cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
                     }`}
                   >
@@ -6513,7 +6530,7 @@ function OLLDaySuite() {
                           className={`liquid-droplet-item px-3.5 py-1.5 text-xs font-black tracking-wider cursor-pointer flex items-center gap-1 ${
                             isActive
                               ? 'bg-gradient-to-r from-orange-500 to-amber-400 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.55)]'
-                              : 'bg-[#131929] border border-white/15 text-white hover:bg-[#1c253d] hover:border-orange-400/45'
+                              : 'bg-transparent text-zinc-200 hover:bg-white/[0.1] hover:text-white'
                           }`}
                         >
                           <span>{p.label}</span>
@@ -6615,8 +6632,8 @@ function OLLDaySuite() {
                             }}
                             className={`py-2 px-2 ${id === 'blind' ? 'rounded-xl md:rounded-full' : 'rounded-full'} flex flex-col items-center justify-center gap-0.5 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-orange-500/24 text-orange-200 border border-orange-400/45 shadow-[0_0_16px_rgba(249,115,22,0.26)]'
-                                : 'text-zinc-200/90 hover:text-white border border-transparent'
+                                ? 'bg-orange-500/22 text-orange-200 shadow-[0_0_18px_rgba(249,115,22,0.24)]'
+                                : 'text-zinc-300/85 hover:text-white hover:bg-white/[0.06]'
                             }`}
                           >
                             <Icon className="w-4 h-4" />
@@ -6667,7 +6684,7 @@ function OLLDaySuite() {
                 <div className="grid grid-cols-3 gap-2">
                   <button type="button" onClick={() => toggleFullSolvePenalty('+2')} className={`py-2.5 rounded-full border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === '+2' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-white/[0.08] border-white/15 text-amber-300'}`}>+2</button>
                   <button type="button" onClick={() => toggleFullSolvePenalty('DNF')} className={`py-2.5 rounded-full border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === 'DNF' ? 'bg-red-500 text-white border-red-400' : 'bg-white/[0.08] border-white/15 text-red-300'}`}>DNF</button>
-                  <button type="button" onClick={deleteLastFullSolve} className="py-2.5 rounded-full bg-white/[0.08] border border-white/15 text-xs font-bold text-zinc-300 hover:text-white cursor-pointer">Delete</button>
+                  <button type="button" onClick={deleteLastFullSolve} className="py-2.5 rounded-2xl bg-white/[0.08]  text-xs font-bold text-zinc-300 hover:text-white cursor-pointer">Delete</button>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2.5">
@@ -7909,7 +7926,7 @@ function OLLDaySuite() {
                             type="button"
                             onClick={backspaceMoveToken}
                             disabled={!draftAlg.trim()}
-                            className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-zinc-300 disabled:opacity-35 cursor-pointer"
+                            className="px-2.5 py-0.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12]  text-[10px] font-bold text-zinc-300 disabled:opacity-35 cursor-pointer"
                           >
                             ⌫ Undo
                           </button>
@@ -8261,7 +8278,7 @@ function OLLDaySuite() {
                           <button
                             type="button"
                             onClick={clearChunkDraft}
-                            className="px-3 py-2 rounded-full bg-white/[0.05] text-xs font-bold text-zinc-400 hover:text-white cursor-pointer"
+                            className="px-3 py-2 rounded-2xl bg-white/[0.05] text-xs font-bold text-zinc-400 hover:text-white cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -8347,7 +8364,7 @@ function OLLDaySuite() {
                 <button
                   type="button"
                   onClick={saveCurriculumBuilder}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
                 >
                   Save {builderPhase.toUpperCase()} Schedule ({builderChunks.length} Chunks)
                 </button>
@@ -8589,7 +8606,7 @@ function OLLDaySuite() {
                 <p className="text-xs font-black text-green-400 py-2">{proPurchaseToast}</p>
               ) : (
                 <div className="space-y-2 pt-1">
-                  <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $5.99</button>
+                  <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $5.99</button>
                   <button type="button" onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-full bg-white/[0.06] text-xs font-bold text-zinc-400 hover:text-white cursor-pointer">Maybe Later</button>
                 </div>
               )}
@@ -8694,7 +8711,7 @@ function OLLDaySuite() {
                 <button
                   type="button"
                   onClick={shareStatsSummaryImage}
-                  className="py-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                  className="py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
                 >
                   Share Image ↗
                 </button>
