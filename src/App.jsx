@@ -2870,8 +2870,6 @@ const APP_GLOBAL_CSS = `
     backdrop-filter: blur(18px) saturate(155%) contrast(108%);
     -webkit-backdrop-filter: blur(18px) saturate(155%) contrast(108%);
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
-      inset 0 2px 8px 0 rgba(255, 255, 255, 0.07),
       inset 0 -1px 0 0 rgba(251, 146, 60, 0.2),
       0 20px 44px -8px rgba(0, 0, 0, 0.88);
     contain: layout paint;
@@ -4580,10 +4578,30 @@ function OLLDaySuite() {
     const CARDS = [
       {
         num: 1,
-        category: 'Onboarding & Guides',
-        title: 'Quick-Start, CFOP & Tutorial',
+        category: 'Onboarding & Home',
+        title: 'Home Screen & Quick-Start',
         content: (
-          <div className="space-y-2.5">
+          <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-black text-white block">Pinned Home Screen</span>
+                <span className="text-[10px] text-zinc-300/80">Default phase on startup</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((item) => {
+                  const isPinned = (pinnedHomePhase || 'cross') === item.key;
+                  return (
+                    <button
+                      key={item.key} type="button"
+                      onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
+                      className={`w-8 h-8 rounded-full text-xs font-black transition-all flex items-center justify-center cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/50 border border-white/15 text-zinc-300 hover:text-white'}`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-black text-white">Quick-Start Experience Picker</span>
@@ -4690,30 +4708,9 @@ function OLLDaySuite() {
       {
         num: 3,
         category: 'Curriculum & Pacing',
-        title: 'Targets, Home & Chunks',
+        title: 'Target PBs & Chunks',
         content: (
           <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
-            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-center justify-between gap-2">
-              <div>
-                <span className="text-xs font-black text-white block">Pinned Home Screen</span>
-                <span className="text-[10px] text-zinc-300/80">Default phase on startup</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((item) => {
-                  const isPinned = (pinnedHomePhase || 'cross') === item.key;
-                  return (
-                    <button
-                      key={item.key} type="button"
-                      onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
-                      className={`w-8 h-8 rounded-full text-xs font-black transition-all flex items-center justify-center cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/50 border border-white/15 text-zinc-300 hover:text-white'}`}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-white">3x3x3 Full-Solve Target PB</span>
@@ -4997,20 +4994,8 @@ function OLLDaySuite() {
           </div>
         </div>
 
-        {/* Minimal Stack Indicator & Gesture Hint */}
-        <div className="flex flex-col items-center gap-2 pt-1">
-          <div className="flex items-center gap-1.5">
-            {CARDS.map((c, idx) => (
-              <span
-                key={c.num}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  settingsCardIdx === idx
-                    ? 'w-6 bg-gradient-to-r from-orange-400 to-amber-300 shadow-[0_0_10px_rgba(251,146,60,0.8)]'
-                    : 'w-1.5 bg-white/25'
-                }`}
-              />
-            ))}
-          </div>
+        {/* Gesture Hint */}
+        <div className="flex flex-col items-center pt-1">
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
             {viewportDevice.isTouchPrimary ? 'Swipe Up or Down to Cycle Cards' : 'Click Card or Scroll to Cycle Stack'}
           </span>
@@ -5610,7 +5595,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-midnight-marble flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#040814]/80 backdrop-blur-2xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full ${
@@ -5715,8 +5700,8 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] ${
-          isTwoPane ? 'bg-midnight-marble flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-midnight-marble/95 flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
+        className={`fixed inset-0 z-[245] bg-[#040814]/75 backdrop-blur-2xl ${
+          isTwoPane ? 'flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         {isTwoPane && (
@@ -6493,7 +6478,7 @@ function OLLDaySuite() {
                 <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
-                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/98 border border-orange-500/45 shadow-[0_14px_38px_rgba(249,115,22,0.38)] ${
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#080b14] backdrop-blur-2xl border border-orange-400/60 shadow-[0_18px_44px_rgba(0,0,0,0.92),0_0_24px_rgba(249,115,22,0.35)] ${
                       cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
                     }`}
                   >
@@ -6515,12 +6500,12 @@ function OLLDaySuite() {
                           }}
                           className={`liquid-droplet-item px-3.5 py-1.5 text-xs font-black tracking-wider cursor-pointer flex items-center gap-1 ${
                             isActive
-                              ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.5)]'
-                              : 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.14] hover:text-white'
+                              ? 'bg-gradient-to-r from-orange-500 to-amber-400 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.55)]'
+                              : 'bg-[#131929] border border-white/15 text-white hover:bg-[#1c253d] hover:border-orange-400/45'
                           }`}
                         >
                           <span>{p.label}</span>
-                          <span className="text-[9.5px] font-bold opacity-80">{p.title}</span>
+                          <span className={`text-[9.5px] font-extrabold ${isActive ? 'text-slate-950' : 'text-zinc-200'}`}>{p.title}</span>
                         </button>
                       );
                     })}
@@ -6576,12 +6561,13 @@ function OLLDaySuite() {
                     className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
                   >
                     {/* Specular Glass Top & Notch Rim Stroke */}
-                    <svg viewBox={`0 0 ${dw} ${dh}`} className="pointer-events-none absolute inset-0 w-full h-full">
+                    <svg viewBox={`0 0 ${dw} ${dh}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 w-full h-full">
                       <path
                         d={rimStrokePath}
                         fill="none"
-                        stroke="rgba(255,255,255,0.26)"
+                        stroke="rgba(255,255,255,0.24)"
                         strokeWidth="1.25"
+                        vectorEffect="non-scaling-stroke"
                       />
                     </svg>
 
