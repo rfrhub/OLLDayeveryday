@@ -1682,12 +1682,12 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
 }
 
 const STREAK_FACE_ORDER = [
-  { offset: 18, color: 'G', yaw: -30, pitch: -24 },  // Tiles 1-9: Front (Green - directly facing viewer)
-  { offset: 9, color: 'O', yaw: -62, pitch: -24 },   // Tiles 10-18: Right (Orange - directly visible on right)
-  { offset: 0, color: 'Y', yaw: -32, pitch: -42 },   // Tiles 19-27: Top (Yellow - tilted clearly into view)
-  { offset: 36, color: 'R', yaw: 62, pitch: -24 },   // Tiles 28-36: Left (Red)
-  { offset: 45, color: 'B', yaw: 152, pitch: -24 },  // Tiles 37-45: Back (Blue)
-  { offset: 27, color: 'W', yaw: -30, pitch: 42 }    // Tiles 46-54: Bottom (White) -> 54/54 Full UV Glow + Spin!
+  { offset: 18, color: 'G', yaw: -24, pitch: -16 },  // Tiles 1-9: Front (Green)
+  { offset: 9, color: 'O', yaw: -114, pitch: -16 },  // Tiles 10-18: Right (Orange - rotates into front-center)
+  { offset: 45, color: 'B', yaw: -204, pitch: -16 }, // Tiles 19-27: Back (Blue - rotates into front-center)
+  { offset: 36, color: 'R', yaw: -294, pitch: -16 }, // Tiles 28-36: Left (Red - rotates into front-center)
+  { offset: 0, color: 'Y', yaw: -24, pitch: -68 },   // Tiles 37-45: Top (Yellow - pitches down toward viewer)
+  { offset: 27, color: 'W', yaw: -24, pitch: 68 }    // Tiles 46-54: Bottom (White - pitches up toward viewer)
 ];
 
 const MINI_STREAK_HALF = 16;
@@ -1705,44 +1705,53 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const safeStreak = Math.max(0, Number(streakDays) || 0);
   const safeTotalDays = Math.max(1, Number(totalDays) || 1);
   const safeCurDay = Math.min(safeTotalDays, Math.max(1, Number(currentDay) || 1));
-  const halfwayDay = Math.max(2, Math.ceil(safeTotalDays / 2));
   const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
 
-  // Matte Finish triggers ONLY on the halfway mark day; after that day it returns to unlit/non-glowing until 75%+ UV Coated
-  const isHalfwayDay = safeCurDay === halfwayDay && pct < 75;
-  const isUvCoated = (pct >= 75 || safeStreak >= 54) && (streakActive || pct >= 75);
-  const isSpinGlowActive = isHalfwayDay || isUvCoated;
-
+  // Day 1 starts at 0 progressed days (all 54 black squares); each day progressed fills proportional squares up to 54
   const daysProgressed = Math.max(0, safeCurDay - 1);
   const displayStreakDays = Math.max(safeStreak, daysProgressed);
-  // Guarantee every single day progressed lights up at least 1 additional tile (even if totalDays > 54)
   const scaledDayTiles = safeTotalDays <= 54
-    ? Math.max(daysProgressed, Math.ceil((daysProgressed / safeTotalDays) * 54))
+    ? Math.max(daysProgressed, Math.round((daysProgressed / safeTotalDays) * 54))
     : Math.min(54, daysProgressed);
-  const filledSquares = isUvCoated
-    ? 54
-    : Math.min(54, Math.max(displayStreakDays, scaledDayTiles, Math.ceil((pct / 100) * 54)));
+  const rawFilledSquares = daysProgressed === 0 && safeStreak === 0
+    ? 0
+    : Math.min(54, Math.max(displayStreakDays, scaledDayTiles, Math.round((pct / 100) * 54)));
+
+  // 50% milestone = Matte Finish (rotates & pulse glows); 75%+ (or 54/54) = UV Coated (pulsates, glows & rotates 2x faster than Matte)
+  const effectivePct = Math.max(pct, Math.round((rawFilledSquares / 54) * 100));
+  const isUvCoated = effectivePct >= 75 || rawFilledSquares >= 54;
+  const isMatteFinish = !isUvCoated && effectivePct >= 50;
+  const isSpinGlowActive = isMatteFinish || isUvCoated;
+  const filledSquares = isUvCoated ? 54 : rawFilledSquares;
+
+  // Automatically rotates to face whichever side of the cube is actively being populated
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
   const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
   const [manualSpinOffset, setManualSpinOffset] = useState(0);
 
-  const targetYaw = activeFaceSpec.yaw + manualSpinOffset;
+  useEffect(() => {
+    setManualSpinOffset(0);
+  }, [activeFaceIdx]);
+
+  const withinFaceTile = filledSquares === 0 ? 0 : ((filledSquares - 1) % 9);
+  const tileSweepYaw = filledSquares === 0 ? 0 : (withinFaceTile - 4) * 3.5;
+  const targetYaw = activeFaceSpec.yaw - tileSweepYaw + manualSpinOffset;
   const targetPitch = activeFaceSpec.pitch;
 
   const badgeLabel = isUvCoated
     ? <>UV Coated <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
-    : isHalfwayDay
+    : isMatteFinish
     ? <>Matte Finish <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
-    : `${filledSquares}/54 Tiles`;
+    : `Day ${safeCurDay} • ${filledSquares}/54`;
 
   const cubeSpinClass = isUvCoated
     ? 'uv-streak-cube-spin'
-    : isHalfwayDay
+    : isMatteFinish
     ? 'matte-streak-cube-spin'
     : '';
   const cubeGlowClass = isUvCoated
     ? 'uv-streak-glow-pulse'
-    : isHalfwayDay
+    : isMatteFinish
     ? 'matte-streak-glow-pulse'
     : '';
 
@@ -1755,10 +1764,10 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
       }}
       title={
         isUvCoated
-          ? `${displayStreakDays}d Streak • UV Coated Mode Active`
-          : isHalfwayDay
-          ? `${displayStreakDays}d Streak • Halfway Mark Reached (Matte Finish)`
-          : `${displayStreakDays}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
+          ? `Day ${safeCurDay} (${displayStreakDays}d Streak) • UV Coated Mode Active`
+          : isMatteFinish
+          ? `Day ${safeCurDay} (${displayStreakDays}d Streak) • 50% Matte Finish Active`
+          : `Day ${safeCurDay} • ${filledSquares}/54 squares colored • Tap to inspect sides`
       }
       className="relative inline-flex items-center gap-2 bg-transparent border-0 p-0 transition-transform cursor-pointer active:scale-95"
     >
@@ -1774,7 +1783,7 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
             position: 'relative',
             transformStyle: 'preserve-3d',
             transform: isSpinGlowActive ? undefined : `rotateX(${targetPitch}deg) rotateY(${targetYaw}deg)`,
-            transition: isSpinGlowActive ? undefined : 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)'
+            transition: isSpinGlowActive ? undefined : 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1)'
           }}
         >
           {MINI_STREAK_FACES.map(({ offset, transform }) => {
@@ -1798,9 +1807,9 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                   gridTemplateRows: 'repeat(3, 1fr)',
                   gap: '1.2px',
                   boxShadow: isUvCoated
-                    ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.75), 0 0 10px rgba(192, 132, 252, 0.35)'
-                    : isHalfwayDay
-                    ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.65)'
+                    ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.85), 0 0 12px rgba(192, 132, 252, 0.45)'
+                    : isMatteFinish
+                    ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.75), 0 0 8px rgba(251, 191, 36, 0.3)'
                     : 'inset 0 0 0 0.75px rgba(100, 116, 139, 0.35)'
                 }}
               >
@@ -1813,10 +1822,10 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                       style={{
                         backgroundColor: isLit ? STICKER_HEX[faceColor] : '#11131a',
                         borderRadius: '1.5px',
-                        filter: isHalfwayDay && isLit ? 'contrast(0.92) saturate(0.88)' : undefined,
+                        filter: isMatteFinish && isLit ? 'contrast(0.92) saturate(0.88)' : undefined,
                         boxShadow: isLatestTile
                           ? '0 0 4px rgba(255,255,255,0.95), inset 0 0.5px 1px rgba(255,255,255,0.75)'
-                          : isLit && !isHalfwayDay
+                          : isLit && !isMatteFinish
                           ? 'inset 0 0.5px 1px rgba(255,255,255,0.55)'
                           : 'inset 0 0.5px 0.75px rgba(255, 255, 255, 0.06)'
                       }}
@@ -1829,10 +1838,10 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
         </div>
       </div>
       <div className="leading-tight text-left">
-        <span className={`font-mono text-[10.5px] font-black block ${isUvCoated ? 'text-purple-200' : isHalfwayDay ? 'text-amber-200' : 'text-white'}`}>
-          {displayStreakDays}d Streak
+        <span className={`font-mono text-[10.5px] font-black block ${isUvCoated ? 'text-purple-200' : isMatteFinish ? 'text-amber-200' : 'text-white'}`}>
+          Day {safeCurDay} • {displayStreakDays}d
         </span>
-        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isUvCoated ? 'text-amber-300' : isHalfwayDay ? 'text-zinc-200' : 'text-zinc-400'}`}>
+        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isUvCoated ? 'text-amber-300' : isMatteFinish ? 'text-zinc-200' : 'text-zinc-400'}`}>
           {badgeLabel}
         </span>
       </div>
@@ -2919,11 +2928,11 @@ const APP_GLOBAL_CSS = `
     50% { opacity: 0.95; transform: scale(1.08); }
   }
   .matte-streak-cube-spin {
-    animation: uvStreakSpin3D 11s linear infinite;
+    animation: uvStreakSpin3D 10s linear infinite;
     will-change: transform;
   }
   .uv-streak-cube-spin {
-    animation: uvStreakSpin3D 6.5s linear infinite;
+    animation: uvStreakSpin3D 5s linear infinite;
     will-change: transform;
   }
   .matte-streak-glow-pulse::before {
@@ -4938,14 +4947,12 @@ function OLLDaySuite() {
       ).length;
       const totalInLineup = Math.max(1, lineupOrder.length);
       const completionPct = Math.round((completedInLineup / totalInLineup) * 100);
-      const phaseProgressPct = Math.round(
-        Math.max(
-          (masteredCount / Math.max(1, dataList.length)) * 100,
-          ((safeDay - 1) / Math.max(1, scheduleList.length)) * 100
-        )
-      );
+      const dayRatioPct = Math.round(((safeDay - 1) / Math.max(1, scheduleList.length)) * 100);
+      const phaseProgressPct = safeDay === 1 && masteredCount === 0
+        ? 0
+        : Math.max(dayRatioPct, Math.round((masteredCount / Math.max(1, dataList.length)) * 100));
       const activeStreak = computeActiveStreakDays(currentUser.consecutiveStreakDays, currentUser.lastActiveDate);
-      const streakIntact = activeStreak > 0 || (safeDay === 1 && masteredCount === 0);
+      const streakIntact = activeStreak > 0 || safeDay === 1;
 
       return (
         <div className="p-4 sm:p-5 pb-28 space-y-3.5">
@@ -4954,6 +4961,9 @@ function OLLDaySuite() {
             <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-3xl p-4 sm:p-5 space-y-3.5 shadow-[0_20px_50px_rgba(249,115,22,0.16)]">
               <div className="flex items-center justify-between gap-2">
                 <div>
+                  <span className="text-xs font-black text-orange-400 block">
+                    Day {safeDay} <span className="text-zinc-500 font-bold">/ {scheduleList.length}</span>
+                  </span>
                   <span className="text-[10px] font-bold text-zinc-400">
                     {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered
                   </span>
@@ -5014,9 +5024,10 @@ function OLLDaySuite() {
                 <button
                   onClick={() => {
                     emitBeep(480);
-                    const updated = { ...currentUser, [dayField]: Math.max(1, safeDay - 1) };
-                    setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
-                    saveUserToCloud(resolvedUserKey, updated);
+                    updateActiveUserRecord((u) => {
+                      const cur = Math.min(Math.max(1, Number(u[dayField]) || 1), Math.max(1, scheduleList.length));
+                      return { ...u, [dayField]: Math.max(1, cur - 1) };
+                    });
                   }}
                   disabled={safeDay <= 1}
                   className="px-3.5 py-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer"
@@ -5041,13 +5052,14 @@ function OLLDaySuite() {
                 <button
                   onClick={() => {
                     emitBeep(480);
-                    const updated = {
-                      ...currentUser,
-                      ...advanceDailyStreakFields(currentUser),
-                      [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1
-                    };
-                    setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
-                    saveUserToCloud(resolvedUserKey, updated);
+                    updateActiveUserRecord((u) => {
+                      const cur = Math.min(Math.max(1, Number(u[dayField]) || 1), Math.max(1, scheduleList.length));
+                      return {
+                        ...u,
+                        ...advanceDailyStreakFields(u),
+                        [dayField]: cur >= scheduleList.length ? 1 : cur + 1
+                      };
+                    });
                   }}
                   className="px-3.5 py-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
                 >
