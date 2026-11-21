@@ -1484,19 +1484,16 @@ function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
   const pillClass = size === 'xs'
     ? 'px-2.5 py-0.5 text-[9.5px]'
     : 'px-3 py-1 text-[10px] shadow-lg';
-  const badge = (
-    <span className={`${pillClass} rounded-full bg-orange-500/20 border border-orange-400/45 font-black uppercase tracking-wider text-orange-200 backdrop-blur-md`}>
-      🔒 {label}
-    </span>
-  );
-  return interactive ? (
-    <button type="button" onClick={onClick} className="absolute inset-0 z-10 bg-black/70 backdrop-blur-[2px] flex items-center justify-center cursor-pointer">
-      {badge}
-    </button>
-  ) : (
-    <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-      {badge}
-    </div>
+  const Wrapper = interactive ? 'button' : 'div';
+  return (
+    <Wrapper
+      {...(interactive ? { type: 'button', onClick } : {})}
+      className={`absolute inset-0 z-10 bg-black/78 flex items-center justify-center ${interactive ? 'cursor-pointer' : 'pointer-events-none'}`}
+    >
+      <span className={`${pillClass} rounded-full bg-[#1a110b]/95 border border-orange-400/45 font-black uppercase tracking-wider text-orange-200`}>
+        🔒 {label}
+      </span>
+    </Wrapper>
   );
 }
 
@@ -1652,12 +1649,175 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
   return <Spatial3DCube stickers={stickers} isStickerMuted={isF2LStickerMuted} yaw={yaw} pitch={pitch} isDragging={isDragging} cubeRef={cubeRef} />;
 }
 
+const STREAK_FACE_ORDER = [
+  { offset: 0, color: 'Y', yaw: -32, pitch: -38 },   // Days 1-9: Top (Yellow)
+  { offset: 18, color: 'G', yaw: -24, pitch: -16 },  // Days 10-18: Front (Green)
+  { offset: 9, color: 'O', yaw: -64, pitch: -16 },   // Days 19-27: Right (Orange)
+  { offset: 36, color: 'R', yaw: 64, pitch: -16 },   // Days 28-36: Left (Red)
+  { offset: 45, color: 'B', yaw: 154, pitch: -16 },  // Days 37-45: Back (Blue)
+  { offset: 27, color: 'W', yaw: -28, pitch: 42 }    // Days 46-54: Bottom (White) -> 54/54 Full UV Glow + Spin!
+];
+
+const MINI_STREAK_HALF = 16;
+const MINI_STREAK_SLOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const MINI_STREAK_FACES = [
+  { offset: 18, transform: `rotateY(0deg) translateZ(${MINI_STREAK_HALF}px)` },
+  { offset: 45, transform: `rotateY(180deg) translateZ(${MINI_STREAK_HALF}px)` },
+  { offset: 9, transform: `rotateY(90deg) translateZ(${MINI_STREAK_HALF}px)` },
+  { offset: 36, transform: `rotateY(-90deg) translateZ(${MINI_STREAK_HALF}px)` },
+  { offset: 0, transform: `rotateX(90deg) translateZ(${MINI_STREAK_HALF}px)` },
+  { offset: 27, transform: `rotateX(-90deg) translateZ(${MINI_STREAK_HALF}px)` }
+];
+
+function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressPct = 0, streakActive = true }) {
+  const safeStreak = Math.max(0, Number(streakDays) || 0);
+  const safeTotalDays = Math.max(1, Number(totalDays) || 1);
+  const safeCurDay = Math.min(safeTotalDays, Math.max(1, Number(currentDay) || 1));
+  const halfwayDay = Math.max(2, Math.ceil(safeTotalDays / 2));
+  const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
+
+  // Matte Finish triggers ONLY on the halfway mark day; after that day it returns to unlit/non-glowing until 75%+ UV Coated
+  const isHalfwayDay = safeCurDay === halfwayDay && pct < 75;
+  const isUvCoated = (pct >= 75 || safeStreak >= 54) && (streakActive || pct >= 75);
+  const isSpinGlowActive = isHalfwayDay || isUvCoated;
+
+  const displayStreakDays = Math.max(safeStreak, safeCurDay - 1);
+  const filledSquares = isUvCoated
+    ? 54
+    : Math.min(54, Math.max(displayStreakDays, Math.round((pct / 100) * 54)));
+  const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
+  const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
+  const [manualSpinOffset, setManualSpinOffset] = useState(0);
+
+  const targetYaw = activeFaceSpec.yaw + manualSpinOffset;
+  const targetPitch = activeFaceSpec.pitch;
+
+  const badgeLabel = isUvCoated
+    ? 'UV Coated ✦'
+    : isHalfwayDay
+    ? 'Matte Finish ✦'
+    : `${filledSquares}/54 Tiles`;
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setManualSpinOffset((prev) => prev - 90);
+      }}
+      title={
+        isUvCoated
+          ? `${displayStreakDays}d Streak • UV Coated Mode Active`
+          : isHalfwayDay
+          ? `${displayStreakDays}d Streak • Halfway Mark Reached (Matte Finish)`
+          : `${displayStreakDays}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
+      }
+      className={`relative inline-flex items-center gap-2 px-2.5 py-1 rounded-full border transition-all cursor-pointer active:scale-95 ${
+        isUvCoated
+          ? 'bg-gradient-to-r from-purple-500/20 via-orange-500/15 to-amber-500/20 border-purple-400/60 uv-streak-pill-glow'
+          : isHalfwayDay
+          ? 'bg-gradient-to-r from-zinc-700/35 via-amber-500/15 to-zinc-700/35 border-amber-300/45 uv-streak-pill-glow'
+          : 'bg-black/50 hover:bg-white/[0.07] border-white/15'
+      }`}
+    >
+      <div style={{ width: '36px', height: '36px', perspective: '180px' }} className="flex items-center justify-center flex-shrink-0">
+        <div
+          className={isSpinGlowActive ? 'uv-streak-cube-spin' : ''}
+          style={{
+            width: `${MINI_STREAK_HALF * 2}px`,
+            height: `${MINI_STREAK_HALF * 2}px`,
+            position: 'relative',
+            transformStyle: 'preserve-3d',
+            transform: isSpinGlowActive ? undefined : `rotateX(${targetPitch}deg) rotateY(${targetYaw}deg)`,
+            transition: isSpinGlowActive ? undefined : 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)'
+          }}
+        >
+          {MINI_STREAK_FACES.map(({ offset, transform }) => {
+            const faceOrderIdx = STREAK_FACE_ORDER.findIndex((f) => f.offset === offset);
+            const faceColor = STREAK_FACE_ORDER[faceOrderIdx]?.color;
+            const faceLitCount = Math.min(9, Math.max(0, filledSquares - faceOrderIdx * 9));
+            return (
+              <div
+                key={offset}
+                style={{
+                  position: 'absolute',
+                  width: `${MINI_STREAK_HALF * 2}px`,
+                  height: `${MINI_STREAK_HALF * 2}px`,
+                  transform,
+                  backfaceVisibility: 'hidden',
+                  backgroundColor: '#05060a',
+                  borderRadius: '4px',
+                  padding: '1.5px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gridTemplateRows: 'repeat(3, 1fr)',
+                  gap: '1.2px',
+                  boxShadow: isUvCoated
+                    ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.55)'
+                    : isHalfwayDay
+                    ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.45)'
+                    : 'inset 0 0 0 0.75px rgba(255,255,255,0.12)'
+                }}
+              >
+                {MINI_STREAK_SLOTS.map((idx) => {
+                  const isLit = idx < faceLitCount;
+                  const isLatestTile = !isUvCoated && faceOrderIdx === activeFaceIdx && idx === faceLitCount - 1;
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        backgroundColor: isLit ? STICKER_HEX[faceColor] : '#141722',
+                        borderRadius: '1.5px',
+                        filter: isHalfwayDay && isLit ? 'contrast(0.92) saturate(0.88)' : undefined,
+                        boxShadow: isLatestTile
+                          ? '0 0 4px rgba(255,255,255,0.95), inset 0 0.5px 1px rgba(255,255,255,0.75)'
+                          : isLit && !isHalfwayDay
+                          ? 'inset 0 0.5px 1px rgba(255,255,255,0.55)'
+                          : 'inset 0 0.5px 0.5px rgba(255,255,255,0.05)'
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="pr-0.5 leading-tight text-left">
+        <span className={`font-mono text-[10.5px] font-black block ${isUvCoated ? 'text-purple-200' : isHalfwayDay ? 'text-amber-200' : 'text-white'}`}>
+          {displayStreakDays}d Streak
+        </span>
+        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isUvCoated ? 'text-amber-300' : isHalfwayDay ? 'text-zinc-200' : 'text-zinc-400'}`}>
+          {badgeLabel}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
+  return (
+    <div className={`w-full grid grid-cols-3 ${isLargeScreen ? 'gap-3 pt-1' : 'gap-1.5'}`}>
+      {[
+        { label: 'Ao20', val: computeCaseWindowAvg(history, 20), color: 'text-green-400' },
+        { label: 'Ao40', val: computeCaseWindowAvg(history, 40), color: 'text-sky-400' },
+        { label: 'Ao60', val: computeCaseWindowAvg(history, 60), color: 'text-purple-300' }
+      ].map((w) => (
+        <div key={w.label} className={`liquid-glass-well border border-white/10 text-center ${isLargeScreen ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1 px-1.5'}`}>
+          <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase text-zinc-400 block`}>{w.label}</span>
+          <span className={`font-mono ${isLargeScreen ? 'text-sm' : 'text-[11px]'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-black/80 backdrop-blur-xl flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative liquid-glass-card liquid-rim-muted border ${borderClass} rounded-[2.35rem] p-5 ${maxWidth} w-full shadow-[0_28px_75px_rgba(0,0,0,0.85)] max-h-[90dvh] overflow-y-auto no-scrollbar`}
+        className={`relative liquid-glass-card liquid-rim-muted border ${borderClass} rounded-3xl p-5 ${maxWidth} w-full shadow-[0_28px_75px_rgba(0,0,0,0.85)] max-h-[90dvh] overflow-y-auto no-scrollbar`}
       >
         <div
           className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 w-56 h-24 rounded-full"
@@ -1806,17 +1966,17 @@ function useViewportDevice() {
 
 function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, setF2LPresetAngle, emitBeep, isLargeScreen = false }) {
   return (
-    <div data-no-timer-start="true" className="w-full space-y-3">
-      <div className="w-full flex items-center justify-between">
-        <span className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-black uppercase tracking-widest text-zinc-400`}>
+    <div data-no-timer-start="true" className={`w-full ${isLargeScreen ? 'space-y-3' : 'space-y-0.5'}`}>
+      <div className="w-full flex items-center justify-between gap-1">
+        <span className={`${isLargeScreen ? 'text-xs' : 'text-[9px]'} font-black uppercase tracking-wider text-zinc-400 truncate`}>
           Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(orbit.rot.yaw, orbit.rot.pitch)}</strong>
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {(orbit.rot.yaw !== -35 || orbit.rot.pitch !== -25) && (
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 cursor-pointer`}
+              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 cursor-pointer`}
             >
               Reset
             </button>
@@ -1824,9 +1984,9 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[10px]'} rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
+            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
           >
-            Rotate Cube ↻
+            Rotate ↻
           </button>
         </div>
       </div>
@@ -1835,10 +1995,10 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
         {...orbit.handlers}
         onPointerCancel={orbit.handlers.onPointerUp}
         style={{ touchAction: 'none' }}
-        className={`relative ${isLargeScreen ? 'w-56 h-56' : 'w-44 h-44'} mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none`}
+        className={`relative ${isLargeScreen ? 'w-56 h-56' : 'w-28 h-28'} mx-auto flex flex-col items-center justify-center cursor-grab active:cursor-grabbing select-none`}
       >
         <div
-          className="pointer-events-none absolute inset-1.5 rounded-full"
+          className="pointer-events-none absolute inset-1 rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.14) 0%, rgba(249, 115, 22, 0) 68%)' }}
         />
         <svg viewBox="0 0 180 180" className="pointer-events-none absolute inset-0 w-full h-full">
@@ -1849,7 +2009,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <circle cx="90" cy="174" r="2" fill="rgba(255,255,255,0.22)" />
           <circle cx="6" cy="90" r="2" fill="rgba(255,255,255,0.22)" />
         </svg>
-        <div style={isLargeScreen ? { transform: 'scale(1.22)' } : undefined}>
+        <div style={{ transform: isLargeScreen ? 'scale(1.22)' : 'scale(0.68)' }}>
           <F2LSpatial3DCube
             setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
             yaw={orbit.rot.yaw}
@@ -1858,8 +2018,8 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             cubeRef={orbit.domRef}
           />
         </div>
-        <span ref={orbit.labelRef} className={`${isLargeScreen ? 'text-[10.5px] mt-1' : 'text-[9px] -mt-1'} font-bold uppercase tracking-widest text-zinc-500`}>
-          3D Orbit • Drag to Spin ({((orbit.rot.yaw % 360) + 360) % 360}°)
+        <span ref={orbit.labelRef} className={`${isLargeScreen ? 'text-[10.5px] mt-1' : 'text-[8px] -mt-6'} font-bold uppercase tracking-wider text-zinc-500 whitespace-nowrap`}>
+          3D Orbit • Drag ({((orbit.rot.yaw % 360) + 360) % 360}°)
         </span>
       </div>
     </div>
@@ -1881,7 +2041,7 @@ function CasePracticeCard({
       {isF2L ? (
         <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
       ) : (
-        <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-32 h-32'} mx-auto flex items-center justify-center`}>
+        <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-24 h-24'} mx-auto flex items-center justify-center`}>
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
             style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.16) 0%, rgba(249, 115, 22, 0) 70%)' }}
@@ -1891,7 +2051,7 @@ function CasePracticeCard({
             <circle cx="70" cy="70" r="59" fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1.2" />
             <circle cx="70" cy="4" r="2" fill="rgba(251,146,60,0.7)" />
           </svg>
-          <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-24 h-24 p-1.5'} rounded-[1.5rem] bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
+          <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-20 h-20 p-1.5'} rounded-2xl bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
             <CachedVisualCubeImg
               url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
               alt={item.name} lazy={false} className="w-full h-full object-contain"
@@ -1900,53 +2060,53 @@ function CasePracticeCard({
         </div>
       )}
 
-      <div className="text-center">
-        {showInlineGroup && <span className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-black uppercase tracking-widest text-orange-400`}>{item.group}</span>}
-        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-xl'} font-black text-white`}>{item.name}</h3>
-        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-zinc-400 mt-1`}>{item.recognition}</p>}
+      <div className="text-center w-full">
+        {showInlineGroup && <span className={`${isLargeScreen ? 'text-xs' : 'text-[9px]'} font-black uppercase tracking-widest text-orange-400 block`}>{item.group}</span>}
+        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-base leading-tight'} font-black text-white`}>{item.name}</h3>
+        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm mt-1' : 'text-[10px] mt-0.5 line-clamp-1'} text-zinc-400`}>{item.recognition}</p>}
       </div>
 
       {(isF2L || isPLL) && (
-        <div className={`w-full liquid-glass-well border border-white/10 rounded-[1.4rem] ${isLargeScreen ? 'p-3.5 space-y-1.5' : 'p-2.5 space-y-1'} text-center`}>
+        <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-3 space-y-1.5' : 'pt-1.5 space-y-0.5'} text-center`}>
           <div className="flex items-center justify-between">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-zinc-400`}>
-              {isF2L ? `Setup (${f2lSetupMode})` : showInlineGroup ? 'Setup Scramble' : 'Setup Scramble (From Solved Cube)'}
+            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
+              {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
             </span>
-            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[10px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
+            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[9.5px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
               {isF2L ? 'New Scramble ↻' : 'New AUF ↻'}
             </button>
           </div>
-          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-xs'} font-black text-amber-300 select-all`}>
+          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-[11px]'} font-black text-amber-300 select-all truncate`}>
             {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
           </p>
         </div>
       )}
 
-      <div className={`w-full liquid-glass-well liquid-rim-muted border border-white/10 rounded-[1.5rem] ${isLargeScreen ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5'} text-center`}>
-        <div className="flex items-center justify-between gap-1.5 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase tracking-widest text-zinc-400`}>
+      <div className={`w-full liquid-glass-well liquid-rim-muted border border-white/10 ${isLargeScreen ? 'rounded-[1.5rem] p-4 space-y-2.5' : 'rounded-2xl p-2.5 space-y-1'} text-center`}>
+        <div className="flex items-center justify-between gap-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
               {item.usingCustomAlg
                 ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
-                : isF2L ? 'Solution (Front-Right Slot)' : 'Execution Algorithm'}
+                : isF2L ? 'Solution (FR Slot)' : 'Algorithm'}
             </span>
             <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {onOpenCustomAlgEditor && (
-              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} rounded-full bg-white/[0.06] border border-white/10 font-black text-zinc-200 hover:bg-white/[0.12] cursor-pointer`}>
-                {item.hasCustomAlg ? `My Algs (${item.customAlgList.length}/7)` : '+ My Alg'}
+              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-white/[0.06] border border-white/10 font-black text-zinc-200 hover:bg-white/[0.12] cursor-pointer`}>
+                {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
               </button>
             )}
             {fingertricksEnabled && (
-              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
-                Grip Guide →
+              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-full bg-orange-500/15 border border-orange-500/35 font-black text-orange-300 hover:bg-orange-500/25 cursor-pointer`}>
+                Grip →
               </button>
             )}
           </div>
         </div>
-        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-base'} font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-        {item.hasCustomAlg && (
+        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-sm'} font-black ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+        {item.hasCustomAlg && isLargeScreen && (
           <p className="text-[10px] font-mono text-zinc-400">
             {item.usingCustomAlg
               ? `Default: ${item.defaultAlg}`
@@ -1954,50 +2114,53 @@ function CasePracticeCard({
           </p>
         )}
         {fingertricksEnabled && (
-          <div className="space-y-2 text-left">
-            <TriggerTagsList tags={triggerTags} centered />
+          <div className={`${isLargeScreen ? 'space-y-2' : 'space-y-1'} text-left`}>
+            <TriggerTagsList tags={triggerTags} centered compact={!isLargeScreen} />
             {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && (
-              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[11px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
+              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[10px] px-2 py-1 line-clamp-2'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-snug`}>
                 <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
               </p>
             )}
           </div>
         )}
-        {isF2L && <p className={`${isLargeScreen ? 'text-xs sm:text-sm' : 'text-[11px]'} text-zinc-300 text-left pt-1`}>• <strong>Step 1:</strong> {item.step1}<br />• <strong>Step 2:</strong> {item.step2}</p>}
+        {isF2L && (
+          <p className={`${isLargeScreen ? 'text-xs sm:text-sm pt-1' : 'text-[10px] leading-tight line-clamp-2'} text-zinc-300 text-left`}>
+            • <strong>1:</strong> {item.step1} • <strong>2:</strong> {item.step2}
+          </p>
+        )}
       </div>
 
       {stopwatchEnabled && (
         <button
           onClick={onToggleStopwatch}
-          className={`w-full ${isLargeScreen ? 'py-4 px-4' : 'py-3 px-3'} rounded-[1.5rem] border font-mono cursor-pointer flex flex-col items-center justify-center gap-1 transition-all ${
+          className={`w-full ${isLargeScreen ? 'py-4 px-4 rounded-[1.5rem]' : 'py-2 px-3 rounded-2xl'} border font-mono cursor-pointer flex flex-col items-center justify-center gap-0.5 transition-all ${
             swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-zinc-200 hover:border-orange-500/35'
           }`}
         >
           {swRunning ? (
-            <span ref={swDisplayRef} className={`${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
+            <span ref={swDisplayRef} className={`font-timer ${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
           ) : lastResultForThis ? (
             <>
               <div className="flex items-center gap-2">
-                <span className={`${isLargeScreen ? 'text-xl' : 'text-base'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
+                <span className={`${isLargeScreen ? 'text-xl' : 'text-sm'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
                 {lastResultForThis.isNewPb ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[11px] font-black uppercase text-green-300">★ New PB!</span>
+                  <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300">★ New PB!</span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
                 )}
               </div>
-              <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
                 {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
               </span>
             </>
           ) : (
             <div className="flex flex-col items-center">
-              <span className={`${isLargeScreen ? 'text-lg' : 'text-base'} font-black`}>{timerLabel}</span>
-              {!showInlineGroup && (
-                <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-zinc-400">
-                  {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
-                </span>
-              )}
-              {!showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
+              <span className={`${isLargeScreen ? 'text-lg' : 'text-sm'} font-black`}>{timerLabel}</span>
+              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+                {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
+                {!isLargeScreen && typeof recordedBest === 'number' ? ` • PB: ${recordedBest.toFixed(3)}s` : ''}
+              </span>
+              {isLargeScreen && !showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
             </div>
           )}
         </button>
@@ -2085,21 +2248,46 @@ function generateF2LSetupScramble(alg, mode = 'beginner', variationSeed = 0) {
   return `${triggers[variationSeed % triggers.length]} ${aufPrefix}${baseInverse}`.replace(/\s+/g, ' ').trim();
 }
 
+function shuffleCaseList(list) {
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function buildSchedule(chunks, dataList, lookupMap = null) {
   const schedule = [];
   let dayCounter = 1;
+  const learnedSoFar = [];
+  const seenIds = new Set();
   const resolveById = (id) => (lookupMap ? lookupMap.get(id) : dataList.find((item) => item.id === id));
   (Array.isArray(chunks) ? chunks : []).forEach((chunk, idx) => {
     if (!chunk || !Array.isArray(chunk.ids)) return;
     const safeTitle = typeof chunk.title === 'string' ? chunk.title : `Chunk ${idx + 1}`;
     const cases = chunk.ids.map(resolveById).filter(Boolean);
     if (!cases.length) return;
-    schedule.push({ day: dayCounter++, mode: 'Learn', chunkTitle: safeTitle, cases });
-    schedule.push({ day: dayCounter++, mode: 'Drill', chunkTitle: safeTitle, cases });
-    if (idx > 0 && idx % 2 === 1 && Array.isArray(chunks[idx - 1]?.ids)) {
-      const prevTitle = typeof chunks[idx - 1].title === 'string' ? chunks[idx - 1].title : `Chunk ${idx}`;
-      const prevCases = chunks[idx - 1].ids.map(resolveById).filter(Boolean);
-      schedule.push({ day: dayCounter++, mode: 'Refine', chunkTitle: `${prevTitle} + ${safeTitle}`, cases: [...prevCases, ...cases] });
+    cases.forEach((c) => {
+      if (!seenIds.has(c.id)) {
+        seenIds.add(c.id);
+        learnedSoFar.push(c);
+      }
+    });
+    // Day 1 of loop: Learn algorithms in dedicated chunk
+    schedule.push({ day: dayCounter++, mode: 'Learn', chunkTitle: safeTitle, cases, randomize: false });
+    // Day 2 & Day 3 of loop: Drill algorithms in random order
+    schedule.push({ day: dayCounter++, mode: 'Drill • Random', chunkTitle: safeTitle, cases, randomize: true });
+    schedule.push({ day: dayCounter++, mode: 'Drill • Random', chunkTitle: safeTitle, cases, randomize: true });
+    // After every 2 loops (6 days), insert cumulative review day covering everything learned up to this point
+    if (idx % 2 === 1) {
+      schedule.push({
+        day: dayCounter++,
+        mode: 'Cumulative Review',
+        chunkTitle: `All Learned So Far (${learnedSoFar.length} Cases)`,
+        cases: [...learnedSoFar],
+        randomize: true
+      });
     }
   });
   return schedule;
@@ -2108,24 +2296,6 @@ function buildSchedule(chunks, dataList, lookupMap = null) {
 // =========================================================================
 // 2D. COMPLETE CFOP DATASETS, TOURS, FINGERTRICK CODEX & WCA NOTATION
 // =========================================================================
-const CFOP_AND_APP_TOUR_STEPS = [
-  { badge: 'Step 1 of 6 • Welcome to CFOP', title: 'How CFOP Solves the 3x3 Cube', phase: 'cross', tab: 'ladder', desc: 'CFOP stands for Cross → F2L → OLL → PLL—the speedcubing method used by world champions. Instead of solving layer-by-layer slowly, you build a bottom cross, pair corners & edges together, orient the yellow top in one look, and permute the final layer.', howToReach: 'Tap the glowing 3x3 cube button in the center of the bottom dock anytime to pour out C • F • O • P.' },
-  { badge: 'Step 2 of 6 • Phase C (Cross)', title: 'Solve the White Cross on Bottom', phase: 'cross', tab: 'ladder', desc: 'Hold White on the bottom (D) and Green in front (F). Solve all 4 white edges in 6–8 moves or fewer while matching their side colors to the center pieces—use the 3D Cross Orbit cube and Ladder tiers to build efficiency.', howToReach: 'Bottom 3x3 button → C • Bottom dock: Ladder, Blind Run (dual-thumb mat), Mechanics.' },
-  { badge: 'Step 3 of 6 • Phase F (F2L)', title: 'First Two Layers (41 Pairs)', phase: 'f2l', tab: 'grind', desc: 'Keep White on the bottom and Green in front. Pair each bottom corner with its matching middle-layer edge and insert them together into the Front-Right slot—completing the first two layers at the same time.', howToReach: 'Bottom 3x3 button → F • Tap Start Day Grind or any pair in Today\'s Lineup for a 3D isolated drill.' },
-  { badge: 'Step 4 of 6 • Phase O (OLL)', title: 'Orient Last Layer (57 Cases)', phase: 'oll', tab: 'grind', desc: 'Recognize the Yellow pattern on the top face and execute one algorithm to make the entire top face solid Yellow.', howToReach: 'Bottom 3x3 button → O • Use The Grind for daily chunks or Algorithms to browse all 57 OLL shapes.' },
-  { badge: 'Step 5 of 6 • Phase P (PLL)', title: 'Permute Last Layer (25 Algorithms)', phase: 'pll', tab: 'grind', desc: 'With Yellow solid on top, swap the final top-layer corners and edges into their solved positions to finish the cube.', howToReach: 'Bottom 3x3 button → P • Each case highlights inline fingertrick triggers and step-by-step grip cues.' },
-  { badge: 'Step 6 of 6 • Ready to Train', title: 'Pick Your Starting Phase', phase: 'oll', tab: 'settings', desc: 'Every phase includes Statistics (with custom 0.001s Target PBs) and an 8-card Settings deck with the full-screen 3x3x3 WCA Timer, Notation Guide, and Fingertrick Dossier. Choose where you want to start training right now:', howToReach: 'Tap a phase button below to jump straight in, or tap the center 3x3 cube anytime.' }
-];
-
-const APP_ONLY_TOUR_STEPS = [
-  { badge: 'Feature 1 of 6 • Phase Navigation', title: 'Liquid 3x3 C • F • O • P Switcher', phase: 'cross', tab: 'ladder', desc: 'Tap the elevated 3x3 Rubik\'s cube in the bottom navigation dock to pour out C (Cross), F (F2L), O (OLL), and P (PLL). You can also pin your preferred startup phase in Settings Card 3.', howToReach: 'Tap the center 3x3 cube button notched into the bottom navigation bar.' },
-  { badge: 'Feature 2 of 6 • Cross & Blind Mat', title: '3D Cross Ladder & Dual-Thumb Blind Mat', phase: 'cross', tab: 'blind', desc: 'Train Standard (2–6 move) or Advanced 20-move scrambles with the interactive 3D Cross Orbit cube, then test 15s WCA inspection on the dual-thumb Speedstack mat.', howToReach: 'Phase C → Bottom dock: Ladder, Blind Run, and Mechanics.' },
-  { badge: 'Feature 3 of 6 • F2L 3D Spatial Drills', title: 'Daily Grind & Interactive 3D F2L Cube', phase: 'f2l', tab: 'grind', desc: 'Work through daily learning chunks, navigate backward/forward across days (← Prev / Next →), hold-and-drag to reorder your lineup, or tap any pair to spin it in 3D.', howToReach: 'Phase F → The Grind (tap any pair) or Algorithms (41 F2L pairs).' },
-  { badge: 'Feature 4 of 6 • OLL & PLL Libraries', title: 'Inline Fingertricks & Isolated Case Drills', phase: 'oll', tab: 'algorithms', desc: 'Browse all 57 OLL and 25 PLL cases by shape group or curriculum chunk with color-coded inline fingertrick triggers, grip guides, and Ao5/Ao20/Ao40 case timers.', howToReach: 'Phase O or P → Bottom dock: Algorithms → Tap any case to drill or tap Grip.' },
-  { badge: 'Feature 5 of 6 • Millisecond Telemetry', title: 'Custom Target PBs & Full 3x3x3 Timer', phase: 'pll', tab: 'stats', desc: 'Set 0.001s millisecond Target PBs per phase or per individual case, and launch the full-screen 3x3x3 WCA Timer with Ao5 and Ao12 tracking.', howToReach: 'Any phase → Bottom dock: Statistics → Tap Open Timer or Goal ✎ on any case.' },
-  { badge: 'Feature 6 of 6 • Settings Control Deck', title: '8-Card Settings Deck & Guided Replay', phase: 'oll', tab: 'settings', desc: 'Swipe through the 3D Settings deck to replay this guide anytime on Card 1, adjust Target PBs on Card 2, pin your startup phase on Card 3, or inspect WCA Notation & Fingertricks.', howToReach: 'Any phase → Bottom dock: Settings → Swipe cards or tap the pagination dots.' }
-];
-
 const FINGERTRICK_CODEX = [
   { id: 'sexy', category: 'Core Triggers', name: 'Sexy Move', notation: "(R U R' U')", grip: 'Right thumb on Front-Bottom (DF), Right ring finger on Back-Right (BR).', execution: "Push R up with wrist, flick U with right index, pull R' down, and push U' with left index.", badgeClass: 'bg-orange-500/15 border-orange-500/35 text-orange-300', dotClass: 'bg-orange-400' },
   { id: 'left-sexy', category: 'Core Triggers', name: 'Left Sexy Move', notation: "(L' U' L U)", grip: 'Left thumb on Front-Bottom (DF), Left ring finger on Back-Left (BL).', execution: "Push L' up with left wrist, flick U' with left index, pull L down, and flick U with right index.", badgeClass: 'bg-sky-500/15 border-sky-500/35 text-sky-300', dotClass: 'bg-sky-400' },
@@ -2389,10 +2559,43 @@ const PLL_DEFAULT_CHUNKS = [
 // =========================================================================
 // 3. CLOUD & LOCAL PERSISTENCE HOOK
 // =========================================================================
+const getLocalDateKey = (dateObj = new Date()) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getYesterdayDateKey = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return getLocalDateKey(d);
+};
+
+function computeActiveStreakDays(rawStreak, lastActiveDate) {
+  const count = Number.isFinite(Number(rawStreak)) && Number(rawStreak) >= 0 ? Number(rawStreak) : 0;
+  if (!lastActiveDate || count === 0) return 0;
+  const today = getLocalDateKey();
+  const yesterday = getYesterdayDateKey();
+  return (lastActiveDate === today || lastActiveDate === yesterday) ? count : 0;
+}
+
+function advanceDailyStreakFields(u) {
+  const today = getLocalDateKey();
+  const yesterday = getYesterdayDateKey();
+  const prevCount = computeActiveStreakDays(u.consecutiveStreakDays, u.lastActiveDate);
+  if (u.lastActiveDate === today) {
+    return { consecutiveStreakDays: Math.max(1, prevCount), lastActiveDate: today };
+  }
+  const nextCount = u.lastActiveDate === yesterday ? prevCount + 1 : 1;
+  return { consecutiveStreakDays: nextCount, lastActiveDate: today };
+}
+
 const DEFAULT_USERS = {
   Demo: {
-    day: 1, f2lDay: 1, pllDay: 1, stats: {}, f2lStats: {}, pllStats: {}, fullSolveHistory: [],
-    customChunks: null, f2lCustomChunks: null, pllCustomChunks: null, crossClears: 0, isPro: true,
+    day: 1, f2lDay: 1, pllDay: 1, crossDay: 1, stats: {}, f2lStats: {}, pllStats: {}, fullSolveHistory: [],
+    customChunks: null, f2lCustomChunks: null, pllCustomChunks: null, crossClears: 0,
+    consecutiveStreakDays: 0, lastActiveDate: '', isPro: true,
     email: '', fullSolveTargetPb: 15.0,
     phaseTargetPbs: { cross: 2.0, f2l: 2.5, oll: 2.0, pll: 2.0 },
     caseTargetPbs: { f2l: {}, oll: {}, pll: {} },
@@ -2406,6 +2609,9 @@ function sanitizeUserRecord(raw) {
     day: Number.isFinite(Number(base.day)) && Number(base.day) >= 1 ? Number(base.day) : 1,
     f2lDay: Number.isFinite(Number(base.f2lDay)) && Number(base.f2lDay) >= 1 ? Number(base.f2lDay) : 1,
     pllDay: Number.isFinite(Number(base.pllDay)) && Number(base.pllDay) >= 1 ? Number(base.pllDay) : 1,
+    crossDay: Number.isFinite(Number(base.crossDay)) && Number(base.crossDay) >= 1 ? Number(base.crossDay) : 1,
+    consecutiveStreakDays: Number.isFinite(Number(base.consecutiveStreakDays)) && Number(base.consecutiveStreakDays) >= 0 ? Number(base.consecutiveStreakDays) : 0,
+    lastActiveDate: typeof base.lastActiveDate === 'string' ? base.lastActiveDate : '',
     stats: base.stats && typeof base.stats === 'object' ? base.stats : {},
     f2lStats: base.f2lStats && typeof base.f2lStats === 'object' ? base.f2lStats : {},
     pllStats: base.pllStats && typeof base.pllStats === 'object' ? base.pllStats : {},
@@ -2563,15 +2769,27 @@ function useSolverPersistence(users, setUsers, activeUserKey) {
 // 4. MAIN APPLICATION COMPONENT & ERROR BOUNDARY
 // =========================================================================
 const APP_GLOBAL_CSS = `
-  html, body { background-color: #050507; color: #f8fafc; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+  html, body {
+    background-color: #050507;
+    color: #f8fafc;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: -0.015em;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, label, span, p, input, select, textarea, .font-mono, code, pre {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  h1, h2, h3, h4, header h1, .font-timer {
+    font-family: 'Chakra Petch', sans-serif !important;
+    letter-spacing: -0.01em;
+  }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  .deck-card-1 { transform: translateY(0) scale(1); z-index: 30; opacity: 1; pointer-events: auto; }
-  .deck-card-2 { transform: translateY(20px) scale(0.95); z-index: 20; opacity: 0.48; pointer-events: none; }
-  .deck-card-3 { transform: translateY(40px) scale(0.90); z-index: 10; opacity: 0.18; pointer-events: none; }
   .f2l-cube-satin { filter: contrast(0.94) saturate(0.9) brightness(0.98); transition: transform 0.25s ease; }
   .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
-  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; }
+  .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .liquid-glass-card {
     background: linear-gradient(155deg, rgba(28, 26, 36, 0.86) 0%, rgba(12, 14, 22, 0.94) 55%, rgba(9, 11, 18, 0.96) 100%);
     backdrop-filter: blur(12px) saturate(130%);
@@ -2586,24 +2804,80 @@ const APP_GLOBAL_CSS = `
   }
   .liquid-glass-dock {
     background:
-      linear-gradient(125deg, rgba(255, 255, 255, 0.19) 0%, rgba(255, 255, 255, 0.04) 28%, rgba(168, 85, 247, 0.045) 52%, rgba(255, 255, 255, 0.02) 74%, rgba(251, 146, 60, 0.08) 100%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(12, 16, 28, 0.16) 44%, rgba(6, 9, 16, 0.28) 100%);
-    backdrop-filter: blur(7px) saturate(165%) contrast(106%);
-    -webkit-backdrop-filter: blur(7px) saturate(165%) contrast(106%);
+      linear-gradient(125deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(168, 85, 247, 0.07) 54%, rgba(251, 146, 60, 0.1) 100%),
+      rgba(9, 11, 18, 0.82);
+    backdrop-filter: blur(18px) saturate(155%) contrast(108%);
+    -webkit-backdrop-filter: blur(18px) saturate(155%) contrast(108%);
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
-      inset 0 2px 6px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 0 rgba(251, 146, 60, 0.16),
-      0 18px 40px -10px rgba(0, 0, 0, 0.78);
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
+      inset 0 2px 8px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 0 rgba(251, 146, 60, 0.2),
+      0 20px 44px -8px rgba(0, 0, 0, 0.88);
     contain: layout paint;
     transform: translateZ(0);
+  }
+  @keyframes heroCubeFloat {
+    0%, 100% { transform: translate3d(0, 0px, 0) rotate(-1.5deg); }
+    50% { transform: translate3d(0, -7px, 0) rotate(1.5deg); }
+  }
+  .hero-cube-float {
+    animation: heroCubeFloat 4.6s ease-in-out infinite;
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-cube-float { animation: none; }
+  }
+  @keyframes uvCardMaterializeUp {
+    0% { opacity: 0; transform: translate3d(0, 36px, 0) scale(0.92); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  @keyframes uvCardMaterializeDown {
+    0% { opacity: 0; transform: translate3d(0, -36px, 0) scale(0.92); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  .uv-card-enter-up {
+    animation: uvCardMaterializeUp 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
+  }
+  .uv-card-enter-down {
+    animation: uvCardMaterializeDown 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
+  }
+  @keyframes uvStreakSpin3D {
+    0% { transform: rotateX(-24deg) rotateY(0deg); }
+    100% { transform: rotateX(-24deg) rotateY(360deg); }
+  }
+  @keyframes uvStreakPulseOpacity {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+  }
+  .uv-streak-cube-spin {
+    animation: uvStreakSpin3D 5.5s linear infinite;
+    will-change: transform;
+  }
+  .uv-streak-pill-glow::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.65),
+      0 0 20px rgba(192, 132, 252, 0.78),
+      0 0 32px rgba(251, 146, 60, 0.55);
+    animation: uvStreakPulseOpacity 2.4s ease-in-out infinite;
+    will-change: opacity;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .uv-streak-cube-spin, .uv-streak-pill-glow::after { animation: none; }
   }
   .liquid-glass-uv {
     background:
       linear-gradient(132deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(168, 85, 247, 0.055) 54%, rgba(255, 255, 255, 0.02) 76%, rgba(251, 146, 60, 0.11) 100%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(14, 17, 29, 0.28) 46%, rgba(7, 9, 16, 0.44) 100%);
-    backdrop-filter: blur(11px) saturate(168%) contrast(106%);
-    -webkit-backdrop-filter: blur(11px) saturate(168%) contrast(106%);
+    backdrop-filter: blur(8px) saturate(145%);
+    -webkit-backdrop-filter: blur(8px) saturate(145%);
+    contain: paint;
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.36),
       inset 0 2px 10px 0 rgba(255, 255, 255, 0.08),
@@ -2659,7 +2933,7 @@ class AppErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="min-h-[100dvh] w-full bg-[#050507] text-slate-100 flex items-center justify-center p-6">
-          <div className="max-w-xs w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-6 text-center space-y-4 shadow-2xl">
+          <div className="max-w-xs w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
             <span className="inline-block px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-[10px] font-black uppercase tracking-widest text-red-300">Recovery Mode</span>
             <h2 className="text-lg font-black text-white">Display Interrupted</h2>
             <p className="text-xs text-zinc-400 leading-relaxed break-words">{this.state.errorMessage}</p>
@@ -2705,23 +2979,20 @@ function OLLDaySuite() {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [stopwatchEnabled, setStopwatchEnabled] = useState(true);
   const [fingertricksEnabled, setFingertricksEnabled] = useState(true);
-  const [targetPbInput, setTargetPbInput] = useState('15.000');
+  const [pbDrafts, setPbDrafts] = useState({ full: null, phase: null });
   const [selectedTargetPhase, setSelectedTargetPhase] = useState('f2l');
-  const [phaseTargetInput, setPhaseTargetInput] = useState('2.500');
   const [editingCaseTarget, setEditingCaseTarget] = useState(null);
   const [f2lSetupMode, setF2lSetupMode] = useState('beginner');
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
-  const [settingsDeckIdx, setSettingsDeckIdx] = useState(0);
+  const [settingsCardIdx, setSettingsCardIdx] = useState(0);
+  const [settingsSwipeDir, setSettingsSwipeDir] = useState('up');
+  const settingsSwipeStartRef = useRef(null);
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
   const [rightPaneTab, setRightPaneTab] = useState('notation');
   const [rightPaneSearch, setRightPaneSearch] = useState('');
-  const deckTouchStartRef = useRef(null);
-
-  const [tourType, setTourType] = useState('cfopAndApp');
-  const [tourStepIdx, setTourStepIdx] = useState(0);
 
   // Scanner State
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -3075,10 +3346,7 @@ function OLLDaySuite() {
   const [leftPadHeld, setLeftPadHeld] = useState(false);
   const [rightPadHeld, setRightPadHeld] = useState(false);
 
-  const [orbitQuizIdx, setOrbitQuizIdx] = useState(0);
-  const [orbitQuizActive, setOrbitQuizActive] = useState(false);
-  const [orbitStreak, setOrbitStreak] = useState(0);
-  const [orbitFeedback, setOrbitFeedback] = useState(null);
+  const [orbitQuiz, setOrbitQuiz] = useState({ idx: 0, active: false, streak: 0, feedback: null });
   const padHoldTimeoutRef = useRef(null);
 
   const [libState, setLibState] = useState({
@@ -3105,7 +3373,37 @@ function OLLDaySuite() {
   const [newChunkSelectedIds, setNewChunkSelectedIds] = useState([]);
 
   const [authScreenOpen, setAuthScreenOpen] = useState(() => !storage.getStr(STORAGE_KEYS.activeAccount, ''));
-  const [authMode, setAuthMode] = useState('signin');
+  const [authMode, setAuthMode] = useState('landing');
+  const [landingStepIdx, setLandingStepIdx] = useState(0);
+  const dockRef = useRef(null);
+  const [dockSize, setDockSize] = useState({ width: 392, height: 60 });
+
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDockSize((prev) =>
+          Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5
+            ? prev
+            : { width: rect.width, height: rect.height }
+        );
+      }
+    };
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isTwoPane, activePhase]);
+
+  useEffect(() => {
+    if (!authScreenOpen || authMode !== 'landing' || !isAppVisible) return undefined;
+    const id = setInterval(() => {
+      setLandingStepIdx((prev) => (prev + 1) % 4);
+    }, 2400);
+    return () => clearInterval(id);
+  }, [authScreenOpen, authMode, isAppVisible]);
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
@@ -3146,19 +3444,9 @@ function OLLDaySuite() {
     });
   };
 
-  const applyTourNavigation = (stepObj) => {
-    if (!stepObj) return;
-    setActivePhase(stepObj.phase);
-    setTabForPhase(stepObj.phase, stepObj.tab);
-  };
-
-  const startGuidedTour = (type) => {
+  const startGuidedTour = () => {
     emitBeep(720, 'sine', 0.08);
-    const steps = type === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
-    setTourType(type);
-    setTourStepIdx(0);
-    applyTourNavigation(steps[0]);
-    setActiveModal('guidedTour');
+    setActiveModal('cfopExperienceChoice');
   };
 
   useEffect(() => {
@@ -3178,11 +3466,11 @@ function OLLDaySuite() {
     const handleVis = () => (document.hidden ? enterBackgroundSleep() : setIsAppVisible(true));
     document.addEventListener('visibilitychange', handleVis);
     window.addEventListener('pagehide', enterBackgroundSleep);
-    window.addEventListener('pageshow', () => setIsAppVisible(!document.hidden));
+    window.addEventListener('pageshow', handleVis);
     return () => {
       document.removeEventListener('visibilitychange', handleVis);
       window.removeEventListener('pagehide', enterBackgroundSleep);
-      window.removeEventListener('pageshow', () => setIsAppVisible(!document.hidden));
+      window.removeEventListener('pageshow', handleVis);
       stopScannerCamera();
     };
   }, []);
@@ -3297,17 +3585,17 @@ function OLLDaySuite() {
   const safeF2lDay = Math.min(Math.max(1, currentUser.f2lDay), Math.max(1, f2lSchedule.length));
   const safeOllDay = Math.min(Math.max(1, currentUser.day), Math.max(1, ollSchedule.length));
   const safePllDay = Math.min(Math.max(1, currentUser.pllDay), Math.max(1, pllSchedule.length));
-
   const currentF2lDayObj = f2lSchedule[safeF2lDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: F2L_DATA.slice(0, 4) };
   const currentOllDayObj = ollSchedule[safeOllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: OLL_DATA.slice(0, 4) };
   const currentPllDayObj = pllSchedule[safePllDay - 1] || { day: 1, mode: 'Learn', chunkTitle: 'Chunk 1', cases: PLL_DATA.slice(0, 4) };
 
   const [lineupOrders, setLineupOrders] = useState({ f2l: [], oll: [], pll: [] });
   useEffect(() => {
+    const orderForDay = (dObj) => (dObj?.randomize ? shuffleCaseList(dObj.cases) : [...(dObj?.cases || [])]);
     setLineupOrders({
-      f2l: [...currentF2lDayObj.cases],
-      oll: [...currentOllDayObj.cases],
-      pll: [...currentPllDayObj.cases]
+      f2l: orderForDay(currentF2lDayObj),
+      oll: orderForDay(currentOllDayObj),
+      pll: orderForDay(currentPllDayObj)
     });
   }, [
     safeF2lDay, currentUser.f2lCustomChunks,
@@ -3316,6 +3604,13 @@ function OLLDaySuite() {
   ]);
 
   useEffect(() => {
+    if (typeof document !== 'undefined' && !document.querySelector('link[data-ollday-fonts="true"]')) {
+      const fontLink = document.createElement('link');
+      fontLink.rel = 'stylesheet';
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap';
+      fontLink.setAttribute('data-ollday-fonts', 'true');
+      document.head.appendChild(fontLink);
+    }
     if (typeof document !== 'undefined' && !document.querySelector('link[href="https://visualcube.api.cubing.net"]')) {
       const link = document.createElement('link');
       link.rel = 'preconnect';
@@ -3335,8 +3630,8 @@ function OLLDaySuite() {
   }, [currentF2lDayObj, currentOllDayObj, currentPllDayObj]);
 
   const fullSolveTargetSec = Number.isFinite(Number(currentUser.fullSolveTargetPb)) ? Number(currentUser.fullSolveTargetPb) : 15.0;
-  useEffect(() => { setTargetPbInput(fullSolveTargetSec.toFixed(3)); }, [fullSolveTargetSec]);
-  useEffect(() => { setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3)); }, [selectedTargetPhase, currentUser.phaseTargetPbs]);
+  const targetPbInput = pbDrafts.full ?? fullSolveTargetSec.toFixed(3);
+  const phaseTargetInput = pbDrafts.phase ?? getPhaseTargetPb(selectedTargetPhase).toFixed(3);
 
   const updateActiveUserRecord = (updaterFn) => {
     setUsers((prev) => {
@@ -3349,13 +3644,13 @@ function OLLDaySuite() {
 
   const updateFullSolveTargetPb = (sec) => {
     const clamped = Math.min(120, Math.max(1.0, Number(Number(sec).toFixed(3))));
-    setTargetPbInput(clamped.toFixed(3));
+    setPbDrafts((prev) => ({ ...prev, full: null }));
     updateActiveUserRecord((u) => ({ ...u, fullSolveTargetPb: clamped }));
   };
 
   const updatePhaseTargetPb = (phase, sec) => {
     const clamped = Math.min(30, Math.max(0.1, Number(Number(sec).toFixed(3))));
-    setPhaseTargetInput(clamped.toFixed(3));
+    setPbDrafts((prev) => ({ ...prev, phase: null }));
     updateActiveUserRecord((u) => ({ ...u, phaseTargetPbs: { ...u.phaseTargetPbs, [phase]: clamped } }));
   };
 
@@ -3485,6 +3780,7 @@ function OLLDaySuite() {
       isNewPb = prevBest === null || timeSec < prevBest;
       const updated = {
         ...u,
+        ...advanceDailyStreakFields(u),
         [statField]: {
           ...u[statField],
           [caseId]: { best: isNewPb ? timeSec : prevBest, attempts: (existing.attempts || 0) + 1, history: [timeSec, ...(existing.history || [])].slice(0, 60) }
@@ -4058,31 +4354,6 @@ function OLLDaySuite() {
   const activeCrossMoveCount = activeCrossSolution === 'Cross Solved ✓' ? 0 : activeCrossSolution.split(/\s+/).filter(Boolean).length;
   const activeMechanicObj = CROSS_MECHANICS.find((m) => m.id === activeMechanicId) || CROSS_MECHANICS[0];
 
-  const totalDeckCards = 8;
-  const handleDeckTouchStart = (e) => {
-    if (!e.target.closest('[data-scrollable="true"]')) deckTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
-  const handleDeckTouchEnd = (e) => {
-    if (!deckTouchStartRef.current) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - deckTouchStartRef.current.x, dy = t.clientY - deckTouchStartRef.current.y;
-    deckTouchStartRef.current = null;
-    if (Math.abs(dx) > 36 || Math.abs(dy) > 36) {
-      emitBeep(520, 'sine', 0.05);
-      setSettingsDeckIdx((p) => (dx < -36 || dy < -36 ? (p + 1) % totalDeckCards : (p + totalDeckCards - 1) % totalDeckCards));
-    }
-  };
-  const getDeckCardSlot = (cardIdx) => {
-    const rel = (cardIdx - settingsDeckIdx + totalDeckCards) % totalDeckCards;
-    return rel <= 2 ? rel + 1 : null;
-  };
-  const renderDeckCardHeader = (cardNum, category, nextLabel, nextIdx) => (
-    <div className="flex items-center justify-between">
-      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Card {cardNum} of {totalDeckCards} • {category}</span>
-      <button type="button" onClick={() => { emitBeep(520); setSettingsDeckIdx(nextIdx); }} className="text-[11px] font-bold text-zinc-400 hover:text-white cursor-pointer">{nextLabel} →</button>
-    </div>
-  );
-
   const renderWcaTelemetryGrid = (cardClass = 'liquid-glass-well rounded-2xl') => (
     <div className="grid grid-cols-3 gap-2">
       {[
@@ -4102,7 +4373,7 @@ function OLLDaySuite() {
     const fullHistory = currentUser.fullSolveHistory || [];
     const visibleSolves = fullHistoryExpanded ? fullHistory : fullHistory.slice(0, 5);
     return (
-      <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-4 space-y-3 shadow-xl">
+      <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
@@ -4177,295 +4448,515 @@ function OLLDaySuite() {
     );
   };
 
-  const renderSettingsDeck = () => (
-    <div className="p-5 pb-28 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Control Center</p>
-          <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => (
-            <button
-              key={idx}
-              onClick={() => { emitBeep(520); setSettingsDeckIdx(idx); }}
-              className={`h-2 rounded-full transition-all cursor-pointer ${settingsDeckIdx === idx ? 'w-5 bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.7)]' : 'w-2 bg-white/20'}`}
-            />
-          ))}
-        </div>
-      </div>
+  const renderSettingsDeck = () => {
+    const TOTAL_SETTINGS_CARDS = 8;
+    const stepSettingsCard = (dir) => {
+      emitBeep(dir === 'up' ? 620 : 500, 'sine', 0.05);
+      setSettingsSwipeDir(dir);
+      setSettingsCardIdx((prev) =>
+        dir === 'up'
+          ? (prev + 1) % TOTAL_SETTINGS_CARDS
+          : (prev + TOTAL_SETTINGS_CARDS - 1) % TOTAL_SETTINGS_CARDS
+      );
+    };
 
-      <div onTouchStart={handleDeckTouchStart} onTouchEnd={handleDeckTouchEnd} className="relative h-[515px] w-full mt-2">
-        {getDeckCardSlot(0) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(0)}`}>
-            {renderDeckCardHeader(1, 'Onboarding', 'Preferences', 1)}
-            <h3 className="text-lg font-black text-white">Learn How to Use This App</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Launch an interactive, auto-navigating walkthrough that switches through <strong className="text-white">C → F → O → P</strong> live and shows how to reach every feature yourself.
-            </p>
-            <div className="space-y-2.5 pt-1">
-              <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full p-3.5 rounded-[1.5rem] bg-gradient-to-r from-orange-600/20 to-amber-500/15 hover:from-orange-600/30 hover:to-amber-500/25 border border-orange-500/35 text-left space-y-1 cursor-pointer transition-all">
-                <div className="flex items-center justify-between"><span className="text-xs font-black text-white">New to CFOP + App Navigation</span><span className="text-[10px] font-black text-orange-300">Start →</span></div>
-                <p className="text-[10.5px] text-zinc-300 leading-snug">Teaches Cross, F2L, OLL, and PLL from scratch while navigating to each phase in the app.</p>
-              </button>
-              <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full p-3.5 rounded-[1.5rem] liquid-glass-well hover:bg-white/[0.06] border border-white/10 text-left space-y-1 cursor-pointer transition-all">
-                <div className="flex items-center justify-between"><span className="text-xs font-black text-white">I Know CFOP • App Feature Tour</span><span className="text-[10px] font-black text-orange-300">Start →</span></div>
-                <p className="text-[10.5px] text-zinc-300 leading-snug">Fast tour of 3D Cross &amp; F2L cubes, Blind Mat, Fingertrick tags, Target PBs, and the 3x3 Timer.</p>
-              </button>
-            </div>
-          </div>
-        )}
+    const handleCardTouchStart = (e) => {
+      const scrollable = e.target.closest('[data-card-scroll="true"]');
+      const touch = e.touches[0];
+      settingsSwipeStartRef.current = {
+        y: touch.clientY,
+        x: touch.clientX,
+        inScroll: Boolean(scrollable),
+        scrollTop: scrollable ? scrollable.scrollTop : 0,
+        scrollHeight: scrollable ? scrollable.scrollHeight : 0,
+        clientHeight: scrollable ? scrollable.clientHeight : 0
+      };
+    };
 
-        {getDeckCardSlot(1) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(1)}`}>
-            {renderDeckCardHeader(2, 'Preferences', '3x3 Timer', 2)}
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-lg font-black text-white">Speedcubing Suite</h3>
+    const handleCardTouchEnd = (e) => {
+      const start = settingsSwipeStartRef.current;
+      settingsSwipeStartRef.current = null;
+      if (!start) return;
+      const touch = e.changedTouches[0];
+      const dy = touch.clientY - start.y;
+      const dx = touch.clientX - start.x;
+      if (Math.abs(dy) < 42 || Math.abs(dy) < Math.abs(dx)) return;
+      if (start.inScroll) {
+        const atTop = start.scrollTop <= 2;
+        const atBottom = start.scrollTop + start.clientHeight >= start.scrollHeight - 2;
+        if (dy < 0 && !atBottom) return;
+        if (dy > 0 && !atTop) return;
+      }
+      stepSettingsCard(dy < 0 ? 'up' : 'down');
+    };
+
+    const handleCardWheel = (e) => {
+      if (Math.abs(e.deltaY) < 28) return;
+      const scrollable = e.target.closest('[data-card-scroll="true"]');
+      if (scrollable) {
+        const atTop = scrollable.scrollTop <= 2;
+        const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 2;
+        if (e.deltaY > 0 && !atBottom) return;
+        if (e.deltaY < 0 && !atTop) return;
+      }
+      if (settingsSwipeStartRef.current?.wheelLock) return;
+      settingsSwipeStartRef.current = { wheelLock: true };
+      setTimeout(() => { settingsSwipeStartRef.current = null; }, 340);
+      stepSettingsCard(e.deltaY > 0 ? 'up' : 'down');
+    };
+
+    const handleCardSurfaceClick = (e) => {
+      if (e.target.closest('button, input, select, textarea, a, label, [data-card-scroll="true"]')) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relY = (e.clientY - rect.top) / Math.max(1, rect.height);
+      stepSettingsCard(relY < 0.35 ? 'down' : 'up');
+    };
+
+    const CARDS = [
+      {
+        num: 1,
+        category: 'Onboarding & Guides',
+        title: 'Quick-Start, CFOP & Tutorial',
+        content: (
+          <div className="space-y-2.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-white">Quick-Start Experience Picker</span>
+                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-[9px] font-black uppercase text-orange-300">
+                  Route Me
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                Jump straight to your skill level—either 2-move Cross foundations or F2L pair intuition.
+              </p>
               <button
                 type="button"
-                onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
-                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                onClick={startGuidedTour}
+                className="w-full h-10 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
               >
-                Show My Stats
+                Open Quick-Start Guide →
               </button>
             </div>
-            <div data-scrollable="true" className="h-[410px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
-              {[
-                { title: 'Speedcube Stopwatch', sub: 'Record solve times & track case PBs', val: stopwatchEnabled, toggle: () => { emitBeep(620); setStopwatchEnabled((v) => !v); } },
-                { title: 'Inline Fingertrick Highlights', sub: 'Show color-coded triggers & grip cues on cases', val: fingertricksEnabled, toggle: () => { emitBeep(620); setFingertricksEnabled((v) => !v); } },
-                { title: 'Acoustic Audio & Beeps', sub: 'Inspection warnings & tactile feedback', val: audioEnabled, toggle: () => setAudioEnabled((v) => !v) }
-              ].map((pref) => (
-                <div key={pref.title} className="flex items-center justify-between liquid-glass-well border border-white/10 rounded-2xl p-2.5">
-                  <div><p className="text-xs font-bold text-white">{pref.title}</p><p className="text-[10px] text-zinc-400">{pref.sub}</p></div>
-                  <button type="button" onClick={pref.toggle} className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer ${pref.val ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'bg-zinc-800'}`}>
-                    <div className={`w-5 h-5 rounded-full bg-white transition-transform ${pref.val ? 'translate-x-5' : ''}`} />
-                  </button>
-                </div>
-              ))}
 
-              <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-white">3x3x3 Full-Solve Target PB</span>
-                  <span className="font-mono text-xs font-black text-orange-400">{fullSolveTargetSec.toFixed(3)}s</span>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={() => { emitBeep(660, 'sine', 0.07); setActiveModal('newToCfop'); }}
+                className="w-full liquid-glass-uv-well hover:bg-white/[0.1] border border-white/20 rounded-2xl p-3.5 text-left transition-all cursor-pointer flex items-center justify-between gap-3"
+              >
+                <div>
+                  <span className="text-xs font-black text-amber-300 block">New to CFOP? Why It Matters</span>
+                  <span className="text-[10.5px] text-zinc-300 block mt-0.5">
+                    Learn how Cross, F2L, OLL &amp; PLL drop solves under 15s and how OLLDay automates the path.
+                  </span>
                 </div>
-                <MillisecondSliderControl
-                  value={fullSolveTargetSec} min={3.0} max={60.0} draftValue={targetPbInput} accentTextClass="text-orange-300"
-                  onSliderChange={updateFullSolveTargetPb}
-                  onStepDelta={(d) => { emitBeep(540); updateFullSolveTargetPb(fullSolveTargetSec + d); }}
-                  onDraftChange={(val) => { setTargetPbInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 1 && p <= 120) updateFullSolveTargetPb(p); }}
-                />
+                <span className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 font-black text-xs flex items-center justify-center flex-shrink-0">
+                  →
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { emitBeep(720, 'sine', 0.07); setActiveModal('appTutorial'); }}
+                className="w-full liquid-glass-uv-well hover:bg-white/[0.1] border border-white/20 rounded-2xl p-3.5 text-left transition-all cursor-pointer flex items-center justify-between gap-3"
+              >
+                <div>
+                  <span className="text-xs font-black text-purple-200 block">Interactive App Tutorial</span>
+                  <span className="text-[10.5px] text-zinc-300 block mt-0.5">
+                    How Daily Sessions train muscle memory, plus getting the most out of Cross in X.
+                  </span>
+                </div>
+                <span className="w-8 h-8 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-200 font-black text-xs flex items-center justify-center flex-shrink-0">
+                  →
+                </span>
+              </button>
+            </div>
+          </div>
+        )
+      },
+      {
+        num: 2,
+        category: 'Profile & Pro',
+        title: 'Solver Identity & Plan',
+        content: (
+          <div className="space-y-3.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-base font-black text-white truncate">{String(activeUserKey || 'Solver')}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase ${isProUnlocked ? 'bg-green-500/20 border border-green-400/45 text-green-300' : 'bg-orange-500/20 border border-orange-400/45 text-orange-300'}`}>
+                  {isProUnlocked ? 'Lifetime Pro' : 'Starter Tier'}
+                </span>
               </div>
+              {currentUser.email && <p className="text-[11px] text-zinc-300 truncate">{currentUser.email}</p>}
+              <p className="text-[11px] text-zinc-300/80 pt-0.5">
+                {cloudSyncStatus === 'synced' ? '● Cloud Synced' : '● Local Saved'} • F2L D{safeF2lDay} • OLL D{safeOllDay} • PLL D{safePllDay}
+              </p>
+            </div>
 
-              <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-white">Phase Target PB</span>
-                    <span className="font-mono text-xs font-black text-amber-300">{getPhaseTargetPb(selectedTargetPhase).toFixed(3)}s</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((ph) => (
-                      <button
-                        key={ph.key} type="button" onClick={() => { emitBeep(520); setSelectedTargetPhase(ph.key); }}
-                        className={`w-6 h-6 rounded-full text-[10px] font-black cursor-pointer transition-all ${selectedTargetPhase === ph.key ? 'bg-orange-500 text-slate-950' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
-                      >
-                        {ph.label}
-                      </button>
-                    ))}
-                  </div>
+            {!isProUnlocked && (
+              <button
+                type="button"
+                onClick={() => openProPaywall('Full 123-Case CFOP Suite')}
+                className="w-full h-11 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
+              >
+                Unlock Lifetime Pro — $5.99
+              </button>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }}
+                className="h-10 px-3.5 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white flex items-center justify-center cursor-pointer"
+              >
+                Switch Account
+              </button>
+              <button
+                type="button"
+                onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }}
+                className="h-10 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-200 flex items-center justify-center cursor-pointer"
+              >
+                Restore Purchase
+              </button>
+            </div>
+          </div>
+        )
+      },
+      {
+        num: 3,
+        category: 'Curriculum & Pacing',
+        title: 'Targets, Home & Chunks',
+        content: (
+          <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-black text-white block">Pinned Home Screen</span>
+                <span className="text-[10px] text-zinc-300/80">Default phase on startup</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((item) => {
+                  const isPinned = (pinnedHomePhase || 'cross') === item.key;
+                  return (
+                    <button
+                      key={item.key} type="button"
+                      onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
+                      className={`w-8 h-8 rounded-full text-xs font-black transition-all flex items-center justify-center cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/50 border border-white/15 text-zinc-300 hover:text-white'}`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white">3x3x3 Full-Solve Target PB</span>
+                <span className="font-mono text-xs font-black text-orange-300">{fullSolveTargetSec.toFixed(3)}s</span>
+              </div>
+              <MillisecondSliderControl
+                value={fullSolveTargetSec} min={3.0} max={60.0} draftValue={targetPbInput} accentTextClass="text-orange-300"
+                onSliderChange={updateFullSolveTargetPb}
+                onStepDelta={(d) => { emitBeep(540); updateFullSolveTargetPb(fullSolveTargetSec + d); }}
+                onDraftChange={(val) => { setPbDrafts((prev) => ({ ...prev, full: val })); const p = parseFloat(val); if (Number.isFinite(p) && p >= 1 && p <= 120) updateFullSolveTargetPb(p); }}
+              />
+            </div>
+
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Phase Target PB</span>
+                  <span className="font-mono text-xs font-black text-amber-300">{getPhaseTargetPb(selectedTargetPhase).toFixed(3)}s</span>
                 </div>
-                <MillisecondSliderControl
-                  value={getPhaseTargetPb(selectedTargetPhase)} min={0.15} max={15.0} draftValue={phaseTargetInput} accentTextClass="text-amber-300"
-                  onSliderChange={(sec) => updatePhaseTargetPb(selectedTargetPhase, sec)}
-                  onStepDelta={(d) => { emitBeep(540); updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + d); }}
-                  onDraftChange={(val) => { setPhaseTargetInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 0.1 && p <= 30) updatePhaseTargetPb(selectedTargetPhase, p); }}
-                />
-                <p className="text-[9.5px] text-zinc-400">Custom per-case Target PBs can also be edited directly inside each phase&apos;s Statistics tab.</p>
+                <div className="flex items-center gap-1">
+                  {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((ph) => (
+                    <button
+                      key={ph.key} type="button" onClick={() => { emitBeep(520); setSelectedTargetPhase(ph.key); }}
+                      className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center cursor-pointer transition-all ${selectedTargetPhase === ph.key ? 'bg-orange-500 text-slate-950' : 'bg-black/50 text-zinc-300 hover:text-white'}`}
+                    >
+                      {ph.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <MillisecondSliderControl
+                value={getPhaseTargetPb(selectedTargetPhase)} min={0.15} max={15.0} draftValue={phaseTargetInput} accentTextClass="text-amber-300"
+                onSliderChange={(sec) => updatePhaseTargetPb(selectedTargetPhase, sec)}
+                onStepDelta={(d) => { emitBeep(540); updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + d); }}
+                onDraftChange={(val) => { setPbDrafts((prev) => ({ ...prev, phase: val })); const p = parseFloat(val); if (Number.isFinite(p) && p >= 0.1 && p <= 30) updatePhaseTargetPb(selectedTargetPhase, p); }}
+              />
+            </div>
+
+            <div className="relative overflow-hidden liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
+              {!isProUnlocked && (
+                <ProLockOverlay interactive label="Custom Chunks • Pro" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} />
+              )}
+              <div className={!isProUnlocked ? 'opacity-40 select-none space-y-2' : 'space-y-2'}>
+                <span className="text-xs font-black text-white block">Custom Learning Chunks</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[{ key: 'f2l', label: 'F2L Chunks' }, { key: 'oll', label: 'OLL Chunks' }, { key: 'pll', label: 'PLL Chunks' }].map((b) => (
+                    <button
+                      key={b.key} type="button"
+                      onClick={() => { if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; } emitBeep(560); openCurriculumBuilder(b.key); }}
+                      className="h-9 px-2.5 rounded-full bg-black/50 border border-white/15 text-[10px] font-black text-orange-300 hover:bg-white/[0.1] flex items-center justify-center cursor-pointer"
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        )}
-
-        {getDeckCardSlot(2) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(2)}`}>
-            {renderDeckCardHeader(3, 'Timer & Home', 'Notation', 3)}
-            <h3 className="text-lg font-black text-white">3x3x3 CFOP Timer</h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Full-screen glassmorphic speedcube timer with WCA 20-move scrambles, +2 / DNF penalties, and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> tracking.
+        )
+      },
+      {
+        num: 4,
+        category: '3x3x3 Timer',
+        title: 'WCA Speedcube Timer',
+        content: (
+          <div className="space-y-3.5">
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Full-screen WCA 20-move scramble timer with +2 / DNF penalties and live <strong className="text-white">Ao5</strong> &amp; <strong className="text-white">Ao12</strong> session tracking.
             </p>
-            {renderWcaTelemetryGrid('liquid-glass-well rounded-2xl')}
+            {renderWcaTelemetryGrid('liquid-glass-uv-well rounded-2xl')}
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-center justify-between text-xs">
+              <span className="text-zinc-300">Logged 3x3x3 Solves</span>
+              <span className="font-mono font-black text-white">{currentUser.fullSolveHistory?.length || 0}</span>
+            </div>
             <button
               type="button"
               onClick={openFullTimerModal}
-              className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+              className="w-full h-11 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
             >
               Launch Full-Screen 3x3x3 Timer
             </button>
-            <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div><span className="text-xs font-black text-white block">Pinned Home Screen</span><span className="text-[10px] text-zinc-400">Default phase on startup</span></div>
-                <div className="flex items-center gap-1.5">
-                  {[{ key: 'cross', label: 'C' }, { key: 'f2l', label: 'F' }, { key: 'oll', label: 'O' }, { key: 'pll', label: 'P' }].map((item) => {
-                    const isPinned = (pinnedHomePhase || 'cross') === item.key;
-                    return (
-                      <button
-                        key={item.key} type="button"
-                        onClick={() => { emitBeep(640); setPinnedHomePhase(item.key); storage.setStr(STORAGE_KEYS.pinnedHomePhase, item.key); }}
-                        className={`w-8 h-8 rounded-full text-xs font-black transition-all cursor-pointer ${isPinned ? 'bg-orange-500 text-slate-950 shadow-md shadow-orange-500/30' : 'bg-black/50 border border-white/10 text-zinc-400 hover:text-white'}`}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
           </div>
-        )}
-
-        {getDeckCardSlot(3) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(3)}`}>
-            {renderDeckCardHeader(4, 'Notation', 'Dossier', 4)}
-            <h3 className="text-lg font-black text-white">WCA Notation Guide</h3>
-            <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
+        )
+      },
+      {
+        num: 5,
+        category: 'Move Reference',
+        title: 'WCA Notation Key',
+        content: (
+          <div className="space-y-2.5">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
               {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
                 <button
                   key={sec} type="button" onClick={() => { emitBeep(480); setNotationFilter(sec); }}
-                  className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-zinc-400 hover:text-white'}`}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${notationFilter === sec ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
                 >
                   {sec}
                 </button>
               ))}
             </div>
-            <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
+            <div data-card-scroll="true" className="max-h-[305px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
               {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
-                <div key={item.move} className="liquid-glass-well border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs font-black text-amber-300 flex-shrink-0">{item.move}</span>
-                  <span className="text-[11px] text-zinc-300 text-right">{item.desc}</span>
+                <div key={item.move} className="liquid-glass-uv-well border border-white/15 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex-shrink-0">
+                    <span className="font-mono text-sm font-black text-amber-300 block">{item.move}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{item.section}</span>
+                  </div>
+                  <span className="text-xs text-zinc-200 text-right leading-snug">{item.desc}</span>
                 </div>
               ))}
             </div>
           </div>
-        )}
-
-        {getDeckCardSlot(4) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-2.5 deck-card-${getDeckCardSlot(4)}`}>
-            {renderDeckCardHeader(5, 'Mechanics', 'Guide & Reset', 5)}
-            <h3 className="text-lg font-black text-white">Fingertrick Dossier</h3>
-            <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0.5">
+        )
+      },
+      {
+        num: 6,
+        category: 'Execution Mechanics',
+        title: 'Fingertrick Dossier',
+        content: (
+          <div className="space-y-2.5">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
               {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
                 <button
                   key={cat} type="button" onClick={() => { emitBeep(480); setDossierFilter(cat); }}
-                  className={`px-2.5 py-1 rounded-full text-[9.5px] font-black uppercase whitespace-nowrap cursor-pointer ${dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.06] text-zinc-400 hover:text-white'}`}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${dossierFilter === cat ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
-            <div data-scrollable="true" className="h-[365px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            <div data-card-scroll="true" className="max-h-[305px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
               {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
-                <div key={trig.id} className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-1.5">
+                <div key={trig.id} className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${trig.dotClass}`} /><span className="text-xs font-black text-white">{trig.name}</span></div>
-                    <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
+                      <span className="text-xs font-black text-white">{trig.name}</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
                   </div>
-                  <p className="text-[10px] font-bold text-zinc-300"><span className="text-orange-400">Grip:</span> {trig.grip}</p>
-                  <p className="text-[10.5px] text-zinc-300 leading-relaxed">{trig.execution}</p>
+                  <p className="text-[11px] text-zinc-200 leading-snug"><strong className="text-orange-400">Grip:</strong> {trig.grip}</p>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">{trig.execution}</p>
                 </div>
               ))}
             </div>
           </div>
-        )}
-
-        {getDeckCardSlot(5) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(5)}`}>
-            {renderDeckCardHeader(6, 'Tools', 'Account', 6)}
-            <h3 className="text-lg font-black text-white">Custom Chunks &amp; Reset</h3>
-            <div className="space-y-2.5">
-              <div className="relative overflow-hidden liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2">
-                {!isProUnlocked && (
-                  <ProLockOverlay interactive label="Custom Chunks • Pro" onClick={() => openProPaywall('Custom Curriculum Chunk Builder')} />
-                )}
-                <div className={!isProUnlocked ? 'opacity-40 select-none space-y-2' : 'space-y-2'}>
-                  <span className="text-xs font-black text-white block">Custom Learning Chunks</span>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[{ key: 'f2l', label: 'F2L Chunks' }, { key: 'oll', label: 'OLL Chunks' }, { key: 'pll', label: 'PLL Chunks' }].map((b) => (
-                      <button
-                        key={b.key} type="button"
-                        onClick={() => { if (!isProUnlocked) { openProPaywall('Custom Curriculum Chunk Builder'); return; } emitBeep(560); openCurriculumBuilder(b.key); }}
-                        className="py-2 rounded-full bg-black/50 border border-white/10 text-[10px] font-black text-orange-300 hover:bg-white/[0.08] cursor-pointer"
-                      >
-                        {b.label}
-                      </button>
-                    ))}
-                  </div>
+        )
+      },
+      {
+        num: 7,
+        category: 'Feedback & Sensory',
+        title: 'Haptics, Audio & Triggers',
+        content: (
+          <div className="space-y-2.5">
+            {[
+              { title: 'Speedcube Stopwatch', sub: 'Record solve times & track case PBs', val: stopwatchEnabled, toggle: () => { emitBeep(620); setStopwatchEnabled((v) => !v); } },
+              { title: 'Inline Fingertrick Highlights', sub: 'Show color-coded triggers & grip cues on cases', val: fingertricksEnabled, toggle: () => { emitBeep(620); setFingertricksEnabled((v) => !v); } },
+              { title: 'Acoustic Audio & Beeps', sub: 'Inspection warnings & tactile feedback', val: audioEnabled, toggle: () => setAudioEnabled((v) => !v) }
+            ].map((pref) => (
+              <div key={pref.title} className="flex items-center justify-between gap-3 liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5">
+                <div>
+                  <p className="text-xs font-bold text-white">{pref.title}</p>
+                  <p className="text-[10px] text-zinc-300/80">{pref.sub}</p>
                 </div>
+                <button type="button" onClick={pref.toggle} className={`w-11 h-6 rounded-full transition-colors p-0.5 flex-shrink-0 cursor-pointer ${pref.val ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.5)]' : 'bg-zinc-800'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${pref.val ? 'translate-x-5' : ''}`} />
+                </button>
               </div>
-              <button type="button" onClick={() => { emitBeep(420); setActiveModal('reset'); }} className="w-full p-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 flex items-center justify-between text-left cursor-pointer">
-                <div><p className="text-xs font-black text-red-300">Granular Progress Reset</p><p className="text-[10px] text-red-200/70">Reset individual phases, PBs, or timer history</p></div>
-                <span className="text-red-300 font-black text-xs">Manage →</span>
+            ))}
+          </div>
+        )
+      },
+      {
+        num: 8,
+        category: 'Account & Data',
+        title: 'Reset & Privacy Controls',
+        content: (
+          <div className="space-y-3">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+              <span className="text-xs font-black text-white block">Granular Progress Reset</span>
+              <p className="text-[11px] text-zinc-300/80 leading-relaxed">
+                Clear individual phase days, logged PB times, custom chunks, or full 3x3x3 timer history without losing your account.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { emitBeep(420); setActiveModal('reset'); }}
+              className="w-full h-11 px-4 rounded-full bg-red-500/15 hover:bg-red-500/25 border border-red-400/40 flex items-center justify-between text-xs font-black text-red-200 cursor-pointer"
+            >
+              <span>Manage Progress Reset</span>
+              <span>Open →</span>
+            </button>
+
+            {!deleteAccountConfirm ? (
+              <button
+                type="button"
+                onClick={() => { emitBeep(380); setDeleteAccountConfirm(true); }}
+                className="w-full h-10 px-4 rounded-full bg-white/[0.06] hover:bg-red-500/15 border border-white/15 hover:border-red-400/40 text-xs font-bold text-zinc-200 hover:text-red-200 flex items-center justify-center cursor-pointer"
+              >
+                Delete My Account &amp; Data
               </button>
-            </div>
-          </div>
-        )}
-
-        {getDeckCardSlot(6) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(6)}`}>
-            {renderDeckCardHeader(7, 'Account', 'Pro & Data', 7)}
-            <h3 className="text-lg font-black text-white">Account &amp; Cloud Sync</h3>
-            <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-white">{String(activeUserKey || 'Solver')}</span>
-                <span className="text-[10px] font-bold text-green-400">{cloudSyncStatus === 'synced' ? '● Cloud Synced' : '● Local Saved'}</span>
-              </div>
-              {currentUser.email && <p className="text-[11px] text-zinc-400 truncate">{currentUser.email}</p>}
-              <p className="text-[10px] text-zinc-400 pt-1">F2L Day {safeF2lDay} • OLL Day {safeOllDay} • PLL Day {safePllDay} • {currentUser.fullSolveHistory?.length || 0} Full Solves</p>
-            </div>
-            <button type="button" onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); setAuthScreenOpen(true); }} className="w-full py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-xs font-black text-white uppercase tracking-wider cursor-pointer">
-              Switch / Sign Out of Account
-            </button>
-            <button type="button" onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }} className="w-full py-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-bold text-zinc-300 cursor-pointer">
-              Restore App Store Purchase
-            </button>
-          </div>
-        )}
-
-        {getDeckCardSlot(7) && (
-          <div className={`absolute inset-x-0 top-0 liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-2xl transition-all duration-500 ease-out space-y-3 deck-card-${getDeckCardSlot(7)}`}>
-            {renderDeckCardHeader(8, 'Membership', 'Learn App', 0)}
-            <h3 className="text-lg font-black text-white">OLLDay Pro &amp; Privacy</h3>
-            <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-white">Current Plan</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${isProUnlocked ? 'bg-green-500/20 border border-green-500/40 text-green-300' : 'bg-orange-500/20 border border-orange-500/40 text-orange-300'}`}>
-                  {isProUnlocked ? 'Lifetime Pro Active' : 'Starter Tier'}
-                </span>
-              </div>
-              {!isProUnlocked && (
-                <button type="button" onClick={() => openProPaywall('Full 123-Case CFOP Suite')} className="w-full py-2.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">
-                  Unlock Lifetime Pro — $5.99
-                </button>
-              )}
-            </div>
-            <div className="pt-2 border-t border-white/10">
-              {!deleteAccountConfirm ? (
-                <button type="button" onClick={() => { emitBeep(380); setDeleteAccountConfirm(true); }} className="w-full py-2.5 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[11px] font-black text-red-300 cursor-pointer">
-                  Delete My Account &amp; Data
-                </button>
-              ) : (
-                <div className="bg-red-950/50 border border-red-500/40 rounded-2xl p-2.5 space-y-2 text-center">
-                  <p className="text-[10px] font-bold text-red-200">Permanently delete &ldquo;{String(activeUserKey)}&rdquo; and all PB history?</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="py-1.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-200 cursor-pointer">Cancel</button>
-                    <button type="button" onClick={deleteCurrentSolverAccount} className="py-1.5 rounded-full bg-red-500 text-white text-[10px] font-black cursor-pointer">Confirm Delete</button>
-                  </div>
+            ) : (
+              <div className="bg-red-950/65 border border-red-400/45 rounded-2xl p-3 space-y-2 text-center">
+                <p className="text-[11px] font-bold text-red-200">Permanently delete &ldquo;{String(activeUserKey)}&rdquo; and all PB history?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setDeleteAccountConfirm(false)} className="h-9 px-3 rounded-full bg-white/15 text-xs font-bold text-white flex items-center justify-center cursor-pointer">Cancel</button>
+                  <button type="button" onClick={deleteCurrentSolverAccount} className="h-9 px-3 rounded-full bg-red-500 text-white text-xs font-black flex items-center justify-center cursor-pointer">Confirm Delete</button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        )}
+        )
+      }
+    ];
+
+    const activeCard = CARDS[settingsCardIdx % TOTAL_SETTINGS_CARDS] || CARDS[0];
+
+    return (
+      <div className="p-4 sm:p-5 pb-28 flex flex-col justify-between min-h-[calc(100dvh-9rem)] space-y-4 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">UV Liquid Glass Stack</p>
+            <h2 className="text-2xl font-black tracking-tight text-white">Settings</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => { emitBeep(680, 'sine', 0.07); setShareStatsFeedback(''); setActiveModal('shareStats'); }}
+            className="h-9 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-[10.5px] uppercase tracking-wider shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          >
+            Show My Stats
+          </button>
+        </div>
+
+        {/* Single Visible Transparent UV-Coated Liquid Glass Card Stage */}
+        <div
+          onTouchStart={handleCardTouchStart}
+          onTouchEnd={handleCardTouchEnd}
+          onWheel={handleCardWheel}
+          onClick={handleCardSurfaceClick}
+          style={{ touchAction: 'pan-x' }}
+          className="relative my-auto py-3 select-none cursor-pointer"
+        >
+          {/* Ambient UV Iridescent Glow Behind Active Card */}
+          <div
+            className="pointer-events-none absolute -inset-2 rounded-[2.6rem] opacity-85"
+            style={{ background: 'radial-gradient(circle at 30% 15%, rgba(168, 85, 247, 0.22) 0%, rgba(249, 115, 22, 0.2) 48%, rgba(5, 5, 7, 0) 75%)' }}
+          />
+
+          <div
+            key={`${activeCard.num}-${settingsSwipeDir}`}
+            className={`relative liquid-glass-uv border border-white/25 rounded-3xl p-4 sm:p-5 space-y-3.5 ${
+              settingsSwipeDir === 'up' ? 'uv-card-enter-up' : 'uv-card-enter-down'
+            }`}
+          >
+            {/* Card Header */}
+            <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-300 block">
+                  Card {activeCard.num} of {TOTAL_SETTINGS_CARDS} • {activeCard.category}
+                </span>
+                <h3 className="text-lg font-black text-white mt-0.5">{activeCard.title}</h3>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Previous Settings Card"
+                  onClick={(e) => { e.stopPropagation(); stepSettingsCard('down'); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-xs font-black text-white flex items-center justify-center cursor-pointer"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next Settings Card"
+                  onClick={(e) => { e.stopPropagation(); stepSettingsCard('up'); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-xs font-black text-white flex items-center justify-center cursor-pointer"
+                >
+                  ↓
+                </button>
+              </div>
+            </div>
+
+            {/* Active Card Body */}
+            <div>{activeCard.content}</div>
+          </div>
+        </div>
+
+        {/* Minimal Stack Indicator & Gesture Hint */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <div className="flex items-center gap-1.5">
+            {CARDS.map((c, idx) => (
+              <span
+                key={c.num}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  settingsCardIdx === idx
+                    ? 'w-6 bg-gradient-to-r from-orange-400 to-amber-300 shadow-[0_0_10px_rgba(251,146,60,0.8)]'
+                    : 'w-1.5 bg-white/25'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            {viewportDevice.isTouchPrimary ? 'Swipe Up or Down to Cycle Cards' : 'Click Card or Scroll to Cycle Stack'}
+          </span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCaseThumb = (phaseKey, item, sizeClass = 'w-14 h-14') => {
     const isF2L = phaseKey === 'f2l';
@@ -4506,27 +4997,66 @@ function OLLDaySuite() {
     if (tab === 'settings') return renderSettingsDeck();
 
     if (tab === 'grind') {
+      const completedInLineup = lineupOrder.filter(
+        (c) => typeof statsMap?.[c.id]?.best === 'number' && statsMap[c.id].best <= getEffectiveCaseTargetPb(phaseKey, c.id)
+      ).length;
+      const totalInLineup = Math.max(1, lineupOrder.length);
+      const completionPct = Math.round((completedInLineup / totalInLineup) * 100);
+      const phaseProgressPct = Math.round(
+        Math.max(
+          (masteredCount / Math.max(1, dataList.length)) * 100,
+          ((safeDay - 1) / Math.max(1, scheduleList.length)) * 100
+        )
+      );
+      const activeStreak = computeActiveStreakDays(currentUser.consecutiveStreakDays, currentUser.lastActiveDate);
+      const streakIntact = activeStreak > 0 || (safeDay === 1 && masteredCount === 0);
+
       return (
-        <div className="p-5 pb-28 space-y-5">
-          {/* Stacked Liquid Glass Playlist Card */}
+        <div className="p-4 sm:p-5 pb-28 space-y-3.5">
+          {/* Focused Phase Daily Session Card */}
           <div className="relative pt-3">
             <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
             <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
-            <div className="-mt-1.5 liquid-glass-card liquid-rim-amber border border-white/15 rounded-[2.25rem] p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest text-orange-300">
-                  Day {safeDay} • {dayObj.mode} Mode
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-black/40 border border-white/10 text-xs font-black text-zinc-200 font-mono">
-                  {masteredCount}/{dataList.length} Mastered
-                </span>
+            <div className="-mt-1.5 liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-3xl p-4 sm:p-5 space-y-3.5 shadow-[0_20px_50px_rgba(249,115,22,0.16)]">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                    Day {safeDay} • {dayObj.mode}
+                  </span>
+                  <span className="text-[10px] font-bold text-zinc-400">
+                    {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered
+                  </span>
+                </div>
+                <Streak3DCube
+                  streakDays={activeStreak}
+                  currentDay={safeDay}
+                  totalDays={scheduleList.length}
+                  progressPct={phaseProgressPct}
+                  streakActive={streakIntact}
+                />
               </div>
+
               <div>
                 <h2 className="text-xl font-black text-white leading-tight">{dayObj.chunkTitle}</h2>
                 <p className="text-xs text-zinc-400 mt-1">{meta.subtitle}</p>
               </div>
+
+              {/* Daily Completion Bar */}
+              <div className="pt-3 border-t border-white/10 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider">
+                  <span className="text-zinc-300">{completedInLineup}/{lineupOrder.length} Cases Complete</span>
+                  <span className="font-mono text-orange-400">{completionPct}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-black/70 overflow-hidden border border-white/[0.06]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-300"
+                    style={{ width: `${Math.max(6, completionPct)}%` }}
+                  />
+                </div>
+              </div>
+
               {isF2L && (
-                <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
+                <div className="pt-3 border-t border-white/10 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Setup Scramble Style</span>
                     <div className="bg-black/60 p-0.5 rounded-full border border-white/10 flex">
@@ -4548,6 +5078,7 @@ function OLLDaySuite() {
                   </p>
                 </div>
               )}
+
               <div className="flex items-center gap-2 pt-0.5">
                 <button
                   onClick={() => {
@@ -4569,16 +5100,21 @@ function OLLDaySuite() {
                     }
                     emitBeep(720, 'sine', 0.08);
                     setSwRunning(false); setSwLastResult(null);
-                    setSession({ dayObj, index: 0, queue: [...lineupOrder] });
+                    const sessionQueue = dayObj.randomize ? shuffleCaseList(lineupOrder) : [...lineupOrder];
+                    setSession({ dayObj, index: 0, queue: sessionQueue });
                   }}
                   className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
                 >
-                  Start Day {safeDay} Grind ({lineupOrder.length})
+                  Continue Today&apos;s Lesson →
                 </button>
                 <button
                   onClick={() => {
                     emitBeep(480);
-                    const updated = { ...currentUser, [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1 };
+                    const updated = {
+                      ...currentUser,
+                      ...advanceDailyStreakFields(currentUser),
+                      [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1
+                    };
                     setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
                     saveUserToCloud(resolvedUserKey, updated);
                   }}
@@ -4615,7 +5151,7 @@ function OLLDaySuite() {
                       if (locked) { openProPaywall(item.name); return; }
                       emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                     }}
-                    className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                    className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : 'border-white/10 hover:border-white/20'
                     }`}
                   >
@@ -4650,7 +5186,7 @@ function OLLDaySuite() {
 
     if (tab === 'algorithms') {
       return (
-        <div className="p-5 pb-28 space-y-4">
+        <div className="p-4 sm:p-5 pb-28 space-y-3.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">{meta.libEyebrow}</p>
@@ -4689,7 +5225,7 @@ function OLLDaySuite() {
                     <button
                       key={group}
                       onClick={() => { emitBeep(520); setSelectedCategory({ type: 'group', name: group }); }}
-                      className="relative overflow-hidden liquid-glass-card liquid-tile-sheen liquid-rim-muted border border-white/10 rounded-[2rem] p-4 flex flex-col items-center text-center hover:border-orange-500/35 active:scale-95 transition-all cursor-pointer space-y-2.5"
+                      className="relative overflow-hidden liquid-glass-card liquid-tile-sheen liquid-rim-muted border border-white/10 rounded-2xl sm:rounded-3xl p-4 flex flex-col items-center text-center hover:border-orange-500/35 active:scale-95 transition-all cursor-pointer space-y-2.5"
                     >
                       {hasProTrainingCases && (
                         <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-white/[0.07] border border-white/15 text-[8px] font-black uppercase text-zinc-300 z-10">
@@ -4711,7 +5247,7 @@ function OLLDaySuite() {
                     <button
                       key={chk.id}
                       onClick={() => { emitBeep(520); setSelectedCategory({ type: 'chunk', chunk: chk }); }}
-                      className="relative overflow-hidden w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-[1.85rem] p-3.5 flex items-center gap-3.5 text-left hover:border-orange-500/35 cursor-pointer"
+                      className="relative overflow-hidden w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-3.5 flex items-center gap-3.5 text-left hover:border-orange-500/35 cursor-pointer"
                     >
                       <div>{renderCaseThumb(phaseKey, sampleCase, isF2L ? 'w-20 h-20' : 'w-14 h-14')}</div>
                       <div className="min-w-0 flex-1">
@@ -4754,7 +5290,7 @@ function OLLDaySuite() {
                         if (trainingLocked) { openProPaywall(`${item.name} • Day Training & Drills`); return; }
                         emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
                       }}
-                      className="case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 hover:border-white/20 rounded-[1.85rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer"
+                      className="case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 hover:border-white/20 rounded-2xl p-3.5 flex items-center justify-between gap-3 cursor-pointer"
                     >
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         {renderCaseThumb(phaseKey, rawItem, isF2L ? 'w-20 h-20' : 'w-14 h-14')}
@@ -4830,7 +5366,7 @@ function OLLDaySuite() {
     }
 
     return (
-      <div className="p-5 pb-28 space-y-4">
+      <div className="p-4 sm:p-5 pb-28 space-y-3.5">
         <div>
           <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Telemetry &amp; PBs</p>
           <h2 className="text-2xl font-black tracking-tight text-white">{meta.statsTitle}</h2>
@@ -4863,7 +5399,7 @@ function OLLDaySuite() {
                   if (locked) { openProPaywall(item.name); return; }
                   emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(item);
                 }}
-                className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-[1.75rem] p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:border-white/20'}`}
+                className={`case-row-opt relative overflow-hidden liquid-glass-card liquid-rim-muted border rounded-2xl p-3.5 flex items-center justify-between gap-3 cursor-pointer ${locked ? 'border-orange-500/20' : 'border-white/10 hover:border-white/20'}`}
               >
                 {locked && <ProLockOverlay size="xs" label={`${item.name} • Pro`} />}
                 <div className={`flex items-center gap-3 min-w-0 ${locked ? 'opacity-40 select-none' : ''}`}>
@@ -4999,23 +5535,26 @@ function OLLDaySuite() {
   // Unified Daily Session Runner (Liquid Glass)
   const renderUnifiedDailySession = () => {
     const activePhaseSession = f2lSession
-      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
+      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
       : ollSession
-      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
+      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', statsMap: currentUser.stats, itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
       : pllSession
-      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
+      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', statsMap: currentUser.pllStats, itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
       : null;
 
     if (!activePhaseSession) return null;
-    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, itemLabel, timerLabel } = activePhaseSession;
+    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, statsMap, itemLabel, timerLabel } = activePhaseSession;
     const rawItem = session.queue[session.index];
     if (!rawItem) return null;
     const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
+    const caseStat = statsMap?.[item.id] || {};
+    const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
+    const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
 
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#050507]/95 backdrop-blur-2xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#050507]/[0.97] flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <AmbientGlows
           topClass="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[40vh] z-0"
@@ -5026,13 +5565,13 @@ function OLLDaySuite() {
         <div
           className={`relative z-10 w-full ${
             isTwoPane
-              ? 'max-w-none h-[100dvh] px-8 py-6'
-              : 'max-w-md h-[100dvh] border-x border-white/10 p-5 shadow-2xl'
-          } flex flex-col justify-between overflow-y-auto no-scrollbar`}
+              ? 'max-w-none h-[100dvh] px-8 py-6 overflow-y-auto no-scrollbar'
+              : 'max-w-md h-[100dvh] border-x border-white/10 px-3.5 py-2.5 shadow-2xl overflow-hidden'
+          } flex flex-col justify-between`}
         >
-          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between`}>
-            <div className="flex items-center gap-2.5">
-              <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-3 py-1 text-[10px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-widest text-orange-300`}>
+          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
+            <div className="flex items-center gap-2">
+              <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-0.5 text-[9.5px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-wider text-orange-300`}>
                 {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
               </span>
               {isTwoPane && (
@@ -5041,36 +5580,42 @@ function OLLDaySuite() {
                 </span>
               )}
             </div>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-9 h-9'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold cursor-pointer`}>✕</button>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold cursor-pointer`}>✕</button>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} my-auto pt-2.5`}>
-            <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
-            <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto pt-2.5' : 'my-auto'}`}>
+            {isTwoPane && (
+              <>
+                <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+                <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+              </>
+            )}
             <div
-              className={`-mt-1.5 w-full ${
-                isTwoPane ? 'rounded-[2.5rem] p-7 space-y-4' : 'rounded-[2.25rem] p-5 space-y-3'
-              } liquid-glass-card liquid-rim-muted border border-white/15 flex flex-col items-center`}
+              className={`${isTwoPane ? '-mt-1.5 rounded-[2.5rem] p-7 space-y-4' : 'rounded-3xl p-3 space-y-1.5'} w-full liquid-glass-card liquid-rim-muted border border-white/15 flex flex-col items-center`}
             >
               <CasePracticeCard
                 {...sharedPracticeProps}
                 phaseKey={phaseKey}
                 item={item}
                 timerLabel={timerLabel}
+                lastResultForThis={lastResultForThis}
+                recordedBest={caseStat.best}
                 showInlineGroup={phaseKey !== 'f2l'}
                 onOpenGrip={() => { emitBeep(540); setFtPhaseContext(phaseKey); setFtCase(item); setActiveModal('fingertrick'); }}
                 onToggleCustomAlgSource={(altId) => selectCaseAlgSource(phaseKey, item.id, altId)}
                 onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
                 onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
-              />
+              >
+                <CaseWindowAvgGrid history={caseHist} isLargeScreen={isTwoPane} />
+              </CasePracticeCard>
             </div>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2.5'} grid grid-cols-2`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
             <button
               onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 disabled:opacity-30 cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-bold text-zinc-300 disabled:opacity-30 cursor-pointer`}
             >
               ← Previous
             </button>
@@ -5079,13 +5624,17 @@ function OLLDaySuite() {
                 emitBeep(760); setSwRunning(false);
                 if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
                 else {
-                  const updated = { ...currentUser, [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1 };
+                  const updated = {
+                    ...currentUser,
+                    ...advanceDailyStreakFields(currentUser),
+                    [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1
+                  };
                   setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
                   saveUserToCloud(resolvedUserKey, updated);
                   setSession(null);
                 }
               }}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-3.5 text-xs'} rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
+              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
             >
               {session.index + 1 < session.queue.length ? `Next ${itemLabel} →` : 'Complete Day ✓'}
             </button>
@@ -5117,7 +5666,7 @@ function OLLDaySuite() {
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
         className={`fixed inset-0 z-[245] ${
-          isTwoPane ? 'bg-[#050507]/95 backdrop-blur-2xl flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-black/80 backdrop-blur-xl flex items-center justify-center p-5'
+          isTwoPane ? 'bg-[#050507]/[0.97] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-black/85 backdrop-blur-xl flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <AmbientGlows
@@ -5136,19 +5685,23 @@ function OLLDaySuite() {
         )}
 
         <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto' : 'max-w-sm'}`}>
-          <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
-          <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+          {isTwoPane && (
+            <>
+              <div className="mx-8 h-3 rounded-t-[1.5rem] bg-orange-500/15 border-t border-x border-orange-400/20" />
+              <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.04] border-t border-x border-white/10" />
+            </>
+          )}
           <div
-            className={`-mt-1.5 liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
+            className={`liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
               isTwoPane
-                ? 'rounded-[2.5rem] p-7 space-y-4 flex flex-col items-center'
-                : 'rounded-[2.35rem] p-5 space-y-3 max-h-[88dvh] overflow-y-auto no-scrollbar'
+                ? '-mt-1.5 rounded-[2.5rem] p-7 space-y-4 flex flex-col items-center'
+                : 'rounded-3xl p-3 space-y-1.5 overflow-hidden'
             }`}
           >
             {!isTwoPane && (
-              <div data-no-timer-start="true" className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{item.group}</span>
-                <button onClick={closeDrill} className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold cursor-pointer">✕</button>
+              <div data-no-timer-start="true" className="flex items-center justify-between gap-2">
+                <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 truncate">{item.group}</span>
+                <button onClick={closeDrill} className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 text-xs font-bold flex-shrink-0 cursor-pointer">✕</button>
               </div>
             )}
 
@@ -5164,25 +5717,18 @@ function OLLDaySuite() {
               onOpenCustomAlgEditor={() => openCustomAlgEditor(phaseKey, rawItem)}
               onToggleStopwatch={() => toggleStopwatch((sec) => recordCaseTime(phaseKey, item.id, sec))}
             >
-              <div className={`w-full grid grid-cols-3 ${isTwoPane ? 'gap-3 pt-1' : 'gap-1.5'}`}>
-                {[{ label: 'Ao20', val: computeCaseWindowAvg(caseHist, 20), color: 'text-green-400' }, { label: 'Ao40', val: computeCaseWindowAvg(caseHist, 40), color: 'text-sky-400' }, { label: 'Ao60', val: computeCaseWindowAvg(caseHist, 60), color: 'text-purple-300' }].map((w) => (
-                  <div key={w.label} className={`liquid-glass-well border border-white/10 text-center ${isTwoPane ? 'rounded-2xl py-2.5 px-3' : 'rounded-xl py-1.5 px-2'}`}>
-                    <span className={`${isTwoPane ? 'text-[10.5px]' : 'text-[9px]'} font-black uppercase text-zinc-400 block`}>{w.label}</span>
-                    <span className={`font-mono ${isTwoPane ? 'text-sm' : 'text-xs'} font-black ${w.color}`}>{w.val !== null ? `${w.val.toFixed(2)}s` : '—'}</span>
-                  </div>
-                ))}
-              </div>
+              <CaseWindowAvgGrid history={caseHist} isLargeScreen={isTwoPane} />
               {caseHist.length > 0 && (
-                <div data-no-timer-start="true" className="w-full pt-1 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold text-zinc-400">
+                <div data-no-timer-start="true" className="w-full flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-bold text-zinc-400">
                     {caseHist.length} logged time{caseHist.length === 1 ? '' : 's'}
                   </span>
                   <button
                     type="button"
                     onClick={() => { emitBeep(520); setManagingCaseHistory({ phase: phaseKey, caseId: item.id, name: item.name }); }}
-                    className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-black text-zinc-300 hover:text-white cursor-pointer"
+                    className="px-2.5 py-0.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[9.5px] font-black text-zinc-300 hover:text-white cursor-pointer"
                   >
-                    Manage / Delete Times ({caseHist.length})
+                    Manage / Delete ({caseHist.length})
                   </button>
                 </div>
               )}
@@ -5406,12 +5952,12 @@ function OLLDaySuite() {
               <button
                 type="button"
                 onClick={() => { emitBeep(660, 'sine', 0.07); setSelectedStickerEdit(null); setScannerOpen(true); }}
-                className={`${isTwoPane ? 'w-auto px-3.5' : 'w-8'} h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer`}
+                className="px-3 h-8 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                 title="Scan 3x3 Cube & Predict Next Case"
                 aria-label="Scan Cube"
               >
-                <Camera className="w-4 h-4" />
-                {isTwoPane && <span className="text-[11px] font-black">Scan Cube</span>}
+                <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="text-[11px] font-black whitespace-nowrap">Scan Cube</span>
               </button>
 
               <button
@@ -5433,19 +5979,21 @@ function OLLDaySuite() {
                 {activePhase === 'cross' && (
                   <>
                     {phaseTabs.cross === 'ladder' && (
-                      <div className="p-5 pb-28 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">CFOP Phase 1 • Tactical Console</p>
+                      <div className="p-4 sm:p-5 pb-28 space-y-3.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">
+                              8-Move White Cross
+                            </p>
                             <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
                           </div>
-                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold active:scale-95 cursor-pointer">
+                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-4 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer">
                             Color Orbit
                           </button>
                         </div>
 
                         {/* Top Mode Switcher Pill */}
-                        <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex items-center">
+                        <div className="liquid-glass-well p-1 rounded-full border border-white/10 flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => {
@@ -5453,7 +6001,7 @@ function OLLDaySuite() {
                               const tObj = CROSS_TIERS.find((t) => t.tier === crossTier) || CROSS_TIERS[0];
                               setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                             }}
-                            className={`flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/[0.14] text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                            className={`flex-1 h-9 px-3 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap rounded-full flex items-center justify-center cursor-pointer transition-all ${crossDifficulty === 'standard' ? 'bg-white/[0.14] text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
                           >
                             Standard (2–6)
                           </button>
@@ -5465,10 +6013,13 @@ function OLLDaySuite() {
                               const tObj = CROSS_ADVANCED_TIERS.find((t) => t.tier === crossTier) || CROSS_ADVANCED_TIERS[0];
                               setCrossUserMoves(tObj.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                             }}
-                            className={`relative overflow-hidden flex-1 py-2 text-[10.5px] font-black uppercase tracking-wider rounded-full cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                            className={`relative overflow-hidden flex-1 h-9 px-3 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap rounded-full flex items-center justify-center gap-1 cursor-pointer transition-all ${crossDifficulty === 'advanced' ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' : 'text-zinc-400 hover:text-white'}`}
                           >
-                            <span className={!isProUnlocked ? 'opacity-65' : ''}>Advanced Full Scramble</span>
-                            {!isProUnlocked && <span className="ml-1 text-[9px] text-orange-300">🔒</span>}
+                            <span className={!isProUnlocked ? 'opacity-65' : ''}>
+                              <span className="sm:hidden">Full Scramble</span>
+                              <span className="hidden sm:inline">Advanced Full Scramble</span>
+                            </span>
+                            {!isProUnlocked && <span className="text-[9px] text-orange-300">🔒</span>}
                           </button>
                         </div>
 
@@ -5484,7 +6035,7 @@ function OLLDaySuite() {
                                   if (locked) { openProPaywall(crossDifficulty === 'advanced' ? `Advanced Full-Scramble Cross L${t.tier}` : `Cross Ladder Level ${t.tier}`); return; }
                                   emitBeep(540); setCrossTier(t.tier); setCrossUserMoves(t.moves); setCrossSolutionRevealed(false); setEfficiencyFeedback(null);
                                 }}
-                                className={`relative overflow-hidden py-2.5 text-[11px] font-black rounded-2xl border cursor-pointer transition-all ${
+                                className={`relative overflow-hidden h-10 text-[11px] font-black rounded-2xl border flex items-center justify-center cursor-pointer transition-all ${
                                   isSelected ? 'bg-gradient-to-b from-orange-500 to-amber-500 text-slate-950 border-orange-300 shadow-[0_6px_18px_rgba(249,115,22,0.35)]' : locked ? 'bg-white/[0.03] text-zinc-400 border-orange-500/20' : 'bg-white/[0.04] text-zinc-400 border-white/[0.08] hover:text-white'
                                 }`}
                               >
@@ -5496,31 +6047,31 @@ function OLLDaySuite() {
                         </div>
 
                         {/* Primary 3D Cross Orbit Stage Card */}
-                        <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-[2.25rem] p-4 space-y-3.5">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                        <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-3xl p-4 space-y-3.5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 text-left">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
                                 {crossDifficulty === 'advanced' ? 'WCA Full Scramble • ' : ''}Level {activeTierObj.tier} • Target {activeTierObj.moves} Moves
                               </span>
-                              <h3 className="text-base font-black text-white">{activeTierObj.title}</h3>
+                              <h3 className="text-base font-black text-white leading-snug">{activeTierObj.title}</h3>
                             </div>
                             <button
                               onClick={() => { emitBeep(560); setCrossScrambleIdx((p) => p + 1); setCrossSolutionRevealed(false); setEfficiencyFeedback(null); }}
-                              className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-orange-300 active:scale-95 cursor-pointer"
+                              className="h-9 px-4 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-orange-300 whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer"
                             >
                               New ↻
                             </button>
                           </div>
 
-                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 text-center">
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block mb-1">Hold White (D) • Green (F) • Red (L) • Orange (R)</span>
-                            <div className={`font-mono font-black text-amber-300 tracking-wider select-all ${crossDifficulty === 'advanced' ? 'text-xs sm:text-sm leading-relaxed' : 'text-xl'}`}>
+                          <div className="pt-3 border-t border-white/10 text-center space-y-1">
+                            <span className="text-[9.5px] font-medium uppercase tracking-wider text-zinc-400 block">Hold White (D) • Green (F) • Red (L) • Orange (R)</span>
+                            <div className={`font-mono font-bold text-amber-300 tracking-wider select-all break-words ${crossDifficulty === 'advanced' ? 'text-xs sm:text-sm leading-relaxed' : 'text-xl'}`}>
                               {activeCrossScramble}
                             </div>
                           </div>
 
                           {/* 3D Cross Orbit Hardware Stage */}
-                          <div className="liquid-glass-well border border-white/10 rounded-[1.75rem] p-3 flex flex-col items-center justify-center space-y-1.5">
+                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center space-y-1.5">
                             <div className="w-full flex items-center justify-between px-1">
                               <span className="text-[10px] font-bold text-zinc-400">
                                 {crossOrbit.rot.pitch > 15 ? 'Bottom-Right (D-Face)' : crossOrbit.rot.pitch < -15 ? 'Top-Right (U-Face)' : 'Front-Right View'}
@@ -5593,9 +6144,9 @@ function OLLDaySuite() {
                             ))}
                           </div>
 
-                          <p className="text-xs text-zinc-300 leading-relaxed bg-white/[0.03] rounded-2xl p-3 border border-white/[0.06]">{activeTierObj.hint}</p>
+                          <p className="text-xs text-zinc-300 text-left leading-relaxed pt-2.5 border-t border-white/10">{activeTierObj.hint}</p>
 
-                          <div className="liquid-glass-well border border-white/10 rounded-2xl p-3 space-y-2">
+                          <div className="pt-2.5 border-t border-white/10 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
                                 Optimal Solution
@@ -5603,7 +6154,7 @@ function OLLDaySuite() {
                               <button
                                 type="button"
                                 onClick={() => { emitBeep(580, 'sine', 0.06); setCrossSolutionRevealed((v) => !v); }}
-                                className="px-3 py-1 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 cursor-pointer transition-all"
+                                className="h-8 px-4 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-[10px] font-black uppercase tracking-wider text-orange-300 flex items-center justify-center cursor-pointer transition-all"
                               >
                                 {crossSolutionRevealed ? 'Hide ▲' : 'Reveal ▼'}
                               </button>
@@ -5620,7 +6171,7 @@ function OLLDaySuite() {
                         </div>
 
                         {crossLadderMode === 'efficiency' ? (
-                          <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-4 space-y-2">
+                          <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl sm:rounded-3xl p-4 space-y-2">
                             {renderCrossArcGauge()}
                             <button
                               onClick={() => {
@@ -5628,7 +6179,11 @@ function OLLDaySuite() {
                                 const optimal = crossUserMoves <= targetCap;
                                 emitBeep(optimal ? 920 : 420, 'sine', 0.1);
                                 if (optimal) {
-                                  updateActiveUserRecord((u) => ({ ...u, crossClears: (u.crossClears || 0) + 1 }));
+                                  updateActiveUserRecord((u) => ({
+                                    ...u,
+                                    ...advanceDailyStreakFields(u),
+                                    crossClears: (u.crossClears || 0) + 1
+                                  }));
                                 }
                                 setEfficiencyFeedback({
                                   optimal,
@@ -5642,7 +6197,7 @@ function OLLDaySuite() {
                             </button>
                           </div>
                         ) : (
-                          <div className="relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2rem] p-5 text-center space-y-3">
+                          <div className="relative overflow-hidden liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-4 sm:p-5 text-center space-y-2.5">
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Level {activeTierObj.tier} • {activeTierObj.moves}-Move Drill</span>
                               <button type="button" onClick={() => { emitBeep(540); setActiveModal('blindPracticeHelp'); }} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-orange-400 text-[10px] font-bold active:scale-95 transition-all cursor-pointer">
@@ -5669,10 +6224,10 @@ function OLLDaySuite() {
                     )}
 
                     {phaseTabs.cross === 'blind' && (
-                      <div className="relative p-5 pb-28 space-y-4">
+                      <div className="relative p-4 sm:p-5 pb-28 space-y-3.5">
                         {!isProUnlocked && (
                           <div className="flex items-center justify-center p-2">
-                            <div className="max-w-xs w-full rounded-[2rem] liquid-glass-card liquid-rim-amber border border-orange-500/40 p-5 text-center shadow-2xl space-y-3">
+                            <div className="max-w-xs w-full rounded-2xl sm:rounded-3xl liquid-glass-card liquid-rim-amber border border-orange-500/40 p-5 text-center shadow-2xl space-y-3">
                               <span className="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">🔒 OLLDay Pro Feature</span>
                               <h3 className="text-lg font-black text-white">WCA Blindfold Timer Mat</h3>
                               <p className="text-xs text-zinc-300 leading-relaxed">Train 15-second inspection and eyes-closed execution on the dual-thumb Speedstack mat.</p>
@@ -5695,9 +6250,9 @@ function OLLDaySuite() {
                             </button>
                           </div>
 
-                          <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-[2.25rem] p-6 shadow-xl text-center">
+                          <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-3xl p-6 shadow-xl text-center">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">WCA Inspection Timer</span>
-                            <div ref={inspectionDisplayRef} className="font-mono text-5xl font-black text-white my-3">{inspectionLeftRef.current.toFixed(1)}</div>
+                            <div ref={inspectionDisplayRef} className="font-timer text-5xl font-black text-white my-3">{inspectionLeftRef.current.toFixed(1)}</div>
                             <p className="text-xs font-bold text-orange-400">
                               {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
                               {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
@@ -5713,7 +6268,7 @@ function OLLDaySuite() {
                             </button>
                           )}
 
-                          <div onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }} className={`liquid-glass-well border border-white/10 rounded-[2rem] p-5 shadow-inner select-none transition-opacity ${blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+                          <div onContextMenu={(e) => e.preventDefault()} style={{ touchAction: 'none' }} className={`liquid-glass-well border border-white/10 rounded-2xl sm:rounded-3xl p-5 shadow-inner select-none transition-opacity ${blindState === 'idle' ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 text-center mb-3">Speedstack Touch Pads (Hold Both Thumbs &amp; Release)</p>
                             <div className="grid grid-cols-2 gap-3">
                               {[{ side: 'left', label: 'LEFT THUMB', held: leftPadHeld, setHeld: setLeftPadHeld, freq: 520 }, { side: 'right', label: 'RIGHT THUMB', held: rightPadHeld, setHeld: setRightPadHeld, freq: 560 }].map((pad) => (
@@ -5745,7 +6300,7 @@ function OLLDaySuite() {
                           </div>
 
                           {blindState === 'done' && (
-                            <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[1.75rem] p-4 space-y-2">
+                            <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-4 space-y-2">
                               <span className="text-xs font-bold text-zinc-300 block">Log Execution Result:</span>
                               <div className="grid grid-cols-3 gap-2">
                                 {['Clean', '+2', 'DNF'].map((res) => (
@@ -5781,7 +6336,7 @@ function OLLDaySuite() {
                     )}
 
                     {phaseTabs.cross === 'mechanics' && (
-                      <div className="p-5 pb-28 space-y-4">
+                      <div className="p-4 sm:p-5 pb-28 space-y-3.5">
                         <div>
                           <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">Deconstructing Intuition</p>
                           <h2 className="text-2xl font-black tracking-tight text-white">4 Cross Mechanics</h2>
@@ -5799,7 +6354,7 @@ function OLLDaySuite() {
                           ))}
                         </div>
 
-                        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[2.25rem] p-5 shadow-xl space-y-3.5">
+                        <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-3xl p-4 sm:p-5 shadow-xl space-y-3">
                           <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{activeMechanicObj.badge}</span>
                           <h3 className="text-lg font-black text-white">{activeMechanicObj.title}</h3>
                           <p className="text-xs text-zinc-300 leading-relaxed">{activeMechanicObj.summary}</p>
@@ -5837,7 +6392,7 @@ function OLLDaySuite() {
                                     </button>
                                   ))}
                                 </div>
-                                <div className="liquid-glass-well border border-white/10 rounded-[1.75rem] p-3.5 space-y-2.5">
+                                <div className="liquid-glass-well border border-white/10 rounded-2xl p-3.5 space-y-2.5">
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs font-black text-white">{activeCase.label}</span>
                                     <div className="flex items-center gap-1">
@@ -5878,163 +6433,191 @@ function OLLDaySuite() {
           </div>
 
           {/* SADDLE-NOTCHED LIQUID GLASS BOTTOM DOCK + ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
-          <nav className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 pt-7 pb-4 ${isTwoPane ? 'px-6' : 'px-3.5'}`}>
-            <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
-              {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
-              <div
-                className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/95 backdrop-blur-xl border border-orange-500/40 shadow-[0_14px_38px_rgba(249,115,22,0.35)] ${
-                  cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
-                }`}
-              >
-                {[
-                  { key: 'cross', label: 'C', title: 'Cross' },
-                  { key: 'f2l', label: 'F', title: 'F2L' },
-                  { key: 'oll', label: 'O', title: 'OLL' },
-                  { key: 'pll', label: 'P', title: 'PLL' }
-                ].map((p, idx) => {
-                  const isActive = activePhase === p.key;
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => {
-                        emitBeep(640 + idx * 45, 'sine', 0.06);
-                        setCfopMenuOpen(false);
-                        setActivePhase(p.key);
-                      }}
-                      className={`liquid-droplet-item px-3.5 py-1.5 text-xs font-black tracking-wider cursor-pointer flex items-center gap-1 ${
-                        isActive
-                          ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.5)]'
-                          : 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.14] hover:text-white'
-                      }`}
-                    >
-                      <span>{p.label}</span>
-                      <span className="text-[9.5px] font-bold opacity-80">{p.title}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          {(() => {
+            const dw = Math.max(280, dockSize.width);
+            const dh = Math.max(54, dockSize.height);
+            const cx = dw / 2;
+            const cradleHalfW = 31.5; // 26px half-switcher + 5.5px uniform side clearance
+            const floorY = Math.min(dh - 10, 41.5); // 36px switcher bottom + 5.5px uniform floor clearance
+            const lipW = 11, cornerR = 17, outerR = 20;
 
-              {/* Elevated All-Orange 3x3 Rubik's Cube Phase Switcher Seated Inside Saddle Notch */}
-              <button
-                type="button"
-                onClick={() => {
-                  emitBeep(cfopMenuOpen ? 480 : 720, 'sine', 0.07);
-                  setCfopMenuOpen((v) => !v);
-                }}
-                aria-label="Switch CFOP Phase"
-                title={`Active Phase: ${activePhase.toUpperCase()} — Tap to Switch C / F / O / P`}
-                className={`absolute left-1/2 -translate-x-1/2 -top-4 z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
-                  cfopMenuOpen
-                    ? 'bg-gradient-to-b from-orange-500/35 to-[#16100c] border-orange-400 shadow-[0_0_28px_rgba(249,115,22,0.65)] scale-105'
-                    : 'bg-gradient-to-b from-[#1f1611]/95 to-[#0b0d15]/95 border-orange-500/45 shadow-[0_8px_24px_rgba(249,115,22,0.38)] hover:border-orange-400'
-                }`}
-              >
-                <div className="grid grid-cols-3 gap-[2.5px] p-1">
-                  {Array.from({ length: 9 }).map((_, sqIdx) => (
-                    <span
-                      key={sqIdx}
-                      className={`w-[7px] h-[7px] rounded-[2px] ${
-                        sqIdx === 4
-                          ? 'bg-amber-300 shadow-[0_0_6px_rgba(251,191,36,0.9)]'
-                          : 'bg-orange-500'
-                      }`}
-                    />
-                  ))}
+            const buildNotchSegments = (sx, sy, topY) => [
+              `M ${sx(outerR)},${sy(topY)}`,
+              `L ${sx(cx - cradleHalfW - lipW)},${sy(topY)}`,
+              `C ${sx(cx - cradleHalfW - 3)},${sy(topY)} ${sx(cx - cradleHalfW)},${sy(topY + 4)} ${sx(cx - cradleHalfW)},${sy(12)}`,
+              `L ${sx(cx - cradleHalfW)},${sy(floorY - cornerR)}`,
+              `Q ${sx(cx - cradleHalfW)},${sy(floorY)} ${sx(cx - cradleHalfW + cornerR)},${sy(floorY)}`,
+              `L ${sx(cx + cradleHalfW - cornerR)},${sy(floorY)}`,
+              `Q ${sx(cx + cradleHalfW)},${sy(floorY)} ${sx(cx + cradleHalfW)},${sy(floorY - cornerR)}`,
+              `L ${sx(cx + cradleHalfW)},${sy(12)}`,
+              `C ${sx(cx + cradleHalfW)},${sy(topY + 4)} ${sx(cx + cradleHalfW + 3)},${sy(topY)} ${sx(cx + cradleHalfW + lipW)},${sy(topY)}`,
+              `L ${sx(dw - outerR)},${sy(topY)}`
+            ];
+
+            const rimStrokePath = buildNotchSegments((x) => x, (y) => y, 0.75).join(' ');
+            const nx = (x) => (x / dw).toFixed(4);
+            const ny = (y) => (y / dh).toFixed(4);
+            const normClipPath = [
+              ...buildNotchSegments(nx, ny, 0),
+              `Q ${nx(dw)},${ny(0)} ${nx(dw)},${ny(outerR)}`,
+              `L ${nx(dw)},${ny(dh - outerR)}`,
+              `Q ${nx(dw)},${ny(dh)} ${nx(dw - outerR)},${ny(dh)}`,
+              `L ${nx(outerR)},${ny(dh)}`,
+              `Q ${nx(0)},${ny(dh)} ${nx(0)},${ny(dh - outerR)}`,
+              `L ${nx(0)},${ny(outerR)}`,
+              `Q ${nx(0)},${ny(0)} ${nx(outerR)},${ny(0)} Z`
+            ].join(' ');
+
+            return (
+              <nav className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 pt-7 pb-4 ${isTwoPane ? 'px-6' : 'px-3.5'}`}>
+                <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
+                  {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
+                  <div
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#0c0e17]/95 backdrop-blur-xl border border-orange-500/45 shadow-[0_14px_38px_rgba(249,115,22,0.38)] ${
+                      cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
+                    }`}
+                  >
+                    {[
+                      { key: 'cross', label: 'C', title: 'Cross' },
+                      { key: 'f2l', label: 'F', title: 'F2L' },
+                      { key: 'oll', label: 'O', title: 'OLL' },
+                      { key: 'pll', label: 'P', title: 'PLL' }
+                    ].map((p, idx) => {
+                      const isActive = activePhase === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => {
+                            emitBeep(640 + idx * 45, 'sine', 0.06);
+                            setCfopMenuOpen(false);
+                            setActivePhase(p.key);
+                          }}
+                          className={`liquid-droplet-item px-3.5 py-1.5 text-xs font-black tracking-wider cursor-pointer flex items-center gap-1 ${
+                            isActive
+                              ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-[0_4px_14px_rgba(249,115,22,0.5)]'
+                              : 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.14] hover:text-white'
+                          }`}
+                        >
+                          <span>{p.label}</span>
+                          <span className="text-[9.5px] font-bold opacity-80">{p.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Elevated All-Orange 3x3 Rubik's Cube Phase Switcher Seated Inside Saddle Notch */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(cfopMenuOpen ? 480 : 720, 'sine', 0.07);
+                      setCfopMenuOpen((v) => !v);
+                    }}
+                    aria-label="Switch CFOP Phase"
+                    title={`Active Phase: ${activePhase.toUpperCase()} — Tap to Switch C / F / O / P`}
+                    className={`absolute left-1/2 -translate-x-1/2 -top-4 z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
+                      cfopMenuOpen
+                        ? 'bg-gradient-to-b from-orange-500/40 to-[#16100c] border-orange-400 shadow-[0_0_28px_rgba(249,115,22,0.65)] scale-105'
+                        : 'bg-gradient-to-b from-[#231812] to-[#0b0d15] border-orange-500/50 shadow-[0_8px_24px_rgba(249,115,22,0.4)] hover:border-orange-400'
+                    }`}
+                  >
+                    <div className="grid grid-cols-3 gap-[2.5px] p-1">
+                      {Array.from({ length: 9 }).map((_, sqIdx) => (
+                        <span
+                          key={sqIdx}
+                          className={`w-[7px] h-[7px] rounded-[2px] ${
+                            sqIdx === 4
+                              ? 'bg-amber-300 shadow-[0_0_6px_rgba(251,191,36,0.9)]'
+                              : 'bg-orange-500'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-orange-300 leading-none">
+                      {activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}
+                    </span>
+                  </button>
+
+                  {/* SVG ClipPath for Exact Concentric Saddle-Notched Glass Bar */}
+                  <svg width="0" height="0" className="absolute pointer-events-none">
+                    <defs>
+                      <clipPath id="olldaySaddleDockClip" clipPathUnits="objectBoundingBox">
+                        <path d={normClipPath} />
+                      </clipPath>
+                    </defs>
+                  </svg>
+
+                  {/* High-Legibility Liquid Glass Saddle Dock */}
+                  <div
+                    ref={dockRef}
+                    style={{
+                      clipPath: 'url(#olldaySaddleDockClip)',
+                      WebkitClipPath: 'url(#olldaySaddleDockClip)'
+                    }}
+                    className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
+                  >
+                    {/* Specular Glass Top & Notch Rim Stroke */}
+                    <svg viewBox={`0 0 ${dw} ${dh}`} className="pointer-events-none absolute inset-0 w-full h-full">
+                      <path
+                        d={rimStrokePath}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.26)"
+                        strokeWidth="1.25"
+                      />
+                    </svg>
+
+                    <div className="grid grid-cols-5 items-center gap-1">
+                      {(activePhase === 'cross'
+                        ? [
+                            { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
+                            { id: 'blind', label: 'Blind Run', Icon: EyeOff },
+                            null,
+                            { id: 'mechanics', label: 'Mechanics', Icon: Layers },
+                            { id: 'settings', label: 'Settings', Icon: Settings }
+                          ]
+                        : [
+                            { id: 'grind', label: 'The Grind', Icon: Zap },
+                            { id: 'algorithms', label: 'Algorithms', Icon: Grid },
+                            null,
+                            { id: 'stats', label: 'Statistics', Icon: BarChart3 },
+                            { id: 'settings', label: 'Settings', Icon: Settings }
+                          ]
+                      ).map((item, slotIdx) => {
+                        if (!item) return <div key={`spacer-${slotIdx}`} className="w-full h-10 pointer-events-none" />;
+                        const { id, label, Icon } = item;
+                        const currentTab = phaseTabs[activePhase];
+                        const isSelected = currentTab === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                              emitBeep(460);
+                              setCfopMenuOpen(false);
+                              setTabForPhase(activePhase, id);
+                            }}
+                            className={`py-2 px-2 ${id === 'blind' ? 'rounded-xl md:rounded-full' : 'rounded-full'} flex flex-col items-center justify-center gap-0.5 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-orange-500/24 text-orange-200 border border-orange-400/45 shadow-[0_0_16px_rgba(249,115,22,0.26)]'
+                                : 'text-zinc-200/90 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-orange-300 leading-none">
-                  {activePhase === 'cross' ? 'C' : activePhase === 'f2l' ? 'F' : activePhase === 'oll' ? 'O' : 'P'}
-                </span>
-              </button>
-
-              {/* SVG ClipPath for True Transparent Saddle-Notched Glass Bar */}
-              <svg width="0" height="0" className="absolute pointer-events-none">
-                <defs>
-                  <clipPath id="olldaySaddleDockClip" clipPathUnits="objectBoundingBox">
-                    <path
-                      d={
-                        isTwoPane
-                          ? 'M 0.032,0 L 0.422,0 C 0.438,0 0.446,0.08 0.446,0.22 L 0.446,0.52 C 0.446,0.60 0.456,0.64 0.470,0.64 L 0.530,0.64 C 0.544,0.64 0.554,0.60 0.554,0.52 L 0.554,0.22 C 0.554,0.08 0.562,0 0.578,0 L 0.968,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.955,1 L 0.045,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.032,0 Z'
-                          : 'M 0.045,0 L 0.386,0 C 0.402,0 0.410,0.08 0.410,0.22 L 0.410,0.52 C 0.410,0.60 0.422,0.64 0.438,0.64 L 0.562,0.64 C 0.578,0.64 0.590,0.60 0.590,0.52 L 0.590,0.22 C 0.590,0.08 0.598,0 0.614,0 L 0.955,0 Q 1,0 1,0.18 L 1,0.74 Q 1,1 0.94,1 L 0.06,1 Q 0,1 0,0.74 L 0,0.18 Q 0,0 0.045,0 Z'
-                      }
-                    />
-                  </clipPath>
-                </defs>
-              </svg>
-
-              {/* Transparent Sheen Liquid Glass Saddle Dock */}
-              <div
-                style={{
-                  clipPath: 'url(#olldaySaddleDockClip)',
-                  WebkitClipPath: 'url(#olldaySaddleDockClip)'
-                }}
-                className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_18px_40px_rgba(0,0,0,0.75)]"
-              >
-                {/* Specular Glass Top Rim Stroke */}
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 w-full h-full">
-                  <path
-                    d={
-                      isTwoPane
-                        ? 'M 3.2,1 L 42.2,1 C 43.8,1 44.6,8 44.6,22 L 44.6,52 C 44.6,60 45.6,64 47.0,64 L 53.0,64 C 54.4,64 55.4,60 55.4,52 L 55.4,22 C 55.4,8 56.2,1 57.8,1 L 96.8,1'
-                        : 'M 4.5,1 L 38.6,1 C 40.2,1 41.0,8 41.0,22 L 41.0,52 C 41.0,60 42.2,64 43.8,64 L 56.2,64 C 57.8,64 59.0,60 59.0,52 L 59.0,22 C 59.0,8 59.8,1 61.4,1 L 95.5,1'
-                    }
-                    fill="none"
-                    stroke="rgba(255,255,255,0.22)"
-                    strokeWidth="1.5"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-
-                <div className="grid grid-cols-5 items-center gap-1">
-                  {(activePhase === 'cross'
-                    ? [
-                        { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
-                        { id: 'blind', label: 'Blind Run', Icon: EyeOff },
-                        null,
-                        { id: 'mechanics', label: 'Mechanics', Icon: Layers },
-                        { id: 'settings', label: 'Settings', Icon: Settings }
-                      ]
-                    : [
-                        { id: 'grind', label: 'The Grind', Icon: Zap },
-                        { id: 'algorithms', label: 'Algorithms', Icon: Grid },
-                        null,
-                        { id: 'stats', label: 'Statistics', Icon: BarChart3 },
-                        { id: 'settings', label: 'Settings', Icon: Settings }
-                      ]
-                  ).map((item, slotIdx) => {
-                    if (!item) return <div key={`spacer-${slotIdx}`} className="w-full h-10 pointer-events-none" />;
-                    const { id, label, Icon } = item;
-                    const currentTab = phaseTabs[activePhase];
-                    const isSelected = currentTab === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          emitBeep(460);
-                          setCfopMenuOpen(false);
-                          setTabForPhase(activePhase, id);
-                        }}
-                        className={`py-2 px-1 rounded-full flex flex-col items-center justify-center gap-0.5 text-[9.5px] font-black uppercase tracking-tight whitespace-nowrap transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-orange-500/20 text-orange-300 border border-orange-400/35 shadow-[0_0_16px_rgba(249,115,22,0.22)]'
-                            : 'text-zinc-300/85 hover:text-white border border-transparent'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </nav>
+              </nav>
+            );
+          })()}
         </div>
 
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
         {fullTimerOpen && (
-          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-[#050507]/95 backdrop-blur-2xl flex flex-col justify-between p-6 select-none cursor-pointer">
+          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-[#050507]/[0.97] flex flex-col justify-between p-6 select-none cursor-pointer">
             <AmbientGlows
               topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
               topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
@@ -6048,7 +6631,7 @@ function OLLDaySuite() {
                 <button type="button" onClick={() => { emitBeep(440); setFullTimerState('idle'); setFullTimerOpen(false); }} className="w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-white font-bold cursor-pointer">✕</button>
               </div>
               {fullTimerState !== 'running' && (
-                <div className="rounded-[1.75rem] liquid-glass-card liquid-rim-muted border border-white/15 p-3.5 text-center">
+                <div className="rounded-2xl liquid-glass-card liquid-rim-muted border border-white/15 p-3.5 text-center">
                   <p className="font-mono text-xs sm:text-sm font-bold text-white leading-relaxed">{fullScramble}</p>
                   <button type="button" onClick={() => { emitBeep(540); setFullScramble(generate3x3Scramble(20)); }} className="mt-1.5 text-[10px] font-black uppercase tracking-wider text-orange-300 hover:text-white cursor-pointer">New Scramble ↻</button>
                 </div>
@@ -6056,7 +6639,7 @@ function OLLDaySuite() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center justify-center my-auto text-center">
-              <div ref={fullTimerDisplayRef} className={`text-7xl sm:text-8xl font-mono font-black tracking-tight transition-colors ${fullTimerState === 'running' ? 'text-green-400' : 'text-white'}`}>
+              <div ref={fullTimerDisplayRef} className={`font-timer text-7xl sm:text-8xl font-black tracking-tight transition-colors ${fullTimerState === 'running' ? 'text-green-400' : 'text-white'}`}>
                 {(fullFinalMsRef.current / 1000).toFixed(2)}
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap or Press Space to Stop' : 'Tap or Press Space to Start'}</p>
@@ -6078,172 +6661,615 @@ function OLLDaySuite() {
           </div>
         )}
 
-        {/* LIQUID GLASS SOLVER ACCOUNT SIGN-IN & SIGN-UP GATE */}
-        {authScreenOpen && (
-          <div className="fixed inset-0 z-[255] bg-[#050507]/62 backdrop-blur-md flex flex-col items-center justify-center p-6 overflow-y-auto">
-            <AmbientGlows
-              topClass="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full"
-              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.34) 0%, rgba(168, 85, 247, 0.12) 44%, rgba(249, 115, 22, 0) 72%)"
-              bottomClass="absolute bottom-6 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.24) 0%, rgba(168, 85, 247, 0.09) 45%, rgba(234, 88, 12, 0) 72%)"
-            />
+        {/* LANDING HERO & ONBOARDING GATE */}
+        {authScreenOpen && (() => {
+          const HERO_CFOP_REEL = [
+            {
+              phase: 'C • CROSS',
+              title: '8-Move White Cross',
+              metric: '3D Orbit + Blind Mat',
+              scramble: "R' F R D'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: 36,
+              mode: 'cross'
+            },
+            {
+              phase: 'F • F2L',
+              title: '41 Pair Setups in 3D',
+              metric: 'Isolated Slot Drills',
+              scramble: "R U' R' U'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: -24,
+              mode: 'f2l'
+            },
+            {
+              phase: 'O • OLL',
+              title: '57 One-Look Shapes (Sune)',
+              metric: 'Inline Trigger Tags',
+              scramble: "R U2 R' U' R U' R'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: -32,
+              mode: 'full'
+            },
+            {
+              phase: 'P • PLL',
+              title: '25 Last-Layer Perms (T-Perm)',
+              metric: 'Ao5 • Ao12 • PB Goals',
+              scramble: "F R U' R' U R U R2 F' R U R U' R'",
+              yaw: -35 + landingStepIdx * 90,
+              pitch: -28,
+              mode: 'full'
+            }
+          ];
+          const activeReel = HERO_CFOP_REEL[landingStepIdx % HERO_CFOP_REEL.length];
+          const savedAccountKeys = Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k]));
 
-            <div className="relative z-10 w-full max-w-sm">
-              <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25 backdrop-blur-sm" />
-              <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20 backdrop-blur-sm" />
-              <div className="relative overflow-hidden -mt-1.5 rounded-[2.35rem] liquid-glass-uv border border-white/25 p-6 space-y-5">
+          return (
+            <div className="fixed inset-0 z-[255] bg-[#050507] flex flex-col justify-between overflow-y-auto no-scrollbar">
+              {/* Looping 3D CFOP Spatial Showcase Backdrop */}
+              <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
                 <div
-                  className="pointer-events-none absolute -top-16 -left-10 w-64 h-36 rounded-full rotate-[-14deg] opacity-75"
-                  style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%)' }}
+                  className="absolute -top-24 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full opacity-90"
+                  style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.28) 0%, rgba(168, 85, 247, 0.09) 45%, rgba(5, 5, 7, 0) 72%)' }}
                 />
-                <div className="relative z-10 flex flex-col items-center text-center space-y-2">
-                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-orange-500/25 via-white/10 to-purple-500/15 border border-white/30 p-2 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_0_26px_rgba(249,115,22,0.38)]"><SuneEmblemSvg className="w-9 h-9" /></div>
-                  <div>
-                    <h2 className="text-xl font-black tracking-tight text-white">OLLDay <span className="text-orange-400">Everyday</span></h2>
-                    <p className="text-xs text-zinc-200/80 mt-0.5">Sign in or create a solver account to save your PBs &amp; solve history</p>
+                <div
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full opacity-80"
+                  style={{ background: 'radial-gradient(circle, rgba(234, 88, 12, 0.18) 0%, rgba(5, 5, 7, 0) 70%)' }}
+                />
+                {/* Subtle Architectural Grid Lines */}
+                <div
+                  className="absolute inset-0 opacity-[0.07]"
+                  style={{
+                    backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.35) 1px, transparent 1px)',
+                    backgroundSize: '44px 44px',
+                    maskImage: 'radial-gradient(circle at 50% 35%, black 20%, transparent 78%)',
+                    WebkitMaskImage: 'radial-gradient(circle at 50% 35%, black 20%, transparent 78%)'
+                  }}
+                />
+              </div>
+
+              {/* Minimal Landing Top Bar */}
+              <div className="relative z-10 w-full max-w-md md:max-w-2xl mx-auto px-5 pt-5 pb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-orange-500/25 via-white/10 to-purple-500/15 border border-white/25 p-1.5 flex items-center justify-center shadow-[0_0_20px_rgba(249,115,22,0.32)]">
+                    <SuneEmblemSvg className="w-full h-full" />
                   </div>
+                  <span className="text-sm font-black tracking-tight text-white">
+                    OLLDay <span className="text-orange-400">Everyday</span>
+                  </span>
                 </div>
 
-                <div className="relative z-10 liquid-glass-uv-well p-1 rounded-full border border-white/20 grid grid-cols-2">
-                  {[{ key: 'signin', label: 'Sign In', active: 'bg-white/[0.18] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]' }, { key: 'signup', label: 'Create Account', active: 'bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 shadow-sm' }].map((tab) => (
-                    <button
-                      key={tab.key} type="button"
-                      onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode(tab.key); }}
-                      className={`py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${authMode === tab.key ? tab.active : 'text-zinc-300 hover:text-white'}`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+                {authMode === 'landing' ? (
+                  <button
+                    type="button"
+                    onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                    className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-200 transition-all cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { emitBeep(460); setAuthErrorMsg(''); setAuthMode('landing'); }}
+                    className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[11px] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    ← Back
+                  </button>
+                )}
+              </div>
 
-                {authMode === 'signin' ? (
-                  <div className="relative z-10 space-y-3">
-                    <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
-                      {Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k])).map((uKey) => {
-                        const uData = sanitizeUserRecord(users[uKey]);
-                        return (
-                          <button
-                            key={uKey} type="button"
-                            onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
-                            className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
-                          >
-                            <div className="text-left">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-black text-white">{String(uKey)}</span>
-                                {uData.isPro && <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
-                              </div>
-                              <span className="text-[10px] text-zinc-300/80">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
-                            </div>
-                            <span className="text-xs font-black text-orange-300">Continue →</span>
-                          </button>
-                        );
-                      })}
+              {/* Main Hero & Action Stage */}
+              <div className="relative z-10 w-full max-w-md md:max-w-lg mx-auto px-5 my-auto py-4 flex flex-col items-center">
+                {authMode === 'landing' && (
+                  <div className="w-full flex flex-col items-center text-center space-y-5">
+                    {/* Looping 3D Cube Showcase Stage (Simulates Live Video Reel) */}
+                    <div className="relative w-full max-w-[310px] rounded-3xl liquid-glass-card liquid-rim-amber border border-orange-500/30 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.85)] overflow-hidden">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/35 text-[9.5px] font-black uppercase tracking-widest text-orange-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.9)]" />
+                          {activeReel.phase}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-zinc-400">{activeReel.metric}</span>
+                      </div>
+
+                      <div className="relative h-36 flex items-center justify-center hero-cube-float">
+                        <div
+                          className="pointer-events-none absolute w-32 h-32 rounded-full"
+                          style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)' }}
+                        />
+                        {activeReel.mode === 'cross' ? (
+                          <CrossSpatial3DCube scramble={activeReel.scramble} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
+                        ) : activeReel.mode === 'f2l' ? (
+                          <F2LSpatial3DCube setupScramble={activeReel.scramble} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
+                        ) : (
+                          <Spatial3DCube stickers={simulateCrossCubeState(activeReel.scramble)} yaw={activeReel.yaw} pitch={activeReel.pitch} isDragging={false} />
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                        <span className="text-xs font-black text-white">{activeReel.title}</span>
+                        <div className="flex items-center gap-1">
+                          {HERO_CFOP_REEL.map((item, idx) => (
+                            <button
+                              key={item.phase}
+                              type="button"
+                              aria-label={`Preview ${item.phase}`}
+                              onClick={() => { emitBeep(520); setLandingStepIdx(idx); }}
+                              className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                                landingStepIdx === idx ? 'w-4 bg-orange-400' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="pt-2 border-t border-white/15 space-y-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
-                      <div className="flex items-center gap-1.5">
-                        <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-uv-well border border-white/20 px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                    {/* Strong Headline & Value Proposition */}
+                    <div className="space-y-2.5 px-1">
+                      <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-[1.08]">
+                        Master CFOP in <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500">10 Minutes a Day.</span>
+                      </h1>
+                      <p className="text-xs sm:text-sm text-zinc-300/90 max-w-sm mx-auto leading-relaxed">
+                        Interactive 3D Cross &amp; F2L drills, 123 bite-sized algorithms with inline fingertricks, and millisecond PB tracking.
+                      </p>
+                    </div>
+
+                    {/* Single Prominent Sign-Up CTA */}
+                    <div className="w-full max-w-xs space-y-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => { emitBeep(720, 'sine', 0.08); setAuthErrorMsg(''); setAuthMode('signup'); }}
+                        className="w-full py-4 px-6 rounded-full bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_14px_34px_rgba(249,115,22,0.42)] active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        Start Training Free →
+                      </button>
+                      <p className="text-[11px] text-zinc-400">
+                        Already have a solver profile?{' '}
                         <button
                           type="button"
-                          onClick={() => {
-                            const query = authNameInput.trim();
-                            if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
-                            const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === query.toLowerCase() || (typeof users[k]?.email === 'string' && users[k].email.trim() !== '' && users[k].email.toLowerCase() === query.toLowerCase()));
-                            if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
-                            emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
-                          }}
-                          className="px-4 py-2.5 rounded-full bg-white/[0.15] hover:bg-white/[0.24] border border-white/25 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                          className="font-bold text-orange-300 hover:text-orange-200 underline underline-offset-2 cursor-pointer"
+                        >
+                          Sign in
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {authMode === 'signup' && (
+                  <div className="w-full max-w-sm">
+                    <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25" />
+                    <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20" />
+                    <div className="relative overflow-hidden -mt-1.5 rounded-3xl liquid-glass-uv border border-white/25 p-6 space-y-4">
+                      <div className="text-center space-y-1">
+                        <span className="inline-block px-3 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-widest text-orange-300">
+                          Free Solver Profile
+                        </span>
+                        <h2 className="text-xl font-black tracking-tight text-white">Create Your Account</h2>
+                        <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <input
+                          type="text"
+                          value={authNameInput}
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }}
+                          placeholder="Solver Name (e.g., Alex)"
+                          className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                        <input
+                          type="email"
+                          value={authEmailInput}
+                          onChange={(e) => setAuthEmailInput(e.target.value)}
+                          placeholder="Email for Cloud Sync (Optional)"
+                          className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                      </div>
+
+                      {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanName = authNameInput.trim();
+                          if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
+                          if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
+                          emitBeep(820, 'sine', 0.1);
+                          const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
+                          setUsers((prev) => ({ ...prev, [cleanName]: created }));
+                          saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
+                          setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
+                        }}
+                        className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
+                      >
+                        Create Account &amp; Start
+                      </button>
+
+                      <p className="text-center text-[11px] text-zinc-400">
+                        Already registered?{' '}
+                        <button
+                          type="button"
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                          className="font-bold text-orange-300 hover:underline cursor-pointer"
                         >
                           Sign In
                         </button>
-                      </div>
-                      {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="relative z-10 space-y-3">
-                    <div className="space-y-2">
-                      <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name (e.g., Alex)" className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
-                      <input type="email" value={authEmailInput} onChange={(e) => setAuthEmailInput(e.target.value)} placeholder="Email for Cloud Backup (Optional)" className="w-full rounded-full liquid-glass-uv-well border border-white/20 px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
-                    </div>
-                    {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cleanName = authNameInput.trim();
-                        if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
-                        if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
-                        emitBeep(820, 'sine', 0.1);
-                        const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
-                        setUsers((prev) => ({ ...prev, [cleanName]: created }));
-                        saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
-                        setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
-                      }}
-                      className="w-full py-3.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
-                    >
-                      Create Account &amp; Start
-                    </button>
                   </div>
                 )}
+
+                {authMode === 'signin' && (
+                  <div className="w-full max-w-sm">
+                    <div className="mx-8 h-3 rounded-t-[1.5rem] bg-gradient-to-r from-orange-400/20 via-purple-400/15 to-amber-300/20 border-t border-x border-white/25" />
+                    <div className="mx-4 -mt-1.5 h-3.5 rounded-t-[1.75rem] bg-white/[0.06] border-t border-x border-white/20" />
+                    <div className="relative overflow-hidden -mt-1.5 rounded-3xl liquid-glass-uv border border-white/25 p-6 space-y-4">
+                      <div className="text-center space-y-1">
+                        <h2 className="text-xl font-black tracking-tight text-white">Welcome Back</h2>
+                        <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                        {savedAccountKeys.map((uKey) => {
+                          const uData = sanitizeUserRecord(users[uKey]);
+                          return (
+                            <button
+                              key={uKey} type="button"
+                              onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
+                              className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
+                            >
+                              <div className="text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-black text-white">{String(uKey)}</span>
+                                  {uData.isPro && <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9px] font-black text-orange-300">PRO</span>}
+                                </div>
+                                <span className="text-[10px] text-zinc-300/80">F2L D{uData.f2lDay} • OLL D{uData.day} • PLL D{uData.pllDay}</span>
+                              </div>
+                              <span className="text-xs font-black text-orange-300">Continue →</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-2 border-t border-white/15 space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
+                        <div className="flex items-center gap-1.5">
+                          <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-full liquid-glass-uv-well border border-white/20 px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const query = authNameInput.trim();
+                              if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
+                              const qLower = query.toLowerCase();
+                              const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === qLower || users[k]?.email?.trim().toLowerCase() === qLower);
+                              if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
+                              emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
+                            }}
+                            className="px-4 py-2.5 rounded-full bg-white/[0.15] hover:bg-white/[0.24] border border-white/25 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
+                          >
+                            Sign In
+                          </button>
+                        </div>
+                        {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                      </div>
+
+                      <p className="text-center text-[11px] text-zinc-400">
+                        New to OLLDay?{' '}
+                        <button
+                          type="button"
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signup'); }}
+                          className="font-bold text-orange-300 hover:underline cursor-pointer"
+                        >
+                          Create Account
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Minimal Social Proof / Feature Strip Footer */}
+              <div className="relative z-10 w-full max-w-md mx-auto px-5 pb-5 pt-2 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                <span>123 CFOP Cases</span>
+                <span>•</span>
+                <span>AI Cube Scanner</span>
+                <span>•</span>
+                <span>WCA Timer</span>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* CONSOLIDATED QUICK-START MODAL */}
+        {(activeModal === 'cfopExperienceChoice' || activeModal === 'guidedTour') && (
+          <div
+            onClick={() => { emitBeep(440); setActiveModal(null); }}
+            className="fixed inset-0 z-[272] bg-black/82 backdrop-blur-md flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative liquid-glass-uv border border-white/25 rounded-3xl p-6 max-w-sm w-full shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4 text-center"
+            >
+              <div className="flex items-center justify-between">
+                <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
+                  Quick-Start • {String(activeUserKey || 'Solver')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setActiveModal(null); }}
+                  className="px-3 py-1 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/15 text-[10px] font-bold text-zinc-200 cursor-pointer"
+                >
+                  Skip ✕
+                </button>
+              </div>
+
+              <div className="relative h-32 flex items-center justify-center hero-cube-float">
+                <div
+                  className="pointer-events-none absolute w-28 h-28 rounded-full"
+                  style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.28) 0%, rgba(249, 115, 22, 0) 70%)' }}
+                />
+                <CrossSpatial3DCube scramble="R' F R D'" yaw={-35} pitch={34} isDragging={false} />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-white">Where Is Your CFOP Level?</h3>
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  Pick your starting stage—we&apos;ll route you directly to the right training deck.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-1 text-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(760, 'sine', 0.08);
+                    setActivePhase('cross');
+                    setTabForPhase('cross', 'ladder');
+                    setCrossTier(1);
+                    setActiveModal(null);
+                  }}
+                  className="w-full p-3 rounded-[1.4rem] bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 shadow-lg shadow-orange-500/25 cursor-pointer transition-all"
+                >
+                  <span className="text-xs font-black uppercase tracking-wider block">1. Brand New to 3×3 (Cross) →</span>
+                  <span className="text-[10.5px] font-bold opacity-85 block mt-0.5">
+                    Start at Cross in X (Level 1) to build your white cross intuition first.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(680, 'sine', 0.08);
+                    setActivePhase('f2l');
+                    setTabForPhase('f2l', 'grind');
+                    setActiveModal(null);
+                  }}
+                  className="w-full p-3 rounded-[1.4rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
+                >
+                  <span className="text-xs font-black uppercase tracking-wider block">2. Know Layer-by-Layer (F2L) →</span>
+                  <span className="text-[10.5px] text-zinc-200 block mt-0.5">
+                    Jump into F2L Day 1 Guided Lesson to pair corners &amp; edges fast.
+                  </span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(700, 'sine', 0.08);
+                      setActivePhase('oll');
+                      setTabForPhase('oll', 'grind');
+                      setActiveModal(null);
+                    }}
+                    className="p-3 rounded-[1.4rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
+                  >
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-300 block">3. OLL →</span>
+                    <span className="text-[10px] text-zinc-200 block mt-0.5 leading-snug">
+                      Know F2L; train 57 yellow top shapes.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      emitBeep(720, 'sine', 0.08);
+                      setActivePhase('pll');
+                      setTabForPhase('pll', 'grind');
+                      setActiveModal(null);
+                    }}
+                    className="p-3 rounded-[1.4rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
+                  >
+                    <span className="text-xs font-black uppercase tracking-wider text-orange-300 block">4. PLL →</span>
+                    <span className="text-[10px] text-zinc-200 block mt-0.5 leading-snug">
+                      Know OLL; finish with 21+ perms.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/15">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('newToCfop'); }}
+                  className="py-2 px-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-[10px] font-black uppercase tracking-wider text-amber-300 cursor-pointer"
+                >
+                  Why CFOP? →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('appTutorial'); }}
+                  className="py-2 px-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-[10px] font-black uppercase tracking-wider text-purple-200 cursor-pointer"
+                >
+                  App Tutorial →
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* WELCOME MODAL */}
-        {activeModal === 'cfopExperienceChoice' && (
-          <ModalShell onClose={() => setActiveModal(null)} zClass="z-[272]" borderClass="border-orange-500/35">
-            <div className="space-y-4 text-center">
-              <span className="inline-block px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">Welcome, {String(activeUserKey || 'Solver')}!</span>
-              <h3 className="text-xl font-black text-white">Are you new to CFOP?</h3>
-              <p className="text-xs text-zinc-300 leading-relaxed">Choose your experience level and we&apos;ll walk you through the app live, showing you where every phase and tool lives.</p>
-              <div className="space-y-2.5 pt-1">
-                <button type="button" onClick={() => startGuidedTour('cfopAndApp')} className="w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Yes, show me whats going on here.</button>
-                <button type="button" onClick={() => startGuidedTour('appOnly')} className="w-full py-3.5 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white font-black text-xs uppercase tracking-wider cursor-pointer">No, I know CFOP.</button>
+        {/* NEW TO CFOP — UV-COATED LIQUID GLASS OVERLAY */}
+        {activeModal === 'newToCfop' && (
+          <div
+            onClick={() => { emitBeep(440); setActiveModal(null); }}
+            className="fixed inset-0 z-[274] bg-black/82 backdrop-blur-md flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative liquid-glass-uv border border-white/25 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[88dvh] overflow-y-auto no-scrollbar shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/45 text-[10px] font-black uppercase tracking-widest text-orange-200">
+                  CFOP Blueprint • Sub-15 Architecture
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setActiveModal(null); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-white font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-            </div>
-          </ModalShell>
-        )}
 
-        {/* GUIDED TOUR OVERLAY */}
-        {activeModal === 'guidedTour' && (() => {
-          const steps = tourType === 'cfopAndApp' ? CFOP_AND_APP_TOUR_STEPS : APP_ONLY_TOUR_STEPS;
-          const step = steps[tourStepIdx] || steps[0];
-          const isLast = tourStepIdx + 1 >= steps.length;
-          return (
-            <div className="fixed inset-x-0 bottom-28 z-[268] px-4 flex justify-center pointer-events-none">
-              <div className="pointer-events-auto w-full max-w-md rounded-[2.25rem] liquid-glass-card liquid-rim-amber border border-orange-500/40 p-5 shadow-[0_24px_65px_rgba(0,0,0,0.9)] space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-300">{step.badge}</span>
-                  <button type="button" onClick={() => { emitBeep(440); setActiveModal(null); }} className="text-[11px] font-bold text-zinc-400 hover:text-white cursor-pointer">Skip Tour ✕</button>
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white">{step.title}</h3>
-                  <p className="text-xs text-zinc-300 leading-relaxed mt-1">{step.desc}</p>
-                </div>
-                <div className="liquid-glass-well border border-white/10 rounded-2xl p-2.5">
-                  <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-300 block">How to Navigate Here Yourself:</span>
-                  <p className="text-[11px] text-zinc-200 mt-0.5">{step.howToReach}</p>
-                </div>
-                {isLast && (
-                  <div className="space-y-1.5 pt-0.5">
-                    <span className="text-[9.5px] font-black uppercase tracking-wider text-orange-400 block">Jump Directly to a Phase:</span>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[{ key: 'cross', label: 'C • Cross', tab: 'ladder' }, { key: 'f2l', label: 'F • F2L', tab: 'grind' }, { key: 'oll', label: 'O • OLL', tab: 'grind' }, { key: 'pll', label: 'P • PLL', tab: 'grind' }].map((dest) => (
-                        <button key={dest.key} type="button" onClick={() => { emitBeep(760, 'sine', 0.08); applyTourNavigation({ phase: dest.key, tab: dest.tab }); setActiveModal(null); }} className="py-2 px-1 rounded-full bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/40 text-[10px] font-black text-orange-200 transition-all active:scale-95 cursor-pointer">{dest.label}</button>
-                      ))}
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black text-white leading-tight">Why CFOP Is the Gold Standard of Speedcubing</h3>
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  Beginner layer-by-layer methods take <strong className="text-white">100–130 moves</strong> because they solve one piece at a time. <strong className="text-amber-300">CFOP</strong> compresses the entire solve into <strong className="text-white">~55 ergonomic moves</strong> across 4 streamlined stages—the exact system used to set world records.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  { badge: 'C', title: 'Cross (≤8 Moves)', desc: 'Solve all 4 white bottom edges simultaneously during inspection without peeking at the bottom.' },
+                  { badge: 'F', title: 'F2L — First Two Layers (41 Cases)', desc: 'Pair bottom corners with middle-layer edges simultaneously, cutting solve steps in half.' },
+                  { badge: 'O', title: 'OLL — Orient Last Layer (57 Cases)', desc: 'Turn the entire top face solid yellow in a single 1-look algorithm burst.' },
+                  { badge: 'P', title: 'PLL — Permute Last Layer (21+ Cases)', desc: 'Swap all top corners and edges into their solved homes in one final trigger sequence.' }
+                ].map((stage) => (
+                  <div key={stage.badge} className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-start gap-3">
+                    <span className="w-7 h-7 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {stage.badge}
+                    </span>
+                    <div>
+                      <span className="text-xs font-black text-white block">{stage.title}</span>
+                      <p className="text-[11px] text-zinc-200/90 leading-snug mt-0.5">{stage.desc}</p>
                     </div>
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  <button type="button" disabled={tourStepIdx === 0} onClick={() => { emitBeep(460); const prevIdx = Math.max(0, tourStepIdx - 1); setTourStepIdx(prevIdx); applyTourNavigation(steps[prevIdx]); }} className="py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-zinc-300 disabled:opacity-30 cursor-pointer">← Back</button>
-                  <button type="button" onClick={() => { emitBeep(720, 'sine', 0.07); if (!isLast) { const nextIdx = tourStepIdx + 1; setTourStepIdx(nextIdx); applyTourNavigation(steps[nextIdx]); } else setActiveModal(null); }} className="py-2.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer">{isLast ? 'Finish Tour ✓' : 'Next Step →'}</button>
-                </div>
+                ))}
+              </div>
+
+              <div className="liquid-glass-uv-well border border-orange-400/35 rounded-2xl p-3.5 space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-300 block">
+                  How OLLDay Makes All 123 Cases Effortless
+                </span>
+                <p className="text-[11px] text-zinc-200 leading-relaxed">
+                  Instead of overwhelming you with 123 raw algorithms, OLLDay splits CFOP into <strong className="text-white">4–8 case micro-chunks</strong>, maps <strong className="text-amber-300">3D interactive setups</strong> so you never misread an angle, highlights <strong className="text-orange-300">inline fingertrick triggers</strong>, and verifies your real cube anytime with the <strong className="text-white">AI Camera Scanner</strong>.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('appTutorial'); }}
+                  className="py-3 px-3 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white cursor-pointer"
+                >
+                  Next: App Tutorial →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(760, 'sine', 0.08);
+                    setActivePhase('cross');
+                    setTabForPhase('cross', 'ladder');
+                    setCrossTier(1);
+                    setActiveModal(null);
+                  }}
+                  className="py-3 px-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  Start Cross L1 →
+                </button>
               </div>
             </div>
-          );
-        })()}
+          </div>
+        )}
+
+        {/* APP TUTORIAL — UV-COATED LIQUID GLASS OVERLAY */}
+        {activeModal === 'appTutorial' && (
+          <div
+            onClick={() => { emitBeep(440); setActiveModal(null); }}
+            className="fixed inset-0 z-[274] bg-black/82 backdrop-blur-md flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative liquid-glass-uv border border-white/25 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[88dvh] overflow-y-auto no-scrollbar shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/45 text-[10px] font-black uppercase tracking-widest text-purple-200">
+                  App Tutorial • Mastery System
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setActiveModal(null); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-white font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-white leading-tight">How OLLDay Trains Muscle Memory</h3>
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  Every tool in OLLDay is engineered around short, focused daily reps that lock recognition and execution into reflex.
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-orange-300 block">
+                    1. The 4-Day Daily Session Loop (The Grind)
+                  </span>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    <strong className="text-white">Day 1 (Learn):</strong> Introduces a small chunk in order with 3D previews and grip cues. <strong className="text-white">Days 2 &amp; 3 (Random Drill):</strong> Shuffles those cases to build instant recognition. Every 2 chunks triggers a <strong className="text-amber-300">Cumulative Review Day</strong> so older algorithms never fade.
+                  </p>
+                </div>
+
+                <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 block">
+                    2. Getting the Most Out of Cross in X
+                  </span>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    Start in <strong className="text-white">Move Efficiency</strong> to solve 2–6 move scrambles without peeking at the bottom—drag the 3D cube to verify your white edges, then log your turn count to beat the target cap. Once comfortable, switch to <strong className="text-orange-300">Blind Practice</strong> (15s WCA inspection + dual-thumb Speedstack pads) and study the <strong className="text-white">4 Cross Mechanics</strong> (Color Orbit, Good/Bad Edges, Keyhole &amp; X-Cross).
+                  </p>
+                </div>
+
+                <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-200 block">
+                    3. Tap-to-Time PBs, Cube Scanner &amp; Phase Cube
+                  </span>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    Tap anywhere during a drill (or press <strong className="text-white">Spacebar</strong>) to record millisecond case PBs toward your custom goal. Use <strong className="text-orange-300">Scan Cube</strong> in the header to get a live 4-stage solve roadmap from any scramble, and tap the <strong className="text-white">Orange 3×3 Cube</strong> on the bottom dock to switch between <strong className="text-amber-300">C • F • O • P</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('newToCfop'); }}
+                  className="py-3 px-3 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white cursor-pointer"
+                >
+                  ← New to CFOP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(760, 'sine', 0.08); setActiveModal(null); }}
+                  className="py-3 px-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  Got It, Let&apos;s Train ✓
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CUBE SCANNER MODAL */}
         {scannerOpen && (() => {
@@ -6297,7 +7323,7 @@ function OLLDaySuite() {
           const posLabels = ['Top-Left Corner', 'Top Edge', 'Top-Right Corner', 'Left Edge', 'Center', 'Right Edge', 'Bottom-Left Corner', 'Bottom Edge', 'Bottom-Right Corner'];
 
           return (
-            <div className="fixed inset-0 z-[285] bg-[#050507]/95 backdrop-blur-2xl flex justify-center overflow-hidden">
+            <div className="fixed inset-0 z-[285] bg-[#050507]/[0.97] flex justify-center overflow-hidden">
               <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-gradient-to-b from-[#171211]/95 via-[#0b0c12]/98 to-[#07080d] border-x border-white/10 shadow-2xl flex flex-col">
                 <div className="px-4 pt-4 pb-3 border-b border-white/[0.08] bg-black/25 backdrop-blur-md flex items-center justify-between flex-shrink-0">
                   <div>
@@ -6355,7 +7381,7 @@ function OLLDaySuite() {
                     <p className="text-[10.5px] text-zinc-300 leading-snug">{currentSpec.instruction}</p>
                   </div>
 
-                  <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-[2rem] overflow-hidden bg-black border border-white/15 shadow-[0_18px_40px_rgba(0,0,0,0.8)]">
+                  <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-2xl sm:rounded-3xl overflow-hidden bg-black border border-white/15 shadow-[0_18px_40px_rgba(0,0,0,0.8)]">
                     {activePreviewImg ? (
                       <img src={activePreviewImg} alt={`Captured ${currentSpec.short} face`} className="w-full h-full object-cover" />
                     ) : (
@@ -6411,7 +7437,7 @@ function OLLDaySuite() {
                   </div>
 
                   {!scannerHasFull6Faces && (
-                    <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[1.85rem] p-3.5 space-y-3">
+                    <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-2xl p-3.5 space-y-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{hasFront3Captured ? '3-Face Quick Check • Refine Solve' : '3-Face State Check'}</span>
                         {(scannerThreeFaceHints.crossSolved !== null || scannerThreeFaceHints.f2lCompletedStatus !== null) && (
@@ -6452,7 +7478,7 @@ function OLLDaySuite() {
                     </div>
                   )}
 
-                  <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-[1.85rem] p-3.5 space-y-2.5">
+                  <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-2xl p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between gap-1.5">
                       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Verify Stickers</span>
                       <div className="flex items-center gap-1.5">
@@ -6538,7 +7564,7 @@ function OLLDaySuite() {
                   </div>
 
                   {/* Analysis Card */}
-                  <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-[2rem] p-4 space-y-3 shadow-xl">
+                  <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-2xl sm:rounded-3xl p-4 space-y-3 shadow-xl">
                     <div className="flex items-center justify-between gap-2">
                       <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-wider text-orange-300">{analysis.phaseLabel}</span>
                       <div className="flex items-center gap-1 flex-shrink-0">
@@ -7037,18 +8063,18 @@ function OLLDaySuite() {
             { prompt: 'White bottom, Orange is front — what color is to the right?', answer: 'Blue' },
             { prompt: 'White bottom, Red is front — what color is to the right?', answer: 'Green' }
           ];
-          const currentQ = ORBIT_QUESTIONS[orbitQuizIdx % 4];
+          const currentQ = ORBIT_QUESTIONS[orbitQuiz.idx % 4];
           return (
-            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} zClass="z-[255]" maxWidth="max-w-xs">
+            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Color Orbit</span>
-                    {orbitQuizActive && <span className="font-mono text-[10px] font-bold text-zinc-400">Streak: {orbitStreak}</span>}
+                    {orbitQuiz.active && <span className="font-mono text-[10px] font-bold text-zinc-400">Streak: {orbitQuiz.streak}</span>}
                   </div>
-                  <button type="button" onClick={() => { emitBeep(620); setOrbitFeedback(null); setOrbitQuizActive(true); setOrbitQuizIdx((i) => i + 1); }} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer">Hit Me</button>
+                  <button type="button" onClick={() => { emitBeep(620); setOrbitQuiz((q) => ({ ...q, active: true, feedback: null, idx: q.idx + 1 })); }} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer">Hit Me</button>
                 </div>
-                {!orbitQuizActive ? (
+                {!orbitQuiz.active ? (
                   <div className="liquid-glass-well border border-white/10 rounded-2xl p-4 space-y-2.5 text-center">
                     <p className="text-xs text-zinc-300 leading-relaxed">Hold <strong className="text-white">White</strong> on the bottom (<strong className="text-white">D</strong>). Clockwise:</p>
                     <p className="font-mono text-sm font-black tracking-wide"><span className="text-green-400">Green</span> → <span className="text-orange-400">Orange</span> → <span className="text-blue-400">Blue</span> → <span className="text-red-400">Red</span></p>
@@ -7060,17 +8086,17 @@ function OLLDaySuite() {
                       {['Green', 'Red', 'Orange', 'Blue'].map((colorName) => (
                         <button
                           key={colorName} type="button"
-                          onClick={() => { const correct = colorName === currentQ.answer; emitBeep(correct ? 880 : 320); setOrbitStreak((s) => (correct ? s + 1 : 0)); setOrbitFeedback({ correct, chosen: colorName }); }}
+                          onClick={() => { const correct = colorName === currentQ.answer; emitBeep(correct ? 880 : 320); setOrbitQuiz((q) => ({ ...q, streak: correct ? q.streak + 1 : 0, feedback: { correct, chosen: colorName } })); }}
                           className="py-2.5 px-3 rounded-full border border-white/15 bg-white/[0.05] hover:bg-white/[0.12] text-xs font-black text-white cursor-pointer"
                         >
                           {colorName}
                         </button>
                       ))}
                     </div>
-                    {orbitFeedback && <p className={`text-[11px] font-black ${orbitFeedback.correct ? 'text-green-400' : 'text-red-400'}`}>{orbitFeedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}</p>}
+                    {orbitQuiz.feedback && <p className={`text-[11px] font-black ${orbitQuiz.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>{orbitQuiz.feedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}</p>}
                   </div>
                 )}
-                <button type="button" onClick={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold text-xs uppercase cursor-pointer">Close</button>
+                <button type="button" onClick={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold text-xs uppercase cursor-pointer">Close</button>
               </div>
             </ModalShell>
           );
@@ -7600,7 +8626,7 @@ function OLLDaySuite() {
                 <button type="button" onClick={() => setActiveModal(null)} className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 font-bold cursor-pointer">✕</button>
               </div>
 
-              <div className="liquid-glass-well border border-white/15 rounded-[1.85rem] p-4 space-y-3.5 shadow-inner">
+              <div className="liquid-glass-well border border-white/15 rounded-2xl p-4 space-y-3.5 shadow-inner">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-2xl bg-white/[0.08] border border-white/15 p-1 flex-shrink-0">
