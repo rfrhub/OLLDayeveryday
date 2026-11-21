@@ -2821,12 +2821,22 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
 const APP_GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
   html, body {
-    background-color: #050507;
+    background-color: #060e20;
     color: #f8fafc;
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     letter-spacing: -0.015em;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+  }
+  .bg-midnight-marble {
+    background-color: #071127;
+    background-image:
+      radial-gradient(ellipse 95% 65% at 14% 12%, rgba(23, 56, 118, 0.78) 0%, rgba(14, 34, 76, 0.35) 46%, transparent 74%),
+      radial-gradient(ellipse 85% 70% at 86% 24%, rgba(3, 6, 15, 0.88) 0%, rgba(5, 11, 24, 0.42) 48%, transparent 76%),
+      radial-gradient(ellipse 105% 60% at 62% 52%, rgba(28, 66, 134, 0.68) 0%, rgba(13, 32, 72, 0.28) 44%, transparent 72%),
+      radial-gradient(ellipse 80% 65% at 18% 72%, rgba(2, 5, 13, 0.86) 0%, rgba(6, 13, 29, 0.38) 50%, transparent 78%),
+      radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.74) 0%, rgba(10, 25, 58, 0.32) 48%, transparent 75%),
+      linear-gradient(138deg, #0b1d42 0%, #050a16 26%, #112a5c 52%, #040812 76%, #0d234d 100%);
   }
   button, label, span, p, input, select, textarea, .font-mono, code, pre {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -2971,7 +2981,7 @@ class AppErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[100dvh] w-full bg-[#050507] text-slate-100 flex items-center justify-center p-6">
+        <div className="min-h-[100dvh] w-full bg-midnight-marble text-slate-100 flex items-center justify-center p-6">
           <div className="max-w-xs w-full liquid-glass-card liquid-rim-muted border border-white/10 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
             <span className="inline-block px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-[10px] font-black uppercase tracking-widest text-red-300">Recovery Mode</span>
             <h2 className="text-lg font-black text-white">Display Interrupted</h2>
@@ -5579,7 +5589,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#050507] flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-midnight-marble flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full ${
@@ -5685,7 +5695,7 @@ function OLLDaySuite() {
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
         className={`fixed inset-0 z-[245] ${
-          isTwoPane ? 'bg-[#050507] flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-black/92 flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
+          isTwoPane ? 'bg-midnight-marble flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'bg-midnight-marble/95 flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         {isTwoPane && (
@@ -5928,12 +5938,12 @@ function OLLDaySuite() {
     <>
       <style>{APP_GLOBAL_CSS}</style>
 
-      <div className={`min-h-[100dvh] w-full bg-[#050507] text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
+      <div className={`min-h-[100dvh] w-full bg-midnight-marble text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
         <AmbientGlows
           topClass="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[44vh] z-0"
-          topGradient="radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.22) 0%, rgba(249, 115, 22, 0) 68%)"
+          topGradient="radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.18) 0%, rgba(249, 115, 22, 0) 68%)"
           bottomClass="fixed bottom-0 right-0 w-3/4 h-[38vh] z-0"
-          bottomGradient="radial-gradient(circle at 80% 100%, rgba(234, 88, 12, 0.14) 0%, rgba(234, 88, 12, 0) 68%)"
+          bottomGradient="radial-gradient(circle at 80% 100%, rgba(29, 78, 216, 0.18) 0%, rgba(29, 78, 216, 0) 68%)"
         />
 
         <div
@@ -5941,7 +5951,7 @@ function OLLDaySuite() {
             isTwoPane
               ? 'max-w-5xl lg:max-w-6xl h-[96dvh] my-auto rounded-[2.5rem] border border-white/[0.09] liquid-rim-muted shadow-[0_32px_90px_rgba(0,0,0,0.88)]'
               : 'max-w-md h-[100dvh] border-x border-white/[0.07] shadow-2xl'
-          } flex flex-col relative z-10 bg-gradient-to-b from-[#171211]/95 via-[#0b0c12]/98 to-[#07080d] overflow-hidden`}
+          } flex flex-col relative z-10 bg-midnight-marble overflow-hidden`}
         >
           {/* PERSISTENT HEADER */}
           <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.07] bg-black/25 backdrop-blur-md flex-shrink-0 z-40`}>
@@ -6606,7 +6616,7 @@ function OLLDaySuite() {
 
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
         {fullTimerOpen && (
-          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-[#050507]/[0.97] flex flex-col justify-between p-6 select-none cursor-pointer">
+          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer">
             <AmbientGlows
               topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
               topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
@@ -6694,7 +6704,7 @@ function OLLDaySuite() {
           const savedAccountKeys = Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k]));
 
           return (
-            <div className="fixed inset-0 z-[255] bg-[#050507] flex flex-col justify-between overflow-y-auto no-scrollbar">
+            <div className="fixed inset-0 z-[255] bg-midnight-marble flex flex-col justify-between overflow-y-auto no-scrollbar">
               {/* Looping 3D CFOP Spatial Showcase Backdrop */}
               <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
                 <div
@@ -7288,8 +7298,8 @@ function OLLDaySuite() {
           const posLabels = ['Top-Left Corner', 'Top Edge', 'Top-Right Corner', 'Left Edge', 'Center', 'Right Edge', 'Bottom-Left Corner', 'Bottom Edge', 'Bottom-Right Corner'];
 
           return (
-            <div className="fixed inset-0 z-[285] bg-[#050507]/[0.97] flex justify-center overflow-hidden">
-              <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-gradient-to-b from-[#171211]/95 via-[#0b0c12]/98 to-[#07080d] border-x border-white/10 shadow-2xl flex flex-col">
+            <div className="fixed inset-0 z-[285] bg-midnight-marble flex justify-center overflow-hidden">
+              <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-midnight-marble border-x border-white/10 shadow-2xl flex flex-col">
                 <div className="px-4 pt-4 pb-3 border-b border-white/[0.08] bg-black/25 backdrop-blur-md flex items-center justify-between flex-shrink-0">
                   <div>
                     <h2 className="text-lg font-black text-white">Cube Scanner &amp; Solver</h2>
