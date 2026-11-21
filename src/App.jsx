@@ -1682,12 +1682,12 @@ function F2LSpatial3DCube({ setupScramble, yaw, pitch, isDragging, cubeRef }) {
 }
 
 const STREAK_FACE_ORDER = [
-  { offset: 0, color: 'Y', yaw: -32, pitch: -38 },   // Days 1-9: Top (Yellow)
-  { offset: 18, color: 'G', yaw: -24, pitch: -16 },  // Days 10-18: Front (Green)
-  { offset: 9, color: 'O', yaw: -64, pitch: -16 },   // Days 19-27: Right (Orange)
-  { offset: 36, color: 'R', yaw: 64, pitch: -16 },   // Days 28-36: Left (Red)
-  { offset: 45, color: 'B', yaw: 154, pitch: -16 },  // Days 37-45: Back (Blue)
-  { offset: 27, color: 'W', yaw: -28, pitch: 42 }    // Days 46-54: Bottom (White) -> 54/54 Full UV Glow + Spin!
+  { offset: 18, color: 'G', yaw: -30, pitch: -24 },  // Tiles 1-9: Front (Green - directly facing viewer)
+  { offset: 9, color: 'O', yaw: -62, pitch: -24 },   // Tiles 10-18: Right (Orange - directly visible on right)
+  { offset: 0, color: 'Y', yaw: -32, pitch: -42 },   // Tiles 19-27: Top (Yellow - tilted clearly into view)
+  { offset: 36, color: 'R', yaw: 62, pitch: -24 },   // Tiles 28-36: Left (Red)
+  { offset: 45, color: 'B', yaw: 152, pitch: -24 },  // Tiles 37-45: Back (Blue)
+  { offset: 27, color: 'W', yaw: -30, pitch: 42 }    // Tiles 46-54: Bottom (White) -> 54/54 Full UV Glow + Spin!
 ];
 
 const MINI_STREAK_HALF = 16;
