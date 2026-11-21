@@ -1705,27 +1705,23 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const safeStreak = Math.max(0, Number(streakDays) || 0);
   const safeTotalDays = Math.max(1, Number(totalDays) || 1);
   const safeCurDay = Math.min(safeTotalDays, Math.max(1, Number(currentDay) || 1));
-  const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
 
-  // Day 1 always starts as all 54 black squares (0/54); every subsequent day (Days 2, 3, ...) fills progressive squares
+  // Strictly driven by day progression across all phases (F2L, OLL, PLL):
+  // Day 1 starts at 0/54 (all black squares); every subsequent day fills tiles linearly through Yellow -> Green -> Orange -> Blue -> Red -> White
   const daysProgressed = Math.max(0, safeCurDay - 1);
   const displayStreakDays = Math.max(safeStreak, daysProgressed);
-  const dayFractionTiles = safeTotalDays > 1
-    ? Math.max(daysProgressed * 2, Math.round((daysProgressed / (safeTotalDays - 1)) * 54))
-    : 54;
+  const totalSteps = Math.max(1, safeTotalDays - 1);
   const rawFilledSquares = safeCurDay === 1
     ? 0
-    : Math.min(54, Math.max(daysProgressed, dayFractionTiles, Math.round((pct / 100) * 54)));
+    : Math.min(54, Math.max(daysProgressed, Math.round((daysProgressed / totalSteps) * 54)));
 
-  // 50% milestone = Matte Finish (rotates & pulse glows); 75%+ (or 54/54) = UV Coated (pulsates, glows & rotates 2x faster than Matte)
-  const dayMilestonePct = safeTotalDays > 1 ? Math.round((daysProgressed / (safeTotalDays - 1)) * 100) : 0;
-  const effectivePct = safeCurDay === 1 ? 0 : Math.max(pct, dayMilestonePct, Math.round((rawFilledSquares / 54) * 100));
-  const isUvCoated = safeCurDay > 1 && (effectivePct >= 75 || rawFilledSquares >= 54);
-  const isMatteFinish = safeCurDay > 1 && !isUvCoated && effectivePct >= 50;
-  const isWhiteFaceActive = rawFilledSquares >= 46;
-  // When White face (tiles 46-54) is actively being filled, orient directly to show the White face clearly
-  const isSpinGlowActive = (isMatteFinish || isUvCoated) && !isWhiteFaceActive;
-  const filledSquares = isUvCoated ? 54 : rawFilledSquares;
+  // 50% milestone = Matte Finish (rotates & pulse glows); 75%+ = UV Coated (pulsates, glows & rotates 2x faster than Matte)
+  const dayMilestonePct = safeCurDay === 1 ? 0 : Math.round((daysProgressed / totalSteps) * 100);
+  const isUvCoated = safeCurDay > 1 && dayMilestonePct >= 75;
+  const isMatteFinish = safeCurDay > 1 && !isUvCoated && dayMilestonePct >= 50;
+  const isSpinGlowActive = isMatteFinish || isUvCoated;
+  // Continue filling the remaining tiles (including White tiles 46-54 on the final days) without prematurely snapping to 54
+  const filledSquares = rawFilledSquares;
 
   // Automatically rotates to face whichever side of the cube is actively being populated
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
@@ -1742,11 +1738,12 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const targetPitch = activeFaceSpec.pitch;
 
   const badgeLabel = isUvCoated
-    ? <>UV Coated <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
+    ? <>UV Coated • {filledSquares}/54 <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
     : isMatteFinish
-    ? <>Matte Finish <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
+    ? <>Matte Finish • {filledSquares}/54 <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
     : `Day ${safeCurDay} • ${filledSquares}/54`;
 
+  // During UV Coated, tilt pitch dynamically in the spin animation so the bottom White face (tiles 46-54) is clearly visible as it populates!
   const cubeSpinClass = isUvCoated
     ? 'uv-streak-cube-spin'
     : isMatteFinish
@@ -2042,7 +2039,7 @@ function useViewportDevice() {
 
 function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, setF2LPresetAngle, emitBeep, isLargeScreen = false }) {
   return (
-    <div data-no-timer-start="true" className={`w-full ${isLargeScreen ? 'space-y-3' : 'space-y-0.5'}`}>
+    <div data-no-timer-start="true" className={`w-full ${isLargeScreen ? 'space-y-2' : 'space-y-0.5'}`}>
       <div className="w-full flex items-center justify-between gap-1">
         <span className={`${isLargeScreen ? 'text-xs' : 'text-[9px]'} font-black uppercase tracking-wider text-zinc-400 truncate`}>
           Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(orbit.rot.yaw, orbit.rot.pitch)}</strong>
@@ -2052,7 +2049,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer`}
+              className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer`}
             >
               Reset
             </button>
@@ -2060,7 +2057,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-orange-500/12 hover:bg-orange-500/22 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
+            className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-orange-500/12 hover:bg-orange-500/22 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
           >
             Rotate <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" />
           </button>
@@ -2071,10 +2068,10 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
         {...orbit.handlers}
         onPointerCancel={orbit.handlers.onPointerUp}
         style={{ touchAction: 'none' }}
-        className={`relative ${isLargeScreen ? 'w-56 h-56' : 'w-24 h-24'} mx-auto flex items-center justify-center cursor-grab active:cursor-grabbing select-none`}
+        className={`relative ${isLargeScreen ? 'w-52 h-52' : 'w-24 h-24'} mx-auto flex items-center justify-center cursor-grab active:cursor-grabbing select-none`}
       >
         <OrbitRingBackdrop insetClass="inset-1" />
-        <div style={{ transform: isLargeScreen ? 'scale(1.22)' : 'scale(0.62)' }}>
+        <div style={{ transform: isLargeScreen ? 'scale(1.16)' : 'scale(0.62)' }}>
           <F2LSpatial3DCube
             setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
             yaw={orbit.rot.yaw}
@@ -2101,130 +2098,157 @@ function CasePracticeCard({
   const showTriggerPills = fingertricksEnabled && (!item.usingCustomAlg || item.showCustomTriggerPills !== false);
   const triggerTags = showTriggerPills ? getAlgorithmTriggerTags(item.alg) : [];
 
+  const visualNode = isF2L ? (
+    <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
+  ) : (
+    <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-24 h-24'} mx-auto flex items-center justify-center`}>
+      <svg viewBox="0 0 140 140" className="pointer-events-none absolute inset-0 w-full h-full">
+        <circle cx="70" cy="70" r="66" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 4" />
+        <circle cx="70" cy="70" r="59" fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1.2" />
+        <circle cx="70" cy="4" r="2" fill="rgba(251,146,60,0.7)" />
+      </svg>
+      <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-20 h-20 p-1.5'} rounded-2xl bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
+        <CachedVisualCubeImg
+          url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
+          alt={item.name} lazy={false} className="w-full h-full object-contain"
+        />
+      </div>
+    </div>
+  );
+
+  const titleNode = (
+    <div className="text-center w-full">
+      <h3 className={`${isLargeScreen ? 'text-2xl lg:text-3xl leading-tight' : 'text-base leading-tight'} font-black text-white`}>{item.name}</h3>
+      {item.recognition && <p className={`${isLargeScreen ? 'text-xs lg:text-sm mt-1' : 'text-[10px] mt-0.5 line-clamp-1'} text-zinc-400`}>{item.recognition}</p>}
+    </div>
+  );
+
+  const setupNode = (isF2L || isPLL) && (
+    <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-2.5 space-y-1' : 'pt-1.5 space-y-0.5'} text-center`}>
+      <div className="flex items-center justify-between">
+        <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
+          {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
+        </span>
+        <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[9.5px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
+          {isF2L ? <>New Scramble <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></> : <>New AUF <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></>}
+        </button>
+      </div>
+      <p className={`font-mono ${isLargeScreen ? 'text-sm lg:text-base' : 'text-[11px]'} font-black text-amber-300 select-all truncate`}>
+        {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
+      </p>
+    </div>
+  );
+
+  const algNode = (
+    <div className={`w-full ${isLargeScreen ? '' : 'border-t'} ${item.usingCustomAlg ? 'border-orange-500/40 bg-orange-500/[0.06] rounded-2xl p-3' : isLargeScreen ? '' : 'border-white/10 pt-2.5'} ${isLargeScreen ? 'space-y-2' : 'space-y-1.5'} text-center transition-all`}>
+      <div className="flex items-center justify-between gap-1 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
+            {item.usingCustomAlg
+              ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
+              : isF2L ? 'Solution (FR Slot)' : 'Algorithm'}
+          </span>
+          <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
+        </div>
+        <div className="flex items-center gap-1">
+          {onOpenCustomAlgEditor && (
+            <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-black text-zinc-300 hover:text-white transition-all cursor-pointer`}>
+              {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
+            </button>
+          )}
+          {fingertricksEnabled && (
+            <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-orange-500/15 font-black text-orange-300 transition-all cursor-pointer`}>
+              Grip <ArrowRight className="w-3 h-3 inline-block ml-0.5 -mt-0.5" />
+            </button>
+          )}
+        </div>
+      </div>
+      <p className={`font-mono ${isLargeScreen ? 'text-xl lg:text-2xl py-0.5' : 'text-[13.5px] leading-snug'} font-black break-words ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+      {item.hasCustomAlg && isLargeScreen && (
+        <p className="text-[10px] font-mono text-zinc-400">
+          {item.usingCustomAlg
+            ? `Default: ${item.defaultAlg}`
+            : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
+        </p>
+      )}
+      {fingertricksEnabled && (
+        <div className={`${isLargeScreen ? 'space-y-1.5' : 'space-y-1.5 pt-0.5'} text-left`}>
+          <TriggerTagsList tags={triggerTags} centered compact={!isLargeScreen} />
+          {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && item.fingertrick && (
+            <p className={`${isLargeScreen ? 'text-xs px-3.5 py-2' : 'text-[10px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-relaxed`}>
+              <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+            </p>
+          )}
+        </div>
+      )}
+      {isF2L && (
+        <p className={`${isLargeScreen ? 'text-xs pt-0.5' : 'text-[10px] pt-0.5 leading-relaxed'} text-zinc-300 text-left`}>
+          • <strong>1:</strong> {item.step1} &nbsp;• <strong>2:</strong> {item.step2}
+        </p>
+      )}
+    </div>
+  );
+
+  const stopwatchNode = stopwatchEnabled && (
+    <button
+      onClick={onToggleStopwatch}
+      className={`w-full ${isLargeScreen ? 'py-3.5 px-4 rounded-2xl' : 'py-2.5 px-3.5 rounded-2xl'} border font-mono cursor-pointer flex flex-col items-center justify-center gap-0.5 transition-all ${
+        swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-zinc-200 hover:border-orange-500/35'
+      }`}
+    >
+      {swRunning ? (
+        <span ref={swDisplayRef} className={`font-timer ${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
+      ) : lastResultForThis ? (
+        <>
+          <div className="flex items-center gap-2">
+            <span className={`${isLargeScreen ? 'text-xl' : 'text-sm'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
+            {lastResultForThis.isNewPb ? (
+              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300"><Star className="w-2.5 h-2.5 inline-block mr-1 -mt-0.5 fill-current" />New PB!</span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
+            )}
+          </div>
+          <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+            {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
+          </span>
+        </>
+      ) : (
+        <div className="flex flex-col items-center">
+          <span className={`${isLargeScreen ? 'text-lg' : 'text-sm'} font-black`}>{timerLabel}</span>
+          <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+            {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
+            {!isLargeScreen && typeof recordedBest === 'number' ? ` • PB: ${recordedBest.toFixed(3)}s` : ''}
+          </span>
+          {isLargeScreen && !showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
+        </div>
+      )}
+    </button>
+  );
+
+  if (isLargeScreen) {
+    return (
+      <div className="w-full grid grid-cols-12 gap-5 lg:gap-6 items-center">
+        <div className="col-span-5 flex flex-col items-center justify-center space-y-2.5 border-r border-white/10 pr-5">
+          {visualNode}
+          {titleNode}
+          {setupNode}
+        </div>
+        <div className="col-span-7 flex flex-col justify-center space-y-3">
+          {algNode}
+          {stopwatchNode}
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      {isF2L ? (
-        <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
-      ) : (
-        <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-24 h-24'} mx-auto flex items-center justify-center`}>
-          <svg viewBox="0 0 140 140" className="pointer-events-none absolute inset-0 w-full h-full">
-            <circle cx="70" cy="70" r="66" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 4" />
-            <circle cx="70" cy="70" r="59" fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1.2" />
-            <circle cx="70" cy="4" r="2" fill="rgba(251,146,60,0.7)" />
-          </svg>
-          <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-20 h-20 p-1.5'} rounded-2xl bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
-            <CachedVisualCubeImg
-              url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
-              alt={item.name} lazy={false} className="w-full h-full object-contain"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="text-center w-full">
-        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-base leading-tight'} font-black text-white`}>{item.name}</h3>
-        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm mt-1' : 'text-[10px] mt-0.5 line-clamp-1'} text-zinc-400`}>{item.recognition}</p>}
-      </div>
-
-      {(isF2L || isPLL) && (
-        <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-3 space-y-1.5' : 'pt-1.5 space-y-0.5'} text-center`}>
-          <div className="flex items-center justify-between">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
-              {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
-            </span>
-            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[9.5px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
-              {isF2L ? <>New Scramble <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></> : <>New AUF <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></>}
-            </button>
-          </div>
-          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-[11px]'} font-black text-amber-300 select-all truncate`}>
-            {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
-          </p>
-        </div>
-      )}
-
-      <div className={`w-full border-t ${item.usingCustomAlg ? 'border-orange-500/40 bg-orange-500/[0.06] rounded-2xl p-3' : 'border-white/10 pt-2.5'} ${isLargeScreen ? 'space-y-2.5 pt-3.5' : 'space-y-1.5'} text-center transition-all`}>
-        <div className="flex items-center justify-between gap-1 flex-wrap">
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
-              {item.usingCustomAlg
-                ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
-                : isF2L ? 'Solution (FR Slot)' : 'Algorithm'}
-            </span>
-            <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
-          </div>
-          <div className="flex items-center gap-1">
-            {onOpenCustomAlgEditor && (
-              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-black text-zinc-300 hover:text-white transition-all cursor-pointer`}>
-                {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
-              </button>
-            )}
-            {fingertricksEnabled && (
-              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-orange-500/15 font-black text-orange-300 transition-all cursor-pointer`}>
-                Grip <ArrowRight className="w-3 h-3 inline-block ml-0.5 -mt-0.5" />
-              </button>
-            )}
-          </div>
-        </div>
-        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-[13.5px] leading-snug'} font-black break-words ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-        {item.hasCustomAlg && isLargeScreen && (
-          <p className="text-[10px] font-mono text-zinc-400">
-            {item.usingCustomAlg
-              ? `Default: ${item.defaultAlg}`
-              : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
-          </p>
-        )}
-        {fingertricksEnabled && (
-          <div className={`${isLargeScreen ? 'space-y-2' : 'space-y-1.5 pt-0.5'} text-left`}>
-            <TriggerTagsList tags={triggerTags} centered compact={!isLargeScreen} />
-            {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && item.fingertrick && (
-              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[10px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-relaxed`}>
-                <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-              </p>
-            )}
-          </div>
-        )}
-        {isF2L && (
-          <p className={`${isLargeScreen ? 'text-xs sm:text-sm pt-1' : 'text-[10px] pt-0.5 leading-relaxed'} text-zinc-300 text-left`}>
-            • <strong>1:</strong> {item.step1} &nbsp;• <strong>2:</strong> {item.step2}
-          </p>
-        )}
-      </div>
-
-      {stopwatchEnabled && (
-        <button
-          onClick={onToggleStopwatch}
-          className={`w-full ${isLargeScreen ? 'py-4 px-4 rounded-2xl' : 'py-2.5 px-3.5 rounded-2xl'} border font-mono cursor-pointer flex flex-col items-center justify-center gap-0.5 transition-all ${
-            swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-zinc-200 hover:border-orange-500/35'
-          }`}
-        >
-          {swRunning ? (
-            <span ref={swDisplayRef} className={`font-timer ${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
-          ) : lastResultForThis ? (
-            <>
-              <div className="flex items-center gap-2">
-                <span className={`${isLargeScreen ? 'text-xl' : 'text-sm'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
-                {lastResultForThis.isNewPb ? (
-                  <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300"><Star className="w-2.5 h-2.5 inline-block mr-1 -mt-0.5 fill-current" />New PB!</span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
-                )}
-              </div>
-              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
-                {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
-              </span>
-            </>
-          ) : (
-            <div className="flex flex-col items-center">
-              <span className={`${isLargeScreen ? 'text-lg' : 'text-sm'} font-black`}>{timerLabel}</span>
-              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
-                {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
-                {!isLargeScreen && typeof recordedBest === 'number' ? ` • PB: ${recordedBest.toFixed(3)}s` : ''}
-              </span>
-              {isLargeScreen && !showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
-            </div>
-          )}
-        </button>
-      )}
+      {visualNode}
+      {titleNode}
+      {setupNode}
+      {algNode}
+      {stopwatchNode}
       {children}
     </>
   );
@@ -2922,16 +2946,21 @@ const APP_GLOBAL_CSS = `
   .uv-card-enter-down {
     animation: uvCardMaterializeDown 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
+  @keyframes matteStreakSpin3D {
+    0% { transform: rotateX(-22deg) rotateY(0deg); }
+    100% { transform: rotateX(-22deg) rotateY(360deg); }
+  }
   @keyframes uvStreakSpin3D {
-    0% { transform: rotateX(-24deg) rotateY(0deg); }
-    100% { transform: rotateX(-24deg) rotateY(360deg); }
+    0% { transform: rotateX(56deg) rotateY(0deg); }
+    50% { transform: rotateX(68deg) rotateY(180deg); }
+    100% { transform: rotateX(56deg) rotateY(360deg); }
   }
   @keyframes streakAuraPulse {
     0%, 100% { opacity: 0.35; transform: scale(0.92); }
     50% { opacity: 0.95; transform: scale(1.08); }
   }
   .matte-streak-cube-spin {
-    animation: uvStreakSpin3D 10s linear infinite;
+    animation: matteStreakSpin3D 10s linear infinite;
     will-change: transform;
   }
   .uv-streak-cube-spin {
@@ -5472,7 +5501,7 @@ function OLLDaySuite() {
     swRunning, swDisplayRef, isLargeScreen: isTwoPane, emitBeep
   };
 
-  // Unified Daily Session Runner (Liquid Glass)
+  // Unified Daily Session Runner (Liquid Glass - Full-Viewport Fit on iPad, Tablet & Desktop)
   const renderUnifiedDailySession = () => {
     const activePhaseSession = f2lSession
       ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
@@ -5494,17 +5523,17 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#040814]/80 backdrop-blur-2xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#040814]/88 backdrop-blur-2xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
-          className={`relative z-10 w-full ${
+          className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
             isTwoPane
-              ? 'max-w-none h-[100dvh] px-8 py-6 overflow-y-auto no-scrollbar'
-              : 'max-w-md h-[100dvh] border-x border-white/10 px-3.5 py-2.5 shadow-2xl overflow-hidden'
-          } flex flex-col justify-between`}
+              ? 'max-w-none px-8 py-5'
+              : 'max-w-md border-x border-white/10 px-3.5 py-2.5 shadow-2xl'
+          }`}
         >
-          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
-            <div className="flex items-center gap-2">
+          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
+            <div className="flex items-center gap-2.5">
               <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-0.5 text-[9.5px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-wider text-orange-300`}>
                 {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
               </span>
@@ -5517,9 +5546,13 @@ function OLLDaySuite() {
             <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-2xl bg-transparent hover:bg-white/[0.08] text-zinc-300 font-bold cursor-pointer`}><X className="w-3.5 h-3.5 inline-block" /></button>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto' : 'my-auto'}`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'my-auto'}`}>
             <div
-              className={`${isTwoPane ? 'rounded-[2.5rem] p-6 space-y-4' : 'rounded-3xl p-4 space-y-2.5'} w-full liquid-glass-card liquid-rim-muted border border-white/15 flex flex-col items-center`}
+              className={`${
+                isTwoPane
+                  ? 'w-full h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
+                  : 'w-full rounded-3xl p-4 space-y-2.5 flex flex-col items-center'
+              } liquid-glass-card liquid-rim-muted border border-white/15`}
             >
               <CasePracticeCard
                 {...sharedPracticeProps}
@@ -5539,11 +5572,11 @@ function OLLDaySuite() {
             </div>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
             <button
               onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
               disabled={session.index === 0}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer`}
+              className={`${isTwoPane ? 'py-3.5 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer`}
             >
               <ArrowLeft className="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" />Previous
             </button>
@@ -5562,7 +5595,7 @@ function OLLDaySuite() {
                   setSession(null);
                 }
               }}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
+              className={`${isTwoPane ? 'py-3.5 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
             >
               {session.index + 1 < session.queue.length ? <>Next {itemLabel} <ArrowRight className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></> : <>Complete Day <Check className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></>}
             </button>
@@ -5572,7 +5605,7 @@ function OLLDaySuite() {
     );
   };
 
-  // Unified Isolated Case Drill Modal (Liquid Glass)
+  // Unified Isolated Case Drill Modal (Liquid Glass - Full-Viewport Fit on iPad, Tablet & Desktop)
   const renderUnifiedDrillModal = () => {
     const activeDrill = f2lDrillCase
       ? { phaseKey: 'f2l', item: f2lDrillCase, close: () => setF2lDrillCase(null), statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' }
@@ -5593,12 +5626,12 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040814]/75 backdrop-blur-2xl ${
-          isTwoPane ? 'flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
+        className={`fixed inset-0 z-[245] bg-[#040814]/88 backdrop-blur-2xl overflow-hidden ${
+          isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         {isTwoPane && (
-          <div data-no-timer-start="true" className="relative z-10 w-full max-w-3xl mx-auto flex items-center justify-between">
+          <div data-no-timer-start="true" className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between flex-shrink-0">
             <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-300">
               {phaseKey.toUpperCase()} Isolated Drill • {item.group}
             </span>
@@ -5606,11 +5639,11 @@ function OLLDaySuite() {
           </div>
         )}
 
-        <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto' : 'max-w-sm'}`}>
+        <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'max-w-sm'}`}>
           <div
             className={`liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
               isTwoPane
-                ? 'rounded-[2.5rem] p-6 space-y-4 flex flex-col items-center'
+                ? 'h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
                 : 'rounded-3xl p-4 space-y-2 overflow-hidden'
             }`}
           >
@@ -5652,12 +5685,12 @@ function OLLDaySuite() {
         </div>
 
         {isTwoPane && (
-          <div data-no-timer-start="true" className="relative z-10 w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-zinc-400">
+          <div data-no-timer-start="true" className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between text-xs text-zinc-400 flex-shrink-0">
             <span>{viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}</span>
             <button
               type="button"
               onClick={closeDrill}
-              className="px-4 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12]  text-xs font-black uppercase tracking-wider text-zinc-200 cursor-pointer"
+              className="px-4 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-black uppercase tracking-wider text-zinc-200 cursor-pointer"
             >
               Done Drilling
             </button>
