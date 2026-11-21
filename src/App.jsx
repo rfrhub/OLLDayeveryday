@@ -1484,19 +1484,16 @@ function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
   const pillClass = size === 'xs'
     ? 'px-2.5 py-0.5 text-[9.5px]'
     : 'px-3 py-1 text-[10px] shadow-lg';
-  const badge = (
-    <span className={`${pillClass} rounded-full bg-orange-500/20 border border-orange-400/45 font-black uppercase tracking-wider text-orange-200 backdrop-blur-md`}>
-      🔒 {label}
-    </span>
-  );
-  return interactive ? (
-    <button type="button" onClick={onClick} className="absolute inset-0 z-10 bg-black/70 backdrop-blur-[2px] flex items-center justify-center cursor-pointer">
-      {badge}
-    </button>
-  ) : (
-    <div className="absolute inset-0 z-10 bg-black/70 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-      {badge}
-    </div>
+  const Wrapper = interactive ? 'button' : 'div';
+  return (
+    <Wrapper
+      {...(interactive ? { type: 'button', onClick } : {})}
+      className={`absolute inset-0 z-10 bg-black/78 flex items-center justify-center ${interactive ? 'cursor-pointer' : 'pointer-events-none'}`}
+    >
+      <span className={`${pillClass} rounded-full bg-[#1a110b]/95 border border-orange-400/45 font-black uppercase tracking-wider text-orange-200`}>
+        🔒 {label}
+      </span>
+    </Wrapper>
   );
 }
 
@@ -1672,16 +1669,22 @@ const MINI_STREAK_FACES = [
   { offset: 27, transform: `rotateX(-90deg) translateZ(${MINI_STREAK_HALF}px)` }
 ];
 
-function Streak3DCube({ streakDays = 0, progressPct = 0, streakActive = true }) {
+function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressPct = 0, streakActive = true }) {
   const safeStreak = Math.max(0, Number(streakDays) || 0);
+  const safeTotalDays = Math.max(1, Number(totalDays) || 1);
+  const safeCurDay = Math.min(safeTotalDays, Math.max(1, Number(currentDay) || 1));
+  const halfwayDay = Math.max(2, Math.ceil(safeTotalDays / 2));
   const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
-  const isHalfway = pct >= 50 && pct < 75;
-  const isFullUvUnlocked = (pct >= 75 || safeStreak >= 54) && (streakActive || pct >= 75);
-  const isSpinGlowActive = isHalfway || isFullUvUnlocked;
 
-  const filledSquares = isFullUvUnlocked
+  // Matte Finish triggers ONLY on the halfway mark day; after that day it returns to unlit/non-glowing until 75%+ UV Coated
+  const isHalfwayDay = safeCurDay === halfwayDay && pct < 75;
+  const isUvCoated = (pct >= 75 || safeStreak >= 54) && (streakActive || pct >= 75);
+  const isSpinGlowActive = isHalfwayDay || isUvCoated;
+
+  const displayStreakDays = Math.max(safeStreak, safeCurDay - 1);
+  const filledSquares = isUvCoated
     ? 54
-    : Math.min(54, Math.max(safeStreak, Math.round((pct / 100) * 54)));
+    : Math.min(54, Math.max(displayStreakDays, Math.round((pct / 100) * 54)));
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
   const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
   const [manualSpinOffset, setManualSpinOffset] = useState(0);
@@ -1689,11 +1692,11 @@ function Streak3DCube({ streakDays = 0, progressPct = 0, streakActive = true }) 
   const targetYaw = activeFaceSpec.yaw + manualSpinOffset;
   const targetPitch = activeFaceSpec.pitch;
 
-  const badgeLabel = isFullUvUnlocked
-    ? 'UV Full Spin ✦'
-    : isHalfway
-    ? 'Halfway Glow ✦'
-    : `${filledSquares}/54 • ${Math.round(pct)}%`;
+  const badgeLabel = isUvCoated
+    ? 'UV Coated ✦'
+    : isHalfwayDay
+    ? 'Matte Finish ✦'
+    : `${filledSquares}/54 Tiles`;
 
   return (
     <button
@@ -1703,15 +1706,17 @@ function Streak3DCube({ streakDays = 0, progressPct = 0, streakActive = true }) 
         setManualSpinOffset((prev) => prev - 90);
       }}
       title={
-        isFullUvUnlocked
-          ? `${safeStreak}d Streak • 75%+ Full UV Spin Mode Active (Keep your daily streak alive to sustain!)`
-          : isHalfway
-          ? `${safeStreak}d Streak • Halfway Milestone Spin & Glow Active!`
-          : `${safeStreak}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
+        isUvCoated
+          ? `${displayStreakDays}d Streak • UV Coated Mode Active`
+          : isHalfwayDay
+          ? `${displayStreakDays}d Streak • Halfway Mark Reached (Matte Finish)`
+          : `${displayStreakDays}d Streak (${filledSquares}/54 squares colored • Tap to inspect sides)`
       }
       className={`relative inline-flex items-center gap-2 px-2.5 py-1 rounded-full border transition-all cursor-pointer active:scale-95 ${
-        isSpinGlowActive
+        isUvCoated
           ? 'bg-gradient-to-r from-purple-500/20 via-orange-500/15 to-amber-500/20 border-purple-400/60 uv-streak-pill-glow'
+          : isHalfwayDay
+          ? 'bg-gradient-to-r from-zinc-700/35 via-amber-500/15 to-zinc-700/35 border-amber-300/45 uv-streak-pill-glow'
           : 'bg-black/50 hover:bg-white/[0.07] border-white/15'
       }`}
     >
@@ -1747,23 +1752,26 @@ function Streak3DCube({ streakDays = 0, progressPct = 0, streakActive = true }) 
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gridTemplateRows: 'repeat(3, 1fr)',
                   gap: '1.2px',
-                  boxShadow: isSpinGlowActive
+                  boxShadow: isUvCoated
                     ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.55)'
+                    : isHalfwayDay
+                    ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.45)'
                     : 'inset 0 0 0 0.75px rgba(255,255,255,0.12)'
                 }}
               >
                 {MINI_STREAK_SLOTS.map((idx) => {
                   const isLit = idx < faceLitCount;
-                  const isLatestTile = !isFullUvUnlocked && faceOrderIdx === activeFaceIdx && idx === faceLitCount - 1;
+                  const isLatestTile = !isUvCoated && faceOrderIdx === activeFaceIdx && idx === faceLitCount - 1;
                   return (
                     <div
                       key={idx}
                       style={{
                         backgroundColor: isLit ? STICKER_HEX[faceColor] : '#141722',
                         borderRadius: '1.5px',
+                        filter: isHalfwayDay && isLit ? 'contrast(0.92) saturate(0.88)' : undefined,
                         boxShadow: isLatestTile
                           ? '0 0 4px rgba(255,255,255,0.95), inset 0 0.5px 1px rgba(255,255,255,0.75)'
-                          : isLit
+                          : isLit && !isHalfwayDay
                           ? 'inset 0 0.5px 1px rgba(255,255,255,0.55)'
                           : 'inset 0 0.5px 0.5px rgba(255,255,255,0.05)'
                       }}
@@ -1776,10 +1784,10 @@ function Streak3DCube({ streakDays = 0, progressPct = 0, streakActive = true }) 
         </div>
       </div>
       <div className="pr-0.5 leading-tight text-left">
-        <span className={`font-mono text-[10.5px] font-black block ${isSpinGlowActive ? 'text-purple-200' : 'text-white'}`}>
-          {safeStreak}d Streak
+        <span className={`font-mono text-[10.5px] font-black block ${isUvCoated ? 'text-purple-200' : isHalfwayDay ? 'text-amber-200' : 'text-white'}`}>
+          {displayStreakDays}d Streak
         </span>
-        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isSpinGlowActive ? 'text-amber-300' : 'text-zinc-400'}`}>
+        <span className={`text-[8.5px] font-bold uppercase tracking-wider block ${isUvCoated ? 'text-amber-300' : isHalfwayDay ? 'text-zinc-200' : 'text-zinc-400'}`}>
           {badgeLabel}
         </span>
       </div>
@@ -2109,7 +2117,7 @@ function CasePracticeCard({
           }`}
         >
           {swRunning ? (
-            <span ref={swDisplayRef} className={`${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
+            <span ref={swDisplayRef} className={`font-timer ${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
           ) : lastResultForThis ? (
             <>
               <div className="flex items-center gap-2">
@@ -2741,21 +2749,21 @@ function useSolverPersistence(users, setUsers, activeUserKey) {
 // 4. MAIN APPLICATION COMPONENT & ERROR BOUNDARY
 // =========================================================================
 const APP_GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
   html, body {
     background-color: #050507;
     color: #f8fafc;
-    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    letter-spacing: -0.02em;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: -0.015em;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
   }
-  h1, h2, h3, h4, button, label, span {
-    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  button, label, span, p, input, select, textarea, .font-mono, code, pre {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
-  .font-mono, code, pre {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace !important;
-    letter-spacing: 0.01em;
+  h1, h2, h3, h4, header h1, .font-timer {
+    font-family: 'Chakra Petch', sans-serif !important;
+    letter-spacing: -0.01em;
   }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -2950,9 +2958,8 @@ function OLLDaySuite() {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [stopwatchEnabled, setStopwatchEnabled] = useState(true);
   const [fingertricksEnabled, setFingertricksEnabled] = useState(true);
-  const [targetPbInput, setTargetPbInput] = useState('15.000');
+  const [pbDrafts, setPbDrafts] = useState({ full: null, phase: null });
   const [selectedTargetPhase, setSelectedTargetPhase] = useState('f2l');
-  const [phaseTargetInput, setPhaseTargetInput] = useState('2.500');
   const [editingCaseTarget, setEditingCaseTarget] = useState(null);
   const [f2lSetupMode, setF2lSetupMode] = useState('beginner');
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
@@ -3318,10 +3325,7 @@ function OLLDaySuite() {
   const [leftPadHeld, setLeftPadHeld] = useState(false);
   const [rightPadHeld, setRightPadHeld] = useState(false);
 
-  const [orbitQuizIdx, setOrbitQuizIdx] = useState(0);
-  const [orbitQuizActive, setOrbitQuizActive] = useState(false);
-  const [orbitStreak, setOrbitStreak] = useState(0);
-  const [orbitFeedback, setOrbitFeedback] = useState(null);
+  const [orbitQuiz, setOrbitQuiz] = useState({ idx: 0, active: false, streak: 0, feedback: null });
   const padHoldTimeoutRef = useRef(null);
 
   const [libState, setLibState] = useState({
@@ -3614,6 +3618,13 @@ function OLLDaySuite() {
   ]);
 
   useEffect(() => {
+    if (typeof document !== 'undefined' && !document.querySelector('link[data-ollday-fonts="true"]')) {
+      const fontLink = document.createElement('link');
+      fontLink.rel = 'stylesheet';
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap';
+      fontLink.setAttribute('data-ollday-fonts', 'true');
+      document.head.appendChild(fontLink);
+    }
     if (typeof document !== 'undefined' && !document.querySelector('link[href="https://visualcube.api.cubing.net"]')) {
       const link = document.createElement('link');
       link.rel = 'preconnect';
@@ -3633,8 +3644,8 @@ function OLLDaySuite() {
   }, [currentF2lDayObj, currentOllDayObj, currentPllDayObj]);
 
   const fullSolveTargetSec = Number.isFinite(Number(currentUser.fullSolveTargetPb)) ? Number(currentUser.fullSolveTargetPb) : 15.0;
-  useEffect(() => { setTargetPbInput(fullSolveTargetSec.toFixed(3)); }, [fullSolveTargetSec]);
-  useEffect(() => { setPhaseTargetInput(getPhaseTargetPb(selectedTargetPhase).toFixed(3)); }, [selectedTargetPhase, currentUser.phaseTargetPbs]);
+  const targetPbInput = pbDrafts.full ?? fullSolveTargetSec.toFixed(3);
+  const phaseTargetInput = pbDrafts.phase ?? getPhaseTargetPb(selectedTargetPhase).toFixed(3);
 
   const updateActiveUserRecord = (updaterFn) => {
     setUsers((prev) => {
@@ -3647,13 +3658,13 @@ function OLLDaySuite() {
 
   const updateFullSolveTargetPb = (sec) => {
     const clamped = Math.min(120, Math.max(1.0, Number(Number(sec).toFixed(3))));
-    setTargetPbInput(clamped.toFixed(3));
+    setPbDrafts((prev) => ({ ...prev, full: null }));
     updateActiveUserRecord((u) => ({ ...u, fullSolveTargetPb: clamped }));
   };
 
   const updatePhaseTargetPb = (phase, sec) => {
     const clamped = Math.min(30, Math.max(0.1, Number(Number(sec).toFixed(3))));
-    setPhaseTargetInput(clamped.toFixed(3));
+    setPbDrafts((prev) => ({ ...prev, phase: null }));
     updateActiveUserRecord((u) => ({ ...u, phaseTargetPbs: { ...u.phaseTargetPbs, [phase]: clamped } }));
   };
 
@@ -4452,7 +4463,7 @@ function OLLDaySuite() {
   };
 
   const renderSettingsDeck = () => {
-    const TOTAL_SETTINGS_CARDS = 6;
+    const TOTAL_SETTINGS_CARDS = 8;
     const stepSettingsCard = (dir) => {
       emitBeep(dir === 'up' ? 620 : 500, 'sine', 0.05);
       setSettingsSwipeDir(dir);
@@ -4518,6 +4529,67 @@ function OLLDaySuite() {
     const CARDS = [
       {
         num: 1,
+        category: 'Onboarding & Guides',
+        title: 'Quick-Start, CFOP & Tutorial',
+        content: (
+          <div className="space-y-2.5">
+            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-white">Quick-Start Experience Picker</span>
+                <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-[9px] font-black uppercase text-orange-300">
+                  Route Me
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                Jump straight to your skill level—either 2-move Cross foundations or F2L pair intuition.
+              </p>
+              <button
+                type="button"
+                onClick={startGuidedTour}
+                className="w-full h-10 px-4 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_24px_rgba(249,115,22,0.35)] flex items-center justify-center cursor-pointer"
+              >
+                Open Quick-Start Guide →
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={() => { emitBeep(660, 'sine', 0.07); setActiveModal('newToCfop'); }}
+                className="w-full liquid-glass-uv-well hover:bg-white/[0.1] border border-white/20 rounded-2xl p-3.5 text-left transition-all cursor-pointer flex items-center justify-between gap-3"
+              >
+                <div>
+                  <span className="text-xs font-black text-amber-300 block">New to CFOP? Why It Matters</span>
+                  <span className="text-[10.5px] text-zinc-300 block mt-0.5">
+                    Learn how Cross, F2L, OLL &amp; PLL drop solves under 15s and how OLLDay automates the path.
+                  </span>
+                </div>
+                <span className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 font-black text-xs flex items-center justify-center flex-shrink-0">
+                  →
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { emitBeep(720, 'sine', 0.07); setActiveModal('appTutorial'); }}
+                className="w-full liquid-glass-uv-well hover:bg-white/[0.1] border border-white/20 rounded-2xl p-3.5 text-left transition-all cursor-pointer flex items-center justify-between gap-3"
+              >
+                <div>
+                  <span className="text-xs font-black text-purple-200 block">Interactive App Tutorial</span>
+                  <span className="text-[10.5px] text-zinc-300 block mt-0.5">
+                    How Daily Sessions train muscle memory, plus getting the most out of Cross in X.
+                  </span>
+                </div>
+                <span className="w-8 h-8 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-200 font-black text-xs flex items-center justify-center flex-shrink-0">
+                  →
+                </span>
+              </button>
+            </div>
+          </div>
+        )
+      },
+      {
+        num: 2,
         category: 'Profile & Pro',
         title: 'Solver Identity & Plan',
         content: (
@@ -4565,7 +4637,7 @@ function OLLDaySuite() {
         )
       },
       {
-        num: 2,
+        num: 3,
         category: 'Curriculum & Pacing',
         title: 'Targets, Home & Chunks',
         content: (
@@ -4600,7 +4672,7 @@ function OLLDaySuite() {
                 value={fullSolveTargetSec} min={3.0} max={60.0} draftValue={targetPbInput} accentTextClass="text-orange-300"
                 onSliderChange={updateFullSolveTargetPb}
                 onStepDelta={(d) => { emitBeep(540); updateFullSolveTargetPb(fullSolveTargetSec + d); }}
-                onDraftChange={(val) => { setTargetPbInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 1 && p <= 120) updateFullSolveTargetPb(p); }}
+                onDraftChange={(val) => { setPbDrafts((prev) => ({ ...prev, full: val })); const p = parseFloat(val); if (Number.isFinite(p) && p >= 1 && p <= 120) updateFullSolveTargetPb(p); }}
               />
             </div>
 
@@ -4625,7 +4697,7 @@ function OLLDaySuite() {
                 value={getPhaseTargetPb(selectedTargetPhase)} min={0.15} max={15.0} draftValue={phaseTargetInput} accentTextClass="text-amber-300"
                 onSliderChange={(sec) => updatePhaseTargetPb(selectedTargetPhase, sec)}
                 onStepDelta={(d) => { emitBeep(540); updatePhaseTargetPb(selectedTargetPhase, getPhaseTargetPb(selectedTargetPhase) + d); }}
-                onDraftChange={(val) => { setPhaseTargetInput(val); const p = parseFloat(val); if (Number.isFinite(p) && p >= 0.1 && p <= 30) updatePhaseTargetPb(selectedTargetPhase, p); }}
+                onDraftChange={(val) => { setPbDrafts((prev) => ({ ...prev, phase: val })); const p = parseFloat(val); if (Number.isFinite(p) && p >= 0.1 && p <= 30) updatePhaseTargetPb(selectedTargetPhase, p); }}
               />
             </div>
 
@@ -4652,7 +4724,7 @@ function OLLDaySuite() {
         )
       },
       {
-        num: 3,
+        num: 4,
         category: '3x3x3 Timer',
         title: 'WCA Speedcube Timer',
         content: (
@@ -4676,78 +4748,71 @@ function OLLDaySuite() {
         )
       },
       {
-        num: 4,
-        category: 'Notation & Fingertricks',
-        title: 'WCA Key & Trigger Dossier',
+        num: 5,
+        category: 'Move Reference',
+        title: 'WCA Notation Key',
         content: (
-          <div data-card-scroll="true" className="max-h-[345px] overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
-            <button
-              type="button"
-              onClick={startGuidedTour}
-              className="w-full h-9 px-3.5 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/40 text-[10.5px] font-black text-orange-200 flex items-center justify-center cursor-pointer"
-            >
-              Open Quick-Start Guide →
-            </button>
-
-            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-white">WCA Notation Key</span>
-                <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                  {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
-                    <button
-                      key={sec} type="button" onClick={() => { emitBeep(480); setNotationFilter(sec); }}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer ${notationFilter === sec ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
-                    >
-                      {sec === 'All' ? 'All' : sec.split(' ')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
-                  <div key={item.move} className="bg-black/45 border border-white/10 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs font-black text-amber-300 flex-shrink-0">{item.move}</span>
-                    <span className="text-[11px] text-zinc-200 text-right">{item.desc}</span>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-2.5">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+              {['All', 'Outer Faces', 'Wide Turns', 'Slice Moves', 'Rotations'].map((sec) => (
+                <button
+                  key={sec} type="button" onClick={() => { emitBeep(480); setNotationFilter(sec); }}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${notationFilter === sec ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
+                >
+                  {sec}
+                </button>
+              ))}
             </div>
-
-            <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-white">Fingertrick Dossier</span>
-                <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                  {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
-                    <button
-                      key={cat} type="button" onClick={() => { emitBeep(480); setDossierFilter(cat); }}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap cursor-pointer ${dossierFilter === cat ? 'bg-orange-500 text-slate-950' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
-                    >
-                      {cat === 'All' ? 'All' : cat.split(' ')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
-                  <div key={trig.id} className="bg-black/45 border border-white/10 rounded-xl p-2.5 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
-                        <span className="text-xs font-black text-white">{trig.name}</span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
-                    </div>
-                    <p className="text-[10px] text-zinc-200 leading-snug"><strong className="text-orange-400">Grip:</strong> {trig.grip}</p>
-                    <p className="text-[10px] text-zinc-300 leading-snug">{trig.execution}</p>
+            <div data-card-scroll="true" className="max-h-[305px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+              {WCA_NOTATION_GUIDE.filter((n) => notationFilter === 'All' || n.section === notationFilter).map((item) => (
+                <div key={item.move} className="liquid-glass-uv-well border border-white/15 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex-shrink-0">
+                    <span className="font-mono text-sm font-black text-amber-300 block">{item.move}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{item.section}</span>
                   </div>
-                ))}
-              </div>
+                  <span className="text-xs text-zinc-200 text-right leading-snug">{item.desc}</span>
+                </div>
+              ))}
             </div>
           </div>
         )
       },
       {
-        num: 5,
+        num: 6,
+        category: 'Execution Mechanics',
+        title: 'Fingertrick Dossier',
+        content: (
+          <div className="space-y-2.5">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+              {['All', 'Core Triggers', 'F-Layer Triggers', 'Speed Flicks', 'Slice & Ring'].map((cat) => (
+                <button
+                  key={cat} type="button" onClick={() => { emitBeep(480); setDossierFilter(cat); }}
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap cursor-pointer transition-all ${dossierFilter === cat ? 'bg-orange-500 text-slate-950 shadow-sm' : 'bg-white/[0.08] text-zinc-300 hover:text-white'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div data-card-scroll="true" className="max-h-[305px] overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+              {FINGERTRICK_CODEX.filter((t) => dossierFilter === 'All' || t.category === dossierFilter).map((trig) => (
+                <div key={trig.id} className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${trig.dotClass}`} />
+                      <span className="text-xs font-black text-white">{trig.name}</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full border font-mono text-[10px] font-black ${trig.badgeClass}`}>{trig.notation}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-200 leading-snug"><strong className="text-orange-400">Grip:</strong> {trig.grip}</p>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">{trig.execution}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      },
+      {
+        num: 7,
         category: 'Feedback & Sensory',
         title: 'Haptics, Audio & Triggers',
         content: (
@@ -4771,7 +4836,7 @@ function OLLDaySuite() {
         )
       },
       {
-        num: 6,
+        num: 8,
         category: 'Account & Data',
         title: 'Reset & Privacy Controls',
         content: (
@@ -4973,10 +5038,16 @@ function OLLDaySuite() {
                     Day {safeDay} • {dayObj.mode}
                   </span>
                   <span className="text-[10px] font-bold text-zinc-400">
-                    {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered ({phaseProgressPct}%)
+                    {masteredCount}/{dataList.length} {phaseKey.toUpperCase()} Mastered
                   </span>
                 </div>
-                <Streak3DCube streakDays={activeStreak} progressPct={phaseProgressPct} streakActive={streakIntact} />
+                <Streak3DCube
+                  streakDays={activeStreak}
+                  currentDay={safeDay}
+                  totalDays={scheduleList.length}
+                  progressPct={phaseProgressPct}
+                  streakActive={streakIntact}
+                />
               </div>
 
               <div>
@@ -5053,7 +5124,11 @@ function OLLDaySuite() {
                 <button
                   onClick={() => {
                     emitBeep(480);
-                    const updated = { ...currentUser, [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1 };
+                    const updated = {
+                      ...currentUser,
+                      ...advanceDailyStreakFields(currentUser),
+                      [dayField]: safeDay >= scheduleList.length ? 1 : safeDay + 1
+                    };
                     setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
                     saveUserToCloud(resolvedUserKey, updated);
                   }}
@@ -5911,30 +5986,18 @@ function OLLDaySuite() {
               <div className={isTwoPane ? 'max-w-2xl mx-auto' : ''}>
                 {activePhase === 'cross' && (
                   <>
-                    {phaseTabs.cross === 'ladder' && (() => {
-                      const crossProgressPct = Math.round(
-                        Math.max(
-                          (Math.min(15, currentUser.crossClears || 0) / 15) * 100,
-                          ((safeCrossDay - 1) / Math.max(1, crossSchedule.length)) * 100
-                        )
-                      );
-                      const crossActiveStreak = computeActiveStreakDays(currentUser.consecutiveStreakDays, currentUser.lastActiveDate);
-                      const crossStreakIntact = crossActiveStreak > 0 || (safeCrossDay === 1 && (currentUser.crossClears || 0) === 0);
-                      return (
+                    {phaseTabs.cross === 'ladder' && (
                       <div className="p-4 sm:p-5 pb-28 space-y-3.5">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-orange-500 font-black uppercase tracking-widest text-[10px]">
                               Day {safeCrossDay} • {currentCrossDayObj?.mode || 'Learn'}
                             </p>
                             <h2 className="text-2xl font-black tracking-tight text-white">Cross in X Ladder</h2>
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <Streak3DCube streakDays={crossActiveStreak} progressPct={crossProgressPct} streakActive={crossStreakIntact} />
-                            <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-3.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex items-center justify-center active:scale-95 cursor-pointer">
-                              Orbit
-                            </button>
-                          </div>
+                          <button type="button" onClick={() => { emitBeep(520); setActiveModal('compass'); }} className="h-9 px-4 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[11px] font-bold whitespace-nowrap flex-shrink-0 flex items-center justify-center active:scale-95 cursor-pointer">
+                            Color Orbit
+                          </button>
                         </div>
 
                         {/* Cross 4-Day Cadence Banner (Day 1 Learn -> Days 2-3 Random Drill -> Day 4 Next / Day 7 Cumulative Review) */}
@@ -6227,8 +6290,7 @@ function OLLDaySuite() {
                           </div>
                         )}
                       </div>
-                      );
-                    })()}
+                    )}
 
                     {phaseTabs.cross === 'blind' && (
                       <div className="relative p-4 sm:p-5 pb-28 space-y-3.5">
@@ -6259,7 +6321,7 @@ function OLLDaySuite() {
 
                           <div className="liquid-glass-card liquid-rim-amber border border-white/10 rounded-3xl p-6 shadow-xl text-center">
                             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">WCA Inspection Timer</span>
-                            <div ref={inspectionDisplayRef} className="font-mono text-5xl font-black text-white my-3">{inspectionLeftRef.current.toFixed(1)}</div>
+                            <div ref={inspectionDisplayRef} className="font-timer text-5xl font-black text-white my-3">{inspectionLeftRef.current.toFixed(1)}</div>
                             <p className="text-xs font-bold text-orange-400">
                               {blindState === 'idle' && 'Tap Start 15s Countdown to inspect'}
                               {blindState === 'inspecting' && 'Inspecting — Hold both pads 0.35s to arm'}
@@ -6646,7 +6708,7 @@ function OLLDaySuite() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center justify-center my-auto text-center">
-              <div ref={fullTimerDisplayRef} className={`text-7xl sm:text-8xl font-mono font-black tracking-tight transition-colors ${fullTimerState === 'running' ? 'text-green-400' : 'text-white'}`}>
+              <div ref={fullTimerDisplayRef} className={`font-timer text-7xl sm:text-8xl font-black tracking-tight transition-colors ${fullTimerState === 'running' ? 'text-green-400' : 'text-white'}`}>
                 {(fullFinalMsRef.current / 1000).toFixed(2)}
               </div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap or Press Space to Stop' : 'Tap or Press Space to Start'}</p>
@@ -6992,20 +7054,20 @@ function OLLDaySuite() {
         {(activeModal === 'cfopExperienceChoice' || activeModal === 'guidedTour') && (
           <div
             onClick={() => { emitBeep(440); setActiveModal(null); }}
-            className="fixed inset-0 z-[272] bg-black/85 backdrop-blur-xl flex items-center justify-center p-5"
+            className="fixed inset-0 z-[272] bg-black/70 backdrop-blur-2xl flex items-center justify-center p-5"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="relative liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-3xl p-6 max-w-sm w-full shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4 text-center"
+              className="relative liquid-glass-uv border border-white/25 rounded-3xl p-6 max-w-sm w-full shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4 text-center"
             >
               <div className="flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/35 text-[10px] font-black uppercase tracking-widest text-orange-400">
+                <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-[10px] font-black uppercase tracking-widest text-orange-300">
                   Quick-Start • {String(activeUserKey || 'Solver')}
                 </span>
                 <button
                   type="button"
                   onClick={() => { emitBeep(440); setActiveModal(null); }}
-                  className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-bold text-zinc-400 hover:text-white cursor-pointer"
+                  className="px-3 py-1 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/15 text-[10px] font-bold text-zinc-200 cursor-pointer"
                 >
                   Skip ✕
                 </button>
@@ -7014,14 +7076,14 @@ function OLLDaySuite() {
               <div className="relative h-32 flex items-center justify-center hero-cube-float">
                 <div
                   className="pointer-events-none absolute w-28 h-28 rounded-full"
-                  style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)' }}
+                  style={{ background: 'radial-gradient(circle, rgba(249, 115, 22, 0.28) 0%, rgba(249, 115, 22, 0) 70%)' }}
                 />
                 <CrossSpatial3DCube scramble="R' F R D'" yaw={-35} pitch={34} isDragging={false} />
               </div>
 
               <div className="space-y-1">
                 <h3 className="text-xl font-black text-white">Are You New to CFOP?</h3>
-                <p className="text-xs text-zinc-300 leading-relaxed">
+                <p className="text-xs text-zinc-200 leading-relaxed">
                   Pick your starting experience—we&apos;ll route you to the exact right step.
                 </p>
               </div>
@@ -7052,12 +7114,192 @@ function OLLDaySuite() {
                     setTabForPhase('f2l', 'grind');
                     setActiveModal(null);
                   }}
-                  className="w-full p-3.5 rounded-[1.5rem] bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white cursor-pointer transition-all"
+                  className="w-full p-3.5 rounded-[1.5rem] liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 text-white cursor-pointer transition-all"
                 >
                   <span className="text-xs font-black uppercase tracking-wider block">Know Layer-by-Layer →</span>
-                  <span className="text-[10.5px] text-zinc-300 block mt-0.5">
+                  <span className="text-[10.5px] text-zinc-200 block mt-0.5">
                     Jump into F2L Day 1 Guided Lesson to pair corners &amp; edges fast.
                   </span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/15">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('newToCfop'); }}
+                  className="py-2 px-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-[10px] font-black uppercase tracking-wider text-amber-300 cursor-pointer"
+                >
+                  Why CFOP? →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('appTutorial'); }}
+                  className="py-2 px-3 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-[10px] font-black uppercase tracking-wider text-purple-200 cursor-pointer"
+                >
+                  App Tutorial →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* NEW TO CFOP — UV-COATED LIQUID GLASS OVERLAY */}
+        {activeModal === 'newToCfop' && (
+          <div
+            onClick={() => { emitBeep(440); setActiveModal(null); }}
+            className="fixed inset-0 z-[274] bg-black/65 backdrop-blur-2xl flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative liquid-glass-uv border border-white/25 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[88dvh] overflow-y-auto no-scrollbar shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/45 text-[10px] font-black uppercase tracking-widest text-orange-200">
+                  CFOP Blueprint • Sub-15 Architecture
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setActiveModal(null); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-white font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black text-white leading-tight">Why CFOP Is the Gold Standard of Speedcubing</h3>
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  Beginner layer-by-layer methods take <strong className="text-white">100–130 moves</strong> because they solve one piece at a time. <strong className="text-amber-300">CFOP</strong> compresses the entire solve into <strong className="text-white">~55 ergonomic moves</strong> across 4 streamlined stages—the exact system used to set world records.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  { badge: 'C', title: 'Cross (≤8 Moves)', desc: 'Solve all 4 white bottom edges simultaneously during inspection without peeking at the bottom.' },
+                  { badge: 'F', title: 'F2L — First Two Layers (41 Cases)', desc: 'Pair bottom corners with middle-layer edges simultaneously, cutting solve steps in half.' },
+                  { badge: 'O', title: 'OLL — Orient Last Layer (57 Cases)', desc: 'Turn the entire top face solid yellow in a single 1-look algorithm burst.' },
+                  { badge: 'P', title: 'PLL — Permute Last Layer (21+ Cases)', desc: 'Swap all top corners and edges into their solved homes in one final trigger sequence.' }
+                ].map((stage) => (
+                  <div key={stage.badge} className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3 flex items-start gap-3">
+                    <span className="w-7 h-7 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {stage.badge}
+                    </span>
+                    <div>
+                      <span className="text-xs font-black text-white block">{stage.title}</span>
+                      <p className="text-[11px] text-zinc-200/90 leading-snug mt-0.5">{stage.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="liquid-glass-uv-well border border-orange-400/35 rounded-2xl p-3.5 space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-300 block">
+                  How OLLDay Makes All 123 Cases Effortless
+                </span>
+                <p className="text-[11px] text-zinc-200 leading-relaxed">
+                  Instead of overwhelming you with 123 raw algorithms, OLLDay splits CFOP into <strong className="text-white">4–8 case micro-chunks</strong>, maps <strong className="text-amber-300">3D interactive setups</strong> so you never misread an angle, highlights <strong className="text-orange-300">inline fingertrick triggers</strong>, and verifies your real cube anytime with the <strong className="text-white">AI Camera Scanner</strong>.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('appTutorial'); }}
+                  className="py-3 px-3 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white cursor-pointer"
+                >
+                  Next: App Tutorial →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    emitBeep(760, 'sine', 0.08);
+                    setActivePhase('cross');
+                    setTabForPhase('cross', 'ladder');
+                    setCrossTier(1);
+                    setActiveModal(null);
+                  }}
+                  className="py-3 px-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  Start Cross L1 →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* APP TUTORIAL — UV-COATED LIQUID GLASS OVERLAY */}
+        {activeModal === 'appTutorial' && (
+          <div
+            onClick={() => { emitBeep(440); setActiveModal(null); }}
+            className="fixed inset-0 z-[274] bg-black/65 backdrop-blur-2xl flex items-center justify-center p-5"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative liquid-glass-uv border border-white/25 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[88dvh] overflow-y-auto no-scrollbar shadow-[0_28px_75px_rgba(0,0,0,0.9)] space-y-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/45 text-[10px] font-black uppercase tracking-widest text-purple-200">
+                  App Tutorial • Mastery System
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(440); setActiveModal(null); }}
+                  className="w-8 h-8 rounded-full bg-white/[0.1] hover:bg-white/[0.2] border border-white/20 text-white font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-white leading-tight">How OLLDay Trains Muscle Memory</h3>
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  Every tool in OLLDay is engineered around short, focused daily reps that lock recognition and execution into reflex.
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-orange-300 block">
+                    1. The 4-Day Daily Session Loop (The Grind)
+                  </span>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    <strong className="text-white">Day 1 (Learn):</strong> Introduces a small chunk in order with 3D previews and grip cues. <strong className="text-white">Days 2 &amp; 3 (Random Drill):</strong> Shuffles those cases to build instant recognition. Every 2 chunks triggers a <strong className="text-amber-300">Cumulative Review Day</strong> so older algorithms never fade.
+                  </p>
+                </div>
+
+                <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 block">
+                    2. Getting the Most Out of Cross in X
+                  </span>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    Start in <strong className="text-white">Move Efficiency</strong> to solve 2–6 move scrambles without peeking at the bottom—drag the 3D cube to verify your white edges, then log your turn count to beat the target cap. Once comfortable, switch to <strong className="text-orange-300">Blind Practice</strong> (15s WCA inspection + dual-thumb Speedstack pads) and study the <strong className="text-white">4 Cross Mechanics</strong> (Color Orbit, Good/Bad Edges, Keyhole &amp; X-Cross).
+                  </p>
+                </div>
+
+                <div className="liquid-glass-uv-well border border-white/15 rounded-2xl p-3.5 space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-200 block">
+                    3. Tap-to-Time PBs, Cube Scanner &amp; Phase Cube
+                  </span>
+                  <p className="text-[11px] text-zinc-200 leading-relaxed">
+                    Tap anywhere during a drill (or press <strong className="text-white">Spacebar</strong>) to record millisecond case PBs toward your custom goal. Use <strong className="text-orange-300">Scan Cube</strong> in the header to get a live 4-stage solve roadmap from any scramble, and tap the <strong className="text-white">Orange 3×3 Cube</strong> on the bottom dock to switch between <strong className="text-amber-300">C • F • O • P</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(640); setActiveModal('newToCfop'); }}
+                  className="py-3 px-3 rounded-full bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 text-[11px] font-black text-white cursor-pointer"
+                >
+                  ← New to CFOP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { emitBeep(760, 'sine', 0.08); setActiveModal(null); }}
+                  className="py-3 px-3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer"
+                >
+                  Got It, Let&apos;s Train ✓
                 </button>
               </div>
             </div>
@@ -7856,18 +8098,18 @@ function OLLDaySuite() {
             { prompt: 'White bottom, Orange is front — what color is to the right?', answer: 'Blue' },
             { prompt: 'White bottom, Red is front — what color is to the right?', answer: 'Green' }
           ];
-          const currentQ = ORBIT_QUESTIONS[orbitQuizIdx % 4];
+          const currentQ = ORBIT_QUESTIONS[orbitQuiz.idx % 4];
           return (
-            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} zClass="z-[255]" maxWidth="max-w-xs">
+            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">Color Orbit</span>
-                    {orbitQuizActive && <span className="font-mono text-[10px] font-bold text-zinc-400">Streak: {orbitStreak}</span>}
+                    {orbitQuiz.active && <span className="font-mono text-[10px] font-bold text-zinc-400">Streak: {orbitQuiz.streak}</span>}
                   </div>
-                  <button type="button" onClick={() => { emitBeep(620); setOrbitFeedback(null); setOrbitQuizActive(true); setOrbitQuizIdx((i) => i + 1); }} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer">Hit Me</button>
+                  <button type="button" onClick={() => { emitBeep(620); setOrbitQuiz((q) => ({ ...q, active: true, feedback: null, idx: q.idx + 1 })); }} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-[11px] uppercase cursor-pointer">Hit Me</button>
                 </div>
-                {!orbitQuizActive ? (
+                {!orbitQuiz.active ? (
                   <div className="liquid-glass-well border border-white/10 rounded-2xl p-4 space-y-2.5 text-center">
                     <p className="text-xs text-zinc-300 leading-relaxed">Hold <strong className="text-white">White</strong> on the bottom (<strong className="text-white">D</strong>). Clockwise:</p>
                     <p className="font-mono text-sm font-black tracking-wide"><span className="text-green-400">Green</span> → <span className="text-orange-400">Orange</span> → <span className="text-blue-400">Blue</span> → <span className="text-red-400">Red</span></p>
@@ -7879,14 +8121,14 @@ function OLLDaySuite() {
                       {['Green', 'Red', 'Orange', 'Blue'].map((colorName) => (
                         <button
                           key={colorName} type="button"
-                          onClick={() => { const correct = colorName === currentQ.answer; emitBeep(correct ? 880 : 320); setOrbitStreak((s) => (correct ? s + 1 : 0)); setOrbitFeedback({ correct, chosen: colorName }); }}
+                          onClick={() => { const correct = colorName === currentQ.answer; emitBeep(correct ? 880 : 320); setOrbitQuiz((q) => ({ ...q, streak: correct ? q.streak + 1 : 0, feedback: { correct, chosen: colorName } })); }}
                           className="py-2.5 px-3 rounded-full border border-white/15 bg-white/[0.05] hover:bg-white/[0.12] text-xs font-black text-white cursor-pointer"
                         >
                           {colorName}
                         </button>
                       ))}
                     </div>
-                    {orbitFeedback && <p className={`text-[11px] font-black ${orbitFeedback.correct ? 'text-green-400' : 'text-red-400'}`}>{orbitFeedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}</p>}
+                    {orbitQuiz.feedback && <p className={`text-[11px] font-black ${orbitQuiz.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>{orbitQuiz.feedback.correct ? 'Correct!' : `Answer: ${currentQ.answer}`}</p>}
                   </div>
                 )}
                 <button type="button" onClick={() => { setActiveModal(null); setOrbitQuizActive(false); setOrbitFeedback(null); }} className="w-full py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 font-bold text-xs uppercase cursor-pointer">Close</button>
