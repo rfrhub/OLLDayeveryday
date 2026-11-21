@@ -1764,7 +1764,7 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                   height: `${MINI_STREAK_HALF * 2}px`,
                   transform,
                   backfaceVisibility: 'hidden',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: '#cbd5e1',
                   borderRadius: '4px',
                   padding: '1.5px',
                   display: 'grid',
@@ -1775,7 +1775,7 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                     ? 'inset 0 0 0 0.75px rgba(216, 180, 254, 0.75), 0 0 10px rgba(192, 132, 252, 0.35)'
                     : isHalfwayDay
                     ? 'inset 0 0 0 0.75px rgba(251, 191, 36, 0.65)'
-                    : 'inset 0 0 0 0.75px rgba(148, 163, 184, 0.35)'
+                    : 'inset 0 0 0 0.75px rgba(100, 116, 139, 0.35)'
                 }}
               >
                 {MINI_STREAK_SLOTS.map((idx) => {
@@ -1785,14 +1785,14 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
                     <div
                       key={idx}
                       style={{
-                        backgroundColor: isLit ? STICKER_HEX[faceColor] : '#e2e8f0',
+                        backgroundColor: isLit ? STICKER_HEX[faceColor] : '#11131a',
                         borderRadius: '1.5px',
                         filter: isHalfwayDay && isLit ? 'contrast(0.92) saturate(0.88)' : undefined,
                         boxShadow: isLatestTile
-                          ? '0 0 4px rgba(249,115,22,0.95), inset 0 0.5px 1px rgba(255,255,255,0.85)'
+                          ? '0 0 4px rgba(255,255,255,0.95), inset 0 0.5px 1px rgba(255,255,255,0.75)'
                           : isLit && !isHalfwayDay
                           ? 'inset 0 0.5px 1px rgba(255,255,255,0.55)'
-                          : 'inset 0 0.5px 0.75px rgba(15, 23, 42, 0.14)'
+                          : 'inset 0 0.5px 0.75px rgba(255, 255, 255, 0.06)'
                       }}
                     />
                   );
