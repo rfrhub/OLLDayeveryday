@@ -7093,14 +7093,10 @@ const toastTimerRef = useRef(null);
                   </div>
                 )}
 
-                {authMode === 'signin' && (
+             {authMode === 'signin' && (
                   <div className="w-full max-w-sm">
                     <div className="relative overflow-hidden rounded-3xl liquid-glass-uv border border-white/25 p-6 space-y-4">
                       <div className="text-center space-y-1">
-                        <h2 className="text-xl font-black tracking-tight text-white">Welcome Back</h2>
-                        <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
-                      </div>
-<div className="text-center space-y-1">
                         <h2 className="text-xl font-black tracking-tight text-white">Welcome Back</h2>
                         <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
                       </div>
@@ -7111,7 +7107,6 @@ const toastTimerRef = useRef(null);
                         isNativeIos={isNativeIosApp}
                       />
 
-                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
                       <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
                         {savedAccountKeys.map((uKey) => {
                           const uData = sanitizeUserRecord(users[uKey]);
