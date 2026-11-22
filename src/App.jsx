@@ -1564,7 +1564,49 @@ function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
     </Wrapper>
   );
 }
+function SocialAuthButtons({ onGoogle, onGameCenter, isNativeIos }) {
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={onGoogle}
+        className="w-full py-3 px-4 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 hover:border-orange-400/55 text-white font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_20px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
+      >
+        <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z" />
+            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z" />
+          </svg>
+        </span>
+        <span>Continue with Google</span>
+      </button>
 
+      <button
+        type="button"
+        onClick={onGameCenter}
+        className="w-full py-3 px-4 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 hover:border-orange-400/55 text-white font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_20px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
+      >
+        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 via-pink-500 to-sky-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+          <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="8.5" cy="9" r="3.8" fillOpacity="0.95" />
+            <circle cx="15.5" cy="8.5" r="3" fillOpacity="0.85" />
+            <circle cx="10.5" cy="15.5" r="3.3" fillOpacity="0.9" />
+            <circle cx="16.2" cy="14.8" r="2.4" fillOpacity="0.8" />
+          </svg>
+        </span>
+        <span>{isNativeIos ? 'Continue with Game Center' : 'Game Center / Apple'}</span>
+      </button>
+
+      <div className="flex items-center gap-2 pt-0.5 text-[9.5px] font-black uppercase tracking-widest text-zinc-400">
+        <span className="h-px flex-1 bg-white/15" />
+        <span>or solver profile</span>
+        <span className="h-px flex-1 bg-white/15" />
+      </div>
+    </div>
+  );
+}
 function TriggerTagsList({ tags, centered = false, compact = false }) {
   if (!tags?.length) return null;
   return (
@@ -3694,7 +3736,101 @@ function OLLDaySuite() {
   const [ollDrillCase, setOllDrillCase] = useState(null);
   const [pllSession, setPllSession] = useState(null);
   const [pllDrillCase, setPllDrillCase] = useState(null);
+const isNativeIosApp =
+    typeof window !== 'undefined' &&
+    window.Capacitor?.isNativePlatform?.() &&
+    window.Capacitor?.getPlatform?.() === 'ios';
 
+  const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver') => {
+    const displayName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
+    const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles');
+    const snap = await svc.fsMod.getDocs(colRef);
+
+    let chosenKey = displayName;
+    if (!snap.empty) {
+      const firstDoc = snap.docs[0];
+      chosenKey = firstDoc.id;
+      const cloudRecord = sanitizeUserRecord({
+        ...firstDoc.data(),
+        email: fbUser.email || firstDoc.data().email || ''
+      });
+      setUsers((prev) => ({ ...prev, [chosenKey]: cloudRecord }));
+    } else {
+      const freshRecord = sanitizeUserRecord({ email: fbUser.email || '', isPro: false });
+      setUsers((prev) => ({ ...prev, [chosenKey]: freshRecord }));
+      await svc.fsMod.setDoc(
+        svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', chosenKey),
+        { ...freshRecord, updatedAt: Date.now() },
+        { merge: true }
+      );
+    }
+
+    registerDeviceAccount(chosenKey);
+    setActiveUserKey(chosenKey);
+    setAuthNameInput('');
+    setAuthEmailInput('');
+    setAuthScreenOpen(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    emitBeep(720, 'sine', 0.08);
+    setAuthErrorMsg('');
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const provider = new svc.authMod.GoogleAuthProvider();
+      const cred = await svc.authMod.signInWithPopup(svc.auth, provider);
+      await syncCloudProfileAfterOAuth(svc, cred.user, 'Google Solver');
+    } catch (err) {
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthErrorMsg(err?.message || 'Google sign-in failed — please try again.');
+      }
+    }
+  };
+
+  const handleGameCenterSignIn = async () => {
+    emitBeep(760, 'sine', 0.08);
+    setAuthErrorMsg('');
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const gameCenterPlugin = typeof window !== 'undefined' ? window.Capacitor?.Plugins?.GameCenter : null;
+      if (isNativeIosApp && gameCenterPlugin?.authenticate) {
+        const gcPlayer = await gameCenterPlugin.authenticate();
+        const gcName = (gcPlayer?.displayName || gcPlayer?.alias || 'Game Center Solver').trim();
+        if (!svc.auth.currentUser) {
+          await svc.authMod.signInAnonymously(svc.auth);
+        }
+        await syncCloudProfileAfterOAuth(svc, svc.auth.currentUser, gcName);
+        return;
+      }
+      const appleProvider = new svc.authMod.OAuthProvider('apple.com');
+      appleProvider.addScope('email');
+      appleProvider.addScope('name');
+      const cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
+      await syncCloudProfileAfterOAuth(svc, cred.user, 'Apple Solver');
+    } catch (err) {
+      if (err?.code === 'auth/operation-not-allowed') {
+        setAuthErrorMsg('Game Center activates automatically in the iOS App Store build — use Google or a Solver Name on web.');
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthErrorMsg(err?.message || 'Game Center sign-in unavailable on this browser.');
+      }
+    }
+  };
   const registerDeviceAccount = (uKey) => {
     if (!uKey || typeof uKey !== 'string') return;
     setDeviceAccountKeys((prev) => {
@@ -6892,7 +7028,21 @@ const toastTimerRef = useRef(null);
                         <h2 className="text-xl font-black tracking-tight text-white">Create Your Account</h2>
                         <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
                       </div>
+<div className="text-center space-y-1">
+                        <span className="inline-block px-3 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-widest text-orange-300">
+                          Free Solver Profile
+                        </span>
+                        <h2 className="text-xl font-black tracking-tight text-white">Create Your Account</h2>
+                        <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
+                      </div>
 
+                      <SocialAuthButtons
+                        onGoogle={handleGoogleSignIn}
+                        onGameCenter={handleGameCenterSignIn}
+                        isNativeIos={isNativeIosApp}
+                      />
+
+                      <div className="space-y-2.5">
                       <div className="space-y-2.5">
                         <input
                           type="text"
@@ -6950,7 +7100,18 @@ const toastTimerRef = useRef(null);
                         <h2 className="text-xl font-black tracking-tight text-white">Welcome Back</h2>
                         <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
                       </div>
+<div className="text-center space-y-1">
+                        <h2 className="text-xl font-black tracking-tight text-white">Welcome Back</h2>
+                        <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
+                      </div>
 
+                      <SocialAuthButtons
+                        onGoogle={handleGoogleSignIn}
+                        onGameCenter={handleGameCenterSignIn}
+                        isNativeIos={isNativeIosApp}
+                      />
+
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
                       <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
                         {savedAccountKeys.map((uKey) => {
                           const uData = sanitizeUserRecord(users[uKey]);
