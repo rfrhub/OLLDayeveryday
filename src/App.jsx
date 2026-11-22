@@ -5851,9 +5851,6 @@ const toastTimerRef = useRef(null);
           <div>
             <h2 className="text-lg font-black tracking-tight text-white">Notation &amp; Mechanics</h2>
           </div>
-          <span className="px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[9.5px] font-black uppercase tracking-wider text-zinc-400">
-            {viewportDevice.kind === 'tablet' ? 'iPad / Tablet' : 'Desktop'} • {activePhase === 'cross' ? 'Cross' : activePhase === 'f2l' ? 'F2L' : activePhase === 'oll' ? 'OLL' : 'PLL'}
-          </span>
         </div>
 
         <div className="liquid-glass-well p-1 rounded-xl grid grid-cols-2 flex-shrink-0">
@@ -6016,11 +6013,6 @@ const toastTimerRef = useRef(null);
               <h1 className={`${isTwoPane ? 'text-base' : 'text-sm'} font-black tracking-tight text-white whitespace-nowrap`}>
                 OLLDay <span className="text-orange-400">Everyday</span>
               </h1>
-              {isTwoPane && (
-                <span className="inline-block px-3 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold text-zinc-400">
-                  {viewportDevice.kind === 'tablet' ? 'iPad / Tablet' : 'Desktop'} • Phase {activePhase.toUpperCase()}
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 relative">
