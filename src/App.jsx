@@ -1949,7 +1949,7 @@ function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
   );
 }
 
-function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-[#040814]/88 backdrop-blur-md', children }) {
+function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-[#040814]/94 backdrop-blur-md', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} ${backdropClass} flex items-center justify-center p-5`}>
       <div
@@ -1964,7 +1964,7 @@ function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', border
 
 function UvModalShell({ onClose, zClass = 'z-[274]', maxWidth = 'max-w-md', className = 'p-5 sm:p-6 max-h-[88dvh] overflow-y-auto no-scrollbar space-y-4', children }) {
   return (
-    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#040814]/88 backdrop-blur-md flex items-center justify-center p-5`}>
+    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#040814]/94 backdrop-blur-md flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
         className={`relative liquid-glass-uv border border-white/25 rounded-3xl ${maxWidth} w-full shadow-[0_14px_38px_rgba(0,0,0,0.45)] ${className}`}
@@ -5931,7 +5931,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#040814]/88 backdrop-blur-md flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#040814]/94 backdrop-blur-md flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
@@ -6029,7 +6029,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040814]/88 backdrop-blur-md overflow-hidden ${
+        className={`fixed inset-0 z-[245] bg-[#040814]/94 backdrop-blur-md overflow-hidden ${
           isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
