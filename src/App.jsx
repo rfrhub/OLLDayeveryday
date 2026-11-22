@@ -45,8 +45,16 @@ async function getFirebaseServices() {
           import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'),
           import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js')
         ]);
-        const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
-        return { auth: authMod.getAuth(appInstance), db: fsMod.getFirestore(appInstance), authMod, fsMod };
+      const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
+        let db;
+        try {
+          db = fsMod.initializeFirestore(appInstance, {
+            localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+          });
+        } catch {
+          db = fsMod.getFirestore(appInstance);
+        }
+        return { auth: authMod.getAuth(appInstance), db, authMod, fsMod };
       } catch {
         firebaseSdkPromise = null;
         return null;
@@ -2754,8 +2762,8 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
   latestUsersRef.current = users;
   const cloudAuthUserRef = useRef(cloudAuthUser);
   cloudAuthUserRef.current = cloudAuthUser;
-  const pendingCloudSyncRef = useRef(null);
-  const lastCloudWriteRef = useRef({ uKey: '', ts: 0 });
+ const pendingCloudSyncRef = useRef(new Map());
+  const lastCloudWriteRef = useRef(new Map());
   const cloudSaveTimerRef = useRef(null);
   const localSaveTimerRef = useRef(null);
 
@@ -2763,27 +2771,31 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     if (localSaveTimerRef.current) { clearTimeout(localSaveTimerRef.current); localSaveTimerRef.current = null; }
     storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
     if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
-    const pending = pendingCloudSyncRef.current;
     const uid = cloudAuthUserRef.current?.uid;
-    if (pending?.uKey && resolvedFirebaseConfig && uid) {
-      pendingCloudSyncRef.current = null;
+    if (pendingCloudSyncRef.current.size > 0 && resolvedFirebaseConfig && uid) {
+      const batchEntries = Array.from(pendingCloudSyncRef.current.entries());
+      pendingCloudSyncRef.current.clear();
       try {
         const svc = await getFirebaseServices();
         if (!svc) {
-          if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
+          batchEntries.forEach(([k, rec]) => { if (!pendingCloudSyncRef.current.has(k)) pendingCloudSyncRef.current.set(k, rec); });
           setCloudSyncStatus('local');
           return;
         }
         const writeTs = Date.now();
-        lastCloudWriteRef.current = { uKey: pending.uKey, ts: writeTs };
-        await svc.fsMod.setDoc(
-          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
-          { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
-          { merge: true }
+        await Promise.all(
+          batchEntries.map(([uKey, record]) => {
+            lastCloudWriteRef.current.set(uKey, writeTs);
+            return svc.fsMod.setDoc(
+              svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', uKey),
+              { ...sanitizeUserRecord(record), updatedAt: writeTs },
+              { merge: true }
+            );
+          })
         );
         setCloudSyncStatus('synced');
       } catch {
-        if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
+        batchEntries.forEach(([k, rec]) => { if (!pendingCloudSyncRef.current.has(k)) pendingCloudSyncRef.current.set(k, rec); });
         setCloudSyncStatus('local');
       }
     }
@@ -2791,19 +2803,20 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
 
   const saveUserToCloud = (uKey, record) => {
     if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUserRef.current?.uid) return;
-    pendingCloudSyncRef.current = { uKey, record };
+    pendingCloudSyncRef.current.set(uKey, record);
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 1200);
+    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 2500);
   };
 
   const cancelPendingWriteFor = (uKey) => {
-    if (pendingCloudSyncRef.current?.uKey === uKey) {
-      pendingCloudSyncRef.current = null;
-      if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
+    pendingCloudSyncRef.current.delete(uKey);
+    if (pendingCloudSyncRef.current.size === 0 && cloudSaveTimerRef.current) {
+      clearTimeout(cloudSaveTimerRef.current);
+      cloudSaveTimerRef.current = null;
     }
   };
 
-  useEffect(() => () => { if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current); }, []);
+  useEffect(() => () => { flushPendingPersistence(); }, []);
 
   useEffect(() => {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
@@ -2833,34 +2846,36 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     return () => { cancelled = true; unsubAuth?.(); };
   }, []);
 
-  useEffect(() => {
+ useEffect(() => {
     const uid = cloudAuthUser?.uid;
-    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo' || !isAppVisible) {
-      if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') setCloudSyncStatus('local');
+    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
+      setCloudSyncStatus('local');
       return;
     }
-    let unsubSnapshot = null, cancelled = false;
+    let cancelled = false;
     (async () => {
-      const svc = await getFirebaseServices();
-      if (!svc || cancelled) return;
-      setCloudSyncStatus('synced');
-      unsubSnapshot = svc.fsMod.onSnapshot(
-        svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey),
-        (docSnap) => {
-          if (cancelled || !docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
-          const data = docSnap.data();
-          if (!data || typeof data !== 'object') return;
-          if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
-          setUsers((prev) => ({
-            ...prev,
-            [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
-          }));
-        },
-        () => setCloudSyncStatus('local')
-      );
+      try {
+        const svc = await getFirebaseServices();
+        if (!svc || cancelled) return;
+        const docSnap = await svc.fsMod.getDoc(
+          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey)
+        );
+        if (cancelled) return;
+        setCloudSyncStatus('synced');
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        if (!data || typeof data !== 'object') return;
+        if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
+        setUsers((prev) => ({
+          ...prev,
+          [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
+        }));
+      } catch {
+        if (!cancelled) setCloudSyncStatus('local');
+      }
     })();
-    return () => { cancelled = true; unsubSnapshot?.(); };
-  }, [cloudAuthUser?.uid, activeUserKey, isAppVisible, setUsers]);
+    return () => { cancelled = true; };
+  }, [cloudAuthUser?.uid, activeUserKey, setUsers]);
 
   return { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
 }
@@ -2905,7 +2920,13 @@ const APP_GLOBAL_CSS = `
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .f2l-cube-satin { filter: contrast(0.94) saturate(0.9) brightness(0.98); transition: transform 0.25s ease; }
-  .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
+ .case-row-opt {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 76px;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(10, 17, 36, 0.78) 100%);
+  }
   .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .liquid-glass-card {
     background:
@@ -4122,6 +4143,9 @@ function OLLDaySuite() {
     setFullTimerOpen(true);
   };
 
+const toastTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
+
   const openProPaywall = (featureLabel) => { emitBeep(460); setProPaywallFeature(featureLabel || ''); setProPurchaseToast(''); setActiveModal('proPaywall'); };
   const unlockLifetimePro = () => {
     emitBeep(920, 'sine', 0.12);
@@ -4131,7 +4155,8 @@ function OLLDaySuite() {
       return { ...prev, [resolvedUserKey]: updated };
     });
     setProPurchaseToast('OLLDay Pro Unlocked! All 123 cases active.');
-    setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 900);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 900);
   };
 
   const { ao5Full, ao12Full, bestFullPbMs } = useMemo(() => {
