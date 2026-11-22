@@ -11,21 +11,27 @@ function resolveFirebaseConfig() {
   try {
     const g = typeof globalThis !== 'undefined' ? globalThis : {};
     const p = typeof process !== 'undefined' && process.env ? process.env : {};
-    const rawConfig = g.__firebase_config || g.VITE_FIREBASE_CONFIG || p.VITE_FIREBASE_CONFIG || p.REACT_APP_FIREBASE_CONFIG || null;
+    const rawConfig =
+      g.__firebase_config ||
+      g.VITE_FIREBASE_CONFIG ||
+      import.meta.env?.VITE_FIREBASE_CONFIG ||
+      p.VITE_FIREBASE_CONFIG ||
+      p.REACT_APP_FIREBASE_CONFIG ||
+      null;
     if (rawConfig) {
       const parsed = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
       if (parsed?.apiKey) return parsed;
     }
-    const apiKey = g.VITE_FIREBASE_API_KEY || p.VITE_FIREBASE_API_KEY;
-    const projectId = g.VITE_FIREBASE_PROJECT_ID || p.VITE_FIREBASE_PROJECT_ID;
+    const apiKey = g.VITE_FIREBASE_API_KEY || import.meta.env?.VITE_FIREBASE_API_KEY || p.VITE_FIREBASE_API_KEY;
+    const projectId = g.VITE_FIREBASE_PROJECT_ID || import.meta.env?.VITE_FIREBASE_PROJECT_ID || p.VITE_FIREBASE_PROJECT_ID;
     if (apiKey && projectId) {
       return {
         apiKey,
-        authDomain: g.VITE_FIREBASE_AUTH_DOMAIN || p.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+        authDomain: g.VITE_FIREBASE_AUTH_DOMAIN || import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || p.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
         projectId,
-        storageBucket: g.VITE_FIREBASE_STORAGE_BUCKET || p.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
-        messagingSenderId: g.VITE_FIREBASE_MESSAGING_SENDER_ID || p.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-        appId: g.VITE_FIREBASE_APP_ID || p.VITE_FIREBASE_APP_ID || ''
+        storageBucket: g.VITE_FIREBASE_STORAGE_BUCKET || import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || p.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
+        messagingSenderId: g.VITE_FIREBASE_MESSAGING_SENDER_ID || import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || p.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: g.VITE_FIREBASE_APP_ID || import.meta.env?.VITE_FIREBASE_APP_ID || p.VITE_FIREBASE_APP_ID || ''
       };
     }
   } catch {}
