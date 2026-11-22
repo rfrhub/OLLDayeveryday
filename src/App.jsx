@@ -60,7 +60,11 @@ async function getFirebaseServices() {
         } catch {
           db = fsMod.getFirestore(appInstance);
         }
-        return { auth: authMod.getAuth(appInstance), db, authMod, fsMod };
+        const auth = authMod.getAuth(appInstance);
+        if (authMod.setPersistence && authMod.browserLocalPersistence) {
+          await authMod.setPersistence(auth, authMod.browserLocalPersistence).catch(() => {});
+        }
+        return { auth, db, authMod, fsMod };
       } catch {
         firebaseSdkPromise = null;
         return null;
@@ -2798,6 +2802,101 @@ function sanitizeUserRecord(raw) {
   };
 }
 
+function mergePhaseStatsMaps(localStats = {}, cloudStats = {}) {
+  const merged = {};
+  const allIds = new Set([...Object.keys(localStats || {}), ...Object.keys(cloudStats || {})]);
+  allIds.forEach((idKey) => {
+    const l = localStats?.[idKey];
+    const c = cloudStats?.[idKey];
+    if (!l && !c) return;
+    if (!l) { merged[idKey] = { ...c }; return; }
+    if (!c) { merged[idKey] = { ...l }; return; }
+    const lHist = Array.isArray(l.history) ? l.history.map(Number).filter(Number.isFinite) : [];
+    const cHist = Array.isArray(c.history) ? c.history.map(Number).filter(Number.isFinite) : [];
+    let combinedHist = lHist;
+    if (lHist.length === 0) combinedHist = cHist;
+    else if (cHist.length === 0) combinedHist = lHist;
+    else if (lHist.length >= cHist.length && lHist.slice(0, cHist.length).every((v, i) => v === cHist[i])) combinedHist = lHist;
+    else if (cHist.length > lHist.length && cHist.slice(0, lHist.length).every((v, i) => v === lHist[i])) combinedHist = cHist;
+    else combinedHist = [...lHist, ...cHist].slice(0, 60);
+
+    const bestCandidates = [l.best, c.best, ...combinedHist].map(Number).filter((n) => Number.isFinite(n) && n > 0);
+    merged[idKey] = {
+      best: bestCandidates.length ? Math.min(...bestCandidates) : undefined,
+      attempts: Math.max(Number(l.attempts) || 0, Number(c.attempts) || 0, combinedHist.length),
+      history: combinedHist.slice(0, 60)
+    };
+  });
+  return merged;
+}
+
+function mergeCustomAlgsMaps(localAlgs = {}, cloudAlgs = {}) {
+  const result = { f2l: {}, oll: {}, pll: {} };
+  ['f2l', 'oll', 'pll'].forEach((phaseKey) => {
+    const allCaseIds = new Set([
+      ...Object.keys(localAlgs?.[phaseKey] || {}),
+      ...Object.keys(cloudAlgs?.[phaseKey] || {})
+    ]);
+    allCaseIds.forEach((cid) => {
+      const lNorm = normalizeCaseCustomAlgs(localAlgs?.[phaseKey]?.[cid]);
+      const cNorm = normalizeCaseCustomAlgs(cloudAlgs?.[phaseKey]?.[cid]);
+      const byId = new Map();
+      [...cNorm.list, ...lNorm.list].forEach((entry) => {
+        if (entry?.id && !byId.has(entry.id)) byId.set(entry.id, entry);
+      });
+      const list = Array.from(byId.values()).slice(0, MAX_CUSTOM_ALGS_PER_CASE);
+      if (list.length > 0) {
+        const activeId = (lNorm.activeId && list.some((x) => x.id === lNorm.activeId))
+          ? lNorm.activeId
+          : (cNorm.activeId && list.some((x) => x.id === cNorm.activeId))
+          ? cNorm.activeId
+          : null;
+        result[phaseKey][cid] = { list, activeId };
+      }
+    });
+  });
+  return result;
+}
+
+function mergeSolverUserRecords(localRaw, cloudRaw) {
+  const l = sanitizeUserRecord(localRaw);
+  const c = sanitizeUserRecord(cloudRaw);
+  const solveMap = new Map();
+  [...(c.fullSolveHistory || []), ...(l.fullSolveHistory || [])].forEach((s) => {
+    if (s && s.id != null) solveMap.set(s.id, s);
+  });
+  const mergedFullSolves = Array.from(solveMap.values())
+    .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0))
+    .slice(0, 100);
+
+  return sanitizeUserRecord({
+    day: Math.max(l.day, c.day),
+    f2lDay: Math.max(l.f2lDay, c.f2lDay),
+    pllDay: Math.max(l.pllDay, c.pllDay),
+    crossDay: Math.max(l.crossDay, c.crossDay),
+    consecutiveStreakDays: Math.max(l.consecutiveStreakDays, c.consecutiveStreakDays),
+    lastActiveDate: (l.lastActiveDate || '') >= (c.lastActiveDate || '') ? l.lastActiveDate : c.lastActiveDate,
+    stats: mergePhaseStatsMaps(l.stats, c.stats),
+    f2lStats: mergePhaseStatsMaps(l.f2lStats, c.f2lStats),
+    pllStats: mergePhaseStatsMaps(l.pllStats, c.pllStats),
+    fullSolveHistory: mergedFullSolves,
+    customChunks: l.customChunks || c.customChunks,
+    f2lCustomChunks: l.f2lCustomChunks || c.f2lCustomChunks,
+    pllCustomChunks: l.pllCustomChunks || c.pllCustomChunks,
+    crossClears: Math.max(l.crossClears, c.crossClears),
+    isPro: Boolean(l.isPro || c.isPro),
+    email: c.email || l.email || '',
+    fullSolveTargetPb: l.fullSolveTargetPb !== 15.0 ? l.fullSolveTargetPb : c.fullSolveTargetPb,
+    phaseTargetPbs: { ...c.phaseTargetPbs, ...l.phaseTargetPbs },
+    caseTargetPbs: {
+      f2l: { ...(c.caseTargetPbs?.f2l || {}), ...(l.caseTargetPbs?.f2l || {}) },
+      oll: { ...(c.caseTargetPbs?.oll || {}), ...(l.caseTargetPbs?.oll || {}) },
+      pll: { ...(c.caseTargetPbs?.pll || {}), ...(l.caseTargetPbs?.pll || {}) }
+    },
+    customAlgs: mergeCustomAlgsMaps(l.customAlgs, c.customAlgs)
+  });
+}
+
 function mergeDefaultUsersWithStored(storedMap) {
   const result = {};
   if (storedMap && typeof storedMap === 'object') {
@@ -2849,14 +2948,24 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
         if (batchEntries.some(([, rec]) => Boolean(rec?.isPro))) {
           writes.push(
             svc.fsMod.setDoc(
-              svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid),
+              svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', '_entitlements'),
               { isPro: true, email: activeFbUser?.email || '', updatedAt: writeTs },
               { merge: true }
             )
           );
         }
-        await Promise.all(writes);
-        setCloudSyncStatus('synced');
+        const results = await Promise.allSettled(writes);
+        const profileWritesOk = results.slice(0, batchEntries.length).every((r) => r.status === 'fulfilled');
+        if (profileWritesOk) {
+          setCloudSyncStatus('synced');
+        } else {
+          batchEntries.forEach(([k, rec], idx) => {
+            if (results[idx]?.status !== 'fulfilled' && !pendingCloudSyncRef.current.has(k)) {
+              pendingCloudSyncRef.current.set(k, rec);
+            }
+          });
+          setCloudSyncStatus('local');
+        }
       } catch {
         batchEntries.forEach(([k, rec]) => { if (!pendingCloudSyncRef.current.has(k)) pendingCloudSyncRef.current.set(k, rec); });
         setCloudSyncStatus('local');
@@ -2925,20 +3034,19 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     if (!isAppVisible) return;
     let cancelled = false;
     let unsubSnapshot = null;
-    let unsubRootSnapshot = null;
+    let unsubEntitlementSnapshot = null;
     (async () => {
       try {
         const svc = await getFirebaseServices();
         if (!svc || cancelled) return;
-        const rootRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid);
+        const entRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', '_entitlements');
         const docRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey);
 
-        unsubRootSnapshot = svc.fsMod.onSnapshot(
-          rootRef,
-          (rootSnap) => {
-            if (cancelled || !rootSnap.exists()) return;
-            const rootData = rootSnap.data();
-            if (rootData?.isPro) {
+        unsubEntitlementSnapshot = svc.fsMod.onSnapshot(
+          entRef,
+          (entSnap) => {
+            if (cancelled || !entSnap.exists()) return;
+            if (entSnap.data()?.isPro) {
               setUsers((prev) => {
                 const cur = prev[activeUserKey];
                 if (!cur || cur.isPro) return prev;
@@ -2956,22 +3064,32 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
           (docSnap) => {
             if (cancelled) return;
             setCloudSyncStatus('synced');
+            const localRec = latestUsersRef.current?.[activeUserKey];
             if (!docSnap.exists()) {
-              const localSeed = latestUsersRef.current?.[activeUserKey];
-              if (localSeed) saveUserToCloud(activeUserKey, localSeed);
+              if (localRec) saveUserToCloud(activeUserKey, localRec);
               return;
             }
             const data = docSnap.data();
             if (!data || typeof data !== 'object') return;
             if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
-            const localRec = latestUsersRef.current?.[docSnap.id];
-            const mergedIsPro = Boolean(data.isPro || localRec?.isPro);
-            setUsers((prev) => ({
-              ...prev,
-              [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data, isPro: mergedIsPro })
-            }));
-            if (localRec?.isPro && !data.isPro) {
-              saveUserToCloud(docSnap.id, { ...(localRec || {}), ...data, isPro: true });
+            const merged = mergeSolverUserRecords(localRec, data);
+            setUsers((prev) => {
+              const nextUsers = { ...prev, [docSnap.id]: merged };
+              storage.setJson(STORAGE_KEYS.users, nextUsers);
+              return nextUsers;
+            });
+            const localAhead =
+              (merged.isPro && !data.isPro) ||
+              merged.day > (Number(data.day) || 1) ||
+              merged.f2lDay > (Number(data.f2lDay) || 1) ||
+              merged.pllDay > (Number(data.pllDay) || 1) ||
+              merged.crossClears > (Number(data.crossClears) || 0) ||
+              merged.fullSolveHistory.length > (Array.isArray(data.fullSolveHistory) ? data.fullSolveHistory.length : 0) ||
+              Object.keys(merged.stats).length > Object.keys(data.stats || {}).length ||
+              Object.keys(merged.f2lStats).length > Object.keys(data.f2lStats || {}).length ||
+              Object.keys(merged.pllStats).length > Object.keys(data.pllStats || {}).length;
+            if (localAhead) {
+              saveUserToCloud(docSnap.id, merged);
             }
           },
           () => {
@@ -2985,7 +3103,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     return () => {
       cancelled = true;
       if (typeof unsubSnapshot === 'function') unsubSnapshot();
-      if (typeof unsubRootSnapshot === 'function') unsubRootSnapshot();
+      if (typeof unsubEntitlementSnapshot === 'function') unsubEntitlementSnapshot();
     };
   }, [cloudAuthUser?.uid, activeUserKey, isAppVisible, setUsers]);
 
@@ -3820,79 +3938,85 @@ function OLLDaySuite() {
   const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver', isNewSignUp = false) => {
     const rawName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
     const displayName = rawName.replace(/[/\\#?]+/g, ' ').replace(/\s+/g, ' ').trim() || fallbackName;
-    const rootDocRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid);
+    const entDocRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', '_entitlements');
     const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles');
-    const [rootSnap, snap] = await Promise.all([
-      svc.fsMod.getDoc(rootDocRef).catch(() => null),
-      svc.fsMod.getDocs(colRef)
-    ]);
+    const snap = await svc.fsMod.getDocs(colRef);
 
-    const existingLocal = users[displayName] || (activeUserKey && activeUserKey !== 'Demo' ? users[activeUserKey] : null);
     const emailLower = (fbUser.email || '').trim().toLowerCase();
-    const localEmailHasPro = Boolean(
-      emailLower && Object.values(users).some((u) => u?.email?.trim().toLowerCase() === emailLower && Boolean(u?.isPro))
-    );
-    const cloudAnyDocHasPro = snap.docs.some((d) => Boolean(d.data()?.isPro));
-    const resolvedPro = Boolean(
-      rootSnap?.data()?.isPro || cloudAnyDocHasPro || existingLocal?.isPro || localEmailHasPro
-    );
+    const nonDemoLocalEntries = Object.entries(users).filter(([k]) => k !== 'Demo');
+    const emailMatchedLocal = emailLower
+      ? nonDemoLocalEntries.find(([, u]) => u?.email?.trim().toLowerCase() === emailLower)?.[1]
+      : null;
+    const activeLocal = activeUserKey && activeUserKey !== 'Demo' ? users[activeUserKey] : null;
+    const namedLocal = users[displayName] || null;
+    let combinedLocal = sanitizeUserRecord({});
+    [emailMatchedLocal, activeLocal, namedLocal].filter(Boolean).forEach((rec) => {
+      combinedLocal = mergeSolverUserRecords(combinedLocal, rec);
+    });
 
+    const localAnyNonDemoPro = nonDemoLocalEntries.some(([, u]) => Boolean(u?.isPro));
+    const cloudAnyDocHasPro = snap.docs.some((d) => Boolean(d.data()?.isPro));
+    const resolvedPro = Boolean(cloudAnyDocHasPro || combinedLocal.isPro || localAnyNonDemoPro);
+
+    const profileDocs = snap.docs.filter((d) => d.id !== '_entitlements');
     let chosenKey = displayName;
     const writeTs = Date.now();
-    if (!snap.empty) {
-      const sortedDocs = [...snap.docs].sort((a, b) => (Number(b.data()?.updatedAt) || 0) - (Number(a.data()?.updatedAt) || 0));
+    let finalSyncedRecord;
+
+    if (profileDocs.length > 0) {
+      const sortedDocs = [...profileDocs].sort((a, b) => (Number(b.data()?.updatedAt) || 0) - (Number(a.data()?.updatedAt) || 0));
       const matchedDoc =
         sortedDocs.find((d) => emailLower && d.data()?.email?.toLowerCase() === emailLower) ||
         sortedDocs.find((d) => d.id.toLowerCase() === displayName.toLowerCase()) ||
         sortedDocs[0];
       chosenKey = matchedDoc.id;
-      const cloudRecord = sanitizeUserRecord({
+      const localForChosen = mergeSolverUserRecords(combinedLocal, users[chosenKey] || {});
+      finalSyncedRecord = mergeSolverUserRecords(localForChosen, {
         ...matchedDoc.data(),
         email: fbUser.email || matchedDoc.data().email || '',
         isPro: resolvedPro
       });
-      setUsers((prev) => {
-        const nextUsers = { ...prev, [chosenKey]: cloudRecord };
-        storage.setJson(STORAGE_KEYS.users, nextUsers);
-        return nextUsers;
-      });
-      if (resolvedPro && !matchedDoc.data()?.isPro) {
-        lastCloudWriteRef.current.set(chosenKey, writeTs);
-        await svc.fsMod.setDoc(
-          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', chosenKey),
-          { ...cloudRecord, updatedAt: writeTs },
-          { merge: true }
-        );
-      }
-    } else {
-      const freshRecord = sanitizeUserRecord({
-        ...(existingLocal || {}),
-        email: fbUser.email || existingLocal?.email || '',
+      finalSyncedRecord = sanitizeUserRecord({
+        ...finalSyncedRecord,
+        email: fbUser.email || finalSyncedRecord.email || '',
         isPro: resolvedPro
       });
-      lastCloudWriteRef.current.set(chosenKey, writeTs);
-      setUsers((prev) => {
-        const nextUsers = { ...prev, [chosenKey]: freshRecord };
-        storage.setJson(STORAGE_KEYS.users, nextUsers);
-        return nextUsers;
+    } else {
+      finalSyncedRecord = sanitizeUserRecord({
+        ...combinedLocal,
+        email: fbUser.email || combinedLocal.email || '',
+        isPro: resolvedPro
       });
-      await svc.fsMod.setDoc(
+    }
+
+    lastCloudWriteRef.current.set(chosenKey, writeTs);
+    setUsers((prev) => {
+      const nextUsers = { ...prev, [chosenKey]: finalSyncedRecord };
+      storage.setJson(STORAGE_KEYS.users, nextUsers);
+      return nextUsers;
+    });
+
+    const cloudWrites = [
+      svc.fsMod.setDoc(
         svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', chosenKey),
-        { ...freshRecord, updatedAt: writeTs },
+        { ...finalSyncedRecord, updatedAt: writeTs },
         { merge: true }
+      )
+    ];
+    if (resolvedPro) {
+      cloudWrites.push(
+        svc.fsMod.setDoc(
+          entDocRef,
+          { isPro: true, email: fbUser.email || '', updatedAt: writeTs },
+          { merge: true }
+        )
       );
     }
-
-    if (resolvedPro && !rootSnap?.data()?.isPro) {
-      await svc.fsMod.setDoc(
-        rootDocRef,
-        { isPro: true, email: fbUser.email || '', updatedAt: writeTs },
-        { merge: true }
-      ).catch(() => {});
-    }
+    const writeResults = await Promise.allSettled(cloudWrites);
+    const primarySaved = writeResults[0]?.status === 'fulfilled';
 
     setCloudAuthUser(fbUser);
-    setCloudSyncStatus('synced');
+    setCloudSyncStatus(primarySaved ? 'synced' : 'local');
     registerDeviceAccount(chosenKey);
     setActiveUserKey(chosenKey);
     setAuthNameInput('');
@@ -3901,6 +4025,7 @@ function OLLDaySuite() {
     setAuthInfoMsg('');
     setAuthScreenOpen(false);
     if (isNewSignUp) setActiveModal('cfopExperienceChoice');
+    return { chosenKey, record: finalSyncedRecord, syncedToCloud: primarySaved };
   };
 
   const handleEmailPasswordSignUp = async () => {
@@ -4096,11 +4221,12 @@ function OLLDaySuite() {
         const cred = await svc.authMod.signInWithPopup(svc.auth, provider);
         await syncCloudProfileAfterOAuth(svc, cred.user, 'Google Solver');
       } catch (popupErr) {
-        if (
-          popupErr?.code === 'auth/popup-blocked' ||
-          popupErr?.code === 'auth/operation-not-supported-in-this-environment'
-        ) {
+        if (popupErr?.code === 'auth/operation-not-supported-in-this-environment') {
           await svc.authMod.signInWithRedirect(svc.auth, provider);
+          return;
+        }
+        if (popupErr?.code === 'auth/popup-blocked') {
+          setAuthErrorMsg('Popup blocked by Safari — allow pop-ups in Safari Settings or tap Continue with Google again.');
           return;
         }
         throw popupErr;
@@ -4559,8 +4685,19 @@ function OLLDaySuite() {
   const openProPaywall = (featureLabel) => { emitBeep(460); setProPaywallFeature(featureLabel || ''); setProPurchaseToast(''); setActiveModal('proPaywall'); };
   const unlockLifetimePro = async () => {
     emitBeep(920, 'sine', 0.12);
-    const updatedRecord = sanitizeUserRecord({ ...currentUser, isPro: true });
-    const emailLower = (updatedRecord.email || cloudAuthUser?.email || '').trim().toLowerCase();
+    const svc = resolvedFirebaseConfig ? await getFirebaseServices() : null;
+    if (svc && typeof svc.auth.authStateReady === 'function') {
+      await svc.auth.authStateReady().catch(() => {});
+    }
+    const fbUser = svc?.auth?.currentUser || cloudAuthUser;
+    const isSignedIntoCloud = Boolean(fbUser && !fbUser.isAnonymous);
+    const updatedRecord = sanitizeUserRecord({
+      ...currentUser,
+      isPro: true,
+      email: currentUser.email || fbUser?.email || ''
+    });
+    const emailLower = (updatedRecord.email || '').trim().toLowerCase();
+
     setUsers((prev) => {
       const nextUsers = { ...prev };
       Object.keys(nextUsers).forEach((k) => {
@@ -4572,51 +4709,69 @@ function OLLDaySuite() {
       storage.setJson(STORAGE_KEYS.users, nextUsers);
       return nextUsers;
     });
-    setProPurchaseToast('OLLDay Pro Unlocked! Syncing to account...');
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 900);
 
-    if (resolvedFirebaseConfig) {
+    if (svc && fbUser?.uid) {
       try {
-        const svc = await getFirebaseServices();
-        const fbUser = svc?.auth?.currentUser || cloudAuthUser;
-        if (svc && fbUser?.uid) {
-          const writeTs = Date.now();
-          const writes = [
-            svc.fsMod.setDoc(
-              svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid),
-              { isPro: true, email: fbUser.email || updatedRecord.email || '', updatedAt: writeTs },
-              { merge: true }
-            )
-          ];
-          if (resolvedUserKey && resolvedUserKey !== 'Demo') {
-            writes.push(
-              svc.fsMod.setDoc(
-                svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', resolvedUserKey),
-                { ...updatedRecord, email: fbUser.email || updatedRecord.email || '', updatedAt: writeTs },
-                { merge: true }
-              )
-            );
-          }
-          await Promise.all(writes);
-          setCloudSyncStatus('synced');
+        const writeTs = Date.now();
+        const targetProfileKey = resolvedUserKey && resolvedUserKey !== 'Demo'
+          ? resolvedUserKey
+          : ((fbUser.displayName || fbUser.email?.split('@')[0] || 'Solver').replace(/[/\\#?]+/g, ' ').trim() || 'Solver');
+        if (targetProfileKey !== resolvedUserKey) {
+          registerDeviceAccount(targetProfileKey);
+          setActiveUserKey(targetProfileKey);
+          setUsers((prev) => {
+            const nextUsers = { ...prev, [targetProfileKey]: updatedRecord };
+            storage.setJson(STORAGE_KEYS.users, nextUsers);
+            return nextUsers;
+          });
         }
-      } catch {}
+        lastCloudWriteRef.current.set(targetProfileKey, writeTs);
+        const results = await Promise.allSettled([
+          svc.fsMod.setDoc(
+            svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', targetProfileKey),
+            { ...updatedRecord, updatedAt: writeTs },
+            { merge: true }
+          ),
+          svc.fsMod.setDoc(
+            svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', '_entitlements'),
+            { isPro: true, email: fbUser.email || emailLower, updatedAt: writeTs },
+            { merge: true }
+          )
+        ]);
+        const savedOk = results.some((r) => r.status === 'fulfilled');
+        if (savedOk) {
+          setCloudSyncStatus('synced');
+          setProPurchaseToast(
+            isSignedIntoCloud
+              ? `Pro Unlocked & Synced to ${fbUser.email || 'Gmail'} ✓`
+              : 'Pro Unlocked! Sign in with Gmail to sync across devices.'
+          );
+        } else {
+          setProPurchaseToast('Pro Unlocked locally (cloud write blocked by permissions).');
+        }
+      } catch {
+        setProPurchaseToast('Pro Unlocked on this device!');
+      }
+    } else {
+      setProPurchaseToast('Pro Unlocked on this device! Sign in with Gmail to sync.');
     }
+
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 1200);
   };
 
   const restoreCloudPurchase = async () => {
     emitBeep(620, 'sine', 0.08);
-    if (isProUnlocked) {
-      setRestoreStatusToast('Lifetime Pro is already active ✓');
-      setTimeout(() => setRestoreStatusToast(''), 2500);
-      return;
-    }
     if (!resolvedFirebaseConfig) {
-      openProPaywall('Restore Purchase');
+      if (isProUnlocked) {
+        setRestoreStatusToast('Lifetime Pro is active on this device ✓');
+        setTimeout(() => setRestoreStatusToast(''), 2500);
+      } else {
+        openProPaywall('Restore Purchase');
+      }
       return;
     }
-    setRestoreStatusToast('Checking Gmail cloud account...');
+    setRestoreStatusToast('Syncing with Gmail cloud account...');
     try {
       const svc = await getFirebaseServices();
       if (!svc) {
@@ -4630,29 +4785,22 @@ function OLLDaySuite() {
       const fbUser = svc.auth.currentUser || cloudAuthUser;
       if (!fbUser || fbUser.isAnonymous) {
         setRestoreStatusToast('');
-        setAuthErrorMsg('Sign in with the Gmail account where you unlocked Pro to restore it.');
+        setAuthErrorMsg('Sign in with your Gmail account to sync progress & restore Pro.');
         setAuthMode('signin');
         setAuthScreenOpen(true);
         return;
       }
-      const rootRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid);
-      const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles');
-      const [rootSnap, snap] = await Promise.all([
-        svc.fsMod.getDoc(rootRef).catch(() => null),
-        svc.fsMod.getDocs(colRef)
-      ]);
-      const foundPro = Boolean(rootSnap?.data()?.isPro) || snap.docs.some((d) => Boolean(d.data()?.isPro));
-      if (foundPro) {
-        await syncCloudProfileAfterOAuth(svc, fbUser, resolvedUserKey || 'Solver', false);
-        setRestoreStatusToast('Lifetime Pro Restored ✓');
-        setTimeout(() => setRestoreStatusToast(''), 3000);
+      const syncRes = await syncCloudProfileAfterOAuth(svc, fbUser, resolvedUserKey || 'Solver', false);
+      if (syncRes?.record?.isPro) {
+        setRestoreStatusToast(`Synced & Pro Active (${fbUser.email || 'Gmail'}) ✓`);
+        setTimeout(() => setRestoreStatusToast(''), 3500);
       } else {
-        setRestoreStatusToast('No Pro entitlement found on this Gmail.');
-        setTimeout(() => setRestoreStatusToast(''), 3000);
+        setRestoreStatusToast(`Synced ${fbUser.email || 'Gmail'} — Pro not yet saved from mobile.`);
+        setTimeout(() => setRestoreStatusToast(''), 4000);
       }
-    } catch {
-      setRestoreStatusToast('Could not reach cloud — try again.');
-      setTimeout(() => setRestoreStatusToast(''), 3000);
+    } catch (err) {
+      setRestoreStatusToast(`Cloud sync error: ${err?.code || 'check connection'}`);
+      setTimeout(() => setRestoreStatusToast(''), 3500);
     }
   };
 
@@ -5223,7 +5371,10 @@ function OLLDaySuite() {
             <span className="text-base font-black text-white block truncate">{String(activeUserKey || 'Solver')}</span>
             {currentUser.email && <p className="text-[11px] text-zinc-300 truncate">{currentUser.email}</p>}
             <p className="text-[11px] text-zinc-300/85 pt-0.5">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle ${cloudSyncStatus === 'synced' ? 'bg-green-400' : 'bg-amber-400'}`} />{cloudSyncStatus === 'synced' ? 'Cloud Synced' : 'Local Saved'} • F2L D{safeF2lDay} • OLL D{safeOllDay} • PLL D{safePllDay}
+              <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle ${cloudSyncStatus === 'synced' && cloudAuthUser && !cloudAuthUser.isAnonymous ? 'bg-green-400' : 'bg-amber-400'}`} />
+              {cloudSyncStatus === 'synced' && cloudAuthUser && !cloudAuthUser.isAnonymous
+                ? `Cloud Synced (${cloudAuthUser.email || 'Gmail'})`
+                : 'Local Only • Sign in with Gmail to Sync'} • F2L D{safeF2lDay} • OLL D{safeOllDay} • PLL D{safePllDay}
             </p>
           </div>
 
@@ -5250,7 +5401,7 @@ function OLLDaySuite() {
               onClick={restoreCloudPurchase}
               className="h-10 px-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-[11px] font-bold text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer"
             >
-              Restore Purchase
+              Sync &amp; Restore
             </button>
           </div>
           {restoreStatusToast && (
