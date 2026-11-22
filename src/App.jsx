@@ -2948,7 +2948,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     };
   }, [cloudAuthUser?.uid, activeUserKey, isAppVisible, setUsers]);
 
-  return { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
+  return { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
 }
 
 // =========================================================================
@@ -3238,7 +3238,7 @@ function OLLDaySuite() {
   const [phaseTabs, setPhaseTabs] = useState({ cross: 'ladder', f2l: 'grind', oll: 'grind', pll: 'grind' });
   const setTabForPhase = (phase, tab) => setPhaseTabs((prev) => ({ ...prev, [phase]: tab }));
 
-  const { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
+  const { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
     useSolverPersistence(users, setUsers, activeUserKey, isAppVisible);
 
   const [audioEnabled, setAudioEnabled] = useState(true);
