@@ -1564,7 +1564,10 @@ function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
     </Wrapper>
   );
 }
-function SocialAuthButtons({ onGoogle, onGameCenter, isNativeIos }) {
+// Flip to true once your Apple Developer Program / Game Center & Apple Sign-In credentials are configured
+const SHOW_GAME_CENTER_AUTH = false;
+
+function SocialAuthButtons({ onGoogle, onGameCenter, isNativeIos, showGameCenter = SHOW_GAME_CENTER_AUTH }) {
   return (
     <div className="space-y-2">
       <button
@@ -1583,21 +1586,23 @@ function SocialAuthButtons({ onGoogle, onGameCenter, isNativeIos }) {
         <span>Continue with Google</span>
       </button>
 
-      <button
-        type="button"
-        onClick={onGameCenter}
-        className="w-full py-3 px-4 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 hover:border-orange-400/55 text-white font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_20px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
-      >
-        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 via-pink-500 to-sky-500 flex items-center justify-center flex-shrink-0 shadow-sm">
-          <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="8.5" cy="9" r="3.8" fillOpacity="0.95" />
-            <circle cx="15.5" cy="8.5" r="3" fillOpacity="0.85" />
-            <circle cx="10.5" cy="15.5" r="3.3" fillOpacity="0.9" />
-            <circle cx="16.2" cy="14.8" r="2.4" fillOpacity="0.8" />
-          </svg>
-        </span>
-        <span>{isNativeIos ? 'Continue with Game Center' : 'Game Center / Apple'}</span>
-      </button>
+      {showGameCenter && (
+        <button
+          type="button"
+          onClick={onGameCenter}
+          className="w-full py-3 px-4 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 hover:border-orange-400/55 text-white font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_20px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
+        >
+          <span className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 via-pink-500 to-sky-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="8.5" cy="9" r="3.8" fillOpacity="0.95" />
+              <circle cx="15.5" cy="8.5" r="3" fillOpacity="0.85" />
+              <circle cx="10.5" cy="15.5" r="3.3" fillOpacity="0.9" />
+              <circle cx="16.2" cy="14.8" r="2.4" fillOpacity="0.8" />
+            </svg>
+          </span>
+          <span>{isNativeIos ? 'Continue with Game Center' : 'Game Center / Apple'}</span>
+        </button>
+      )}
 
       <div className="flex items-center gap-2 pt-0.5 text-[9.5px] font-black uppercase tracking-widest text-zinc-400">
         <span className="h-px flex-1 bg-white/15" />
