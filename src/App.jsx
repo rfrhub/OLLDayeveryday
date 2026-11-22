@@ -635,11 +635,11 @@ function buildDynamicCustomFingertrickText(alg = '', fallbackText = '') {
   if (!normalized.includes("R U R' U'") && normalized.includes("R U' R'")) cues.push("Inverse Sexy (R U' R') pushing U' with left index");
   if (normalized.includes("R' F R F'")) cues.push("Sledgehammer (R' F R F') lifting F' with right thumb");
   if (normalized.includes("F R' F' R")) cues.push("Hedgeslammer (F R' F' R) keeping right thumb on DF");
-  if (/U2/.test(normalized)) cues.push("double-flick U2 (index → middle)");
-  if (/M2?|M'/.test(normalized)) cues.push("flick M-slice from DB with left ring/middle");
-  if (/D2?|D'/.test(normalized)) cues.push("push D/D' with bottom ring fingers");
+  if (/\bU2\b/.test(normalized)) cues.push("double-flick U2 (index → middle)");
+  if (/\bM2?\b|\bM'/.test(normalized)) cues.push("flick M-slice from DB with left ring/middle");
+  if (/\bD2?\b|\bD'/.test(normalized)) cues.push("push D/D' with bottom ring fingers");
   if (cues.length === 0) {
-    return /[Ff]/.test(normalized)
+    return /\b[Ff]/.test(normalized)
       ? "Anchor right thumb on DF to flick F/F' smoothly without regripping."
       : "Keep thumbs on Front-Bottom (DF) and execute in regripless wrist bursts.";
   }
@@ -7028,13 +7028,6 @@ const toastTimerRef = useRef(null);
                         <h2 className="text-xl font-black tracking-tight text-white">Create Your Account</h2>
                         <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
                       </div>
-<div className="text-center space-y-1">
-                        <span className="inline-block px-3 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-widest text-orange-300">
-                          Free Solver Profile
-                        </span>
-                        <h2 className="text-xl font-black tracking-tight text-white">Create Your Account</h2>
-                        <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
-                      </div>
 
                       <SocialAuthButtons
                         onGoogle={handleGoogleSignIn}
@@ -7042,7 +7035,6 @@ const toastTimerRef = useRef(null);
                         isNativeIos={isNativeIosApp}
                       />
 
-                      <div className="space-y-2.5">
                       <div className="space-y-2.5">
                         <input
                           type="text"
