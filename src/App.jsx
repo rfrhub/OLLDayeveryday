@@ -2858,7 +2858,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUserRef.current?.uid) return;
     pendingCloudSyncRef.current.set(uKey, record);
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 2500);
+    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 500);
   };
 
   const cancelPendingWriteFor = (uKey) => {
@@ -2873,7 +2873,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
 
   useEffect(() => {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
-    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 450);
+    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 350);
     return () => clearTimeout(localSaveTimerRef.current);
   }, [users]);
 
@@ -2884,7 +2884,10 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
       const svc = await getFirebaseServices();
       if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
       unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
-        if (!cancelled) { setCloudAuthUser(fbUser || null); setCloudSyncStatus(fbUser ? 'synced' : 'local'); }
+        if (!cancelled) {
+          setCloudAuthUser(fbUser || null);
+          if (!fbUser) setCloudSyncStatus('local');
+        }
       });
       if (!svc.auth.currentUser) {
         try {
@@ -2899,36 +2902,51 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     return () => { cancelled = true; unsubAuth?.(); };
   }, []);
 
- useEffect(() => {
+  useEffect(() => {
     const uid = cloudAuthUser?.uid;
     if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
       setCloudSyncStatus('local');
       return;
     }
+    if (!isAppVisible) return;
     let cancelled = false;
+    let unsubSnapshot = null;
     (async () => {
       try {
         const svc = await getFirebaseServices();
         if (!svc || cancelled) return;
-        const docSnap = await svc.fsMod.getDoc(
-          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey)
+        const docRef = svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey);
+        unsubSnapshot = svc.fsMod.onSnapshot(
+          docRef,
+          (docSnap) => {
+            if (cancelled) return;
+            setCloudSyncStatus('synced');
+            if (!docSnap.exists()) {
+              const localSeed = latestUsersRef.current?.[activeUserKey];
+              if (localSeed) saveUserToCloud(activeUserKey, localSeed);
+              return;
+            }
+            const data = docSnap.data();
+            if (!data || typeof data !== 'object') return;
+            if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
+            setUsers((prev) => ({
+              ...prev,
+              [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
+            }));
+          },
+          () => {
+            if (!cancelled) setCloudSyncStatus('local');
+          }
         );
-        if (cancelled) return;
-        setCloudSyncStatus('synced');
-        if (!docSnap.exists()) return;
-        const data = docSnap.data();
-        if (!data || typeof data !== 'object') return;
-        if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
-        setUsers((prev) => ({
-          ...prev,
-          [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
-        }));
       } catch {
         if (!cancelled) setCloudSyncStatus('local');
       }
     })();
-    return () => { cancelled = true; };
-  }, [cloudAuthUser?.uid, activeUserKey, setUsers]);
+    return () => {
+      cancelled = true;
+      if (typeof unsubSnapshot === 'function') unsubSnapshot();
+    };
+  }, [cloudAuthUser?.uid, activeUserKey, isAppVisible, setUsers]);
 
   return { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
 }
@@ -3233,9 +3251,7 @@ function OLLDaySuite() {
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
-  const [settingsCardIdx, setSettingsCardIdx] = useState(0);
-  const [settingsSwipeDir, setSettingsSwipeDir] = useState('up');
-  const settingsSwipeStartRef = useRef(null);
+
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
   const [rightPaneTab, setRightPaneTab] = useState('notation');
@@ -3713,7 +3729,10 @@ function OLLDaySuite() {
   }, [authScreenOpen, authMode, isAppVisible]);
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
+  const [authPasswordInput, setAuthPasswordInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
+  const [authInfoMsg, setAuthInfoMsg] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
   const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
     const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
     const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
@@ -3735,46 +3754,230 @@ function OLLDaySuite() {
   const swDisplayRef = useRef(null);
   const fullTimerDisplayRef = useRef(null);
 
-  const [f2lSession, setF2lSession] = useState(null);
-  const [f2lDrillCase, setF2lDrillCase] = useState(null);
-  const [ollSession, setOllSession] = useState(null);
-  const [ollDrillCase, setOllDrillCase] = useState(null);
-  const [pllSession, setPllSession] = useState(null);
-  const [pllDrillCase, setPllDrillCase] = useState(null);
-const isNativeIosApp =
+  const [activeSession, setActiveSession] = useState(null);
+  const [activeDrill, setActiveDrill] = useState(null);
+  const isNativeIosApp =
     typeof window !== 'undefined' &&
     window.Capacitor?.isNativePlatform?.() &&
     window.Capacitor?.getPlatform?.() === 'ios';
 
-  const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver') => {
-    const displayName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
+  const formatFirebaseAuthError = (err, fallbackMsg) => {
+    const code = err?.code || '';
+    if (code === 'auth/email-already-in-use') return 'That email is already registered — switch to Sign In below.';
+    if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+    if (code === 'auth/weak-password') return 'Password must be at least 6 characters.';
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+      return 'Incorrect email or password — check your credentials or tap Forgot Password.';
+    }
+    if (code === 'auth/too-many-requests') return 'Too many attempts — wait a moment and try again.';
+    if (code === 'auth/operation-not-allowed') {
+      return 'Enable Email/Password in Firebase Console → Authentication → Sign-in method.';
+    }
+    return err?.message || fallbackMsg;
+  };
+
+  const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver', isNewSignUp = false) => {
+    const rawName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
+    const displayName = rawName.replace(/[/\\#?]+/g, ' ').replace(/\s+/g, ' ').trim() || fallbackName;
     const colRef = svc.fsMod.collection(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles');
     const snap = await svc.fsMod.getDocs(colRef);
 
     let chosenKey = displayName;
     if (!snap.empty) {
-      const firstDoc = snap.docs[0];
-      chosenKey = firstDoc.id;
+      const sortedDocs = [...snap.docs].sort((a, b) => (Number(b.data()?.updatedAt) || 0) - (Number(a.data()?.updatedAt) || 0));
+      const matchedDoc =
+        sortedDocs.find((d) => fbUser.email && d.data()?.email?.toLowerCase() === fbUser.email.toLowerCase()) ||
+        sortedDocs.find((d) => d.id.toLowerCase() === displayName.toLowerCase()) ||
+        sortedDocs[0];
+      chosenKey = matchedDoc.id;
       const cloudRecord = sanitizeUserRecord({
-        ...firstDoc.data(),
-        email: fbUser.email || firstDoc.data().email || ''
+        ...matchedDoc.data(),
+        email: fbUser.email || matchedDoc.data().email || ''
       });
       setUsers((prev) => ({ ...prev, [chosenKey]: cloudRecord }));
     } else {
-      const freshRecord = sanitizeUserRecord({ email: fbUser.email || '', isPro: false });
+      const existingLocal = users[displayName] || (activeUserKey && activeUserKey !== 'Demo' ? users[activeUserKey] : null);
+      const freshRecord = sanitizeUserRecord({
+        ...(existingLocal || {}),
+        email: fbUser.email || existingLocal?.email || '',
+        isPro: Boolean(existingLocal?.isPro)
+      });
+      const writeTs = Date.now();
+      lastCloudWriteRef.current.set(chosenKey, writeTs);
       setUsers((prev) => ({ ...prev, [chosenKey]: freshRecord }));
       await svc.fsMod.setDoc(
         svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', fbUser.uid, 'solver_profiles', chosenKey),
-        { ...freshRecord, updatedAt: Date.now() },
+        { ...freshRecord, updatedAt: writeTs },
         { merge: true }
       );
     }
 
+    setCloudAuthUser(fbUser);
+    setCloudSyncStatus('synced');
     registerDeviceAccount(chosenKey);
     setActiveUserKey(chosenKey);
     setAuthNameInput('');
     setAuthEmailInput('');
+    setAuthPasswordInput('');
+    setAuthInfoMsg('');
     setAuthScreenOpen(false);
+    if (isNewSignUp) setActiveModal('cfopExperienceChoice');
+  };
+
+  const handleEmailPasswordSignUp = async () => {
+    const cleanName = authNameInput.trim();
+    const cleanEmail = authEmailInput.trim();
+    const cleanPass = authPasswordInput;
+    setAuthErrorMsg('');
+    setAuthInfoMsg('');
+
+    if (!cleanName) {
+      setAuthErrorMsg('Enter a solver name to create your account');
+      return;
+    }
+
+    // Local-only solver profile when no email is entered
+    if (!cleanEmail) {
+      if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) {
+        setAuthErrorMsg('That solver name is taken — choose another or Sign In');
+        return;
+      }
+      emitBeep(820, 'sine', 0.1);
+      const created = sanitizeUserRecord({ email: '', isPro: false });
+      setUsers((prev) => ({ ...prev, [cleanName]: created }));
+      saveUserToCloud(cleanName, created);
+      registerDeviceAccount(cleanName);
+      setActiveUserKey(cleanName);
+      setAuthNameInput('');
+      setAuthEmailInput('');
+      setAuthPasswordInput('');
+      setAuthScreenOpen(false);
+      setActiveModal('cfopExperienceChoice');
+      return;
+    }
+
+    if (cleanPass.length < 6) {
+      setAuthErrorMsg('Enter a password (6+ characters) to sync across devices');
+      return;
+    }
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+
+    setAuthBusy(true);
+    emitBeep(760, 'sine', 0.08);
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+      if (svc.authMod.updateProfile) {
+        await svc.authMod.updateProfile(cred.user, { displayName: cleanName }).catch(() => {});
+      }
+      await syncCloudProfileAfterOAuth(
+        svc,
+        { uid: cred.user.uid, email: cred.user.email || cleanEmail, displayName: cleanName },
+        cleanName,
+        true
+      );
+    } catch (err) {
+      setAuthErrorMsg(formatFirebaseAuthError(err, 'Could not create cloud account — please try again.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleEmailPasswordSignIn = async () => {
+    const query = authEmailInput.trim() || authNameInput.trim();
+    const cleanPass = authPasswordInput;
+    setAuthErrorMsg('');
+    setAuthInfoMsg('');
+
+    if (!query) {
+      setAuthErrorMsg('Enter your email and password (or a local solver name)');
+      return;
+    }
+
+    // If no password entered and input doesn't look like an email, check local device profiles
+    if (!cleanPass && !query.includes('@')) {
+      const qLower = query.toLowerCase();
+      const matchedKey = Object.keys(users).find(
+        (k) => k.toLowerCase() === qLower || users[k]?.email?.trim().toLowerCase() === qLower
+      );
+      if (!matchedKey) {
+        setAuthErrorMsg('Local profile not found — enter your Email & Password to sign in from cloud');
+        return;
+      }
+      emitBeep(720, 'sine', 0.08);
+      registerDeviceAccount(matchedKey);
+      setActiveUserKey(matchedKey);
+      setAuthNameInput('');
+      setAuthEmailInput('');
+      setAuthPasswordInput('');
+      setAuthScreenOpen(false);
+      return;
+    }
+
+    if (!query.includes('@')) {
+      setAuthErrorMsg('Enter the email address registered with your cloud account');
+      return;
+    }
+    if (!cleanPass) {
+      setAuthErrorMsg('Enter your password to sign in');
+      return;
+    }
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+
+    setAuthBusy(true);
+    emitBeep(720, 'sine', 0.08);
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const cred = await svc.authMod.signInWithEmailAndPassword(svc.auth, query, cleanPass);
+      await syncCloudProfileAfterOAuth(svc, cred.user, query.split('@')[0] || 'Solver', false);
+    } catch (err) {
+      setAuthErrorMsg(formatFirebaseAuthError(err, 'Email sign-in failed — please try again.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const email = (authEmailInput.trim() || authNameInput.trim());
+    setAuthErrorMsg('');
+    setAuthInfoMsg('');
+    if (!email || !email.includes('@')) {
+      setAuthErrorMsg('Enter your account email above first, then tap Forgot password');
+      return;
+    }
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+    setAuthBusy(true);
+    emitBeep(620, 'sine', 0.07);
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      await svc.authMod.sendPasswordResetEmail(svc.auth, email);
+      setAuthInfoMsg(`Password reset link sent to ${email}`);
+    } catch (err) {
+      setAuthErrorMsg(formatFirebaseAuthError(err, 'Unable to send reset email — verify the address.'));
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -3881,30 +4084,19 @@ const isNativeIosApp =
   spaceShortcutRef.current = () => {
     if (fullTimerOpen) {
       handleFullTimerScreenTap();
-      return;
+      return true;
     }
-    if (!stopwatchEnabled) return;
-    const activeDrillItem = f2lDrillCase
-      ? { phase: 'f2l', id: f2lDrillCase.id }
-      : ollDrillCase
-      ? { phase: 'oll', id: ollDrillCase.id }
-      : pllDrillCase
-      ? { phase: 'pll', id: pllDrillCase.id }
-      : null;
-    if (activeDrillItem) {
-      toggleStopwatch((sec) => recordCaseTime(activeDrillItem.phase, activeDrillItem.id, sec));
-      return;
+    if (!stopwatchEnabled) return false;
+    if (activeDrill) {
+      toggleStopwatch((sec) => recordCaseTime(activeDrill.phase, activeDrill.item.id, sec));
+      return true;
     }
-    const activeSessionItem = f2lSession
-      ? { phase: 'f2l', id: f2lSession.queue[f2lSession.index]?.id }
-      : ollSession
-      ? { phase: 'oll', id: ollSession.queue[ollSession.index]?.id }
-      : pllSession
-      ? { phase: 'pll', id: pllSession.queue[pllSession.index]?.id }
-      : null;
-    if (activeSessionItem?.id !== undefined) {
-      toggleStopwatch((sec) => recordCaseTime(activeSessionItem.phase, activeSessionItem.id, sec));
+    const activeCaseId = activeSession?.queue[activeSession.index]?.id;
+    if (activeCaseId !== undefined) {
+      toggleStopwatch((sec) => recordCaseTime(activeSession.phase, activeCaseId, sec));
+      return true;
     }
+    return false;
   };
 
   useEffect(() => {
@@ -3913,14 +4105,11 @@ const isNativeIosApp =
       if (e.code !== 'Space' && e.key !== ' ') return;
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
-      if (fullTimerOpen || f2lDrillCase || ollDrillCase || pllDrillCase || f2lSession || ollSession || pllSession) {
-        e.preventDefault();
-        spaceShortcutRef.current?.();
-      }
+      if (spaceShortcutRef.current?.()) e.preventDefault();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fullTimerOpen, f2lDrillCase, ollDrillCase, pllDrillCase, f2lSession, ollSession, pllSession]);
+  }, []);
 
   useEffect(() => {
     if (!swRunning || !isAppVisible) return;
@@ -4097,8 +4286,7 @@ const isNativeIosApp =
     const clean = sanitizeCustomAlgTokens(algStr);
     if (!clean) return false;
     const formatted = assignFingertricks ? formatAlgWithTriggerBrackets(clean) : clean;
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const { list, activeId } = normalizeCaseCustomAlgs(u.customAlgs?.[phaseKey]?.[caseId]);
       let nextList = [...list];
       let targetId = editingAltId;
@@ -4108,7 +4296,7 @@ const isNativeIosApp =
           c.id === editingAltId ? { ...c, alg: formatted, rawAlg: clean, assignFingertricks } : c
         );
       } else {
-        if (nextList.length >= MAX_CUSTOM_ALGS_PER_CASE) return prev;
+        if (nextList.length >= MAX_CUSTOM_ALGS_PER_CASE) return u;
         targetId = `alt-${Date.now()}-${nextList.length + 1}`;
         nextList.push({
           id: targetId,
@@ -4121,31 +4309,25 @@ const isNativeIosApp =
 
       const nextActiveId = makeActive ? targetId : activeId;
       const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}), [caseId]: { list: nextList, activeId: nextActiveId } };
-      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
     });
     return true;
   };
 
   const selectCaseAlgSource = (phaseKey, caseId, activeAltIdOrNull) => {
     emitBeep(540, 'sine', 0.05);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const { list } = normalizeCaseCustomAlgs(u.customAlgs?.[phaseKey]?.[caseId]);
-      if (list.length === 0) return prev;
+      if (list.length === 0) return u;
       const validId = activeAltIdOrNull && list.some((c) => c.id === activeAltIdOrNull) ? activeAltIdOrNull : null;
       const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}), [caseId]: { list, activeId: validId } };
-      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
     });
   };
 
   const removeCustomCaseAlg = (phaseKey, caseId, altIdToRemove = null) => {
     emitBeep(420, 'sine', 0.06);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}) };
       if (!altIdToRemove) {
         delete phaseMap[caseId];
@@ -4159,9 +4341,7 @@ const isNativeIosApp =
           phaseMap[caseId] = { list: filtered, activeId: nextActive };
         }
       }
-      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
     });
   };
 
@@ -4200,38 +4380,22 @@ const isNativeIosApp =
   const deleteCaseTimeEntry = (phase, caseId, entryIdx) => {
     emitBeep(420, 'sine', 0.06);
     const { statField } = PHASE_REGISTRY[phase] || PHASE_REGISTRY.oll;
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const existing = u[statField]?.[caseId];
-      if (!existing) return prev;
+      if (!existing) return u;
       const oldHist = Array.isArray(existing.history) ? existing.history : [];
       const nextHist = oldHist.filter((_, idx) => idx !== entryIdx);
       const nextPhaseStats = { ...(u[statField] || {}) };
-      if (nextHist.length === 0) {
-        delete nextPhaseStats[caseId];
-      } else {
-        nextPhaseStats[caseId] = {
-          best: Math.min(...nextHist),
-          attempts: nextHist.length,
-          history: nextHist
-        };
-      }
-      const updated = { ...u, [statField]: nextPhaseStats };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      if (nextHist.length === 0) delete nextPhaseStats[caseId];
+      else nextPhaseStats[caseId] = { best: Math.min(...nextHist), attempts: nextHist.length, history: nextHist };
+      return { ...u, [statField]: nextPhaseStats };
     });
     setSwLastResult((prev) => (prev?.phase === phase && prev?.caseId === caseId ? null : prev));
   };
 
   const deleteFullSolveById = (solveId) => {
     emitBeep(400, 'sine', 0.06);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      const nextHist = (u.fullSolveHistory || []).filter((s) => s.id !== solveId);
-      const updated = { ...u, fullSolveHistory: nextHist };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
-    });
+    updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: (u.fullSolveHistory || []).filter((s) => s.id !== solveId) }));
   };
 
   const handleFullTimerScreenTap = () => {
@@ -4248,36 +4412,23 @@ const isNativeIosApp =
       setFullTimerState('stopped');
       emitBeep(980, 'sine', 0.1);
       const newEntry = { id: Date.now(), ms: finalMs, penalty: null, scramble: fullScramble };
-      setUsers((prev) => {
-        const u = sanitizeUserRecord(prev[resolvedUserKey]);
-        const updated = { ...u, fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100) };
-        saveUserToCloud(resolvedUserKey, updated);
-        return { ...prev, [resolvedUserKey]: updated };
-      });
+      updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100) }));
       setFullScramble(generate3x3Scramble(20));
     }
   };
 
   const toggleFullSolvePenalty = (pen) => {
     emitBeep(560);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      if (!u.fullSolveHistory?.length) return prev;
+    updateActiveUserRecord((u) => {
+      if (!u.fullSolveHistory?.length) return u;
       const [first, ...rest] = u.fullSolveHistory;
-      const updated = { ...u, fullSolveHistory: [{ ...first, penalty: first.penalty === pen ? null : pen }, ...rest] };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, fullSolveHistory: [{ ...first, penalty: first.penalty === pen ? null : pen }, ...rest] };
     });
   };
 
   const deleteLastFullSolve = () => {
     emitBeep(400);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      const updated = { ...u, fullSolveHistory: (u.fullSolveHistory || []).slice(1) };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
-    });
+    updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: (u.fullSolveHistory || []).slice(1) }));
     fullFinalMsRef.current = 0;
     if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = '0.00';
     setFullTimerState('idle');
@@ -4290,17 +4441,13 @@ const isNativeIosApp =
     setFullTimerOpen(true);
   };
 
-const toastTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   const openProPaywall = (featureLabel) => { emitBeep(460); setProPaywallFeature(featureLabel || ''); setProPurchaseToast(''); setActiveModal('proPaywall'); };
   const unlockLifetimePro = () => {
     emitBeep(920, 'sine', 0.12);
-    setUsers((prev) => {
-      const updated = { ...sanitizeUserRecord(prev[resolvedUserKey]), isPro: true };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
-    });
+    updateActiveUserRecord((u) => ({ ...u, isPro: true }));
     setProPurchaseToast('OLLDay Pro Unlocked! All 123 cases active.');
     clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 900);
@@ -4662,25 +4809,20 @@ const toastTimerRef = useRef(null);
 
   const executeGranularReset = (scope) => {
     emitBeep(360, 'triangle', 0.12);
-    setUsers((prev) => {
-      const u = { ...(prev[resolvedUserKey] || DEFAULT_USERS.Demo) };
-      if (scope === 'f2l-day' || scope === 'f2l-all') u.f2lDay = 1;
-      if (scope === 'f2l-stats' || scope === 'f2l-all') u.f2lStats = {};
-      if (scope === 'f2l-chunks' || scope === 'f2l-all') u.f2lCustomChunks = null;
-      if (scope === 'oll-day' || scope === 'oll-all') u.day = 1;
-      if (scope === 'oll-stats' || scope === 'oll-all') u.stats = {};
-      if (scope === 'oll-chunks' || scope === 'oll-all') u.customChunks = null;
-      if (scope === 'pll-day' || scope === 'pll-all') u.pllDay = 1;
-      if (scope === 'pll-stats' || scope === 'pll-all') u.pllStats = {};
-      if (scope === 'pll-chunks' || scope === 'pll-all') u.pllCustomChunks = null;
-      if (scope === 'full-timer') u.fullSolveHistory = [];
-      if (scope === 'both') {
-        const fresh = { ...sanitizeUserRecord(null), isPro: Boolean(u.isPro), email: u.email || '' };
-        saveUserToCloud(resolvedUserKey, fresh);
-        return { ...prev, [resolvedUserKey]: fresh };
-      }
-      saveUserToCloud(resolvedUserKey, u);
-      return { ...prev, [resolvedUserKey]: u };
+    updateActiveUserRecord((u) => {
+      if (scope === 'both') return { ...sanitizeUserRecord(null), isPro: Boolean(u.isPro), email: u.email || '' };
+      const next = { ...u };
+      if (scope === 'f2l-day' || scope === 'f2l-all') next.f2lDay = 1;
+      if (scope === 'f2l-stats' || scope === 'f2l-all') next.f2lStats = {};
+      if (scope === 'f2l-chunks' || scope === 'f2l-all') next.f2lCustomChunks = null;
+      if (scope === 'oll-day' || scope === 'oll-all') next.day = 1;
+      if (scope === 'oll-stats' || scope === 'oll-all') next.stats = {};
+      if (scope === 'oll-chunks' || scope === 'oll-all') next.customChunks = null;
+      if (scope === 'pll-day' || scope === 'pll-all') next.pllDay = 1;
+      if (scope === 'pll-stats' || scope === 'pll-all') next.pllStats = {};
+      if (scope === 'pll-chunks' || scope === 'pll-all') next.pllCustomChunks = null;
+      if (scope === 'full-timer') next.fullSolveHistory = [];
+      return next;
     });
     setActiveModal(null);
   };
@@ -5231,8 +5373,8 @@ const toastTimerRef = useRef(null);
     const currentLib = libState[phaseKey] || { mode: 'groups', category: null };
     const setLibMode = (mode) => setLibState((prev) => ({ ...prev, [phaseKey]: { mode, category: null } }));
     const setSelectedCategory = (category) => setLibState((prev) => ({ ...prev, [phaseKey]: { ...prev[phaseKey], category } }));
-    const setSession = isF2L ? setF2lSession : isPLL ? setPllSession : setOllSession;
-    const setDrillCase = isF2L ? setF2lDrillCase : isPLL ? setPllDrillCase : setOllDrillCase;
+    const openSession = (dObj, queue) => setActiveSession({ phase: phaseKey, dayObj: dObj, index: 0, queue });
+    const openDrill = (item) => setActiveDrill({ phase: phaseKey, item });
 
     const meta = isF2L
       ? { subtitle: 'Hold White on Bottom • Green in Front • Target Slot: Front-Right (White–Green–Orange)', lineupLabel: "Today's Pair Lineup (Hold & Drag to Reorder)", libEyebrow: '41 Standard Pairs', libTitle: 'F2L Library', groupTabLabel: '6 Pair Groups', unitLabel: 'Pairs', statsTitle: 'F2L Statistics' }
@@ -5344,7 +5486,7 @@ const toastTimerRef = useRef(null);
                     emitBeep(720, 'sine', 0.08);
                     setSwRunning(false); setSwLastResult(null);
                     const sessionQueue = dayObj.randomize ? shuffleCaseList(lineupOrder) : [...lineupOrder];
-                    setSession({ dayObj, index: 0, queue: sessionQueue });
+                    openSession(dayObj, sessionQueue);
                   }}
                   className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
                 >
@@ -5393,7 +5535,7 @@ const toastTimerRef = useRef(null);
                     onClick={() => {
                       if (draggedLineupIdx !== null) return;
                       if (locked) { openProPaywall(item.name); return; }
-                      emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
+                      emitBeep(600); setSwRunning(false); setSwLastResult(null); openDrill(rawItem);
                     }}
                     className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-card liquid-rim-muted'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : item.usingCustomAlg ? 'hover:border-orange-400/75' : 'border-white/10 hover:border-white/20'
@@ -5526,7 +5668,7 @@ const toastTimerRef = useRef(null);
                       key={item.id}
                       onClick={() => {
                         if (trainingLocked) { openProPaywall(`${item.name} • Day Training & Drills`); return; }
-                        emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
+                        emitBeep(600); setSwRunning(false); setSwLastResult(null); openDrill(rawItem);
                       }}
                       className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card hover:border-orange-400/75' : 'liquid-glass-card liquid-rim-muted border-white/10 hover:border-white/20'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer`}
                     >
@@ -5635,7 +5777,7 @@ const toastTimerRef = useRef(null);
                 key={item.id}
                 onClick={() => {
                   if (locked) { openProPaywall(item.name); return; }
-                  emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
+                  emitBeep(580); setSwRunning(false); setSwLastResult(null); openDrill(rawItem);
                 }}
                 className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-card liquid-rim-muted'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${locked ? 'border-orange-500/20' : item.usingCustomAlg ? 'hover:border-orange-400/75' : 'border-white/10 hover:border-white/20'}`}
               >
@@ -5772,18 +5914,15 @@ const toastTimerRef = useRef(null);
 
   // Unified Daily Session Runner (Liquid Glass - Full-Viewport Fit on iPad, Tablet & Desktop)
   const renderUnifiedDailySession = () => {
-    const activePhaseSession = f2lSession
-      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
-      : ollSession
-      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', statsMap: currentUser.stats, itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
-      : pllSession
-      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', statsMap: currentUser.pllStats, itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
-      : null;
-
-    if (!activePhaseSession) return null;
-    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, statsMap, itemLabel, timerLabel } = activePhaseSession;
-    const rawItem = session.queue[session.index];
+    if (!activeSession) return null;
+    const { phase: phaseKey, dayObj, index, queue } = activeSession;
+    const rawItem = queue[index];
     if (!rawItem) return null;
+    const { safeDay, scheduleLen, dayField, statsMap, itemLabel, timerLabel } = {
+      f2l: { safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' },
+      oll: { safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', statsMap: currentUser.stats, itemLabel: 'Case', timerLabel: 'Tap to Time OLL' },
+      pll: { safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', statsMap: currentUser.pllStats, itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
+    }[phaseKey];
     const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
@@ -5792,7 +5931,7 @@ const toastTimerRef = useRef(null);
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#040814]/88 backdrop-blur-2xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#040814]/94 flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
@@ -5804,15 +5943,15 @@ const toastTimerRef = useRef(null);
           <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
             <div className="flex items-center gap-2.5">
               <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-0.5 text-[9.5px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-wider text-orange-300`}>
-                {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
+                {dayObj.mode} • {itemLabel} {index + 1}/{queue.length}
               </span>
               {isTwoPane && (
                 <span className="text-xs font-bold text-zinc-400">
-                  Day {safeDay} • {session.dayObj.chunkTitle}
+                  Day {safeDay} • {dayObj.chunkTitle}
                 </span>
               )}
             </div>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-2xl bg-transparent hover:bg-white/[0.08] text-zinc-300 font-bold cursor-pointer`}><X className="w-3.5 h-3.5 inline-block" /></button>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setActiveSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-2xl bg-transparent hover:bg-white/[0.08] text-zinc-300 font-bold cursor-pointer`}><X className="w-3.5 h-3.5 inline-block" /></button>
           </div>
 
           <div className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'my-auto'}`}>
@@ -5843,8 +5982,8 @@ const toastTimerRef = useRef(null);
 
           <div className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
             <button
-              onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
-              disabled={session.index === 0}
+              onClick={() => { emitBeep(460); setSwRunning(false); setActiveSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
+              disabled={index === 0}
               className={`${isTwoPane ? 'py-3.5 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer`}
             >
               <ArrowLeft className="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" />Previous
@@ -5852,21 +5991,19 @@ const toastTimerRef = useRef(null);
             <button
               onClick={() => {
                 emitBeep(760); setSwRunning(false);
-                if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
+                if (index + 1 < queue.length) setActiveSession((s) => ({ ...s, index: s.index + 1 }));
                 else {
-                  const updated = {
-                    ...currentUser,
-                    ...advanceDailyStreakFields(currentUser),
+                  updateActiveUserRecord((u) => ({
+                    ...u,
+                    ...advanceDailyStreakFields(u),
                     [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1
-                  };
-                  setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
-                  saveUserToCloud(resolvedUserKey, updated);
-                  setSession(null);
+                  }));
+                  setActiveSession(null);
                 }
               }}
               className={`${isTwoPane ? 'py-3.5 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
             >
-              {session.index + 1 < session.queue.length ? <>Next {itemLabel} <ArrowRight className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></> : <>Complete Day <Check className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></>}
+              {index + 1 < queue.length ? <>Next {itemLabel} <ArrowRight className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></> : <>Complete Day <Check className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></>}
             </button>
           </div>
         </div>
@@ -5876,26 +6013,23 @@ const toastTimerRef = useRef(null);
 
   // Unified Isolated Case Drill Modal (Liquid Glass - Full-Viewport Fit on iPad, Tablet & Desktop)
   const renderUnifiedDrillModal = () => {
-    const activeDrill = f2lDrillCase
-      ? { phaseKey: 'f2l', item: f2lDrillCase, close: () => setF2lDrillCase(null), statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' }
-      : ollDrillCase
-      ? { phaseKey: 'oll', item: ollDrillCase, close: () => setOllDrillCase(null), statsMap: currentUser.stats, timerLabel: 'Tap to Time OLL' }
-      : pllDrillCase
-      ? { phaseKey: 'pll', item: pllDrillCase, close: () => setPllDrillCase(null), statsMap: currentUser.pllStats, timerLabel: 'Tap to Time PLL' }
-      : null;
-
     if (!activeDrill) return null;
-    const { phaseKey, item: rawItem, close, statsMap, timerLabel } = activeDrill;
+    const { phase: phaseKey, item: rawItem } = activeDrill;
+    const { statsMap, timerLabel } = {
+      f2l: { statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' },
+      oll: { statsMap: currentUser.stats, timerLabel: 'Tap to Time OLL' },
+      pll: { statsMap: currentUser.pllStats, timerLabel: 'Tap to Time PLL' }
+    }[phaseKey];
     const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
     const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
-    const closeDrill = () => { setSwRunning(false); setSwLastResult(null); close(); };
+    const closeDrill = () => { setSwRunning(false); setSwLastResult(null); setActiveDrill(null); };
 
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040814]/88 backdrop-blur-2xl overflow-hidden ${
+        className={`fixed inset-0 z-[245] bg-[#040814]/94 overflow-hidden ${
           isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
@@ -5971,8 +6105,8 @@ const toastTimerRef = useRef(null);
 
   // Dedicated Right-Hand Reference Pane for iPad, Tablets & Desktop
   const renderTabletDesktopReferencePane = () => {
-    const activeContextCase = f2lDrillCase || ollDrillCase || pllDrillCase ||
-      (f2lSession ? f2lSession.queue[f2lSession.index] : ollSession ? ollSession.queue[ollSession.index] : pllSession ? pllSession.queue[pllSession.index] : null);
+    if (!isTwoPane) return null;
+    const activeContextCase = activeDrill?.item || activeSession?.queue[activeSession.index] || null;
     const activeContextTags = activeContextCase ? getAlgorithmTriggerTags(activeContextCase.alg) : [];
     const q = rightPaneSearch.trim().toLowerCase();
 
@@ -5987,7 +6121,7 @@ const toastTimerRef = useRef(null);
     );
 
     return (
-      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-[#070f24]/25 backdrop-blur-xl border-l border-white/[0.09] p-5 pb-28 space-y-3.5 overflow-hidden`}>
+      <aside className="flex col-span-5 flex-col min-h-0 h-full bg-[#070f24]/75 border-l border-white/[0.09] p-5 pb-28 space-y-3.5 overflow-hidden">
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
           <div>
             <h2 className="text-lg font-black tracking-tight text-white">Notation &amp; Mechanics</h2>
@@ -6146,7 +6280,7 @@ const toastTimerRef = useRef(null);
           } flex flex-col relative z-10 bg-midnight-marble overflow-hidden`}
         >
           {/* PERSISTENT HEADER */}
-          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.09] bg-[#070f24]/45 backdrop-blur-xl flex-shrink-0 z-40`}>
+          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.09] bg-[#071127]/95 flex-shrink-0 z-40`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-2xl bg-white/[0.07] border border-white/15 p-0.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                 <SuneEmblemSvg className="w-full h-full" />
@@ -6659,8 +6793,8 @@ const toastTimerRef = useRef(null);
                 <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
-                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 backdrop-blur-2xl border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
-                      cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
+                      cfopMenuOpen ? 'backdrop-blur-2xl liquid-pour-open' : 'liquid-pour-closed'
                     }`}
                   >
                     {[
@@ -7051,36 +7185,38 @@ const toastTimerRef = useRef(null);
                         <input
                           type="email"
                           value={authEmailInput}
-                          onChange={(e) => setAuthEmailInput(e.target.value)}
-                          placeholder="Email for Cloud Sync (Optional)"
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthEmailInput(e.target.value); }}
+                          placeholder="Email for Cross-Device Sync (Optional)"
                           className="w-full rounded-2xl liquid-glass-uv-well px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
                         />
+                        <input
+                          type="password"
+                          value={authPasswordInput}
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthPasswordInput(e.target.value); }}
+                          placeholder={authEmailInput.trim() ? 'Password (6+ characters)' : 'Password (Required if Email entered)'}
+                          className="w-full rounded-2xl liquid-glass-uv-well px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                        <p className="text-[10px] text-zinc-300/75 px-1">
+                          Add <strong className="text-white">Email + Password</strong> to sync across phone &amp; desktop, or leave blank for a device-only profile.
+                        </p>
                       </div>
 
                       {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
 
                       <button
                         type="button"
-                        onClick={() => {
-                          const cleanName = authNameInput.trim();
-                          if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
-                          if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
-                          emitBeep(820, 'sine', 0.1);
-                          const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
-                          setUsers((prev) => ({ ...prev, [cleanName]: created }));
-                          saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
-                          setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
-                        }}
-                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
+                        disabled={authBusy}
+                        onClick={handleEmailPasswordSignUp}
+                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] disabled:opacity-60 cursor-pointer"
                       >
-                        Create Account &amp; Start
+                        {authBusy ? 'Creating Account…' : 'Create Account & Start'}
                       </button>
 
                       <p className="text-center text-[11px] text-zinc-400">
                         Already registered?{' '}
                         <button
                           type="button"
-                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthPasswordInput(''); setAuthMode('signin'); }}
                           className="font-bold text-orange-300 hover:underline cursor-pointer"
                         >
                           Sign In
@@ -7090,7 +7226,7 @@ const toastTimerRef = useRef(null);
                   </div>
                 )}
 
-             {authMode === 'signin' && (
+                {authMode === 'signin' && (
                   <div className="w-full max-w-sm">
                     <div className="relative overflow-hidden rounded-3xl liquid-glass-uv border border-white/25 p-6 space-y-4">
                       <div className="text-center space-y-1">
@@ -7104,13 +7240,13 @@ const toastTimerRef = useRef(null);
                         isNativeIos={isNativeIosApp}
                       />
 
-                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
                         {savedAccountKeys.map((uKey) => {
                           const uData = sanitizeUserRecord(users[uKey]);
                           return (
                             <button
                               key={uKey} type="button"
-                              onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
+                              onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthEmailInput(''); setAuthPasswordInput(''); setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthScreenOpen(false); }}
                               className="w-full p-3.5 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
                             >
                               <div className="text-left">
@@ -7127,32 +7263,51 @@ const toastTimerRef = useRef(null);
                       </div>
 
                       <div className="pt-2 border-t border-white/15 space-y-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
-                        <div className="flex items-center gap-1.5">
-                          <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-2xl liquid-glass-uv-well px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80">Sign In With Email &amp; Password</span>
                           <button
                             type="button"
-                            onClick={() => {
-                              const query = authNameInput.trim();
-                              if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
-                              const qLower = query.toLowerCase();
-                              const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === qLower || users[k]?.email?.trim().toLowerCase() === qLower);
-                              if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
-                              emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
-                            }}
-                            className="px-4 py-2.5 rounded-2xl bg-white/[0.10] hover:bg-white/[0.18] text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
+                            disabled={authBusy}
+                            onClick={handlePasswordReset}
+                            className="text-[10px] font-bold text-orange-300 hover:underline disabled:opacity-50 cursor-pointer"
                           >
-                            Sign In
+                            Forgot password?
+                          </button>
+                        </div>
+                        <input
+                          type="email"
+                          value={authEmailInput}
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthEmailInput(e.target.value); }}
+                          placeholder="Email (or local Solver Name)"
+                          className="w-full rounded-2xl liquid-glass-uv-well px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="password"
+                            value={authPasswordInput}
+                            onChange={(e) => { setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthPasswordInput(e.target.value); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleEmailPasswordSignIn(); }}
+                            placeholder="Password"
+                            className="flex-1 rounded-2xl liquid-glass-uv-well px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                          />
+                          <button
+                            type="button"
+                            disabled={authBusy}
+                            onClick={handleEmailPasswordSignIn}
+                            className="px-4 py-2.5 rounded-2xl bg-white/[0.12] hover:bg-white/[0.2] text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] disabled:opacity-60 cursor-pointer"
+                          >
+                            {authBusy ? '…' : 'Sign In'}
                           </button>
                         </div>
                         {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                        {authInfoMsg && <p className="text-[11px] font-bold text-green-300 text-center">{authInfoMsg}</p>}
                       </div>
 
                       <p className="text-center text-[11px] text-zinc-400">
                         New to OLLDay?{' '}
                         <button
                           type="button"
-                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signup'); }}
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthPasswordInput(''); setAuthMode('signup'); }}
                           className="font-bold text-orange-300 hover:underline cursor-pointer"
                         >
                           Create Account
@@ -7496,7 +7651,7 @@ const toastTimerRef = useRef(null);
           return (
             <div className="fixed inset-0 z-[285] bg-midnight-marble flex justify-center overflow-hidden">
               <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-midnight-marble border-x border-white/10 shadow-2xl flex flex-col">
-                <div className="px-4 pt-4 pb-3 border-b border-white/[0.08] bg-black/25 backdrop-blur-md flex items-center justify-between flex-shrink-0">
+                <div className="px-4 pt-4 pb-3 border-b border-white/[0.08] bg-[#071127]/95 flex items-center justify-between flex-shrink-0">
                   <div>
                     <h2 className="text-lg font-black text-white">Cube Scanner &amp; Solver</h2>
                   </div>
@@ -7944,9 +8099,7 @@ const toastTimerRef = useRef(null);
                         if (activeStagePhase === 'cross') { emitBeep(760); setActivePhase('cross'); setTabForPhase('cross', 'ladder'); return; }
                         if (!isCaseUnlockedForTraining(activeStagePhase, matched.id, isProUnlocked)) { openProPaywall(matched.name); return; }
                         emitBeep(760); setActivePhase(activeStagePhase); setSwRunning(false); setSwLastResult(null);
-                        if (activeStagePhase === 'f2l') setF2lDrillCase(matched);
-                        else if (activeStagePhase === 'oll') setOllDrillCase(matched);
-                        else if (activeStagePhase === 'pll') setPllDrillCase(matched);
+                        setActiveDrill({ phase: activeStagePhase, item: matched });
                       }}
                       className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
                     >
@@ -8278,7 +8431,7 @@ const toastTimerRef = useRef(null);
           ];
           const currentQ = ORBIT_QUESTIONS[orbitQuiz.idx % 4];
           return (
-            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs" backdropClass="bg-black/72 backdrop-blur-md">
+            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs" backdropClass="bg-black/85">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
