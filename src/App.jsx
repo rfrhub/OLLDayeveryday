@@ -3002,12 +3002,18 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
       try {
         const writeTs = Date.now();
         const profileResults = await Promise.all(
-          batchEntries.map(([uKey, record]) => {
-            const cleanRec = sanitizeUserRecord(record);
+          batchEntries.map(async ([uKey, record]) => {
+            let finalRec = sanitizeUserRecord(record);
+            try {
+              const snap = await svc.fsMod.getDoc(getCloudProfileDocRef(svc, uid, uKey, preferredCloudNamespace)).catch(() => null);
+              if (snap && snap.exists()) {
+                finalRec = mergeSolverUserRecords(finalRec, snap.data());
+              }
+            } catch {}
             lastCloudWriteRef.current.set(uKey, writeTs);
             return writeCloudDocWithFallback(svc, uid, uKey, {
-              ...cleanRec,
-              email: cleanRec.email || activeFbUser?.email || '',
+              ...finalRec,
+              email: finalRec.email || activeFbUser?.email || '',
               updatedAt: writeTs
             });
           })
@@ -3179,7 +3185,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
               Object.keys(merged.f2lStats).length > Object.keys(data.f2lStats || {}).length ||
               Object.keys(merged.pllStats).length > Object.keys(data.pllStats || {}).length;
             const pushSig = `push:${uid}:${docSnap.id}:${merged.isPro}:${merged.day}:${merged.f2lDay}:${merged.pllDay}:${merged.fullSolveHistory.length}:${Object.keys(merged.stats).length}:${Object.keys(merged.f2lStats).length}:${Object.keys(merged.pllStats).length}`;
-            if (localAhead && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current < 3) {
+            if (localAhead && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current === 0) {
               autoPushedSigRef.current = pushSig;
               saveUserToCloud(docSnap.id, merged);
             }
