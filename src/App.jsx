@@ -3,6 +3,7 @@ import {
   Camera, EyeOff, Layers, Settings, Zap, Grid, BarChart3, AlignJustify,
   RotateCw, X, Lock, Check, ChevronUp, ChevronDown, GripVertical, Pencil, Delete, Star, Sparkles, ArrowRight, ArrowLeft
 } from 'lucide-react';
+import './styles.css';
 import {
   SCANNER_COLOR_CODES, SCANNER_COLOR_META, STICKER_HEX, CUBE_HALF_PX, CUBE_FACES_META, SOLVED_54_STATE,
   OLLDAY_LOGO_DATA_URI, SuneEmblemSvg, FINGERTRICK_CODEX, WCA_NOTATION_GUIDE, CROSS_TIERS, CROSS_ADVANCED_TIERS,
@@ -18,7 +19,6 @@ import {
   rgbToHsv, rgbToLab, classifyStickerRgb, classifyCapturedFaceBatch, SCANNER_FLAT_GRID_CENTROIDS, SCANNER_SAMPLE_OFFSETS
 } from './solverUtils';
 import { ProLockOverlay, ModalShell, UvModalShell, AmbientGlows, OrbitRingBackdrop, TriggerTagsList, CustomAlgSwitcherPills, SocialAuthButtons, MillisecondSliderControl, CaseWindowAvgGrid } from './components';
-
 // =========================================================================
 // 1. FIREBASE, STORAGE & TIER HELPERS
 // =========================================================================
