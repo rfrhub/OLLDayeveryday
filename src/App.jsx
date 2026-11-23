@@ -3664,6 +3664,22 @@ function OLLDaySuite() {
 
 
 
+  const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
+    const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
+    const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
+    const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
+    if (savedActive && !list.includes(savedActive)) list.push(savedActive);
+    return list;
+  });
+  const registerDeviceAccount = (uKey) => {
+    if (!uKey || typeof uKey !== 'string') return;
+    setDeviceAccountKeys((prev) => {
+      const next = prev.includes(uKey) ? prev : [...prev, uKey];
+      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
+      return next;
+    });
+  };
+
   const { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, cloudSyncError, lastCloudWriteRef, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
     useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, registerDeviceAccount, isAppVisible);
 
@@ -4159,13 +4175,7 @@ function OLLDaySuite() {
   const [authErrorMsg, setAuthErrorMsg] = useState('');
   const [authInfoMsg, setAuthInfoMsg] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
-  const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
-    const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
-    const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
-    const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
-    if (savedActive && !list.includes(savedActive)) list.push(savedActive);
-    return list;
-  });
+
 
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
@@ -4557,14 +4567,7 @@ function OLLDaySuite() {
       }
     }
   };
-  const registerDeviceAccount = (uKey) => {
-    if (!uKey || typeof uKey !== 'string') return;
-    setDeviceAccountKeys((prev) => {
-      const next = prev.includes(uKey) ? prev : [...prev, uKey];
-      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
-      return next;
-    });
-  };
+
 
   const startGuidedTour = () => {
     emitBeep(720, 'sine', 0.08);
