@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lock } from 'lucide-react';
-import { CUBE_HALF_PX, CUBE_FACES_META, STICKER_HEX, SCANNER_COLOR_META } from './constants';
+import { CUBE_HALF_PX, CUBE_FACES_META, STICKER_HEX, SCANNER_COLOR_META } from '../utils/constants';
 import { simulateCrossCubeState } from './solverUtils'; // wait, simulateCrossCubeState is not exported from solverUtils, it's defined in App.jsx
 
 export function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
