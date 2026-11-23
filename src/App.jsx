@@ -19,7 +19,6 @@ import {
   rgbToHsv, rgbToLab, classifyStickerRgb, classifyCapturedFaceBatch, SCANNER_FLAT_GRID_CENTROIDS, SCANNER_SAMPLE_OFFSETS
 } from './utils/solverUtils';
 import { ProLockOverlay, ModalShell, UvModalShell, AmbientGlows, OrbitRingBackdrop, TriggerTagsList, CustomAlgSwitcherPills, SocialAuthButtons, MillisecondSliderControl, CaseWindowAvgGrid } from './components/components';
-import { ProLockOverlay, ModalShell, UvModalShell, AmbientGlows, OrbitRingBackdrop, TriggerTagsList, CustomAlgSwitcherPills, SocialAuthButtons, MillisecondSliderControl, CaseWindowAvgGrid } from './components';
 
 // =========================================================================
 // 1. FIREBASE, STORAGE & TIER HELPERS
