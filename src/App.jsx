@@ -2966,16 +2966,58 @@ function mergeDefaultUsersWithStored(storedMap) {
   return Object.keys(result).length === 0 ? { ...DEFAULT_USERS } : result;
 }
 
-function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = true) {
+const CLIENT_INSTANCE_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+function normalizeCloudDocId(rawKey = '') {
+  return String(rawKey || '')
+    .replace(/[/\\#?]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getRecordProgressSignature(rec) {
+  const r = sanitizeUserRecord(rec);
+  const countAttempts = (m) => Object.values(m || {}).reduce((acc, v) => acc + (Number(v?.attempts) || 0), 0);
+  const countCustomAlgs = (m) => ['f2l', 'oll', 'pll'].reduce((acc, ph) => acc + Object.keys(m?.[ph] || {}).length, 0);
+  return [
+    r.isPro ? 1 : 0,
+    r.day,
+    r.f2lDay,
+    r.pllDay,
+    r.crossDay,
+    r.crossClears,
+    r.consecutiveStreakDays,
+    r.lastActiveDate,
+    r.fullSolveHistory.length,
+    Object.keys(r.stats).length,
+    countAttempts(r.stats),
+    Object.keys(r.f2lStats).length,
+    countAttempts(r.f2lStats),
+    Object.keys(r.pllStats).length,
+    countAttempts(r.pllStats),
+    countCustomAlgs(r.customAlgs),
+    r.fullSolveTargetPb,
+    JSON.stringify(r.phaseTargetPbs),
+    JSON.stringify(r.caseTargetPbs),
+    (r.customChunks || []).length,
+    (r.f2lCustomChunks || []).length,
+    (r.pllCustomChunks || []).length
+  ].join('|');
+}
+
+function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, registerDeviceAccount, isAppVisible = true) {
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
   const [cloudSyncError, setCloudSyncError] = useState('');
   const latestUsersRef = useRef(users);
   latestUsersRef.current = users;
+  const activeUserKeyRef = useRef(activeUserKey);
+  activeUserKeyRef.current = activeUserKey;
   const cloudAuthUserRef = useRef(cloudAuthUser);
   cloudAuthUserRef.current = cloudAuthUser;
   const pendingCloudSyncRef = useRef(new Map());
   const lastCloudWriteRef = useRef(new Map());
+  const lastWriteIdRef = useRef(new Map());
   const failedWriteCountRef = useRef(0);
   const autoPushedSigRef = useRef('');
   const isFlushingRef = useRef(false);
@@ -2989,6 +3031,9 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     if (isFlushingRef.current) return;
 
     const svc = resolvedFirebaseConfig ? await getFirebaseServices() : null;
+    if (svc && typeof svc.auth.authStateReady === 'function') {
+      await svc.auth.authStateReady().catch(() => {});
+    }
     const activeFbUser = svc?.auth?.currentUser || cloudAuthUserRef.current;
     const uid = activeFbUser?.uid;
     if (pendingCloudSyncRef.current.size > 0 && resolvedFirebaseConfig && uid && svc) {
@@ -2997,8 +3042,11 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
       pendingCloudSyncRef.current.clear();
       try {
         const writeTs = Date.now();
+        const writeNonce = `${CLIENT_INSTANCE_ID}:${writeTs}`;
         const profileResults = await Promise.all(
-          batchEntries.map(async ([uKey, record]) => {
+          batchEntries.map(async ([rawKey, record]) => {
+            const uKey = normalizeCloudDocId(rawKey);
+            if (!uKey || uKey === 'Demo') return { ok: true };
             let finalRec = sanitizeUserRecord(record);
             try {
               const snap = await svc.fsMod.getDoc(getCloudProfileDocRef(svc, uid, uKey, preferredCloudNamespace)).catch(() => null);
@@ -3007,10 +3055,19 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
               }
             } catch {}
             lastCloudWriteRef.current.set(uKey, writeTs);
+            lastWriteIdRef.current.set(uKey, writeNonce);
+            setUsers((prev) => {
+              const existing = prev[uKey];
+              if (existing && getRecordProgressSignature(existing) === getRecordProgressSignature(finalRec)) return prev;
+              const nextUsers = { ...prev, [uKey]: finalRec };
+              storage.setJson(STORAGE_KEYS.users, nextUsers);
+              return nextUsers;
+            });
             return writeCloudDocWithFallback(svc, uid, uKey, {
               ...finalRec,
               email: finalRec.email || activeFbUser?.email || '',
-              updatedAt: writeTs
+              updatedAt: writeTs,
+              writeNonce
             });
           })
         );
@@ -3018,7 +3075,8 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
           await writeCloudDocWithFallback(svc, uid, '_entitlements', {
             isPro: true,
             email: activeFbUser?.email || '',
-            updatedAt: writeTs
+            updatedAt: writeTs,
+            writeNonce
           });
         }
         const allOk = profileResults.every((r) => r.ok);
@@ -3031,7 +3089,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
           const firstErr = profileResults.find((r) => !r.ok)?.error;
           setCloudSyncError(firstErr?.code || 'sync-failed');
           setCloudSyncStatus('local');
-          if (failedWriteCountRef.current < 3) {
+          if (failedWriteCountRef.current < 4) {
             batchEntries.forEach(([k, rec]) => {
               if (!pendingCloudSyncRef.current.has(k)) pendingCloudSyncRef.current.set(k, rec);
             });
@@ -3043,19 +3101,24 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
         setCloudSyncStatus('local');
       } finally {
         isFlushingRef.current = false;
+        if (pendingCloudSyncRef.current.size > 0 && failedWriteCountRef.current < 4) {
+          cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 600);
+        }
       }
     }
   };
 
-  const saveUserToCloud = (uKey, record) => {
+  const saveUserToCloud = (rawKey, record) => {
+    const uKey = normalizeCloudDocId(rawKey);
     if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig) return;
     pendingCloudSyncRef.current.set(uKey, record);
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-    const backoffMs = failedWriteCountRef.current > 0 ? Math.min(8000, 1000 * Math.pow(2, failedWriteCountRef.current)) : 500;
+    const backoffMs = failedWriteCountRef.current > 0 ? Math.min(6000, 800 * Math.pow(2, failedWriteCountRef.current)) : 250;
     cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, backoffMs);
   };
 
-  const cancelPendingWriteFor = (uKey) => {
+  const cancelPendingWriteFor = (rawKey) => {
+    const uKey = normalizeCloudDocId(rawKey);
     pendingCloudSyncRef.current.delete(uKey);
     if (pendingCloudSyncRef.current.size === 0 && cloudSaveTimerRef.current) {
       clearTimeout(cloudSaveTimerRef.current);
@@ -3063,11 +3126,22 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     }
   };
 
-  useEffect(() => () => { flushPendingPersistence(); }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleOnline = () => {
+      failedWriteCountRef.current = 0;
+      flushPendingPersistence();
+    };
+    window.addEventListener('online', handleOnline, { passive: true });
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      flushPendingPersistence();
+    };
+  }, []);
 
   useEffect(() => {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
-    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 350);
+    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 250);
     return () => clearTimeout(localSaveTimerRef.current);
   }, [users]);
 
@@ -3077,14 +3151,57 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     (async () => {
       const svc = await getFirebaseServices();
       if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
-      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
-        if (!cancelled) {
-          setCloudAuthUser(fbUser || null);
-          if (!fbUser) {
-            setCloudSyncStatus('local');
-          } else if (pendingCloudSyncRef.current.size > 0) {
-            flushPendingPersistence();
-          }
+      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, async (fbUser) => {
+        if (cancelled) return;
+        setCloudAuthUser(fbUser || null);
+        if (!fbUser) {
+          setCloudSyncStatus('local');
+          return;
+        }
+        if (pendingCloudSyncRef.current.size > 0) {
+          flushPendingPersistence();
+        }
+        // Hydrate all cloud profiles for this authenticated user across devices on boot / sign-in
+        if (!fbUser.isAnonymous) {
+          try {
+            const { docs } = await readCloudProfilesWithFallback(svc, fbUser.uid);
+            if (cancelled) return;
+            const entDoc = docs.find((d) => d.id === '_entitlements');
+            const cloudHasPro = Boolean(entDoc?.data()?.isPro) || docs.some((d) => Boolean(d.data()?.isPro));
+            const profileDocs = docs.filter((d) => d.id !== '_entitlements');
+            if (profileDocs.length > 0) {
+              const sorted = [...profileDocs].sort((a, b) => (Number(b.data()?.updatedAt) || 0) - (Number(a.data()?.updatedAt) || 0));
+              setUsers((prev) => {
+                const nextUsers = { ...prev };
+                sorted.forEach((docSnap) => {
+                  const key = normalizeCloudDocId(docSnap.id);
+                  if (!key || key === 'Demo') return;
+                  const merged = mergeSolverUserRecords(nextUsers[key], {
+                    ...docSnap.data(),
+                    email: fbUser.email || docSnap.data()?.email || '',
+                    isPro: cloudHasPro || Boolean(docSnap.data()?.isPro)
+                  });
+                  nextUsers[key] = merged;
+                  registerDeviceAccount?.(key);
+                });
+                storage.setJson(STORAGE_KEYS.users, nextUsers);
+                return nextUsers;
+              });
+              const curActive = activeUserKeyRef.current;
+              const emailLower = (fbUser.email || '').trim().toLowerCase();
+              const hasMatchingActive =
+                curActive &&
+                curActive !== 'Demo' &&
+                sorted.some((d) => normalizeCloudDocId(d.id).toLowerCase() === curActive.toLowerCase());
+              if (!hasMatchingActive) {
+                const bestMatch =
+                  sorted.find((d) => emailLower && (d.data()?.email || '').trim().toLowerCase() === emailLower) ||
+                  sorted[0];
+                const bestKey = normalizeCloudDocId(bestMatch.id);
+                if (bestKey) setActiveUserKey?.(bestKey);
+              }
+            }
+          } catch {}
         }
       });
       if (typeof svc.auth.authStateReady === 'function') {
@@ -3106,14 +3223,14 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
 
   useEffect(() => {
     const uid = cloudAuthUser?.uid;
-    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
+    const cleanActiveKey = normalizeCloudDocId(activeUserKey);
+    if (!resolvedFirebaseConfig || !uid || !cleanActiveKey || cleanActiveKey === 'Demo') {
       setCloudSyncStatus('local');
       return;
     }
     if (!isAppVisible) return;
     let cancelled = false;
-    let unsubSnapshot = null;
-    let unsubEntitlementSnapshot = null;
+    let unsubCollection = null;
     autoPushedSigRef.current = '';
 
     (async () => {
@@ -3125,65 +3242,81 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
         const probe = await readCloudProfilesWithFallback(svc, uid).catch(() => null);
         if (cancelled) return;
         const activeNs = probe?.ns || preferredCloudNamespace;
-        const entRef = getCloudProfileDocRef(svc, uid, '_entitlements', activeNs);
-        const docRef = getCloudProfileDocRef(svc, uid, activeUserKey, activeNs);
+        const colRef = getCloudProfilesColRef(svc, uid, activeNs);
 
-        unsubEntitlementSnapshot = svc.fsMod.onSnapshot(
-          entRef,
-          (entSnap) => {
-            if (cancelled || !entSnap.exists()) return;
-            if (entSnap.data()?.isPro) {
-              setUsers((prev) => {
-                const cur = prev[activeUserKey];
-                if (!cur || cur.isPro) return prev;
-                const upgraded = sanitizeUserRecord({ ...cur, isPro: true });
-                storage.setJson(STORAGE_KEYS.users, { ...prev, [activeUserKey]: upgraded });
-                return { ...prev, [activeUserKey]: upgraded };
-              });
-            }
-          },
-          () => {}
-        );
-
-        unsubSnapshot = svc.fsMod.onSnapshot(
-          docRef,
-          (docSnap) => {
+        // Listen to the entire solver_profiles collection so updates to _entitlements OR any profile
+        // doc (including case-variant profile keys across devices) sync in real time!
+        unsubCollection = svc.fsMod.onSnapshot(
+          colRef,
+          { includeMetadataChanges: false },
+          (querySnap) => {
             if (cancelled) return;
             if (failedWriteCountRef.current === 0) {
               setCloudSyncStatus('synced');
             }
-            const localRec = latestUsersRef.current?.[activeUserKey];
-            if (!docSnap.exists()) {
-              const seedSig = `seed:${uid}:${activeUserKey}`;
+
+            const docs = querySnap.docs || [];
+            const entDoc = docs.find((d) => d.id === '_entitlements');
+            const cloudAnyPro =
+              Boolean(entDoc?.data()?.isPro) || docs.some((d) => Boolean(d.data()?.isPro));
+
+            const profileDocs = docs.filter((d) => d.id !== '_entitlements');
+            const matchedDocs = profileDocs.filter((d) => {
+              const docKey = normalizeCloudDocId(d.id);
+              const docEmail = (d.data()?.email || '').trim().toLowerCase();
+              const authEmail = (cloudAuthUserRef.current?.email || '').trim().toLowerCase();
+              return (
+                docKey.toLowerCase() === cleanActiveKey.toLowerCase() ||
+                (authEmail && docEmail && docEmail === authEmail)
+              );
+            });
+
+            const localRec = latestUsersRef.current?.[cleanActiveKey];
+            if (matchedDocs.length === 0) {
+              const seedSig = `seed:${uid}:${cleanActiveKey}`;
               if (localRec && autoPushedSigRef.current !== seedSig && failedWriteCountRef.current < 3) {
                 autoPushedSigRef.current = seedSig;
-                saveUserToCloud(activeUserKey, localRec);
+                saveUserToCloud(cleanActiveKey, { ...localRec, isPro: Boolean(localRec.isPro || cloudAnyPro) });
               }
               return;
             }
-            const data = docSnap.data();
-            if (!data || typeof data !== 'object') return;
-            if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
-            const merged = mergeSolverUserRecords(localRec, data);
-            setUsers((prev) => {
-              const nextUsers = { ...prev, [docSnap.id]: merged };
-              storage.setJson(STORAGE_KEYS.users, nextUsers);
-              return nextUsers;
+
+            // Merge all matching cloud docs + local state so progress from any device is preserved
+            let merged = sanitizeUserRecord({
+              ...(localRec || {}),
+              isPro: Boolean(localRec?.isPro || cloudAnyPro)
             });
-            const localAhead =
-              (merged.isPro && !data.isPro) ||
-              merged.day > (Number(data.day) || 1) ||
-              merged.f2lDay > (Number(data.f2lDay) || 1) ||
-              merged.pllDay > (Number(data.pllDay) || 1) ||
-              merged.crossClears > (Number(data.crossClears) || 0) ||
-              merged.fullSolveHistory.length > (Array.isArray(data.fullSolveHistory) ? data.fullSolveHistory.length : 0) ||
-              Object.keys(merged.stats).length > Object.keys(data.stats || {}).length ||
-              Object.keys(merged.f2lStats).length > Object.keys(data.f2lStats || {}).length ||
-              Object.keys(merged.pllStats).length > Object.keys(data.pllStats || {}).length;
-            const pushSig = `push:${uid}:${docSnap.id}:${merged.isPro}:${merged.day}:${merged.f2lDay}:${merged.pllDay}:${merged.fullSolveHistory.length}:${Object.keys(merged.stats).length}:${Object.keys(merged.f2lStats).length}:${Object.keys(merged.pllStats).length}`;
-            if (localAhead && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current === 0) {
+            matchedDocs.forEach((d) => {
+              const data = d.data();
+              if (!data || typeof data !== 'object') return;
+              merged = mergeSolverUserRecords(merged, {
+                ...data,
+                isPro: Boolean(data.isPro || cloudAnyPro)
+              });
+            });
+
+            const prevSig = localRec ? getRecordProgressSignature(localRec) : '';
+            const mergedSig = getRecordProgressSignature(merged);
+            if (prevSig !== mergedSig) {
+              setUsers((prev) => {
+                const nextUsers = { ...prev, [cleanActiveKey]: merged };
+                storage.setJson(STORAGE_KEYS.users, nextUsers);
+                return nextUsers;
+              });
+            }
+
+            // Check if any cloud doc lags behind the merged record (e.g., offline progress made on this device)
+            const primaryDoc =
+              matchedDocs.find((d) => normalizeCloudDocId(d.id) === cleanActiveKey) || matchedDocs[0];
+            const primaryData = primaryDoc?.data() || {};
+            const isOwnEcho =
+              primaryData.writeNonce && primaryData.writeNonce === lastWriteIdRef.current.get(cleanActiveKey);
+            const cloudSig = getRecordProgressSignature(primaryData);
+            const pushSig = `push:${uid}:${cleanActiveKey}:${mergedSig}`;
+
+            if (!isOwnEcho && cloudSig !== mergedSig && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current === 0) {
               autoPushedSigRef.current = pushSig;
-              saveUserToCloud(docSnap.id, merged);
+              saveUserToCloud(cleanActiveKey, merged);
             }
           },
           (err) => {
@@ -3202,8 +3335,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     })();
     return () => {
       cancelled = true;
-      if (typeof unsubSnapshot === 'function') unsubSnapshot();
-      if (typeof unsubEntitlementSnapshot === 'function') unsubEntitlementSnapshot();
+      if (typeof unsubCollection === 'function') unsubCollection();
     };
   }, [cloudAuthUser?.uid, activeUserKey, isAppVisible]);
 
@@ -3529,8 +3661,11 @@ function OLLDaySuite() {
   const [phaseTabs, setPhaseTabs] = useState({ cross: 'ladder', f2l: 'grind', oll: 'grind', pll: 'grind' });
   const setTabForPhase = (phase, tab) => setPhaseTabs((prev) => ({ ...prev, [phase]: tab }));
 
+
+
+
   const { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, cloudSyncError, lastCloudWriteRef, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
-    useSolverPersistence(users, setUsers, activeUserKey, isAppVisible);
+    useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, registerDeviceAccount, isAppVisible);
 
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [stopwatchEnabled, setStopwatchEnabled] = useState(true);
@@ -4132,6 +4267,18 @@ function OLLDaySuite() {
       ...finalSyncedRecord,
       updatedAt: writeTs
     });
+    // Keep any sibling profile docs under the same UID in sync so hopping devices never loads an older copy
+    await Promise.all(
+      profileDocs
+        .filter((d) => d.id !== chosenKey)
+        .map((d) =>
+          writeCloudDocWithFallback(svc, fbUser.uid, d.id, {
+            ...mergeSolverUserRecords(d.data(), finalSyncedRecord),
+            email: fbUser.email || d.data()?.email || '',
+            updatedAt: writeTs
+          })
+        )
+    ).catch(() => {});
     if (resolvedPro) {
       await writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', {
         isPro: true,
@@ -4165,7 +4312,7 @@ function OLLDaySuite() {
       return;
     }
 
-    // Local-only solver profile when no email is entered
+    // Solver Name profile (no email/password): still ensure anonymous cloud session is active and flush immediately
     if (!cleanEmail) {
       if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) {
         setAuthErrorMsg('That solver name is taken — choose another or Sign In');
@@ -4174,7 +4321,6 @@ function OLLDaySuite() {
       emitBeep(820, 'sine', 0.1);
       const created = sanitizeUserRecord({ email: '', isPro: false });
       setUsers((prev) => ({ ...prev, [cleanName]: created }));
-      saveUserToCloud(cleanName, created);
       registerDeviceAccount(cleanName);
       setActiveUserKey(cleanName);
       setAuthNameInput('');
@@ -4182,6 +4328,16 @@ function OLLDaySuite() {
       setAuthPasswordInput('');
       setAuthScreenOpen(false);
       setActiveModal('cfopExperienceChoice');
+      if (resolvedFirebaseConfig) {
+        (async () => {
+          const svc = await getFirebaseServices();
+          if (svc && !svc.auth.currentUser) {
+            await svc.authMod.signInAnonymously(svc.auth).catch(() => {});
+          }
+          saveUserToCloud(cleanName, created);
+          flushPendingPersistence();
+        })();
+      }
       return;
     }
 
