@@ -2250,11 +2250,9 @@ function CasePracticeCard({
         </div>
       </div>
       <p className={`font-mono ${isLargeScreen ? 'text-xl lg:text-2xl py-0.5' : 'text-[13.5px] leading-snug'} font-black break-words ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-      {item.hasCustomAlg && isLargeScreen && (
+      {item.hasCustomAlg && !item.usingCustomAlg && isLargeScreen && (
         <p className="text-[10px] font-mono text-zinc-400">
-          {item.usingCustomAlg
-            ? `Default: ${item.defaultAlg}`
-            : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
+          {`${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
         </p>
       )}
       {fingertricksEnabled && (
