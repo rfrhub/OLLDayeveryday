@@ -7583,11 +7583,13 @@ function OLLDaySuite() {
 
           {/* SADDLE-NOTCHED LIQUID GLASS BOTTOM DOCK + ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
           {(() => {
-            const dw = isTwoPane ? 576 : Math.max(332, Math.min(420, (viewportDevice.width || 390) - 28));
+            const vpW = viewportDevice.width || (isTwoPane ? 1024 : 390);
+            const containerW = isTwoPane ? Math.min(1152, vpW) : Math.min(448, vpW);
+            const dw = Math.max(300, containerW - (isTwoPane ? 48 : 28));
             const dh = 68;
             const cx = dw / 2;
-            const cradleHalfW = 31.5; // 26px half-switcher + 5.5px uniform side clearance
-            const floorY = 41.5; // 36px switcher bottom + 5.5px uniform floor clearance (matches 5.5px side clearance)
+            const cradleHalfW = 31; // 26px half-switcher + 5px uniform side clearance
+            const floorY = 41; // 36px switcher bottom + 5px uniform floor clearance
             const lipW = 11, cornerR = 17, outerR = 20;
 
             const buildNotchSegments = (sx, sy, topY) => [
@@ -7619,7 +7621,7 @@ function OLLDaySuite() {
 
             return (
               <nav className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 pt-7 pb-4 ${isTwoPane ? 'px-6' : 'px-3.5'}`}>
-                <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
+                <div className="pointer-events-auto relative w-full">
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
                     className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
