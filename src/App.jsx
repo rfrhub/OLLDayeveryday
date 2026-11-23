@@ -3245,6 +3245,30 @@ const APP_GLOBAL_CSS = `
       radial-gradient(ellipse 75% 50% at 82% 22%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.08) 48%, transparent 75%),
       radial-gradient(ellipse 80% 55% at 72% 82%, rgba(249, 115, 22, 0.22) 0%, transparent 72%),
       radial-gradient(ellipse 90% 60% at 24% 84%, rgba(23, 56, 118, 0.38) 0%, transparent 76%);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .practice-overlay-scrim {
+    background-color: #071127;
+    background-image:
+      radial-gradient(ellipse 95% 65% at 14% 12%, rgba(23, 56, 118, 0.78) 0%, rgba(14, 34, 76, 0.35) 46%, transparent 74%),
+      radial-gradient(ellipse 75% 55% at 78% 18%, rgba(249, 115, 22, 0.26) 0%, rgba(234, 88, 12, 0.10) 44%, transparent 72%),
+      radial-gradient(ellipse 80% 58% at 74% 84%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.09) 44%, transparent 74%),
+      radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.72) 0%, rgba(10, 25, 58, 0.30) 48%, transparent 75%),
+      linear-gradient(138deg, #0b1d42 0%, #050a16 24%, #112a5c 48%, #26140c 66%, #040812 80%, #0d234d 100%);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .practice-glass-card {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.035) 48%, rgba(249, 115, 22, 0.06) 100%),
+      rgba(13, 22, 46, 0.88);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.24),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+      0 14px 36px -10px rgba(0, 0, 0, 0.45);
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   button, label, span, p, input, select, textarea, .font-sans {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -6392,7 +6416,8 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-modal-scrim flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        style={{ touchAction: 'manipulation' }}
+        className={`fixed inset-0 z-[240] practice-overlay-scrim flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
@@ -6421,7 +6446,7 @@ function OLLDaySuite() {
                 isTwoPane
                   ? 'w-full h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
                   : 'w-full rounded-3xl p-4 space-y-2.5 flex flex-col items-center'
-              } liquid-glass-card liquid-rim-muted border border-white/15`}
+              } practice-glass-card liquid-rim-muted border border-white/15`}
             >
               <CasePracticeCard
                 {...sharedPracticeProps}
@@ -6490,7 +6515,8 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-modal-scrim overflow-hidden ${
+        style={{ touchAction: 'manipulation' }}
+        className={`fixed inset-0 z-[245] practice-overlay-scrim overflow-hidden ${
           isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
@@ -6505,7 +6531,7 @@ function OLLDaySuite() {
 
         <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'max-w-sm'}`}>
           <div
-            className={`liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
+            className={`practice-glass-card liquid-rim-muted border border-white/15 w-full ${
               isTwoPane
                 ? 'h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
                 : 'rounded-3xl p-4 space-y-2 overflow-hidden'
