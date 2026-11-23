@@ -4732,7 +4732,16 @@ function OLLDaySuite() {
     updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: (u.fullSolveHistory || []).filter((s) => s.id !== solveId) }));
   };
 
-  const handleFullTimerScreenTap = () => {
+  const fullTimerTouchGuardRef = useRef(0);
+
+  const handleFullTimerScreenTap = (e) => {
+    if (e && e.type === 'pointerdown') {
+      if (e.button !== undefined && e.button !== 0) return;
+      fullTimerTouchGuardRef.current = performance.now();
+    } else if (e && e.type === 'click') {
+      if (performance.now() - fullTimerTouchGuardRef.current < 450) return;
+    }
+
     if (fullTimerState !== 'running') {
       emitBeep(820, 'sine', 0.07);
       fullStartRef.current = performance.now();
@@ -7386,7 +7395,12 @@ function OLLDaySuite() {
 
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
         {fullTimerOpen && (
-          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer">
+          <div
+            onPointerDown={handleFullTimerScreenTap}
+            onClick={handleFullTimerScreenTap}
+            style={{ touchAction: 'manipulation' }}
+            className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer"
+          >
             <AmbientGlows
               topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
               topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
@@ -7394,7 +7408,7 @@ function OLLDaySuite() {
               bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.16) 0%, rgba(234, 88, 12, 0) 70%)"
             />
 
-            <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
+            <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">OLLDay Everyday • 3x3x3 CFOP Timer</span>
                 <button type="button" onClick={() => { emitBeep(440); setFullTimerState('idle'); setFullTimerOpen(false); }} className="w-9 h-9 rounded-xl bg-transparent hover:bg-white/[0.08] text-white font-bold cursor-pointer"><X className="w-3.5 h-3.5 inline-block" /></button>
@@ -7414,7 +7428,7 @@ function OLLDaySuite() {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap or Press Space to Stop' : 'Tap or Press Space to Start'}</p>
             </div>
 
-            <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-2.5">
+            <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-2.5">
               {fullTimerState === 'stopped' && currentUser.fullSolveHistory?.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   <button type="button" onClick={() => toggleFullSolvePenalty('+2')} className={`py-2.5 rounded-2xl border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === '+2' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-white/[0.08] text-amber-300'}`}>+2</button>
