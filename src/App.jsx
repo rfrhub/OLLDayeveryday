@@ -9,7 +9,7 @@ import {
   OLLDAY_LOGO_DATA_URI, SuneEmblemSvg, FINGERTRICK_CODEX, WCA_NOTATION_GUIDE, CROSS_TIERS, CROSS_ADVANCED_TIERS,
   CROSS_MECHANICS, F2L_DATA, F2L_BY_ID, F2L_GROUPS, F2L_DEFAULT_CHUNKS, OLL_DATA, OLL_BY_ID, OLL_GROUPS,
   OLL_DEFAULT_CHUNKS, PLL_DATA, PLL_BY_ID, PLL_GROUPS, PHASE_REGISTRY, PLL_DEFAULT_CHUNKS
-} from './constants';
+} from './utils/constants';
 import {
   simplifyMoveSequence, formatAlgWithTriggerBrackets, scannedFacesTo54Array, normalizeColorPattern,
   buildOrientationTipForStage, applyMovesTo54State, inspectCrossOn54, encodeCrossEdgesKey,
@@ -17,7 +17,8 @@ import {
   matchBestF2LForFrontRight54, solveAllF2LPairsFrom54, invertAlgorithm, getCaseSignatures,
   matchBestOllFromGrids, matchBestPllFromGrids, analyzeFull54Cube, analyzeScanned3FaceCube,
   rgbToHsv, rgbToLab, classifyStickerRgb, classifyCapturedFaceBatch, SCANNER_FLAT_GRID_CENTROIDS, SCANNER_SAMPLE_OFFSETS
-} from './solverUtils';
+} from './utils/solverUtils';
+import { ProLockOverlay, ModalShell, UvModalShell, AmbientGlows, OrbitRingBackdrop, TriggerTagsList, CustomAlgSwitcherPills, SocialAuthButtons, MillisecondSliderControl, CaseWindowAvgGrid } from './components/components';
 import { ProLockOverlay, ModalShell, UvModalShell, AmbientGlows, OrbitRingBackdrop, TriggerTagsList, CustomAlgSwitcherPills, SocialAuthButtons, MillisecondSliderControl, CaseWindowAvgGrid } from './components';
 
 // =========================================================================
