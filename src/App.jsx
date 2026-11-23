@@ -2941,19 +2941,106 @@ async function writeCloudDocWithFallback(svc, uid, docId, payload) {
   }
 }
 
-async function readCloudProfilesWithFallback(svc, uid) {
+function normalizeEmailCloudKey(email = '') {
+  return String(email || '').trim().toLowerCase().replace(/[^a-z0-9._@-]/g, '_');
+}
+
+function getEmailAccountDocRef(svc, emailKey, ns = preferredCloudNamespace) {
+  return ns === 'users'
+    ? svc.fsMod.doc(svc.db, 'email_accounts', emailKey)
+    : svc.fsMod.doc(svc.db, 'artifacts', appId, 'email_accounts', emailKey);
+}
+
+async function writeEmailAccountBackup(svc, email, payload) {
+  const emailKey = normalizeEmailCloudKey(email);
+  if (!emailKey || !emailKey.includes('@')) return { ok: false };
+  const cleanPayload = stripUndefinedDeep(payload);
   try {
-    const snap = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, preferredCloudNamespace));
-    return { docs: snap.docs, ns: preferredCloudNamespace };
+    await svc.fsMod.setDoc(getEmailAccountDocRef(svc, emailKey, preferredCloudNamespace), cleanPayload, { merge: true });
+    return { ok: true };
   } catch (err) {
     if (err?.code === 'permission-denied') {
       const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
-      const snapAlt = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, altNs));
-      preferredCloudNamespace = altNs;
-      return { docs: snapAlt.docs, ns: altNs };
+      try {
+        await svc.fsMod.setDoc(getEmailAccountDocRef(svc, emailKey, altNs), cleanPayload, { merge: true });
+        return { ok: true };
+      } catch {
+        return { ok: false };
+      }
     }
-    throw err;
+    return { ok: false };
   }
+}
+
+async function readEmailAccountBackup(svc, email) {
+  const emailKey = normalizeEmailCloudKey(email);
+  if (!emailKey || !emailKey.includes('@')) return null;
+  for (const ns of [preferredCloudNamespace, preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts']) {
+    try {
+      const snap = await svc.fsMod.getDoc(getEmailAccountDocRef(svc, emailKey, ns));
+      if (snap && snap.exists()) return snap.data();
+    } catch {}
+  }
+  return null;
+}
+
+async function readAllCloudProfilesForUser(svc, uid, email = '') {
+  const seenDocs = new Map();
+  let resolvedNs = preferredCloudNamespace;
+  const namespaces = [preferredCloudNamespace, preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts'];
+  for (const ns of namespaces) {
+    try {
+      const snap = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, ns));
+      if (snap?.docs) {
+        if (snap.docs.length > 0) {
+          resolvedNs = ns;
+          preferredCloudNamespace = ns;
+        }
+        snap.docs.forEach((d) => {
+          const prev = seenDocs.get(d.id);
+          if (!prev) {
+            seenDocs.set(d.id, { id: d.id, data: () => d.data() });
+          } else {
+            const mergedData = mergeSolverUserRecords(prev.data(), d.data());
+            seenDocs.set(d.id, {
+              id: d.id,
+              data: () => ({
+                ...d.data(),
+                ...mergedData,
+                updatedAt: Math.max(Number(prev.data()?.updatedAt) || 0, Number(d.data()?.updatedAt) || 0)
+              })
+            });
+          }
+        });
+      }
+    } catch {}
+  }
+  const emailBackup = await readEmailAccountBackup(svc, email);
+  if (emailBackup && typeof emailBackup === 'object') {
+    const backupKey = normalizeCloudDocId(emailBackup.profileKey || (email.split('@')[0] || 'Solver')) || 'Solver';
+    const existing = seenDocs.get(backupKey);
+    if (!existing) {
+      seenDocs.set(backupKey, { id: backupKey, data: () => emailBackup });
+    } else {
+      const mergedData = mergeSolverUserRecords(existing.data(), emailBackup);
+      seenDocs.set(backupKey, {
+        id: backupKey,
+        data: () => ({
+          ...existing.data(),
+          ...mergedData,
+          updatedAt: Math.max(Number(existing.data()?.updatedAt) || 0, Number(emailBackup.updatedAt) || 0)
+        })
+      });
+    }
+    if (emailBackup.isPro && !seenDocs.has('_entitlements')) {
+      seenDocs.set('_entitlements', { id: '_entitlements', data: () => ({ isPro: true, email }) });
+    }
+  }
+  return { docs: Array.from(seenDocs.values()), ns: resolvedNs };
+}
+
+async function readCloudProfilesWithFallback(svc, uid, email = '') {
+  return readAllCloudProfilesForUser(svc, uid, email);
 }
 
 function mergeDefaultUsersWithStored(storedMap) {
@@ -3063,12 +3150,19 @@ function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, 
               storage.setJson(STORAGE_KEYS.users, nextUsers);
               return nextUsers;
             });
-            return writeCloudDocWithFallback(svc, uid, uKey, {
+            const targetEmail = finalRec.email || activeFbUser?.email || '';
+            const payload = {
               ...finalRec,
-              email: finalRec.email || activeFbUser?.email || '',
+              profileKey: uKey,
+              email: targetEmail,
               updatedAt: writeTs,
               writeNonce
-            });
+            };
+            const primaryWrite = await writeCloudDocWithFallback(svc, uid, uKey, payload);
+            if (targetEmail) {
+              await writeEmailAccountBackup(svc, targetEmail, payload);
+            }
+            return primaryWrite;
           })
         );
         if (batchEntries.some(([, rec]) => Boolean(rec?.isPro))) {
@@ -3164,7 +3258,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, 
         // Hydrate all cloud profiles for this authenticated user across devices on boot / sign-in
         if (!fbUser.isAnonymous) {
           try {
-            const { docs } = await readCloudProfilesWithFallback(svc, fbUser.uid);
+            const { docs } = await readCloudProfilesWithFallback(svc, fbUser.uid, fbUser.email || '');
             if (cancelled) return;
             const entDoc = docs.find((d) => d.id === '_entitlements');
             const cloudHasPro = Boolean(entDoc?.data()?.isPro) || docs.some((d) => Boolean(d.data()?.isPro));
@@ -3239,7 +3333,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, 
         if (!svc || cancelled) return;
 
         // Verify readable namespace once before attaching listeners so rules mismatch never loops
-        const probe = await readCloudProfilesWithFallback(svc, uid).catch(() => null);
+        const probe = await readCloudProfilesWithFallback(svc, uid, cloudAuthUserRef.current?.email || '').catch(() => null);
         if (cancelled) return;
         const activeNs = probe?.ns || preferredCloudNamespace;
         const colRef = getCloudProfilesColRef(svc, uid, activeNs);
@@ -3261,15 +3355,8 @@ function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, 
               Boolean(entDoc?.data()?.isPro) || docs.some((d) => Boolean(d.data()?.isPro));
 
             const profileDocs = docs.filter((d) => d.id !== '_entitlements');
-            const matchedDocs = profileDocs.filter((d) => {
-              const docKey = normalizeCloudDocId(d.id);
-              const docEmail = (d.data()?.email || '').trim().toLowerCase();
-              const authEmail = (cloudAuthUserRef.current?.email || '').trim().toLowerCase();
-              return (
-                docKey.toLowerCase() === cleanActiveKey.toLowerCase() ||
-                (authEmail && docEmail && docEmail === authEmail)
-              );
-            });
+            // Every doc inside this user's own UID solver_profiles collection belongs to this user—merge all of them
+            const matchedDocs = profileDocs;
 
             const localRec = latestUsersRef.current?.[cleanActiveKey];
             if (matchedDocs.length === 0) {
@@ -4215,7 +4302,7 @@ function OLLDaySuite() {
   const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver', isNewSignUp = false) => {
     const rawName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
     const displayName = rawName.replace(/[/\\#?]+/g, ' ').replace(/\s+/g, ' ').trim() || fallbackName;
-    const { docs: allCloudDocs } = await readCloudProfilesWithFallback(svc, fbUser.uid);
+    const { docs: allCloudDocs } = await readCloudProfilesWithFallback(svc, fbUser.uid, fbUser.email || '');
 
     const diskUsers = storage.getJson(STORAGE_KEYS.users, {});
     const mergedSourceUsers = { ...(diskUsers && typeof diskUsers === 'object' ? diskUsers : {}), ...users };
@@ -4275,8 +4362,16 @@ function OLLDaySuite() {
 
     const primaryRes = await writeCloudDocWithFallback(svc, fbUser.uid, chosenKey, {
       ...finalSyncedRecord,
+      profileKey: chosenKey,
       updatedAt: writeTs
     });
+    if (fbUser.email || finalSyncedRecord.email) {
+      await writeEmailAccountBackup(svc, fbUser.email || finalSyncedRecord.email, {
+        ...finalSyncedRecord,
+        profileKey: chosenKey,
+        updatedAt: writeTs
+      });
+    }
     // Keep any sibling profile docs under the same UID in sync so hopping devices never loads an older copy
     await Promise.all(
       profileDocs
@@ -5013,8 +5108,11 @@ function OLLDaySuite() {
         }
         lastCloudWriteRef.current.set(targetProfileKey, writeTs);
         const [profRes, entRes] = await Promise.all([
-          writeCloudDocWithFallback(svc, fbUser.uid, targetProfileKey, { ...updatedRecord, updatedAt: writeTs }),
-          writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', { isPro: true, email: fbUser.email || emailLower, updatedAt: writeTs })
+          writeCloudDocWithFallback(svc, fbUser.uid, targetProfileKey, { ...updatedRecord, profileKey: targetProfileKey, updatedAt: writeTs }),
+          writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', { isPro: true, email: fbUser.email || emailLower, updatedAt: writeTs }),
+          (fbUser.email || emailLower)
+            ? writeEmailAccountBackup(svc, fbUser.email || emailLower, { ...updatedRecord, profileKey: targetProfileKey, isPro: true, updatedAt: writeTs })
+            : Promise.resolve({ ok: true })
         ]);
         const savedOk = profRes.ok || entRes.ok;
         if (savedOk) {
@@ -5069,12 +5167,13 @@ function OLLDaySuite() {
         setAuthScreenOpen(true);
         return;
       }
+      await flushPendingPersistence();
       const syncRes = await syncCloudProfileAfterOAuth(svc, fbUser, resolvedUserKey || 'Solver', false);
       if (syncRes?.record?.isPro) {
         setRestoreStatusToast(`Synced & Pro Active (${fbUser.email || 'Gmail'}) ✓`);
         setTimeout(() => setRestoreStatusToast(''), 3500);
       } else {
-        setRestoreStatusToast(`Synced ${fbUser.email || 'Gmail'} — Pro not yet saved from mobile.`);
+        setRestoreStatusToast(`Synced ${fbUser.email || 'Gmail'} — no Pro purchase found on this account yet.`);
         setTimeout(() => setRestoreStatusToast(''), 4000);
       }
     } catch (err) {
