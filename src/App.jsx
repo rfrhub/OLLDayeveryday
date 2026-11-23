@@ -11,21 +11,27 @@ function resolveFirebaseConfig() {
   try {
     const g = typeof globalThis !== 'undefined' ? globalThis : {};
     const p = typeof process !== 'undefined' && process.env ? process.env : {};
-    const rawConfig = g.__firebase_config || g.VITE_FIREBASE_CONFIG || p.VITE_FIREBASE_CONFIG || p.REACT_APP_FIREBASE_CONFIG || null;
+    const rawConfig =
+      g.__firebase_config ||
+      g.VITE_FIREBASE_CONFIG ||
+      import.meta.env?.VITE_FIREBASE_CONFIG ||
+      p.VITE_FIREBASE_CONFIG ||
+      p.REACT_APP_FIREBASE_CONFIG ||
+      null;
     if (rawConfig) {
       const parsed = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
       if (parsed?.apiKey) return parsed;
     }
-    const apiKey = g.VITE_FIREBASE_API_KEY || p.VITE_FIREBASE_API_KEY;
-    const projectId = g.VITE_FIREBASE_PROJECT_ID || p.VITE_FIREBASE_PROJECT_ID;
+    const apiKey = g.VITE_FIREBASE_API_KEY || import.meta.env?.VITE_FIREBASE_API_KEY || p.VITE_FIREBASE_API_KEY;
+    const projectId = g.VITE_FIREBASE_PROJECT_ID || import.meta.env?.VITE_FIREBASE_PROJECT_ID || p.VITE_FIREBASE_PROJECT_ID;
     if (apiKey && projectId) {
       return {
         apiKey,
-        authDomain: g.VITE_FIREBASE_AUTH_DOMAIN || p.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+        authDomain: g.VITE_FIREBASE_AUTH_DOMAIN || import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || p.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
         projectId,
-        storageBucket: g.VITE_FIREBASE_STORAGE_BUCKET || p.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
-        messagingSenderId: g.VITE_FIREBASE_MESSAGING_SENDER_ID || p.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-        appId: g.VITE_FIREBASE_APP_ID || p.VITE_FIREBASE_APP_ID || ''
+        storageBucket: g.VITE_FIREBASE_STORAGE_BUCKET || import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || p.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
+        messagingSenderId: g.VITE_FIREBASE_MESSAGING_SENDER_ID || import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || p.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: g.VITE_FIREBASE_APP_ID || import.meta.env?.VITE_FIREBASE_APP_ID || p.VITE_FIREBASE_APP_ID || ''
       };
     }
   } catch {}
@@ -45,8 +51,21 @@ async function getFirebaseServices() {
           import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js'),
           import(/* @vite-ignore */ 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js')
         ]);
-        const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
-        return { auth: authMod.getAuth(appInstance), db: fsMod.getFirestore(appInstance), authMod, fsMod };
+      const appInstance = appMod.getApps().length > 0 ? appMod.getApp() : appMod.initializeApp(resolvedFirebaseConfig);
+        let db;
+        try {
+          db = fsMod.initializeFirestore(appInstance, {
+            ignoreUndefinedProperties: true,
+            localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+          });
+        } catch {
+          db = fsMod.getFirestore(appInstance);
+        }
+        const auth = authMod.getAuth(appInstance);
+        if (authMod.setPersistence && authMod.browserLocalPersistence) {
+          await authMod.setPersistence(auth, authMod.browserLocalPersistence).catch(() => {});
+        }
+        return { auth, db, authMod, fsMod };
       } catch {
         firebaseSdkPromise = null;
         return null;
@@ -621,11 +640,11 @@ function buildDynamicCustomFingertrickText(alg = '', fallbackText = '') {
   if (!normalized.includes("R U R' U'") && normalized.includes("R U' R'")) cues.push("Inverse Sexy (R U' R') pushing U' with left index");
   if (normalized.includes("R' F R F'")) cues.push("Sledgehammer (R' F R F') lifting F' with right thumb");
   if (normalized.includes("F R' F' R")) cues.push("Hedgeslammer (F R' F' R) keeping right thumb on DF");
-  if (/U2/.test(normalized)) cues.push("double-flick U2 (index → middle)");
-  if (/M2?|M'/.test(normalized)) cues.push("flick M-slice from DB with left ring/middle");
-  if (/D2?|D'/.test(normalized)) cues.push("push D/D' with bottom ring fingers");
+  if (/\bU2\b/.test(normalized)) cues.push("double-flick U2 (index → middle)");
+  if (/\bM2?\b|\bM'/.test(normalized)) cues.push("flick M-slice from DB with left ring/middle");
+  if (/\bD2?\b|\bD'/.test(normalized)) cues.push("push D/D' with bottom ring fingers");
   if (cues.length === 0) {
-    return /[Ff]/.test(normalized)
+    return /\b[Ff]/.test(normalized)
       ? "Anchor right thumb on DF to flick F/F' smoothly without regripping."
       : "Keep thumbs on Front-Bottom (DF) and execute in regripless wrist bursts.";
   }
@@ -1182,6 +1201,7 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
   const frHasTargetEdge = [fGrid[5], rGrid[3]].every((c) => targetEdgeSet.has(c)) && fGrid[5] !== rGrid[3];
 
   let targetF2lId = 4;
+  let f2lPreU = '';
   if (dfrHasTargetCorner && frHasTargetEdge) {
     if (fGrid[8] === fCenter && rGrid[6] === rCenter && fGrid[5] === rCenter) targetF2lId = 37;
     else if (fGrid[5] === fCenter && rGrid[3] === rCenter) targetF2lId = fGrid[8] === 'W' ? 39 : 38;
@@ -1209,16 +1229,37 @@ function analyzeScanned3FaceCube(uGrid, fGrid, rGrid, fullMeta = null, userHints
       else if (urHasTargetEdge) targetF2lId = uGrid[5] === rCenter ? 2 : 10;
       else targetF2lId = uGrid[1] === rCenter ? 6 : 8;
     }
-  } else if (urHasTargetEdge || ufHasTargetEdge) {
-    targetF2lId = urHasTargetEdge ? 4 : 3;
   } else {
-    targetF2lId = 31;
+    // Check other visible U-layer corners (UFL at uGrid[6]/fGrid[0] or UBR at uGrid[2]/rGrid[2]) and guide AUF to UFR
+    const uflHasTargetCorner = [uGrid[6], fGrid[0]].every((c) => targetCornerSet.has(c)) && uGrid[6] !== fGrid[0];
+    const ubrHasTargetCorner = [uGrid[2], rGrid[2]].every((c) => targetCornerSet.has(c)) && uGrid[2] !== rGrid[2];
+    if (uflHasTargetCorner) {
+      f2lPreU = "U'";
+      if (uGrid[6] === 'W') targetF2lId = urHasTargetEdge || ufHasTargetEdge ? 17 : 21;
+      else if (fGrid[0] === 'W') targetF2lId = urHasTargetEdge ? 11 : 1;
+      else targetF2lId = ufHasTargetEdge ? 13 : 2;
+    } else if (ubrHasTargetCorner) {
+      f2lPreU = 'U';
+      if (uGrid[2] === 'W') targetF2lId = urHasTargetEdge || ufHasTargetEdge ? 18 : 22;
+      else if (rGrid[2] === 'W') targetF2lId = ufHasTargetEdge ? 15 : 2;
+      else targetF2lId = urHasTargetEdge ? 14 : 1;
+    } else if (urHasTargetEdge || ufHasTargetEdge) {
+      targetF2lId = urHasTargetEdge ? 4 : 3;
+    } else {
+      targetF2lId = 4;
+    }
   }
 
-  const matchedF2L = F2L_BY_ID.get(targetF2lId) || F2L_DATA[0];
+  const baseMatchedF2L = F2L_BY_ID.get(targetF2lId) || F2L_DATA[0];
+  const combinedF2lAlg = f2lPreU ? simplifyMoveSequence(`${f2lPreU} ${baseMatchedF2L.alg}`, true) : baseMatchedF2L.alg;
+  const matchedF2L = { ...baseMatchedF2L, alg: combinedF2lAlg };
   const nextOllPreview = OLL_BY_ID.get(27) || OLL_DATA[0];
   const remAfter = pairsLeft - 1;
-  const aufHint = fullMeta?.unsolvedSlotNames?.length && frSlotSolved ? `Rotate y/y' to bring open ${fullMeta.unsolvedSlotNames[0]} slot to Front-Right` : 'Target Slot: Front-Right (White–Green–Orange)';
+  const aufHint = fullMeta?.unsolvedSlotNames?.length && frSlotSolved
+    ? `Rotate y/y' to bring open ${fullMeta.unsolvedSlotNames[0]} slot to Front-Right`
+    : f2lPreU
+    ? `Pre-AUF: ${f2lPreU} to bring target corner to Front-Right (UFR)`
+    : 'Target Slot: Front-Right (White–Green–Orange)';
 
   return {
     phase: 'f2l', crossSolved: true, remainingF2lPairs: pairsLeft,
@@ -1528,7 +1569,54 @@ function ProLockOverlay({ label, onClick, interactive = false, size = 'sm' }) {
     </Wrapper>
   );
 }
+// Flip to true once your Apple Developer Program / Game Center & Apple Sign-In credentials are configured
+const SHOW_GAME_CENTER_AUTH = false;
 
+function SocialAuthButtons({ onGoogle, onGameCenter, isNativeIos, showGameCenter = SHOW_GAME_CENTER_AUTH }) {
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={onGoogle}
+        className="w-full py-3 px-4 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 hover:border-orange-400/55 text-white font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_20px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
+      >
+        <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z" />
+            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z" />
+          </svg>
+        </span>
+        <span>Continue with Google</span>
+      </button>
+
+      {showGameCenter && (
+        <button
+          type="button"
+          onClick={onGameCenter}
+          className="w-full py-3 px-4 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/20 hover:border-orange-400/55 text-white font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_20px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
+        >
+          <span className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 via-pink-500 to-sky-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="8.5" cy="9" r="3.8" fillOpacity="0.95" />
+              <circle cx="15.5" cy="8.5" r="3" fillOpacity="0.85" />
+              <circle cx="10.5" cy="15.5" r="3.3" fillOpacity="0.9" />
+              <circle cx="16.2" cy="14.8" r="2.4" fillOpacity="0.8" />
+            </svg>
+          </span>
+          <span>{isNativeIos ? 'Continue with Game Center' : 'Game Center / Apple'}</span>
+        </button>
+      )}
+
+      <div className="flex items-center gap-2 pt-0.5 text-[9.5px] font-black uppercase tracking-widest text-zinc-400">
+        <span className="h-px flex-1 bg-white/15" />
+        <span>or solver profile</span>
+        <span className="h-px flex-1 bg-white/15" />
+      </div>
+    </div>
+  );
+}
 function TriggerTagsList({ tags, centered = false, compact = false }) {
   if (!tags?.length) return null;
   return (
@@ -1705,36 +1793,29 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const safeStreak = Math.max(0, Number(streakDays) || 0);
   const safeTotalDays = Math.max(1, Number(totalDays) || 1);
   const safeCurDay = Math.min(safeTotalDays, Math.max(1, Number(currentDay) || 1));
-  const pct = Math.min(100, Math.max(0, Number(progressPct) || 0));
 
-  // Day 1 always starts as all 54 black squares (0/54); every subsequent day (Days 2, 3, ...) fills progressive squares
+  // Strictly driven by day progression across all phases (F2L, OLL, PLL):
+  // Day 1 starts at 0/54 (all black squares); every subsequent day fills tiles linearly through Yellow -> Green -> Orange -> Blue -> Red -> White
   const daysProgressed = Math.max(0, safeCurDay - 1);
   const displayStreakDays = Math.max(safeStreak, daysProgressed);
-  const dayFractionTiles = safeTotalDays > 1
-    ? Math.max(daysProgressed * 2, Math.round((daysProgressed / (safeTotalDays - 1)) * 54))
-    : 54;
+  const totalSteps = Math.max(1, safeTotalDays - 1);
   const rawFilledSquares = safeCurDay === 1
     ? 0
-    : Math.min(54, Math.max(daysProgressed, dayFractionTiles, Math.round((pct / 100) * 54)));
+    : Math.min(54, Math.max(daysProgressed, Math.round((daysProgressed / totalSteps) * 54)));
 
-  // 50% milestone = Matte Finish (rotates & pulse glows); 75%+ (or 54/54) = UV Coated (pulsates, glows & rotates 2x faster than Matte)
-  const dayMilestonePct = safeTotalDays > 1 ? Math.round((daysProgressed / (safeTotalDays - 1)) * 100) : 0;
-  const effectivePct = safeCurDay === 1 ? 0 : Math.max(pct, dayMilestonePct, Math.round((rawFilledSquares / 54) * 100));
-  const isUvCoated = safeCurDay > 1 && (effectivePct >= 75 || rawFilledSquares >= 54);
-  const isMatteFinish = safeCurDay > 1 && !isUvCoated && effectivePct >= 50;
-  const isWhiteFaceActive = rawFilledSquares >= 46;
-  // When White face (tiles 46-54) is actively being filled, orient directly to show the White face clearly
-  const isSpinGlowActive = (isMatteFinish || isUvCoated) && !isWhiteFaceActive;
-  const filledSquares = isUvCoated ? 54 : rawFilledSquares;
+  // 50% milestone = Matte Finish (rotates & pulse glows); 75%+ = UV Coated (pulsates, glows & rotates 2x faster than Matte)
+  const dayMilestonePct = safeCurDay === 1 ? 0 : Math.round((daysProgressed / totalSteps) * 100);
+  const isUvCoated = safeCurDay > 1 && dayMilestonePct >= 75;
+  const isMatteFinish = safeCurDay > 1 && !isUvCoated && dayMilestonePct >= 50;
+  const isSpinGlowActive = isMatteFinish || isUvCoated;
+  // Continue filling the remaining tiles (including White tiles 46-54 on the final days) without prematurely snapping to 54
+  const filledSquares = rawFilledSquares;
 
   // Automatically rotates to face whichever side of the cube is actively being populated
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
   const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
-  const [manualSpinOffset, setManualSpinOffset] = useState(0);
-
-  useEffect(() => {
-    setManualSpinOffset(0);
-  }, [activeFaceIdx, safeCurDay]);
+  const [spinState, setSpinState] = useState({ key: `${activeFaceIdx}:${safeCurDay}`, offset: 0 });
+  const manualSpinOffset = spinState.key === `${activeFaceIdx}:${safeCurDay}` ? spinState.offset : 0;
 
   const withinFaceTile = filledSquares === 0 ? 0 : ((filledSquares - 1) % 9);
   const tileSweepYaw = filledSquares === 0 ? 0 : (withinFaceTile - 4) * 3;
@@ -1742,11 +1823,12 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   const targetPitch = activeFaceSpec.pitch;
 
   const badgeLabel = isUvCoated
-    ? <>UV Coated <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
+    ? <>UV Coated • {filledSquares}/54 <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
     : isMatteFinish
-    ? <>Matte Finish <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
+    ? <>Matte Finish • {filledSquares}/54 <Sparkles className="w-2.5 h-2.5 inline-block -mt-0.5" /></>
     : `Day ${safeCurDay} • ${filledSquares}/54`;
 
+  // During UV Coated, tilt pitch dynamically in the spin animation so the bottom White face (tiles 46-54) is clearly visible as it populates!
   const cubeSpinClass = isUvCoated
     ? 'uv-streak-cube-spin'
     : isMatteFinish
@@ -1763,7 +1845,8 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        setManualSpinOffset((prev) => prev - 90);
+        const curKey = `${activeFaceIdx}:${safeCurDay}`;
+        setSpinState((prev) => ({ key: curKey, offset: (prev.key === curKey ? prev.offset : 0) - 90 }));
       }}
       title={
         isUvCoated
@@ -1869,7 +1952,7 @@ function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
   );
 }
 
-function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-black/88', children }) {
+function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-modal-scrim', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} ${backdropClass} flex items-center justify-center p-5`}>
       <div
@@ -1884,7 +1967,7 @@ function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', border
 
 function UvModalShell({ onClose, zClass = 'z-[274]', maxWidth = 'max-w-md', className = 'p-5 sm:p-6 max-h-[88dvh] overflow-y-auto no-scrollbar space-y-4', children }) {
   return (
-    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-black/88 flex items-center justify-center p-5`}>
+    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-modal-scrim flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
         className={`relative liquid-glass-uv border border-white/25 rounded-3xl ${maxWidth} w-full shadow-[0_14px_38px_rgba(0,0,0,0.45)] ${className}`}
@@ -2042,7 +2125,7 @@ function useViewportDevice() {
 
 function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, setF2LPresetAngle, emitBeep, isLargeScreen = false }) {
   return (
-    <div data-no-timer-start="true" className={`w-full ${isLargeScreen ? 'space-y-3' : 'space-y-0.5'}`}>
+    <div data-no-timer-start="true" className={`w-full ${isLargeScreen ? 'space-y-2' : 'space-y-0.5'}`}>
       <div className="w-full flex items-center justify-between gap-1">
         <span className={`${isLargeScreen ? 'text-xs' : 'text-[9px]'} font-black uppercase tracking-wider text-zinc-400 truncate`}>
           Angle: <strong className="text-orange-400">{getClosestF2LAngleLabel(orbit.rot.yaw, orbit.rot.pitch)}</strong>
@@ -2052,7 +2135,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
             <button
               type="button"
               onClick={() => { emitBeep(480); setF2LPresetAngle(0); }}
-              className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer`}
+              className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer`}
             >
               Reset
             </button>
@@ -2060,7 +2143,7 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
           <button
             type="button"
             onClick={() => { emitBeep(620); setF2LPresetAngle((f2lViewIdx + 1) % F2L_VIEW_ANGLES.length); }}
-            className={`${isLargeScreen ? 'px-3 py-1.5 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-orange-500/12 hover:bg-orange-500/22 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
+            className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-orange-500/12 hover:bg-orange-500/22 font-black text-orange-300 active:scale-95 transition-all cursor-pointer`}
           >
             Rotate <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" />
           </button>
@@ -2071,10 +2154,10 @@ function F2LOrbitViewer({ item, f2lSetupMode, f2lSetupSeed, orbit, f2lViewIdx, s
         {...orbit.handlers}
         onPointerCancel={orbit.handlers.onPointerUp}
         style={{ touchAction: 'none' }}
-        className={`relative ${isLargeScreen ? 'w-56 h-56' : 'w-24 h-24'} mx-auto flex items-center justify-center cursor-grab active:cursor-grabbing select-none`}
+        className={`relative ${isLargeScreen ? 'w-52 h-52' : 'w-24 h-24'} mx-auto flex items-center justify-center cursor-grab active:cursor-grabbing select-none`}
       >
         <OrbitRingBackdrop insetClass="inset-1" />
-        <div style={{ transform: isLargeScreen ? 'scale(1.22)' : 'scale(0.62)' }}>
+        <div style={{ transform: isLargeScreen ? 'scale(1.16)' : 'scale(0.62)' }}>
           <F2LSpatial3DCube
             setupScramble={generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed)}
             yaw={orbit.rot.yaw}
@@ -2101,130 +2184,157 @@ function CasePracticeCard({
   const showTriggerPills = fingertricksEnabled && (!item.usingCustomAlg || item.showCustomTriggerPills !== false);
   const triggerTags = showTriggerPills ? getAlgorithmTriggerTags(item.alg) : [];
 
+  const visualNode = isF2L ? (
+    <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
+  ) : (
+    <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-24 h-24'} mx-auto flex items-center justify-center`}>
+      <svg viewBox="0 0 140 140" className="pointer-events-none absolute inset-0 w-full h-full">
+        <circle cx="70" cy="70" r="66" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 4" />
+        <circle cx="70" cy="70" r="59" fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1.2" />
+        <circle cx="70" cy="4" r="2" fill="rgba(251,146,60,0.7)" />
+      </svg>
+      <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-20 h-20 p-1.5'} rounded-2xl bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
+        <CachedVisualCubeImg
+          url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
+          alt={item.name} lazy={false} className="w-full h-full object-contain"
+        />
+      </div>
+    </div>
+  );
+
+  const titleNode = (
+    <div className="text-center w-full">
+      <h3 className={`${isLargeScreen ? 'text-2xl lg:text-3xl leading-tight' : 'text-base leading-tight'} font-black text-white`}>{item.name}</h3>
+      {item.recognition && <p className={`${isLargeScreen ? 'text-xs lg:text-sm mt-1' : 'text-[10px] mt-0.5 line-clamp-1'} text-zinc-400`}>{item.recognition}</p>}
+    </div>
+  );
+
+  const setupNode = (isF2L || isPLL) && (
+    <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-2.5 space-y-1' : 'pt-1.5 space-y-0.5'} text-center`}>
+      <div className="flex items-center justify-between">
+        <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
+          {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
+        </span>
+        <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[9.5px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
+          {isF2L ? <>New Scramble <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></> : <>New AUF <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></>}
+        </button>
+      </div>
+      <p className={`font-mono ${isLargeScreen ? 'text-sm lg:text-base' : 'text-[11px]'} font-black text-amber-300 select-all truncate`}>
+        {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
+      </p>
+    </div>
+  );
+
+  const algNode = (
+    <div className={`w-full ${isLargeScreen ? '' : 'border-t'} ${item.usingCustomAlg ? 'border-orange-500/40 bg-orange-500/[0.06] rounded-2xl p-3' : isLargeScreen ? '' : 'border-white/10 pt-2.5'} ${isLargeScreen ? 'space-y-2' : 'space-y-1.5'} text-center transition-all`}>
+      <div className="flex items-center justify-between gap-1 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
+            {item.usingCustomAlg
+              ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
+              : isF2L ? 'Solution (FR Slot)' : 'Algorithm'}
+          </span>
+          <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
+        </div>
+        <div className="flex items-center gap-1">
+          {onOpenCustomAlgEditor && (
+            <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-black text-zinc-300 hover:text-white transition-all cursor-pointer`}>
+              {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
+            </button>
+          )}
+          {fingertricksEnabled && (
+            <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-orange-500/15 font-black text-orange-300 transition-all cursor-pointer`}>
+              Grip <ArrowRight className="w-3 h-3 inline-block ml-0.5 -mt-0.5" />
+            </button>
+          )}
+        </div>
+      </div>
+      <p className={`font-mono ${isLargeScreen ? 'text-xl lg:text-2xl py-0.5' : 'text-[13.5px] leading-snug'} font-black break-words ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
+      {item.hasCustomAlg && isLargeScreen && (
+        <p className="text-[10px] font-mono text-zinc-400">
+          {item.usingCustomAlg
+            ? `Default: ${item.defaultAlg}`
+            : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
+        </p>
+      )}
+      {fingertricksEnabled && (
+        <div className={`${isLargeScreen ? 'space-y-1.5' : 'space-y-1.5 pt-0.5'} text-left`}>
+          <TriggerTagsList tags={triggerTags} centered compact={!isLargeScreen} />
+          {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && item.fingertrick && (
+            <p className={`${isLargeScreen ? 'text-xs px-3.5 py-2' : 'text-[10px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-relaxed`}>
+              <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
+            </p>
+          )}
+        </div>
+      )}
+      {isF2L && (
+        <p className={`${isLargeScreen ? 'text-xs pt-0.5' : 'text-[10px] pt-0.5 leading-relaxed'} text-zinc-300 text-left`}>
+          • <strong>1:</strong> {item.step1} &nbsp;• <strong>2:</strong> {item.step2}
+        </p>
+      )}
+    </div>
+  );
+
+  const stopwatchNode = stopwatchEnabled && (
+    <button
+      onClick={onToggleStopwatch}
+      className={`w-full ${isLargeScreen ? 'py-3.5 px-4 rounded-2xl' : 'py-2.5 px-3.5 rounded-2xl'} border font-mono cursor-pointer flex flex-col items-center justify-center gap-0.5 transition-all ${
+        swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-zinc-200 hover:border-orange-500/35'
+      }`}
+    >
+      {swRunning ? (
+        <span ref={swDisplayRef} className={`font-timer ${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
+      ) : lastResultForThis ? (
+        <>
+          <div className="flex items-center gap-2">
+            <span className={`${isLargeScreen ? 'text-xl' : 'text-sm'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
+            {lastResultForThis.isNewPb ? (
+              <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300"><Star className="w-2.5 h-2.5 inline-block mr-1 -mt-0.5 fill-current" />New PB!</span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
+            )}
+          </div>
+          <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+            {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
+          </span>
+        </>
+      ) : (
+        <div className="flex flex-col items-center">
+          <span className={`${isLargeScreen ? 'text-lg' : 'text-sm'} font-black`}>{timerLabel}</span>
+          <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
+            {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
+            {!isLargeScreen && typeof recordedBest === 'number' ? ` • PB: ${recordedBest.toFixed(3)}s` : ''}
+          </span>
+          {isLargeScreen && !showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
+        </div>
+      )}
+    </button>
+  );
+
+  if (isLargeScreen) {
+    return (
+      <div className="w-full grid grid-cols-12 gap-5 lg:gap-6 items-center">
+        <div className="col-span-5 flex flex-col items-center justify-center space-y-2.5 border-r border-white/10 pr-5">
+          {visualNode}
+          {titleNode}
+          {setupNode}
+        </div>
+        <div className="col-span-7 flex flex-col justify-center space-y-3">
+          {algNode}
+          {stopwatchNode}
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      {isF2L ? (
-        <F2LOrbitViewer item={item} f2lSetupMode={f2lSetupMode} f2lSetupSeed={f2lSetupSeed} orbit={f2lOrbit} f2lViewIdx={f2lViewIdx} setF2LPresetAngle={setF2LPresetAngle} emitBeep={emitBeep} isLargeScreen={isLargeScreen} />
-      ) : (
-        <div className={`relative ${isLargeScreen ? 'w-44 h-44' : 'w-24 h-24'} mx-auto flex items-center justify-center`}>
-          <svg viewBox="0 0 140 140" className="pointer-events-none absolute inset-0 w-full h-full">
-            <circle cx="70" cy="70" r="66" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 4" />
-            <circle cx="70" cy="70" r="59" fill="none" stroke="rgba(249,115,22,0.22)" strokeWidth="1.2" />
-            <circle cx="70" cy="4" r="2" fill="rgba(251,146,60,0.7)" />
-          </svg>
-          <div className={`${isLargeScreen ? 'w-32 h-32 p-2.5' : 'w-20 h-20 p-1.5'} rounded-2xl bg-zinc-200/95 shadow-[0_12px_28px_rgba(0,0,0,0.55)] ring-1 ring-white/25`}>
-            <CachedVisualCubeImg
-              url={isPLL ? getPLLImageUrl(item.alg, pllSetupSeed > 0 ? generatePLLSetupScramble(item.inverse, pllSetupSeed) : null) : getOLLImageUrl(item.alg)}
-              alt={item.name} lazy={false} className="w-full h-full object-contain"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="text-center w-full">
-        <h3 className={`${isLargeScreen ? 'text-2xl sm:text-3xl' : 'text-base leading-tight'} font-black text-white`}>{item.name}</h3>
-        {item.recognition && <p className={`${isLargeScreen ? 'text-xs sm:text-sm mt-1' : 'text-[10px] mt-0.5 line-clamp-1'} text-zinc-400`}>{item.recognition}</p>}
-      </div>
-
-      {(isF2L || isPLL) && (
-        <div className={`w-full border-t border-white/10 ${isLargeScreen ? 'pt-3 space-y-1.5' : 'pt-1.5 space-y-0.5'} text-center`}>
-          <div className="flex items-center justify-between">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
-              {isF2L ? `Setup (${f2lSetupMode})` : 'Setup Scramble'}
-            </span>
-            <button onClick={() => { emitBeep(540); isF2L ? setF2lSetupSeed((s) => s + 1) : setPllSetupSeed((s) => s + 1); }} className={`${isLargeScreen ? 'text-xs' : 'text-[9.5px]'} font-bold text-orange-400 hover:underline cursor-pointer`}>
-              {isF2L ? <>New Scramble <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></> : <>New AUF <RotateCw className="w-3 h-3 inline-block ml-0.5 -mt-0.5" /></>}
-            </button>
-          </div>
-          <p className={`font-mono ${isLargeScreen ? 'text-sm sm:text-base' : 'text-[11px]'} font-black text-amber-300 select-all truncate`}>
-            {isF2L ? generateF2LSetupScramble(item.alg, f2lSetupMode, f2lSetupSeed) : generatePLLSetupScramble(item.inverse, pllSetupSeed)}
-          </p>
-        </div>
-      )}
-
-      <div className={`w-full border-t ${item.usingCustomAlg ? 'border-orange-500/40 bg-orange-500/[0.06] rounded-2xl p-3' : 'border-white/10 pt-2.5'} ${isLargeScreen ? 'space-y-2.5 pt-3.5' : 'space-y-1.5'} text-center transition-all`}>
-        <div className="flex items-center justify-between gap-1 flex-wrap">
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className={`${isLargeScreen ? 'text-[10.5px]' : 'text-[8.5px]'} font-black uppercase tracking-wider text-zinc-400`}>
-              {item.usingCustomAlg
-                ? `Custom #${(item.customAlgList || []).findIndex((c) => c.id === item.activeCustomId) + 1}`
-                : isF2L ? 'Solution (FR Slot)' : 'Algorithm'}
-            </span>
-            <CustomAlgSwitcherPills item={item} onSelect={onToggleCustomAlgSource} />
-          </div>
-          <div className="flex items-center gap-1">
-            {onOpenCustomAlgEditor && (
-              <button type="button" onClick={onOpenCustomAlgEditor} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-white/[0.08] font-black text-zinc-300 hover:text-white transition-all cursor-pointer`}>
-                {item.hasCustomAlg ? `Algs (${item.customAlgList.length}/7)` : '+ Alg'}
-              </button>
-            )}
-            {fingertricksEnabled && (
-              <button type="button" onClick={onOpenGrip} className={`${isLargeScreen ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[9px]'} rounded-xl bg-transparent hover:bg-orange-500/15 font-black text-orange-300 transition-all cursor-pointer`}>
-                Grip <ArrowRight className="w-3 h-3 inline-block ml-0.5 -mt-0.5" />
-              </button>
-            )}
-          </div>
-        </div>
-        <p className={`font-mono ${isLargeScreen ? 'text-xl sm:text-2xl py-0.5' : 'text-[13.5px] leading-snug'} font-black break-words ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-        {item.hasCustomAlg && isLargeScreen && (
-          <p className="text-[10px] font-mono text-zinc-400">
-            {item.usingCustomAlg
-              ? `Default: ${item.defaultAlg}`
-              : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
-          </p>
-        )}
-        {fingertricksEnabled && (
-          <div className={`${isLargeScreen ? 'space-y-2' : 'space-y-1.5 pt-0.5'} text-left`}>
-            <TriggerTagsList tags={triggerTags} centered compact={!isLargeScreen} />
-            {(!item.usingCustomAlg || item.showCustomTriggerPills !== false) && item.fingertrick && (
-              <p className={`${isLargeScreen ? 'text-xs sm:text-sm px-3.5 py-2' : 'text-[10px] px-2.5 py-1.5'} text-orange-200 bg-orange-500/10 border border-orange-500/25 rounded-xl leading-relaxed`}>
-                <strong className="text-orange-400">Fingertrick:</strong> {item.fingertrick}
-              </p>
-            )}
-          </div>
-        )}
-        {isF2L && (
-          <p className={`${isLargeScreen ? 'text-xs sm:text-sm pt-1' : 'text-[10px] pt-0.5 leading-relaxed'} text-zinc-300 text-left`}>
-            • <strong>1:</strong> {item.step1} &nbsp;• <strong>2:</strong> {item.step2}
-          </p>
-        )}
-      </div>
-
-      {stopwatchEnabled && (
-        <button
-          onClick={onToggleStopwatch}
-          className={`w-full ${isLargeScreen ? 'py-4 px-4 rounded-2xl' : 'py-2.5 px-3.5 rounded-2xl'} border font-mono cursor-pointer flex flex-col items-center justify-center gap-0.5 transition-all ${
-            swRunning ? 'bg-green-500/20 border-green-400 text-green-300 shadow-[0_0_24px_rgba(34,197,94,0.25)]' : lastResultForThis?.isNewPb ? 'bg-amber-500/15 border-amber-400/60 text-white' : 'liquid-glass-well liquid-rim-muted border-white/10 text-zinc-200 hover:border-orange-500/35'
-          }`}
-        >
-          {swRunning ? (
-            <span ref={swDisplayRef} className={`font-timer ${isLargeScreen ? 'text-xl' : 'text-base'} font-black`}>0.00s — Stop</span>
-          ) : lastResultForThis ? (
-            <>
-              <div className="flex items-center gap-2">
-                <span className={`${isLargeScreen ? 'text-xl' : 'text-sm'} font-black text-white`}>Got: {lastResultForThis.timeSec.toFixed(3)}s</span>
-                {lastResultForThis.isNewPb ? (
-                  <span className="px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/50 text-[10px] font-black uppercase text-green-300"><Star className="w-2.5 h-2.5 inline-block mr-1 -mt-0.5 fill-current" />New PB!</span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">PB: {recordedBest?.toFixed(3)}s</span>
-                )}
-              </div>
-              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
-                {isLargeScreen ? 'Tap Anywhere or Press Space to Time Again' : 'Tap Anywhere to Time Again'}
-              </span>
-            </>
-          ) : (
-            <div className="flex flex-col items-center">
-              <span className={`${isLargeScreen ? 'text-lg' : 'text-sm'} font-black`}>{timerLabel}</span>
-              <span className="text-[9.5px] font-sans font-bold uppercase tracking-wider text-zinc-400">
-                {isLargeScreen ? 'or Tap Anywhere / Press Spacebar' : 'or Tap Anywhere on Screen'}
-                {!isLargeScreen && typeof recordedBest === 'number' ? ` • PB: ${recordedBest.toFixed(3)}s` : ''}
-              </span>
-              {isLargeScreen && !showInlineGroup && typeof recordedBest === 'number' && <span className="text-[11px] font-bold text-amber-300 mt-0.5">Recorded PB: {recordedBest.toFixed(3)}s</span>}
-            </div>
-          )}
-        </button>
-      )}
+      {visualNode}
+      {titleNode}
+      {setupNode}
+      {algNode}
+      {stopwatchNode}
       {children}
     </>
   );
@@ -2691,6 +2801,163 @@ function sanitizeUserRecord(raw) {
   };
 }
 
+function mergePhaseStatsMaps(localStats = {}, cloudStats = {}) {
+  const merged = {};
+  const allIds = new Set([...Object.keys(localStats || {}), ...Object.keys(cloudStats || {})]);
+  allIds.forEach((idKey) => {
+    const l = localStats?.[idKey];
+    const c = cloudStats?.[idKey];
+    if (!l && !c) return;
+    if (!l) { merged[idKey] = { ...c }; return; }
+    if (!c) { merged[idKey] = { ...l }; return; }
+    const lHist = Array.isArray(l.history) ? l.history.map(Number).filter(Number.isFinite) : [];
+    const cHist = Array.isArray(c.history) ? c.history.map(Number).filter(Number.isFinite) : [];
+    let combinedHist = lHist;
+    if (lHist.length === 0) combinedHist = cHist;
+    else if (cHist.length === 0) combinedHist = lHist;
+    else if (lHist.length >= cHist.length && lHist.slice(0, cHist.length).every((v, i) => v === cHist[i])) combinedHist = lHist;
+    else if (cHist.length > lHist.length && cHist.slice(0, lHist.length).every((v, i) => v === lHist[i])) combinedHist = cHist;
+    else combinedHist = [...lHist, ...cHist].slice(0, 60);
+
+    const bestCandidates = [l.best, c.best, ...combinedHist].map(Number).filter((n) => Number.isFinite(n) && n > 0);
+    const entry = {
+      attempts: Math.max(Number(l.attempts) || 0, Number(c.attempts) || 0, combinedHist.length),
+      history: combinedHist.slice(0, 60)
+    };
+    if (bestCandidates.length) entry.best = Math.min(...bestCandidates);
+    merged[idKey] = entry;
+  });
+  return merged;
+}
+
+function mergeCustomAlgsMaps(localAlgs = {}, cloudAlgs = {}) {
+  const result = { f2l: {}, oll: {}, pll: {} };
+  ['f2l', 'oll', 'pll'].forEach((phaseKey) => {
+    const allCaseIds = new Set([
+      ...Object.keys(localAlgs?.[phaseKey] || {}),
+      ...Object.keys(cloudAlgs?.[phaseKey] || {})
+    ]);
+    allCaseIds.forEach((cid) => {
+      const lNorm = normalizeCaseCustomAlgs(localAlgs?.[phaseKey]?.[cid]);
+      const cNorm = normalizeCaseCustomAlgs(cloudAlgs?.[phaseKey]?.[cid]);
+      const byId = new Map();
+      [...cNorm.list, ...lNorm.list].forEach((entry) => {
+        if (entry?.id && !byId.has(entry.id)) byId.set(entry.id, entry);
+      });
+      const list = Array.from(byId.values()).slice(0, MAX_CUSTOM_ALGS_PER_CASE);
+      if (list.length > 0) {
+        const activeId = (lNorm.activeId && list.some((x) => x.id === lNorm.activeId))
+          ? lNorm.activeId
+          : (cNorm.activeId && list.some((x) => x.id === cNorm.activeId))
+          ? cNorm.activeId
+          : null;
+        result[phaseKey][cid] = { list, activeId };
+      }
+    });
+  });
+  return result;
+}
+
+function mergeSolverUserRecords(localRaw, cloudRaw) {
+  const l = sanitizeUserRecord(localRaw);
+  const c = sanitizeUserRecord(cloudRaw);
+  const solveMap = new Map();
+  [...(c.fullSolveHistory || []), ...(l.fullSolveHistory || [])].forEach((s) => {
+    if (s && s.id != null) solveMap.set(s.id, s);
+  });
+  const mergedFullSolves = Array.from(solveMap.values())
+    .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0))
+    .slice(0, 100);
+
+  return sanitizeUserRecord({
+    day: Math.max(l.day, c.day),
+    f2lDay: Math.max(l.f2lDay, c.f2lDay),
+    pllDay: Math.max(l.pllDay, c.pllDay),
+    crossDay: Math.max(l.crossDay, c.crossDay),
+    consecutiveStreakDays: Math.max(l.consecutiveStreakDays, c.consecutiveStreakDays),
+    lastActiveDate: (l.lastActiveDate || '') >= (c.lastActiveDate || '') ? l.lastActiveDate : c.lastActiveDate,
+    stats: mergePhaseStatsMaps(l.stats, c.stats),
+    f2lStats: mergePhaseStatsMaps(l.f2lStats, c.f2lStats),
+    pllStats: mergePhaseStatsMaps(l.pllStats, c.pllStats),
+    fullSolveHistory: mergedFullSolves,
+    customChunks: l.customChunks || c.customChunks,
+    f2lCustomChunks: l.f2lCustomChunks || c.f2lCustomChunks,
+    pllCustomChunks: l.pllCustomChunks || c.pllCustomChunks,
+    crossClears: Math.max(l.crossClears, c.crossClears),
+    isPro: Boolean(l.isPro || c.isPro),
+    email: c.email || l.email || '',
+    fullSolveTargetPb: l.fullSolveTargetPb !== 15.0 ? l.fullSolveTargetPb : c.fullSolveTargetPb,
+    phaseTargetPbs: { ...c.phaseTargetPbs, ...l.phaseTargetPbs },
+    caseTargetPbs: {
+      f2l: { ...(c.caseTargetPbs?.f2l || {}), ...(l.caseTargetPbs?.f2l || {}) },
+      oll: { ...(c.caseTargetPbs?.oll || {}), ...(l.caseTargetPbs?.oll || {}) },
+      pll: { ...(c.caseTargetPbs?.pll || {}), ...(l.caseTargetPbs?.pll || {}) }
+    },
+    customAlgs: mergeCustomAlgsMaps(l.customAlgs, c.customAlgs)
+  });
+}
+
+function stripUndefinedDeep(val) {
+  if (Array.isArray(val)) return val.map(stripUndefinedDeep).filter((v) => v !== undefined);
+  if (val && typeof val === 'object') {
+    const clean = {};
+    Object.entries(val).forEach(([k, v]) => {
+      if (v !== undefined) clean[k] = stripUndefinedDeep(v);
+    });
+    return clean;
+  }
+  return val;
+}
+
+let preferredCloudNamespace = 'artifacts'; // 'artifacts' | 'users'
+
+function getCloudProfileDocRef(svc, uid, docId, ns = preferredCloudNamespace) {
+  return ns === 'users'
+    ? svc.fsMod.doc(svc.db, 'users', uid, 'solver_profiles', docId)
+    : svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', docId);
+}
+
+function getCloudProfilesColRef(svc, uid, ns = preferredCloudNamespace) {
+  return ns === 'users'
+    ? svc.fsMod.collection(svc.db, 'users', uid, 'solver_profiles')
+    : svc.fsMod.collection(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles');
+}
+
+async function writeCloudDocWithFallback(svc, uid, docId, payload) {
+  const cleanPayload = stripUndefinedDeep(payload);
+  try {
+    await svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, preferredCloudNamespace), cleanPayload, { merge: true });
+    return { ok: true, ns: preferredCloudNamespace };
+  } catch (err) {
+    if (err?.code === 'permission-denied') {
+      const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
+      try {
+        await svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, altNs), cleanPayload, { merge: true });
+        preferredCloudNamespace = altNs;
+        return { ok: true, ns: altNs };
+      } catch (err2) {
+        return { ok: false, error: err2 };
+      }
+    }
+    return { ok: false, error: err };
+  }
+}
+
+async function readCloudProfilesWithFallback(svc, uid) {
+  try {
+    const snap = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, preferredCloudNamespace));
+    return { docs: snap.docs, ns: preferredCloudNamespace };
+  } catch (err) {
+    if (err?.code === 'permission-denied') {
+      const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
+      const snapAlt = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, altNs));
+      preferredCloudNamespace = altNs;
+      return { docs: snapAlt.docs, ns: altNs };
+    }
+    throw err;
+  }
+}
+
 function mergeDefaultUsersWithStored(storedMap) {
   const result = {};
   if (storedMap && typeof storedMap === 'object') {
@@ -2704,12 +2971,16 @@ function mergeDefaultUsersWithStored(storedMap) {
 function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = true) {
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
+  const [cloudSyncError, setCloudSyncError] = useState('');
   const latestUsersRef = useRef(users);
   latestUsersRef.current = users;
   const cloudAuthUserRef = useRef(cloudAuthUser);
   cloudAuthUserRef.current = cloudAuthUser;
-  const pendingCloudSyncRef = useRef(null);
-  const lastCloudWriteRef = useRef({ uKey: '', ts: 0 });
+  const pendingCloudSyncRef = useRef(new Map());
+  const lastCloudWriteRef = useRef(new Map());
+  const failedWriteCountRef = useRef(0);
+  const autoPushedSigRef = useRef('');
+  const isFlushingRef = useRef(false);
   const cloudSaveTimerRef = useRef(null);
   const localSaveTimerRef = useRef(null);
 
@@ -2717,51 +2988,88 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     if (localSaveTimerRef.current) { clearTimeout(localSaveTimerRef.current); localSaveTimerRef.current = null; }
     storage.setJson(STORAGE_KEYS.users, latestUsersRef.current);
     if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
-    const pending = pendingCloudSyncRef.current;
-    const uid = cloudAuthUserRef.current?.uid;
-    if (pending?.uKey && resolvedFirebaseConfig && uid) {
-      pendingCloudSyncRef.current = null;
+    if (isFlushingRef.current) return;
+
+    const svc = resolvedFirebaseConfig ? await getFirebaseServices() : null;
+    const activeFbUser = svc?.auth?.currentUser || cloudAuthUserRef.current;
+    const uid = activeFbUser?.uid;
+    if (pendingCloudSyncRef.current.size > 0 && resolvedFirebaseConfig && uid && svc) {
+      isFlushingRef.current = true;
+      const batchEntries = Array.from(pendingCloudSyncRef.current.entries());
+      pendingCloudSyncRef.current.clear();
       try {
-        const svc = await getFirebaseServices();
-        if (!svc) {
-          if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
-          setCloudSyncStatus('local');
-          return;
-        }
         const writeTs = Date.now();
-        lastCloudWriteRef.current = { uKey: pending.uKey, ts: writeTs };
-        await svc.fsMod.setDoc(
-          svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', pending.uKey),
-          { ...sanitizeUserRecord(pending.record), updatedAt: writeTs },
-          { merge: true }
+        const profileResults = await Promise.all(
+          batchEntries.map(async ([uKey, record]) => {
+            let finalRec = sanitizeUserRecord(record);
+            try {
+              const snap = await svc.fsMod.getDoc(getCloudProfileDocRef(svc, uid, uKey, preferredCloudNamespace)).catch(() => null);
+              if (snap && snap.exists()) {
+                finalRec = mergeSolverUserRecords(finalRec, snap.data());
+              }
+            } catch {}
+            lastCloudWriteRef.current.set(uKey, writeTs);
+            return writeCloudDocWithFallback(svc, uid, uKey, {
+              ...finalRec,
+              email: finalRec.email || activeFbUser?.email || '',
+              updatedAt: writeTs
+            });
+          })
         );
-        setCloudSyncStatus('synced');
-      } catch {
-        if (!pendingCloudSyncRef.current) pendingCloudSyncRef.current = pending;
+        if (batchEntries.some(([, rec]) => Boolean(rec?.isPro))) {
+          await writeCloudDocWithFallback(svc, uid, '_entitlements', {
+            isPro: true,
+            email: activeFbUser?.email || '',
+            updatedAt: writeTs
+          });
+        }
+        const allOk = profileResults.every((r) => r.ok);
+        if (allOk) {
+          failedWriteCountRef.current = 0;
+          setCloudSyncError('');
+          setCloudSyncStatus('synced');
+        } else {
+          failedWriteCountRef.current += 1;
+          const firstErr = profileResults.find((r) => !r.ok)?.error;
+          setCloudSyncError(firstErr?.code || 'sync-failed');
+          setCloudSyncStatus('local');
+          if (failedWriteCountRef.current < 3) {
+            batchEntries.forEach(([k, rec]) => {
+              if (!pendingCloudSyncRef.current.has(k)) pendingCloudSyncRef.current.set(k, rec);
+            });
+          }
+        }
+      } catch (err) {
+        failedWriteCountRef.current += 1;
+        setCloudSyncError(err?.code || 'sync-failed');
         setCloudSyncStatus('local');
+      } finally {
+        isFlushingRef.current = false;
       }
     }
   };
 
   const saveUserToCloud = (uKey, record) => {
-    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig || !cloudAuthUserRef.current?.uid) return;
-    pendingCloudSyncRef.current = { uKey, record };
+    if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig) return;
+    pendingCloudSyncRef.current.set(uKey, record);
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 1200);
+    const backoffMs = failedWriteCountRef.current > 0 ? Math.min(8000, 1000 * Math.pow(2, failedWriteCountRef.current)) : 500;
+    cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, backoffMs);
   };
 
   const cancelPendingWriteFor = (uKey) => {
-    if (pendingCloudSyncRef.current?.uKey === uKey) {
-      pendingCloudSyncRef.current = null;
-      if (cloudSaveTimerRef.current) { clearTimeout(cloudSaveTimerRef.current); cloudSaveTimerRef.current = null; }
+    pendingCloudSyncRef.current.delete(uKey);
+    if (pendingCloudSyncRef.current.size === 0 && cloudSaveTimerRef.current) {
+      clearTimeout(cloudSaveTimerRef.current);
+      cloudSaveTimerRef.current = null;
     }
   };
 
-  useEffect(() => () => { if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current); }, []);
+  useEffect(() => () => { flushPendingPersistence(); }, []);
 
   useEffect(() => {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
-    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 450);
+    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 350);
     return () => clearTimeout(localSaveTimerRef.current);
   }, [users]);
 
@@ -2772,8 +3080,19 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
       const svc = await getFirebaseServices();
       if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
       unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
-        if (!cancelled) { setCloudAuthUser(fbUser || null); setCloudSyncStatus(fbUser ? 'synced' : 'local'); }
+        if (!cancelled) {
+          setCloudAuthUser(fbUser || null);
+          if (!fbUser) {
+            setCloudSyncStatus('local');
+          } else if (pendingCloudSyncRef.current.size > 0) {
+            flushPendingPersistence();
+          }
+        }
       });
+      if (typeof svc.auth.authStateReady === 'function') {
+        await svc.auth.authStateReady().catch(() => {});
+      }
+      if (cancelled) return;
       if (!svc.auth.currentUser) {
         try {
           const g = typeof globalThis !== 'undefined' ? globalThis : {};
@@ -2789,34 +3108,108 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
 
   useEffect(() => {
     const uid = cloudAuthUser?.uid;
-    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo' || !isAppVisible) {
-      if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') setCloudSyncStatus('local');
+    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
+      setCloudSyncStatus('local');
       return;
     }
-    let unsubSnapshot = null, cancelled = false;
-    (async () => {
-      const svc = await getFirebaseServices();
-      if (!svc || cancelled) return;
-      setCloudSyncStatus('synced');
-      unsubSnapshot = svc.fsMod.onSnapshot(
-        svc.fsMod.doc(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles', activeUserKey),
-        (docSnap) => {
-          if (cancelled || !docSnap.exists() || docSnap.metadata?.hasPendingWrites) return;
-          const data = docSnap.data();
-          if (!data || typeof data !== 'object') return;
-          if (data.updatedAt && lastCloudWriteRef.current.uKey === docSnap.id && data.updatedAt === lastCloudWriteRef.current.ts) return;
-          setUsers((prev) => ({
-            ...prev,
-            [docSnap.id]: sanitizeUserRecord({ ...(prev[docSnap.id] || {}), ...data })
-          }));
-        },
-        () => setCloudSyncStatus('local')
-      );
-    })();
-    return () => { cancelled = true; unsubSnapshot?.(); };
-  }, [cloudAuthUser?.uid, activeUserKey, isAppVisible, setUsers]);
+    if (!isAppVisible) return;
+    let cancelled = false;
+    let unsubSnapshot = null;
+    let unsubEntitlementSnapshot = null;
+    autoPushedSigRef.current = '';
 
-  return { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
+    (async () => {
+      try {
+        const svc = await getFirebaseServices();
+        if (!svc || cancelled) return;
+
+        // Verify readable namespace once before attaching listeners so rules mismatch never loops
+        const probe = await readCloudProfilesWithFallback(svc, uid).catch(() => null);
+        if (cancelled) return;
+        const activeNs = probe?.ns || preferredCloudNamespace;
+        const entRef = getCloudProfileDocRef(svc, uid, '_entitlements', activeNs);
+        const docRef = getCloudProfileDocRef(svc, uid, activeUserKey, activeNs);
+
+        unsubEntitlementSnapshot = svc.fsMod.onSnapshot(
+          entRef,
+          (entSnap) => {
+            if (cancelled || !entSnap.exists()) return;
+            if (entSnap.data()?.isPro) {
+              setUsers((prev) => {
+                const cur = prev[activeUserKey];
+                if (!cur || cur.isPro) return prev;
+                const upgraded = sanitizeUserRecord({ ...cur, isPro: true });
+                storage.setJson(STORAGE_KEYS.users, { ...prev, [activeUserKey]: upgraded });
+                return { ...prev, [activeUserKey]: upgraded };
+              });
+            }
+          },
+          () => {}
+        );
+
+        unsubSnapshot = svc.fsMod.onSnapshot(
+          docRef,
+          (docSnap) => {
+            if (cancelled) return;
+            if (failedWriteCountRef.current === 0) {
+              setCloudSyncStatus('synced');
+            }
+            const localRec = latestUsersRef.current?.[activeUserKey];
+            if (!docSnap.exists()) {
+              const seedSig = `seed:${uid}:${activeUserKey}`;
+              if (localRec && autoPushedSigRef.current !== seedSig && failedWriteCountRef.current < 3) {
+                autoPushedSigRef.current = seedSig;
+                saveUserToCloud(activeUserKey, localRec);
+              }
+              return;
+            }
+            const data = docSnap.data();
+            if (!data || typeof data !== 'object') return;
+            if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
+            const merged = mergeSolverUserRecords(localRec, data);
+            setUsers((prev) => {
+              const nextUsers = { ...prev, [docSnap.id]: merged };
+              storage.setJson(STORAGE_KEYS.users, nextUsers);
+              return nextUsers;
+            });
+            const localAhead =
+              (merged.isPro && !data.isPro) ||
+              merged.day > (Number(data.day) || 1) ||
+              merged.f2lDay > (Number(data.f2lDay) || 1) ||
+              merged.pllDay > (Number(data.pllDay) || 1) ||
+              merged.crossClears > (Number(data.crossClears) || 0) ||
+              merged.fullSolveHistory.length > (Array.isArray(data.fullSolveHistory) ? data.fullSolveHistory.length : 0) ||
+              Object.keys(merged.stats).length > Object.keys(data.stats || {}).length ||
+              Object.keys(merged.f2lStats).length > Object.keys(data.f2lStats || {}).length ||
+              Object.keys(merged.pllStats).length > Object.keys(data.pllStats || {}).length;
+            const pushSig = `push:${uid}:${docSnap.id}:${merged.isPro}:${merged.day}:${merged.f2lDay}:${merged.pllDay}:${merged.fullSolveHistory.length}:${Object.keys(merged.stats).length}:${Object.keys(merged.f2lStats).length}:${Object.keys(merged.pllStats).length}`;
+            if (localAhead && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current === 0) {
+              autoPushedSigRef.current = pushSig;
+              saveUserToCloud(docSnap.id, merged);
+            }
+          },
+          (err) => {
+            if (!cancelled) {
+              setCloudSyncError(err?.code || 'listener-error');
+              setCloudSyncStatus('local');
+            }
+          }
+        );
+      } catch (err) {
+        if (!cancelled) {
+          setCloudSyncError(err?.code || 'init-error');
+          setCloudSyncStatus('local');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (typeof unsubSnapshot === 'function') unsubSnapshot();
+      if (typeof unsubEntitlementSnapshot === 'function') unsubEntitlementSnapshot();
+    };
+  }, [cloudAuthUser?.uid, activeUserKey, isAppVisible]);
+
+  return { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, cloudSyncError, lastCloudWriteRef, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor };
 }
 
 // =========================================================================
@@ -2845,6 +3238,14 @@ const APP_GLOBAL_CSS = `
       radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.72) 0%, rgba(10, 25, 58, 0.30) 48%, transparent 75%),
       linear-gradient(138deg, #0b1d42 0%, #050a16 24%, #112a5c 48%, #26140c 66%, #040812 80%, #0d234d 100%);
   }
+  .bg-modal-scrim {
+    background-color: rgba(7, 17, 39, 0.84);
+    background-image:
+      radial-gradient(ellipse 85% 55% at 20% 18%, rgba(29, 78, 216, 0.32) 0%, rgba(15, 38, 92, 0.14) 52%, transparent 78%),
+      radial-gradient(ellipse 75% 50% at 82% 22%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.08) 48%, transparent 75%),
+      radial-gradient(ellipse 80% 55% at 72% 82%, rgba(249, 115, 22, 0.22) 0%, transparent 72%),
+      radial-gradient(ellipse 90% 60% at 24% 84%, rgba(23, 56, 118, 0.38) 0%, transparent 76%);
+  }
   button, label, span, p, input, select, textarea, .font-sans {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
@@ -2859,7 +3260,13 @@ const APP_GLOBAL_CSS = `
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .f2l-cube-satin { filter: contrast(0.94) saturate(0.9) brightness(0.98); transition: transform 0.25s ease; }
-  .case-row-opt { content-visibility: auto; contain-intrinsic-size: auto 76px; }
+ .case-row-opt {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 76px;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(10, 17, 36, 0.78) 100%);
+  }
   .app-bg-sleep *, .app-bg-sleep *::before, .app-bg-sleep *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .liquid-glass-card {
     background:
@@ -2922,16 +3329,21 @@ const APP_GLOBAL_CSS = `
   .uv-card-enter-down {
     animation: uvCardMaterializeDown 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
+  @keyframes matteStreakSpin3D {
+    0% { transform: rotateX(-22deg) rotateY(0deg); }
+    100% { transform: rotateX(-22deg) rotateY(360deg); }
+  }
   @keyframes uvStreakSpin3D {
-    0% { transform: rotateX(-24deg) rotateY(0deg); }
-    100% { transform: rotateX(-24deg) rotateY(360deg); }
+    0% { transform: rotateX(56deg) rotateY(0deg); }
+    50% { transform: rotateX(68deg) rotateY(180deg); }
+    100% { transform: rotateX(56deg) rotateY(360deg); }
   }
   @keyframes streakAuraPulse {
     0%, 100% { opacity: 0.35; transform: scale(0.92); }
     50% { opacity: 0.95; transform: scale(1.08); }
   }
   .matte-streak-cube-spin {
-    animation: uvStreakSpin3D 10s linear infinite;
+    animation: matteStreakSpin3D 10s linear infinite;
     will-change: transform;
   }
   .uv-streak-cube-spin {
@@ -3095,7 +3507,7 @@ function OLLDaySuite() {
   const [phaseTabs, setPhaseTabs] = useState({ cross: 'ladder', f2l: 'grind', oll: 'grind', pll: 'grind' });
   const setTabForPhase = (phase, tab) => setPhaseTabs((prev) => ({ ...prev, [phase]: tab }));
 
-  const { cloudAuthUser, cloudSyncStatus, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
+  const { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, cloudSyncError, lastCloudWriteRef, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
     useSolverPersistence(users, setUsers, activeUserKey, isAppVisible);
 
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -3108,9 +3520,7 @@ function OLLDaySuite() {
   const [f2lSetupSeed, setF2lSetupSeed] = useState(0);
   const [pllSetupSeed, setPllSetupSeed] = useState(0);
 
-  const [settingsCardIdx, setSettingsCardIdx] = useState(0);
-  const [settingsSwipeDir, setSettingsSwipeDir] = useState('up');
-  const settingsSwipeStartRef = useRef(null);
+
   const [notationFilter, setNotationFilter] = useState('All');
   const [dossierFilter, setDossierFilter] = useState('All');
   const [rightPaneTab, setRightPaneTab] = useState('notation');
@@ -3136,12 +3546,16 @@ function OLLDaySuite() {
   const [scannerSurfaceFinish, setScannerSurfaceFinish] = useState('uv');
   const [scannerThreeFaceHints, setScannerThreeFaceHints] = useState({ crossSolved: null, f2lCompletedStatus: null });
   const [savedCubePalette, setSavedCubePalette] = useState(() => storage.getJson(STORAGE_KEYS.cubePalette, null));
-  const [scannedFaces, setScannedFaces] = useState(() => ({
-    U: ['Y', 'Y', 'G', 'Y', 'Y', 'Y', 'R', 'Y', 'Y'],
-    F: ['O', 'B', 'Y', 'G', 'G', 'G', 'G', 'G', 'G'],
-    R: ['B', 'R', 'Y', 'O', 'O', 'O', 'O', 'O', 'O'],
-    D: Array(9).fill('W'), B: Array(9).fill('B'), L: Array(9).fill('R')
-  }));
+  const createBlankScannerFaces = () => ({
+    U: [null, null, null, null, 'Y', null, null, null, null],
+    F: [null, null, null, null, 'G', null, null, null, null],
+    R: [null, null, null, null, 'O', null, null, null, null],
+    D: [null, null, null, null, 'W', null, null, null, null],
+    B: [null, null, null, null, 'B', null, null, null, null],
+    L: [null, null, null, null, 'R', null, null, null, null]
+  });
+
+  const [scannedFaces, setScannedFaces] = useState(createBlankScannerFaces);
   const [selectedStickerEdit, setSelectedStickerEdit] = useState(null);
   const scannerVideoRef = useRef(null);
   const scannerStreamRef = useRef(null);
@@ -3224,7 +3638,37 @@ function OLLDaySuite() {
     return () => obs.disconnect();
   }, [scannerOpen]);
 
+  const resetAllScannerFaces = (restartCamera = true) => {
+    stopScannerCamera();
+    setScannerCameraError('');
+    setScannerCaptureStep('U');
+    setScannerCapturedThumbs({});
+    setScannerRawSamples({});
+    setScannerLockedFaces({});
+    setScannedFaces(createBlankScannerFaces());
+    setSelectedStickerEdit(null);
+    setScannerFocusedStageIdx(0);
+    setScannerCompletedStages([]);
+    setScannerF2lPairIdx(0);
+    setScannerStageVerification(null);
+    setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
+    setScannerLivePreviewCodes(null);
+    setScannerStabilityCount(0);
+    setScannerCubeDetected(false);
+    setScannerFramingHint('Line up the 9 stickers inside the square');
+    liveStableSignatureRef.current = '';
+    liveStableStreakRef.current = 0;
+    idleNoCubeStreakRef.current = 0;
+    if (restartCamera) {
+      startScannerCamera('U', false);
+    }
+  };
+
   const startScannerCamera = async (targetFace = 'U', resetAll = false) => {
+    if (resetAll) {
+      resetAllScannerFaces(true);
+      return;
+    }
     setScannerCameraError('');
     setScannerCaptureStep(targetFace);
     setScannerLivePreviewCodes(null);
@@ -3233,20 +3677,25 @@ function OLLDaySuite() {
     liveStableSignatureRef.current = '';
     liveStableStreakRef.current = 0;
     idleNoCubeStreakRef.current = 0;
-    if (resetAll) {
-      setScannerCapturedThumbs({});
-      setScannerRawSamples({});
-      setScannerLockedFaces({});
-      setScannerStageVerification(null);
-      setScannerThreeFaceHints({ crossSolved: null, f2lCompletedStatus: null });
-    } else {
-      setScannerCapturedThumbs((prev) => { const copy = { ...prev }; delete copy[targetFace]; return copy; });
-    }
+    setScannerCapturedThumbs((prev) => { const copy = { ...prev }; delete copy[targetFace]; return copy; });
+
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setScannerCameraError('Camera unavailable in this browser — tap any sticker below to set colors manually.');
       return;
     }
     try {
+      const existingStream = scannerStreamRef.current;
+      const hasLiveTrack = existingStream && existingStream.getVideoTracks().some((t) => t.readyState === 'live');
+      if (hasLiveTrack) {
+        if (scannerVideoRef.current && scannerVideoRef.current.srcObject !== existingStream) {
+          scannerVideoRef.current.srcObject = existingStream;
+        }
+        await scannerVideoRef.current?.play().catch(() => {});
+        setScannerCameraReady(true);
+        setScannerFramingHint('Line up the 9 stickers inside the square');
+        return;
+      }
+
       stopScannerCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 480, max: 640 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 24 } },
@@ -3268,9 +3717,13 @@ function OLLDaySuite() {
     if (!scannerOpen || !scannerCameraReady || scannerCapturedThumbs[scannerCaptureStep]) return;
     const video = scannerVideoRef.current;
     const stream = scannerStreamRef.current;
-    if (video && stream && video.srcObject !== stream) {
-      video.srcObject = stream;
-      video.play().catch(() => {});
+    if (video && stream) {
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
     }
   }, [scannerOpen, scannerCameraReady, scannerCaptureStep, scannerCapturedThumbs]);
 
@@ -3370,8 +3823,9 @@ function OLLDaySuite() {
       });
     }
     const nextRaw = { ...scannerRawSamples, [scannerCaptureStep]: sampled9 };
+    const nextThumbs = { ...scannerCapturedThumbs, [scannerCaptureStep]: canvas.toDataURL('image/jpeg', 0.82) };
     setScannerRawSamples(nextRaw);
-    setScannerCapturedThumbs((prev) => ({ ...prev, [scannerCaptureStep]: canvas.toDataURL('image/jpeg', 0.82) }));
+    setScannerCapturedThumbs(nextThumbs);
     setScannedFaces((prev) => classifyCapturedFaceBatch(nextRaw, prev, scannerLockedFaces, savedCubePalette));
     setScannerCompletedStages([]);
     setScannerF2lPairIdx(0);
@@ -3383,12 +3837,23 @@ function OLLDaySuite() {
     liveStableStreakRef.current = 0;
     idleNoCubeStreakRef.current = 0;
 
-    if (scannerCaptureStep === 'U' && !nextRaw.F) setScannerCaptureStep('F');
-    else if (scannerCaptureStep === 'F' && !nextRaw.R) setScannerCaptureStep('R');
-    else if (scannerCaptureStep === 'R') stopScannerCamera();
-    else if (scannerCaptureStep === 'D' && !nextRaw.B) setScannerCaptureStep('B');
-    else if (scannerCaptureStep === 'B' && !nextRaw.L) setScannerCaptureStep('L');
-    else stopScannerCamera();
+    const frontOrder = ['U', 'F', 'R'];
+    const backOrder = ['D', 'B', 'L'];
+    const activeGroup = frontOrder.includes(scannerCaptureStep) ? frontOrder : backOrder;
+    const nextUnscannedInGroup = activeGroup.find((f) => !nextThumbs[f]);
+
+    if (nextUnscannedInGroup) {
+      setScannerCaptureStep(nextUnscannedInGroup);
+      setScannerFramingHint('Line up the 9 stickers inside the square');
+      const v = scannerVideoRef.current;
+      const st = scannerStreamRef.current;
+      if (v && st) {
+        if (v.srcObject !== st) v.srcObject = st;
+        if (v.paused) v.play().catch(() => {});
+      }
+    } else {
+      stopScannerCamera();
+    }
   };
 
   const scannerLiveRef = useRef({ scannerRawSamples, scannedFaces, scannerLockedFaces, savedCubePalette });
@@ -3435,18 +3900,38 @@ function OLLDaySuite() {
     return () => clearInterval(id);
   }, [scannerOpen, scannerCameraReady, isAppVisible, scannerViewfinderVisible, currentFaceAlreadyCaptured, scannerCaptureStep, scannerAutoSnap]);
 
-  const scannerHasFull6Faces = useMemo(
-    () => Boolean(scannerCapturedThumbs.D || scannerCapturedThumbs.B || scannerCapturedThumbs.L) ||
-      [1, 3, 5, 7].some((i) => scannedFaces.D[i] !== 'W') || scannedFaces.B[7] !== 'B' || scannedFaces.L[7] !== 'R',
-    [scannerCapturedThumbs, scannedFaces]
-  );
+  const scannerHasAnyInput = useMemo(() => {
+    if (Object.keys(scannerCapturedThumbs).length > 0) return true;
+    return ['U', 'F', 'R', 'D', 'B', 'L'].some((fKey) =>
+      (scannedFaces[fKey] || []).some((c, idx) => idx !== 4 && Boolean(c))
+    );
+  }, [scannerCapturedThumbs, scannedFaces]);
+
+  const scannerHasFull6Faces = useMemo(() => {
+    const hasBackCapture = Boolean(scannerCapturedThumbs.D && scannerCapturedThumbs.B && scannerCapturedThumbs.L);
+    const hasManualBackInput = ['D', 'B', 'L'].every((fKey) =>
+      (scannedFaces[fKey] || []).every((c) => Boolean(c))
+    );
+    return hasBackCapture || hasManualBackInput;
+  }, [scannerCapturedThumbs, scannedFaces]);
 
   const scannerAnalysis = useMemo(() => {
-    if (!scannerOpen) return null;
-    return scannerHasFull6Faces
-      ? analyzeFull54Cube(scannedFaces.U, scannedFaces.F, scannedFaces.R, scannedFaces.D, scannedFaces.B, scannedFaces.L)
-      : analyzeScanned3FaceCube(scannedFaces.U, scannedFaces.F, scannedFaces.R, null, scannerThreeFaceHints);
-  }, [scannerOpen, scannerHasFull6Faces, scannedFaces, scannerThreeFaceHints]);
+    if (!scannerOpen || !scannerHasAnyInput) return null;
+    const fillFace = (faceKey, fallbackCenter) => {
+      const raw = scannedFaces[faceKey] || [];
+      return Array.from({ length: 9 }, (_, i) => (i === 4 ? fallbackCenter : raw[i] || fallbackCenter));
+    };
+    const uClean = fillFace('U', 'Y');
+    const fClean = fillFace('F', 'G');
+    const rClean = fillFace('R', 'O');
+    if (scannerHasFull6Faces) {
+      const dClean = fillFace('D', 'W');
+      const bClean = fillFace('B', 'B');
+      const lClean = fillFace('L', 'R');
+      return analyzeFull54Cube(uClean, fClean, rClean, dClean, bClean, lClean);
+    }
+    return analyzeScanned3FaceCube(uClean, fClean, rClean, null, scannerThreeFaceHints);
+  }, [scannerOpen, scannerHasAnyInput, scannerHasFull6Faces, scannedFaces, scannerThreeFaceHints]);
 
   // Timer, Cross, Curriculum & Modal States
   const [fullTimerOpen, setFullTimerOpen] = useState(false);
@@ -3513,7 +3998,10 @@ function OLLDaySuite() {
   }, [authScreenOpen, authMode, isAppVisible]);
   const [authNameInput, setAuthNameInput] = useState('');
   const [authEmailInput, setAuthEmailInput] = useState('');
+  const [authPasswordInput, setAuthPasswordInput] = useState('');
   const [authErrorMsg, setAuthErrorMsg] = useState('');
+  const [authInfoMsg, setAuthInfoMsg] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
   const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
     const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
     const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
@@ -3535,13 +4023,362 @@ function OLLDaySuite() {
   const swDisplayRef = useRef(null);
   const fullTimerDisplayRef = useRef(null);
 
-  const [f2lSession, setF2lSession] = useState(null);
-  const [f2lDrillCase, setF2lDrillCase] = useState(null);
-  const [ollSession, setOllSession] = useState(null);
-  const [ollDrillCase, setOllDrillCase] = useState(null);
-  const [pllSession, setPllSession] = useState(null);
-  const [pllDrillCase, setPllDrillCase] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
+  const [activeDrill, setActiveDrill] = useState(null);
+  const isNativeIosApp =
+    typeof window !== 'undefined' &&
+    window.Capacitor?.isNativePlatform?.() &&
+    window.Capacitor?.getPlatform?.() === 'ios';
 
+  const formatFirebaseAuthError = (err, fallbackMsg) => {
+    const code = err?.code || '';
+    if (code === 'auth/email-already-in-use') return 'That email is already registered — switch to Sign In below.';
+    if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
+    if (code === 'auth/weak-password') return 'Password must be at least 6 characters.';
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+      return 'Incorrect email or password — check your credentials or tap Forgot Password.';
+    }
+    if (code === 'auth/too-many-requests') return 'Too many attempts — wait a moment and try again.';
+    if (code === 'auth/operation-not-allowed') {
+      return 'Enable Email/Password in Firebase Console → Authentication → Sign-in method.';
+    }
+    return err?.message || fallbackMsg;
+  };
+
+  const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver', isNewSignUp = false) => {
+    const rawName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
+    const displayName = rawName.replace(/[/\\#?]+/g, ' ').replace(/\s+/g, ' ').trim() || fallbackName;
+    const { docs: allCloudDocs } = await readCloudProfilesWithFallback(svc, fbUser.uid);
+
+    const diskUsers = storage.getJson(STORAGE_KEYS.users, {});
+    const mergedSourceUsers = { ...(diskUsers && typeof diskUsers === 'object' ? diskUsers : {}), ...users };
+    const emailLower = (fbUser.email || '').trim().toLowerCase();
+    const nonDemoLocalEntries = Object.entries(mergedSourceUsers).filter(([k]) => k !== 'Demo');
+    const emailMatchedLocal = emailLower
+      ? nonDemoLocalEntries.find(([, u]) => u?.email?.trim().toLowerCase() === emailLower)?.[1]
+      : null;
+    const activeLocal = activeUserKey && activeUserKey !== 'Demo' ? mergedSourceUsers[activeUserKey] : null;
+    const namedLocal = mergedSourceUsers[displayName] || null;
+    let combinedLocal = sanitizeUserRecord({});
+    [emailMatchedLocal, activeLocal, namedLocal].filter(Boolean).forEach((rec) => {
+      combinedLocal = mergeSolverUserRecords(combinedLocal, rec);
+    });
+
+    const localAnyNonDemoPro = nonDemoLocalEntries.some(([, u]) => Boolean(u?.isPro));
+    const cloudAnyDocHasPro = allCloudDocs.some((d) => Boolean(d.data()?.isPro));
+    const resolvedPro = Boolean(cloudAnyDocHasPro || combinedLocal.isPro || localAnyNonDemoPro);
+
+    const profileDocs = allCloudDocs.filter((d) => d.id !== '_entitlements');
+    let chosenKey = displayName;
+    const writeTs = Date.now();
+    let finalSyncedRecord;
+
+    if (profileDocs.length > 0) {
+      const sortedDocs = [...profileDocs].sort((a, b) => (Number(b.data()?.updatedAt) || 0) - (Number(a.data()?.updatedAt) || 0));
+      const matchedDoc =
+        sortedDocs.find((d) => emailLower && d.data()?.email?.toLowerCase() === emailLower) ||
+        sortedDocs.find((d) => d.id.toLowerCase() === displayName.toLowerCase()) ||
+        sortedDocs[0];
+      chosenKey = matchedDoc.id;
+      const localForChosen = mergeSolverUserRecords(combinedLocal, mergedSourceUsers[chosenKey] || {});
+      finalSyncedRecord = mergeSolverUserRecords(localForChosen, {
+        ...matchedDoc.data(),
+        email: fbUser.email || matchedDoc.data().email || '',
+        isPro: resolvedPro
+      });
+      finalSyncedRecord = sanitizeUserRecord({
+        ...finalSyncedRecord,
+        email: fbUser.email || finalSyncedRecord.email || '',
+        isPro: resolvedPro
+      });
+    } else {
+      finalSyncedRecord = sanitizeUserRecord({
+        ...combinedLocal,
+        email: fbUser.email || combinedLocal.email || '',
+        isPro: resolvedPro
+      });
+    }
+
+    lastCloudWriteRef.current.set(chosenKey, writeTs);
+    setUsers((prev) => {
+      const nextUsers = { ...prev, [chosenKey]: finalSyncedRecord };
+      storage.setJson(STORAGE_KEYS.users, nextUsers);
+      return nextUsers;
+    });
+
+    const primaryRes = await writeCloudDocWithFallback(svc, fbUser.uid, chosenKey, {
+      ...finalSyncedRecord,
+      updatedAt: writeTs
+    });
+    if (resolvedPro) {
+      await writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', {
+        isPro: true,
+        email: fbUser.email || '',
+        updatedAt: writeTs
+      });
+    }
+
+    setCloudAuthUser(fbUser);
+    setCloudSyncStatus(primaryRes.ok ? 'synced' : 'local');
+    registerDeviceAccount(chosenKey);
+    setActiveUserKey(chosenKey);
+    setAuthNameInput('');
+    setAuthEmailInput('');
+    setAuthPasswordInput('');
+    setAuthInfoMsg('');
+    setAuthScreenOpen(false);
+    if (isNewSignUp) setActiveModal('cfopExperienceChoice');
+    return { chosenKey, record: finalSyncedRecord, syncedToCloud: primaryRes.ok };
+  };
+
+  const handleEmailPasswordSignUp = async () => {
+    const cleanName = authNameInput.trim();
+    const cleanEmail = authEmailInput.trim();
+    const cleanPass = authPasswordInput;
+    setAuthErrorMsg('');
+    setAuthInfoMsg('');
+
+    if (!cleanName) {
+      setAuthErrorMsg('Enter a solver name to create your account');
+      return;
+    }
+
+    // Local-only solver profile when no email is entered
+    if (!cleanEmail) {
+      if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) {
+        setAuthErrorMsg('That solver name is taken — choose another or Sign In');
+        return;
+      }
+      emitBeep(820, 'sine', 0.1);
+      const created = sanitizeUserRecord({ email: '', isPro: false });
+      setUsers((prev) => ({ ...prev, [cleanName]: created }));
+      saveUserToCloud(cleanName, created);
+      registerDeviceAccount(cleanName);
+      setActiveUserKey(cleanName);
+      setAuthNameInput('');
+      setAuthEmailInput('');
+      setAuthPasswordInput('');
+      setAuthScreenOpen(false);
+      setActiveModal('cfopExperienceChoice');
+      return;
+    }
+
+    if (cleanPass.length < 6) {
+      setAuthErrorMsg('Enter a password (6+ characters) to sync across devices');
+      return;
+    }
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+
+    setAuthBusy(true);
+    emitBeep(760, 'sine', 0.08);
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+      if (svc.authMod.updateProfile) {
+        await svc.authMod.updateProfile(cred.user, { displayName: cleanName }).catch(() => {});
+      }
+      await syncCloudProfileAfterOAuth(
+        svc,
+        { uid: cred.user.uid, email: cred.user.email || cleanEmail, displayName: cleanName },
+        cleanName,
+        true
+      );
+    } catch (err) {
+      setAuthErrorMsg(formatFirebaseAuthError(err, 'Could not create cloud account — please try again.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleEmailPasswordSignIn = async () => {
+    const query = authEmailInput.trim() || authNameInput.trim();
+    const cleanPass = authPasswordInput;
+    setAuthErrorMsg('');
+    setAuthInfoMsg('');
+
+    if (!query) {
+      setAuthErrorMsg('Enter your email and password (or a local solver name)');
+      return;
+    }
+
+    // If no password entered and input doesn't look like an email, check local device profiles
+    if (!cleanPass && !query.includes('@')) {
+      const qLower = query.toLowerCase();
+      const matchedKey = Object.keys(users).find(
+        (k) => k.toLowerCase() === qLower || users[k]?.email?.trim().toLowerCase() === qLower
+      );
+      if (!matchedKey) {
+        setAuthErrorMsg('Local profile not found — enter your Email & Password to sign in from cloud');
+        return;
+      }
+      emitBeep(720, 'sine', 0.08);
+      registerDeviceAccount(matchedKey);
+      setActiveUserKey(matchedKey);
+      setAuthNameInput('');
+      setAuthEmailInput('');
+      setAuthPasswordInput('');
+      setAuthScreenOpen(false);
+      return;
+    }
+
+    if (!query.includes('@')) {
+      setAuthErrorMsg('Enter the email address registered with your cloud account');
+      return;
+    }
+    if (!cleanPass) {
+      setAuthErrorMsg('Enter your password to sign in');
+      return;
+    }
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+
+    setAuthBusy(true);
+    emitBeep(720, 'sine', 0.08);
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const cred = await svc.authMod.signInWithEmailAndPassword(svc.auth, query, cleanPass);
+      await syncCloudProfileAfterOAuth(svc, cred.user, query.split('@')[0] || 'Solver', false);
+    } catch (err) {
+      setAuthErrorMsg(formatFirebaseAuthError(err, 'Email sign-in failed — please try again.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const email = (authEmailInput.trim() || authNameInput.trim());
+    setAuthErrorMsg('');
+    setAuthInfoMsg('');
+    if (!email || !email.includes('@')) {
+      setAuthErrorMsg('Enter your account email above first, then tap Forgot password');
+      return;
+    }
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+    setAuthBusy(true);
+    emitBeep(620, 'sine', 0.07);
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      await svc.authMod.sendPasswordResetEmail(svc.auth, email);
+      setAuthInfoMsg(`Password reset link sent to ${email}`);
+    } catch (err) {
+      setAuthErrorMsg(formatFirebaseAuthError(err, 'Unable to send reset email — verify the address.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!resolvedFirebaseConfig) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const svc = await getFirebaseServices();
+        if (!svc || cancelled || !svc.authMod.getRedirectResult) return;
+        const redirectCred = await svc.authMod.getRedirectResult(svc.auth);
+        if (!cancelled && redirectCred?.user) {
+          await syncCloudProfileAfterOAuth(svc, redirectCred.user, 'Google Solver');
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    emitBeep(720, 'sine', 0.08);
+    setAuthErrorMsg('');
+    setAuthBusy(true);
+    if (!resolvedFirebaseConfig) {
+      setAuthBusy(false);
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const provider = new svc.authMod.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      try {
+        const cred = await svc.authMod.signInWithPopup(svc.auth, provider);
+        await syncCloudProfileAfterOAuth(svc, cred.user, 'Google Solver');
+      } catch (popupErr) {
+        if (popupErr?.code === 'auth/operation-not-supported-in-this-environment') {
+          await svc.authMod.signInWithRedirect(svc.auth, provider);
+          return;
+        }
+        if (popupErr?.code === 'auth/popup-blocked') {
+          setAuthErrorMsg('Popup blocked by Safari — allow pop-ups in Safari Settings or tap Continue with Google again.');
+          return;
+        }
+        throw popupErr;
+      }
+    } catch (err) {
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthErrorMsg(err?.message || 'Google sign-in failed — please try again.');
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleGameCenterSignIn = async () => {
+    emitBeep(760, 'sine', 0.08);
+    setAuthErrorMsg('');
+    if (!resolvedFirebaseConfig) {
+      setAuthErrorMsg('Cloud sync is not configured on this build.');
+      return;
+    }
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setAuthErrorMsg('Unable to reach authentication service.');
+        return;
+      }
+      const gameCenterPlugin = typeof window !== 'undefined' ? window.Capacitor?.Plugins?.GameCenter : null;
+      if (isNativeIosApp && gameCenterPlugin?.authenticate) {
+        const gcPlayer = await gameCenterPlugin.authenticate();
+        const gcName = (gcPlayer?.displayName || gcPlayer?.alias || 'Game Center Solver').trim();
+        if (!svc.auth.currentUser) {
+          await svc.authMod.signInAnonymously(svc.auth);
+        }
+        await syncCloudProfileAfterOAuth(svc, svc.auth.currentUser, gcName);
+        return;
+      }
+      const appleProvider = new svc.authMod.OAuthProvider('apple.com');
+      appleProvider.addScope('email');
+      appleProvider.addScope('name');
+      const cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
+      await syncCloudProfileAfterOAuth(svc, cred.user, 'Apple Solver');
+    } catch (err) {
+      if (err?.code === 'auth/operation-not-allowed') {
+        setAuthErrorMsg('Game Center activates automatically in the iOS App Store build — use Google or a Solver Name on web.');
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthErrorMsg(err?.message || 'Game Center sign-in unavailable on this browser.');
+      }
+    }
+  };
   const registerDeviceAccount = (uKey) => {
     if (!uKey || typeof uKey !== 'string') return;
     setDeviceAccountKeys((prev) => {
@@ -3587,30 +4424,19 @@ function OLLDaySuite() {
   spaceShortcutRef.current = () => {
     if (fullTimerOpen) {
       handleFullTimerScreenTap();
-      return;
+      return true;
     }
-    if (!stopwatchEnabled) return;
-    const activeDrillItem = f2lDrillCase
-      ? { phase: 'f2l', id: f2lDrillCase.id }
-      : ollDrillCase
-      ? { phase: 'oll', id: ollDrillCase.id }
-      : pllDrillCase
-      ? { phase: 'pll', id: pllDrillCase.id }
-      : null;
-    if (activeDrillItem) {
-      toggleStopwatch((sec) => recordCaseTime(activeDrillItem.phase, activeDrillItem.id, sec));
-      return;
+    if (!stopwatchEnabled) return false;
+    if (activeDrill) {
+      toggleStopwatch((sec) => recordCaseTime(activeDrill.phase, activeDrill.item.id, sec));
+      return true;
     }
-    const activeSessionItem = f2lSession
-      ? { phase: 'f2l', id: f2lSession.queue[f2lSession.index]?.id }
-      : ollSession
-      ? { phase: 'oll', id: ollSession.queue[ollSession.index]?.id }
-      : pllSession
-      ? { phase: 'pll', id: pllSession.queue[pllSession.index]?.id }
-      : null;
-    if (activeSessionItem?.id !== undefined) {
-      toggleStopwatch((sec) => recordCaseTime(activeSessionItem.phase, activeSessionItem.id, sec));
+    const activeCaseId = activeSession?.queue[activeSession.index]?.id;
+    if (activeCaseId !== undefined) {
+      toggleStopwatch((sec) => recordCaseTime(activeSession.phase, activeCaseId, sec));
+      return true;
     }
+    return false;
   };
 
   useEffect(() => {
@@ -3619,42 +4445,32 @@ function OLLDaySuite() {
       if (e.code !== 'Space' && e.key !== ' ') return;
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
-      if (fullTimerOpen || f2lDrillCase || ollDrillCase || pllDrillCase || f2lSession || ollSession || pllSession) {
-        e.preventDefault();
-        spaceShortcutRef.current?.();
-      }
+      if (spaceShortcutRef.current?.()) e.preventDefault();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fullTimerOpen, f2lDrillCase, ollDrillCase, pllDrillCase, f2lSession, ollSession, pllSession]);
+  }, []);
 
   useEffect(() => {
-    if (!swRunning || !isAppVisible) return;
+    const swActive = swRunning && isAppVisible;
+    const fullActive = fullTimerState === 'running' && isAppVisible;
+    if (!swActive && !fullActive) return;
     let rafId = 0, lastPaint = 0;
     const tick = (now) => {
       if (now - lastPaint >= 80) {
         lastPaint = now;
-        if (swDisplayRef.current) swDisplayRef.current.textContent = `${((now - swStartRef.current) / 1000).toFixed(2)}s — Stop`;
+        if (swActive && swDisplayRef.current) {
+          swDisplayRef.current.textContent = `${((now - swStartRef.current) / 1000).toFixed(2)}s — Stop`;
+        }
+        if (fullActive && fullTimerDisplayRef.current) {
+          fullTimerDisplayRef.current.textContent = ((now - fullStartRef.current) / 1000).toFixed(2);
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [swRunning, isAppVisible]);
-
-  useEffect(() => {
-    if (fullTimerState !== 'running' || !isAppVisible) return;
-    let rafId = 0, lastPaint = 0;
-    const tick = (now) => {
-      if (now - lastPaint >= 80) {
-        lastPaint = now;
-        if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = ((now - fullStartRef.current) / 1000).toFixed(2);
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [fullTimerState, isAppVisible]);
+  }, [swRunning, fullTimerState, isAppVisible]);
 
   const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
   const currentUser = useMemo(
@@ -3803,8 +4619,7 @@ function OLLDaySuite() {
     const clean = sanitizeCustomAlgTokens(algStr);
     if (!clean) return false;
     const formatted = assignFingertricks ? formatAlgWithTriggerBrackets(clean) : clean;
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const { list, activeId } = normalizeCaseCustomAlgs(u.customAlgs?.[phaseKey]?.[caseId]);
       let nextList = [...list];
       let targetId = editingAltId;
@@ -3814,7 +4629,7 @@ function OLLDaySuite() {
           c.id === editingAltId ? { ...c, alg: formatted, rawAlg: clean, assignFingertricks } : c
         );
       } else {
-        if (nextList.length >= MAX_CUSTOM_ALGS_PER_CASE) return prev;
+        if (nextList.length >= MAX_CUSTOM_ALGS_PER_CASE) return u;
         targetId = `alt-${Date.now()}-${nextList.length + 1}`;
         nextList.push({
           id: targetId,
@@ -3827,31 +4642,25 @@ function OLLDaySuite() {
 
       const nextActiveId = makeActive ? targetId : activeId;
       const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}), [caseId]: { list: nextList, activeId: nextActiveId } };
-      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
     });
     return true;
   };
 
   const selectCaseAlgSource = (phaseKey, caseId, activeAltIdOrNull) => {
     emitBeep(540, 'sine', 0.05);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const { list } = normalizeCaseCustomAlgs(u.customAlgs?.[phaseKey]?.[caseId]);
-      if (list.length === 0) return prev;
+      if (list.length === 0) return u;
       const validId = activeAltIdOrNull && list.some((c) => c.id === activeAltIdOrNull) ? activeAltIdOrNull : null;
       const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}), [caseId]: { list, activeId: validId } };
-      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
     });
   };
 
   const removeCustomCaseAlg = (phaseKey, caseId, altIdToRemove = null) => {
     emitBeep(420, 'sine', 0.06);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const phaseMap = { ...(u.customAlgs?.[phaseKey] || {}) };
       if (!altIdToRemove) {
         delete phaseMap[caseId];
@@ -3865,9 +4674,7 @@ function OLLDaySuite() {
           phaseMap[caseId] = { list: filtered, activeId: nextActive };
         }
       }
-      const updated = { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, customAlgs: { ...u.customAlgs, [phaseKey]: phaseMap } };
     });
   };
 
@@ -3906,41 +4713,34 @@ function OLLDaySuite() {
   const deleteCaseTimeEntry = (phase, caseId, entryIdx) => {
     emitBeep(420, 'sine', 0.06);
     const { statField } = PHASE_REGISTRY[phase] || PHASE_REGISTRY.oll;
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
+    updateActiveUserRecord((u) => {
       const existing = u[statField]?.[caseId];
-      if (!existing) return prev;
+      if (!existing) return u;
       const oldHist = Array.isArray(existing.history) ? existing.history : [];
       const nextHist = oldHist.filter((_, idx) => idx !== entryIdx);
       const nextPhaseStats = { ...(u[statField] || {}) };
-      if (nextHist.length === 0) {
-        delete nextPhaseStats[caseId];
-      } else {
-        nextPhaseStats[caseId] = {
-          best: Math.min(...nextHist),
-          attempts: nextHist.length,
-          history: nextHist
-        };
-      }
-      const updated = { ...u, [statField]: nextPhaseStats };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      if (nextHist.length === 0) delete nextPhaseStats[caseId];
+      else nextPhaseStats[caseId] = { best: Math.min(...nextHist), attempts: nextHist.length, history: nextHist };
+      return { ...u, [statField]: nextPhaseStats };
     });
     setSwLastResult((prev) => (prev?.phase === phase && prev?.caseId === caseId ? null : prev));
   };
 
   const deleteFullSolveById = (solveId) => {
     emitBeep(400, 'sine', 0.06);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      const nextHist = (u.fullSolveHistory || []).filter((s) => s.id !== solveId);
-      const updated = { ...u, fullSolveHistory: nextHist };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
-    });
+    updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: (u.fullSolveHistory || []).filter((s) => s.id !== solveId) }));
   };
 
-  const handleFullTimerScreenTap = () => {
+  const fullTimerTouchGuardRef = useRef(0);
+
+  const handleFullTimerScreenTap = (e) => {
+    if (e && e.type === 'pointerdown') {
+      if (e.button !== undefined && e.button !== 0) return;
+      fullTimerTouchGuardRef.current = performance.now();
+    } else if (e && e.type === 'click') {
+      if (performance.now() - fullTimerTouchGuardRef.current < 450) return;
+    }
+
     if (fullTimerState !== 'running') {
       emitBeep(820, 'sine', 0.07);
       fullStartRef.current = performance.now();
@@ -3954,36 +4754,23 @@ function OLLDaySuite() {
       setFullTimerState('stopped');
       emitBeep(980, 'sine', 0.1);
       const newEntry = { id: Date.now(), ms: finalMs, penalty: null, scramble: fullScramble };
-      setUsers((prev) => {
-        const u = sanitizeUserRecord(prev[resolvedUserKey]);
-        const updated = { ...u, fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100) };
-        saveUserToCloud(resolvedUserKey, updated);
-        return { ...prev, [resolvedUserKey]: updated };
-      });
+      updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100) }));
       setFullScramble(generate3x3Scramble(20));
     }
   };
 
   const toggleFullSolvePenalty = (pen) => {
     emitBeep(560);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      if (!u.fullSolveHistory?.length) return prev;
+    updateActiveUserRecord((u) => {
+      if (!u.fullSolveHistory?.length) return u;
       const [first, ...rest] = u.fullSolveHistory;
-      const updated = { ...u, fullSolveHistory: [{ ...first, penalty: first.penalty === pen ? null : pen }, ...rest] };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+      return { ...u, fullSolveHistory: [{ ...first, penalty: first.penalty === pen ? null : pen }, ...rest] };
     });
   };
 
   const deleteLastFullSolve = () => {
     emitBeep(400);
-    setUsers((prev) => {
-      const u = sanitizeUserRecord(prev[resolvedUserKey]);
-      const updated = { ...u, fullSolveHistory: (u.fullSolveHistory || []).slice(1) };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
-    });
+    updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: (u.fullSolveHistory || []).slice(1) }));
     fullFinalMsRef.current = 0;
     if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = '0.00';
     setFullTimerState('idle');
@@ -3996,16 +4783,123 @@ function OLLDaySuite() {
     setFullTimerOpen(true);
   };
 
+  const toastTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
+
+  const [restoreStatusToast, setRestoreStatusToast] = useState('');
   const openProPaywall = (featureLabel) => { emitBeep(460); setProPaywallFeature(featureLabel || ''); setProPurchaseToast(''); setActiveModal('proPaywall'); };
-  const unlockLifetimePro = () => {
+  const unlockLifetimePro = async () => {
     emitBeep(920, 'sine', 0.12);
-    setUsers((prev) => {
-      const updated = { ...sanitizeUserRecord(prev[resolvedUserKey]), isPro: true };
-      saveUserToCloud(resolvedUserKey, updated);
-      return { ...prev, [resolvedUserKey]: updated };
+    const svc = resolvedFirebaseConfig ? await getFirebaseServices() : null;
+    if (svc && typeof svc.auth.authStateReady === 'function') {
+      await svc.auth.authStateReady().catch(() => {});
+    }
+    const fbUser = svc?.auth?.currentUser || cloudAuthUser;
+    const isSignedIntoCloud = Boolean(fbUser && !fbUser.isAnonymous);
+    const updatedRecord = sanitizeUserRecord({
+      ...currentUser,
+      isPro: true,
+      email: currentUser.email || fbUser?.email || ''
     });
-    setProPurchaseToast('OLLDay Pro Unlocked! All 123 cases active.');
-    setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 900);
+    const emailLower = (updatedRecord.email || '').trim().toLowerCase();
+
+    setUsers((prev) => {
+      const nextUsers = { ...prev };
+      Object.keys(nextUsers).forEach((k) => {
+        if (k === resolvedUserKey || (emailLower && nextUsers[k]?.email?.trim().toLowerCase() === emailLower)) {
+          nextUsers[k] = sanitizeUserRecord({ ...nextUsers[k], isPro: true, email: nextUsers[k]?.email || emailLower });
+        }
+      });
+      nextUsers[resolvedUserKey] = updatedRecord;
+      storage.setJson(STORAGE_KEYS.users, nextUsers);
+      return nextUsers;
+    });
+
+    if (svc && fbUser?.uid) {
+      try {
+        const writeTs = Date.now();
+        const targetProfileKey = resolvedUserKey && resolvedUserKey !== 'Demo'
+          ? resolvedUserKey
+          : ((fbUser.displayName || fbUser.email?.split('@')[0] || 'Solver').replace(/[/\\#?]+/g, ' ').trim() || 'Solver');
+        if (targetProfileKey !== resolvedUserKey) {
+          registerDeviceAccount(targetProfileKey);
+          setActiveUserKey(targetProfileKey);
+          setUsers((prev) => {
+            const nextUsers = { ...prev, [targetProfileKey]: updatedRecord };
+            storage.setJson(STORAGE_KEYS.users, nextUsers);
+            return nextUsers;
+          });
+        }
+        lastCloudWriteRef.current.set(targetProfileKey, writeTs);
+        const [profRes, entRes] = await Promise.all([
+          writeCloudDocWithFallback(svc, fbUser.uid, targetProfileKey, { ...updatedRecord, updatedAt: writeTs }),
+          writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', { isPro: true, email: fbUser.email || emailLower, updatedAt: writeTs })
+        ]);
+        const savedOk = profRes.ok || entRes.ok;
+        if (savedOk) {
+          setCloudSyncStatus('synced');
+          setProPurchaseToast(
+            isSignedIntoCloud
+              ? `Pro Unlocked & Synced to ${fbUser.email || 'Gmail'} ✓`
+              : 'Pro Unlocked! Sign in with Gmail to sync across devices.'
+          );
+        } else {
+          const errCode = profRes.error?.code || entRes.error?.code || 'blocked';
+          setProPurchaseToast(`Pro Unlocked locally (Cloud error: ${errCode}).`);
+        }
+      } catch {
+        setProPurchaseToast('Pro Unlocked on this device!');
+      }
+    } else {
+      setProPurchaseToast('Pro Unlocked on this device! Sign in with Gmail to sync.');
+    }
+
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => { setActiveModal(null); setProPurchaseToast(''); }, 1200);
+  };
+
+  const restoreCloudPurchase = async () => {
+    emitBeep(620, 'sine', 0.08);
+    if (!resolvedFirebaseConfig) {
+      if (isProUnlocked) {
+        setRestoreStatusToast('Lifetime Pro is active on this device ✓');
+        setTimeout(() => setRestoreStatusToast(''), 2500);
+      } else {
+        openProPaywall('Restore Purchase');
+      }
+      return;
+    }
+    setRestoreStatusToast('Syncing with Gmail cloud account...');
+    try {
+      const svc = await getFirebaseServices();
+      if (!svc) {
+        setRestoreStatusToast('');
+        openProPaywall('Restore Purchase');
+        return;
+      }
+      if (typeof svc.auth.authStateReady === 'function') {
+        await svc.auth.authStateReady().catch(() => {});
+      }
+      const fbUser = svc.auth.currentUser || cloudAuthUser;
+      if (!fbUser || fbUser.isAnonymous) {
+        setRestoreStatusToast('');
+        setAuthErrorMsg('Sign in with your Gmail account to sync progress & restore Pro.');
+        setAuthMode('signin');
+        setAuthScreenOpen(true);
+        return;
+      }
+      const syncRes = await syncCloudProfileAfterOAuth(svc, fbUser, resolvedUserKey || 'Solver', false);
+      if (syncRes?.record?.isPro) {
+        setRestoreStatusToast(`Synced & Pro Active (${fbUser.email || 'Gmail'}) ✓`);
+        setTimeout(() => setRestoreStatusToast(''), 3500);
+      } else {
+        setRestoreStatusToast(`Synced ${fbUser.email || 'Gmail'} — Pro not yet saved from mobile.`);
+        setTimeout(() => setRestoreStatusToast(''), 4000);
+      }
+    } catch (err) {
+      setRestoreStatusToast(`Cloud sync error: ${err?.code || 'check connection'}`);
+      setTimeout(() => setRestoreStatusToast(''), 3500);
+    }
   };
 
   const { ao5Full, ao12Full, bestFullPbMs } = useMemo(() => {
@@ -4288,6 +5182,9 @@ function OLLDaySuite() {
     }
   }, [leftPadHeld, rightPadHeld, blindState]);
 
+  const lineupDragSnapRef = useRef({ lineupOrders, safeF2lDay, safePllDay, safeOllDay, currentUser });
+  lineupDragSnapRef.current = { lineupOrders, safeF2lDay, safePllDay, safeOllDay, currentUser };
+
   useEffect(() => {
     if (draggedLineupIdx === null) return;
     let dragRafId = 0, pendingPoint = null;
@@ -4304,12 +5201,13 @@ function OLLDaySuite() {
         if (row) {
           const targetIdx = Number(row.getAttribute('data-lineup-idx'));
           if (!Number.isNaN(targetIdx) && targetIdx !== draggedLineupIdx) {
+            const snap = lineupDragSnapRef.current;
             setLineupOverrides((prev) => {
-              const updated = [...(lineupOrders[activePhase] || [])];
+              const updated = [...(snap.lineupOrders[activePhase] || [])];
               const [moved] = updated.splice(draggedLineupIdx, 1);
               updated.splice(targetIdx, 0, moved);
-              const dayNum = activePhase === 'f2l' ? safeF2lDay : activePhase === 'pll' ? safePllDay : safeOllDay;
-              const chunksRef = activePhase === 'f2l' ? currentUser.f2lCustomChunks : activePhase === 'pll' ? currentUser.pllCustomChunks : currentUser.customChunks;
+              const dayNum = activePhase === 'f2l' ? snap.safeF2lDay : activePhase === 'pll' ? snap.safePllDay : snap.safeOllDay;
+              const chunksRef = activePhase === 'f2l' ? snap.currentUser.f2lCustomChunks : activePhase === 'pll' ? snap.currentUser.pllCustomChunks : snap.currentUser.customChunks;
               return { ...prev, [activePhase]: { sig: `${dayNum}:${chunksRef?.length || 0}`, list: updated } };
             });
             setDraggedLineupIdx(targetIdx);
@@ -4325,9 +5223,7 @@ function OLLDaySuite() {
       if (touch) processDragMove(touch.clientX, touch.clientY);
     };
 
-    const handleWindowMouseMove = (e) => {
-      processDragMove(e.clientX, e.clientY);
-    };
+    const handleWindowMouseMove = (e) => processDragMove(e.clientX, e.clientY);
 
     const handleWindowDragEnd = () => {
       if (dragRafId) cancelAnimationFrame(dragRafId);
@@ -4337,8 +5233,10 @@ function OLLDaySuite() {
     window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
     window.addEventListener('touchend', handleWindowDragEnd, { passive: true });
     window.addEventListener('touchcancel', handleWindowDragEnd, { passive: true });
-    window.addEventListener('mousemove', handleWindowMouseMove, { passive: true });
-    window.addEventListener('mouseup', handleWindowDragEnd, { passive: true });
+    if (!viewportDevice.isTouchPrimary) {
+      window.addEventListener('mousemove', handleWindowMouseMove, { passive: true });
+      window.addEventListener('mouseup', handleWindowDragEnd, { passive: true });
+    }
     return () => {
       if (dragRafId) cancelAnimationFrame(dragRafId);
       window.removeEventListener('touchmove', handleWindowTouchMove);
@@ -4347,7 +5245,7 @@ function OLLDaySuite() {
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowDragEnd);
     };
-  }, [draggedLineupIdx, activePhase]);
+  }, [draggedLineupIdx, activePhase, viewportDevice.isTouchPrimary]);
 
   const startLineupHold = (idx, clientY) => {
     preHoldStartYRef.current = clientY;
@@ -4364,25 +5262,20 @@ function OLLDaySuite() {
 
   const executeGranularReset = (scope) => {
     emitBeep(360, 'triangle', 0.12);
-    setUsers((prev) => {
-      const u = { ...(prev[resolvedUserKey] || DEFAULT_USERS.Demo) };
-      if (scope === 'f2l-day' || scope === 'f2l-all') u.f2lDay = 1;
-      if (scope === 'f2l-stats' || scope === 'f2l-all') u.f2lStats = {};
-      if (scope === 'f2l-chunks' || scope === 'f2l-all') u.f2lCustomChunks = null;
-      if (scope === 'oll-day' || scope === 'oll-all') u.day = 1;
-      if (scope === 'oll-stats' || scope === 'oll-all') u.stats = {};
-      if (scope === 'oll-chunks' || scope === 'oll-all') u.customChunks = null;
-      if (scope === 'pll-day' || scope === 'pll-all') u.pllDay = 1;
-      if (scope === 'pll-stats' || scope === 'pll-all') u.pllStats = {};
-      if (scope === 'pll-chunks' || scope === 'pll-all') u.pllCustomChunks = null;
-      if (scope === 'full-timer') u.fullSolveHistory = [];
-      if (scope === 'both') {
-        const fresh = { ...sanitizeUserRecord(null), isPro: Boolean(u.isPro), email: u.email || '' };
-        saveUserToCloud(resolvedUserKey, fresh);
-        return { ...prev, [resolvedUserKey]: fresh };
-      }
-      saveUserToCloud(resolvedUserKey, u);
-      return { ...prev, [resolvedUserKey]: u };
+    updateActiveUserRecord((u) => {
+      if (scope === 'both') return { ...sanitizeUserRecord(null), isPro: Boolean(u.isPro), email: u.email || '' };
+      const next = { ...u };
+      if (scope === 'f2l-day' || scope === 'f2l-all') next.f2lDay = 1;
+      if (scope === 'f2l-stats' || scope === 'f2l-all') next.f2lStats = {};
+      if (scope === 'f2l-chunks' || scope === 'f2l-all') next.f2lCustomChunks = null;
+      if (scope === 'oll-day' || scope === 'oll-all') next.day = 1;
+      if (scope === 'oll-stats' || scope === 'oll-all') next.stats = {};
+      if (scope === 'oll-chunks' || scope === 'oll-all') next.customChunks = null;
+      if (scope === 'pll-day' || scope === 'pll-all') next.pllDay = 1;
+      if (scope === 'pll-stats' || scope === 'pll-all') next.pllStats = {};
+      if (scope === 'pll-chunks' || scope === 'pll-all') next.pllCustomChunks = null;
+      if (scope === 'full-timer') next.fullSolveHistory = [];
+      return next;
     });
     setActiveModal(null);
   };
@@ -4580,7 +5473,12 @@ function OLLDaySuite() {
             <span className="text-base font-black text-white block truncate">{String(activeUserKey || 'Solver')}</span>
             {currentUser.email && <p className="text-[11px] text-zinc-300 truncate">{currentUser.email}</p>}
             <p className="text-[11px] text-zinc-300/85 pt-0.5">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle ${cloudSyncStatus === 'synced' ? 'bg-green-400' : 'bg-amber-400'}`} />{cloudSyncStatus === 'synced' ? 'Cloud Synced' : 'Local Saved'} • F2L D{safeF2lDay} • OLL D{safeOllDay} • PLL D{safePllDay}
+              <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle ${cloudSyncStatus === 'synced' && cloudAuthUser && !cloudAuthUser.isAnonymous ? 'bg-green-400' : 'bg-amber-400'}`} />
+              {cloudSyncStatus === 'synced' && cloudAuthUser && !cloudAuthUser.isAnonymous
+                ? `Cloud Synced (${cloudAuthUser.email || 'Gmail'})`
+                : cloudAuthUser && !cloudAuthUser.isAnonymous
+                ? `Local Saved${cloudSyncError ? ` (${cloudSyncError})` : ' • Tap Sync & Restore'}`
+                : 'Local Only • Sign in with Gmail to Sync'} • F2L D{safeF2lDay} • OLL D{safeOllDay} • PLL D{safePllDay}
             </p>
           </div>
 
@@ -4604,12 +5502,15 @@ function OLLDaySuite() {
             </button>
             <button
               type="button"
-              onClick={() => { emitBeep(620); if (!isProUnlocked) openProPaywall('Restore Purchase'); }}
+              onClick={restoreCloudPurchase}
               className="h-10 px-3.5 rounded-2xl bg-transparent hover:bg-white/[0.08] text-[11px] font-bold text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer"
             >
-              Restore Purchase
+              Sync &amp; Restore
             </button>
           </div>
+          {restoreStatusToast && (
+            <p className="text-[11px] font-bold text-amber-300 text-center pt-1">{restoreStatusToast}</p>
+          )}
         </section>
 
         {/* 2. HOME & ONBOARDING */}
@@ -4933,8 +5834,8 @@ function OLLDaySuite() {
     const currentLib = libState[phaseKey] || { mode: 'groups', category: null };
     const setLibMode = (mode) => setLibState((prev) => ({ ...prev, [phaseKey]: { mode, category: null } }));
     const setSelectedCategory = (category) => setLibState((prev) => ({ ...prev, [phaseKey]: { ...prev[phaseKey], category } }));
-    const setSession = isF2L ? setF2lSession : isPLL ? setPllSession : setOllSession;
-    const setDrillCase = isF2L ? setF2lDrillCase : isPLL ? setPllDrillCase : setOllDrillCase;
+    const openSession = (dObj, queue) => setActiveSession({ phase: phaseKey, dayObj: dObj, index: 0, queue });
+    const openDrill = (item) => setActiveDrill({ phase: phaseKey, item });
 
     const meta = isF2L
       ? { subtitle: 'Hold White on Bottom • Green in Front • Target Slot: Front-Right (White–Green–Orange)', lineupLabel: "Today's Pair Lineup (Hold & Drag to Reorder)", libEyebrow: '41 Standard Pairs', libTitle: 'F2L Library', groupTabLabel: '6 Pair Groups', unitLabel: 'Pairs', statsTitle: 'F2L Statistics' }
@@ -5046,7 +5947,7 @@ function OLLDaySuite() {
                     emitBeep(720, 'sine', 0.08);
                     setSwRunning(false); setSwLastResult(null);
                     const sessionQueue = dayObj.randomize ? shuffleCaseList(lineupOrder) : [...lineupOrder];
-                    setSession({ dayObj, index: 0, queue: sessionQueue });
+                    openSession(dayObj, sessionQueue);
                   }}
                   className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer"
                 >
@@ -5095,7 +5996,7 @@ function OLLDaySuite() {
                     onClick={() => {
                       if (draggedLineupIdx !== null) return;
                       if (locked) { openProPaywall(item.name); return; }
-                      emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
+                      emitBeep(600); setSwRunning(false); setSwLastResult(null); openDrill(rawItem);
                     }}
                     className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-card liquid-rim-muted'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       draggedLineupIdx === idx ? 'border-orange-500 bg-orange-500/15 scale-[1.02] shadow-xl' : locked ? 'border-orange-500/20' : item.usingCustomAlg ? 'hover:border-orange-400/75' : 'border-white/10 hover:border-white/20'
@@ -5228,7 +6129,7 @@ function OLLDaySuite() {
                       key={item.id}
                       onClick={() => {
                         if (trainingLocked) { openProPaywall(`${item.name} • Day Training & Drills`); return; }
-                        emitBeep(600); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
+                        emitBeep(600); setSwRunning(false); setSwLastResult(null); openDrill(rawItem);
                       }}
                       className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card hover:border-orange-400/75' : 'liquid-glass-card liquid-rim-muted border-white/10 hover:border-white/20'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer`}
                     >
@@ -5337,7 +6238,7 @@ function OLLDaySuite() {
                 key={item.id}
                 onClick={() => {
                   if (locked) { openProPaywall(item.name); return; }
-                  emitBeep(580); setSwRunning(false); setSwLastResult(null); setDrillCase(rawItem);
+                  emitBeep(580); setSwRunning(false); setSwLastResult(null); openDrill(rawItem);
                 }}
                 className={`case-row-opt relative overflow-hidden ${item.usingCustomAlg ? 'custom-alg-card' : 'liquid-glass-card liquid-rim-muted'} border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer ${locked ? 'border-orange-500/20' : item.usingCustomAlg ? 'hover:border-orange-400/75' : 'border-white/10 hover:border-white/20'}`}
               >
@@ -5472,20 +6373,17 @@ function OLLDaySuite() {
     swRunning, swDisplayRef, isLargeScreen: isTwoPane, emitBeep
   };
 
-  // Unified Daily Session Runner (Liquid Glass)
+  // Unified Daily Session Runner (Liquid Glass - Full-Viewport Fit on iPad, Tablet & Desktop)
   const renderUnifiedDailySession = () => {
-    const activePhaseSession = f2lSession
-      ? { phaseKey: 'f2l', session: f2lSession, setSession: setF2lSession, safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' }
-      : ollSession
-      ? { phaseKey: 'oll', session: ollSession, setSession: setOllSession, safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', statsMap: currentUser.stats, itemLabel: 'Case', timerLabel: 'Tap to Time OLL' }
-      : pllSession
-      ? { phaseKey: 'pll', session: pllSession, setSession: setPllSession, safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', statsMap: currentUser.pllStats, itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
-      : null;
-
-    if (!activePhaseSession) return null;
-    const { phaseKey, session, setSession, safeDay, scheduleLen, dayField, statsMap, itemLabel, timerLabel } = activePhaseSession;
-    const rawItem = session.queue[session.index];
+    if (!activeSession) return null;
+    const { phase: phaseKey, dayObj, index, queue } = activeSession;
+    const rawItem = queue[index];
     if (!rawItem) return null;
+    const { safeDay, scheduleLen, dayField, statsMap, itemLabel, timerLabel } = {
+      f2l: { safeDay: safeF2lDay, scheduleLen: f2lSchedule.length, dayField: 'f2lDay', statsMap: currentUser.f2lStats, itemLabel: 'Pair', timerLabel: 'Tap to Time Case' },
+      oll: { safeDay: safeOllDay, scheduleLen: ollSchedule.length, dayField: 'day', statsMap: currentUser.stats, itemLabel: 'Case', timerLabel: 'Tap to Time OLL' },
+      pll: { safeDay: safePllDay, scheduleLen: pllSchedule.length, dayField: 'pllDay', statsMap: currentUser.pllStats, itemLabel: 'Alg', timerLabel: 'Tap to Time PLL' }
+    }[phaseKey];
     const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
@@ -5494,32 +6392,36 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#040814]/80 backdrop-blur-2xl flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-modal-scrim flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
-          className={`relative z-10 w-full ${
+          className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
             isTwoPane
-              ? 'max-w-none h-[100dvh] px-8 py-6 overflow-y-auto no-scrollbar'
-              : 'max-w-md h-[100dvh] border-x border-white/10 px-3.5 py-2.5 shadow-2xl overflow-hidden'
-          } flex flex-col justify-between`}
+              ? 'max-w-none px-8 py-5'
+              : 'max-w-md border-x border-white/10 px-3.5 py-2.5 shadow-2xl'
+          }`}
         >
-          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
-            <div className="flex items-center gap-2">
+          <div data-no-timer-start="true" className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto' : ''} flex items-center justify-between flex-shrink-0`}>
+            <div className="flex items-center gap-2.5">
               <span className={`${isTwoPane ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-0.5 text-[9.5px]'} rounded-full bg-orange-500/15 border border-orange-500/30 font-black uppercase tracking-wider text-orange-300`}>
-                {session.dayObj.mode} • {itemLabel} {session.index + 1}/{session.queue.length}
+                {dayObj.mode} • {itemLabel} {index + 1}/{queue.length}
               </span>
               {isTwoPane && (
                 <span className="text-xs font-bold text-zinc-400">
-                  Day {safeDay} • {session.dayObj.chunkTitle}
+                  Day {safeDay} • {dayObj.chunkTitle}
                 </span>
               )}
             </div>
-            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-2xl bg-transparent hover:bg-white/[0.08] text-zinc-300 font-bold cursor-pointer`}><X className="w-3.5 h-3.5 inline-block" /></button>
+            <button onClick={() => { setSwRunning(false); setSwLastResult(null); setActiveSession(null); }} className={`${isTwoPane ? 'w-10 h-10 text-base' : 'w-8 h-8 text-xs'} rounded-2xl bg-transparent hover:bg-white/[0.08] text-zinc-300 font-bold cursor-pointer`}><X className="w-3.5 h-3.5 inline-block" /></button>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto' : 'my-auto'}`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'my-auto'}`}>
             <div
-              className={`${isTwoPane ? 'rounded-[2.5rem] p-6 space-y-4' : 'rounded-3xl p-4 space-y-2.5'} w-full liquid-glass-card liquid-rim-muted border border-white/15 flex flex-col items-center`}
+              className={`${
+                isTwoPane
+                  ? 'w-full h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
+                  : 'w-full rounded-3xl p-4 space-y-2.5 flex flex-col items-center'
+              } liquid-glass-card liquid-rim-muted border border-white/15`}
             >
               <CasePracticeCard
                 {...sharedPracticeProps}
@@ -5539,32 +6441,30 @@ function OLLDaySuite() {
             </div>
           </div>
 
-          <div className={`w-full ${isTwoPane ? 'max-w-3xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
+          <div className={`w-full ${isTwoPane ? 'max-w-6xl mx-auto gap-4' : 'gap-2'} grid grid-cols-2 flex-shrink-0`}>
             <button
-              onClick={() => { emitBeep(460); setSwRunning(false); setSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
-              disabled={session.index === 0}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer`}
+              onClick={() => { emitBeep(460); setSwRunning(false); setActiveSession((s) => ({ ...s, index: Math.max(0, s.index - 1) })); }}
+              disabled={index === 0}
+              className={`${isTwoPane ? 'py-3.5 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] font-bold text-zinc-300 hover:text-white disabled:opacity-30 transition-all cursor-pointer`}
             >
               <ArrowLeft className="w-3.5 h-3.5 inline-block mr-0.5 -mt-0.5" />Previous
             </button>
             <button
               onClick={() => {
                 emitBeep(760); setSwRunning(false);
-                if (session.index + 1 < session.queue.length) setSession((s) => ({ ...s, index: s.index + 1 }));
+                if (index + 1 < queue.length) setActiveSession((s) => ({ ...s, index: s.index + 1 }));
                 else {
-                  const updated = {
-                    ...currentUser,
-                    ...advanceDailyStreakFields(currentUser),
+                  updateActiveUserRecord((u) => ({
+                    ...u,
+                    ...advanceDailyStreakFields(u),
                     [dayField]: safeDay >= scheduleLen ? 1 : safeDay + 1
-                  };
-                  setUsers((prev) => ({ ...prev, [resolvedUserKey]: updated }));
-                  saveUserToCloud(resolvedUserKey, updated);
-                  setSession(null);
+                  }));
+                  setActiveSession(null);
                 }
               }}
-              className={`${isTwoPane ? 'py-4 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
+              className={`${isTwoPane ? 'py-3.5 text-sm' : 'py-2.5 text-xs'} rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-[0_10px_28px_rgba(249,115,22,0.35)] cursor-pointer`}
             >
-              {session.index + 1 < session.queue.length ? <>Next {itemLabel} <ArrowRight className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></> : <>Complete Day <Check className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></>}
+              {index + 1 < queue.length ? <>Next {itemLabel} <ArrowRight className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></> : <>Complete Day <Check className="w-3.5 h-3.5 inline-block ml-0.5 -mt-0.5" /></>}
             </button>
           </div>
         </div>
@@ -5572,33 +6472,30 @@ function OLLDaySuite() {
     );
   };
 
-  // Unified Isolated Case Drill Modal (Liquid Glass)
+  // Unified Isolated Case Drill Modal (Liquid Glass - Full-Viewport Fit on iPad, Tablet & Desktop)
   const renderUnifiedDrillModal = () => {
-    const activeDrill = f2lDrillCase
-      ? { phaseKey: 'f2l', item: f2lDrillCase, close: () => setF2lDrillCase(null), statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' }
-      : ollDrillCase
-      ? { phaseKey: 'oll', item: ollDrillCase, close: () => setOllDrillCase(null), statsMap: currentUser.stats, timerLabel: 'Tap to Time OLL' }
-      : pllDrillCase
-      ? { phaseKey: 'pll', item: pllDrillCase, close: () => setPllDrillCase(null), statsMap: currentUser.pllStats, timerLabel: 'Tap to Time PLL' }
-      : null;
-
     if (!activeDrill) return null;
-    const { phaseKey, item: rawItem, close, statsMap, timerLabel } = activeDrill;
+    const { phase: phaseKey, item: rawItem } = activeDrill;
+    const { statsMap, timerLabel } = {
+      f2l: { statsMap: currentUser.f2lStats, timerLabel: 'Tap to Time F2L' },
+      oll: { statsMap: currentUser.stats, timerLabel: 'Tap to Time OLL' },
+      pll: { statsMap: currentUser.pllStats, timerLabel: 'Tap to Time PLL' }
+    }[phaseKey];
     const item = resolveEffectiveCase(rawItem, currentUser.customAlgs, phaseKey);
     const caseStat = statsMap?.[item.id] || {};
     const caseHist = Array.isArray(caseStat.history) ? caseStat.history : [];
     const lastResultForThis = swLastResult?.phase === phaseKey && swLastResult?.caseId === item.id ? swLastResult : null;
-    const closeDrill = () => { setSwRunning(false); setSwLastResult(null); close(); };
+    const closeDrill = () => { setSwRunning(false); setSwLastResult(null); setActiveDrill(null); };
 
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040814]/75 backdrop-blur-2xl ${
-          isTwoPane ? 'flex flex-col justify-between px-8 py-6 overflow-y-auto no-scrollbar' : 'flex items-center justify-center px-3.5 py-2.5 overflow-hidden'
+        className={`fixed inset-0 z-[245] bg-modal-scrim overflow-hidden ${
+          isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         {isTwoPane && (
-          <div data-no-timer-start="true" className="relative z-10 w-full max-w-3xl mx-auto flex items-center justify-between">
+          <div data-no-timer-start="true" className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between flex-shrink-0">
             <span className="px-3.5 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-black uppercase tracking-widest text-orange-300">
               {phaseKey.toUpperCase()} Isolated Drill • {item.group}
             </span>
@@ -5606,11 +6503,11 @@ function OLLDaySuite() {
           </div>
         )}
 
-        <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-3xl mx-auto my-auto' : 'max-w-sm'}`}>
+        <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'max-w-sm'}`}>
           <div
             className={`liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
               isTwoPane
-                ? 'rounded-[2.5rem] p-6 space-y-4 flex flex-col items-center'
+                ? 'h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
                 : 'rounded-3xl p-4 space-y-2 overflow-hidden'
             }`}
           >
@@ -5652,12 +6549,12 @@ function OLLDaySuite() {
         </div>
 
         {isTwoPane && (
-          <div data-no-timer-start="true" className="relative z-10 w-full max-w-3xl mx-auto flex items-center justify-between text-xs text-zinc-400">
+          <div data-no-timer-start="true" className="relative z-10 w-full max-w-6xl mx-auto flex items-center justify-between text-xs text-zinc-400 flex-shrink-0">
             <span>{viewportDevice.isTouchPrimary ? 'Tap anywhere outside controls to start/stop timer' : 'Click anywhere or press Spacebar to start/stop timer'}</span>
             <button
               type="button"
               onClick={closeDrill}
-              className="px-4 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12]  text-xs font-black uppercase tracking-wider text-zinc-200 cursor-pointer"
+              className="px-4 py-2 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-black uppercase tracking-wider text-zinc-200 cursor-pointer"
             >
               Done Drilling
             </button>
@@ -5669,8 +6566,8 @@ function OLLDaySuite() {
 
   // Dedicated Right-Hand Reference Pane for iPad, Tablets & Desktop
   const renderTabletDesktopReferencePane = () => {
-    const activeContextCase = f2lDrillCase || ollDrillCase || pllDrillCase ||
-      (f2lSession ? f2lSession.queue[f2lSession.index] : ollSession ? ollSession.queue[ollSession.index] : pllSession ? pllSession.queue[pllSession.index] : null);
+    if (!isTwoPane) return null;
+    const activeContextCase = activeDrill?.item || activeSession?.queue[activeSession.index] || null;
     const activeContextTags = activeContextCase ? getAlgorithmTriggerTags(activeContextCase.alg) : [];
     const q = rightPaneSearch.trim().toLowerCase();
 
@@ -5685,14 +6582,11 @@ function OLLDaySuite() {
     );
 
     return (
-      <aside className={`${isTwoPane ? 'flex col-span-5' : 'hidden'} flex-col min-h-0 h-full bg-[#070f24]/25 backdrop-blur-xl border-l border-white/[0.09] p-5 pb-28 space-y-3.5 overflow-hidden`}>
+      <aside className="flex col-span-5 flex-col min-h-0 h-full bg-[#070f24]/75 border-l border-white/[0.09] p-5 pb-28 space-y-3.5 overflow-hidden">
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
           <div>
             <h2 className="text-lg font-black tracking-tight text-white">Notation &amp; Mechanics</h2>
           </div>
-          <span className="px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[9.5px] font-black uppercase tracking-wider text-zinc-400">
-            {viewportDevice.kind === 'tablet' ? 'iPad / Tablet' : 'Desktop'} • {activePhase === 'cross' ? 'Cross' : activePhase === 'f2l' ? 'F2L' : activePhase === 'oll' ? 'OLL' : 'PLL'}
-          </span>
         </div>
 
         <div className="liquid-glass-well p-1 rounded-xl grid grid-cols-2 flex-shrink-0">
@@ -5847,7 +6741,7 @@ function OLLDaySuite() {
           } flex flex-col relative z-10 bg-midnight-marble overflow-hidden`}
         >
           {/* PERSISTENT HEADER */}
-          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.09] bg-[#070f24]/45 backdrop-blur-xl flex-shrink-0 z-40`}>
+          <header className={`px-4 ${isTwoPane ? 'px-6' : ''} pt-4 pb-3 flex items-center justify-between gap-2 border-b border-white/[0.09] bg-[#071127]/95 flex-shrink-0 z-40`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-2xl bg-white/[0.07] border border-white/15 p-0.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                 <SuneEmblemSvg className="w-full h-full" />
@@ -5855,11 +6749,6 @@ function OLLDaySuite() {
               <h1 className={`${isTwoPane ? 'text-base' : 'text-sm'} font-black tracking-tight text-white whitespace-nowrap`}>
                 OLLDay <span className="text-orange-400">Everyday</span>
               </h1>
-              {isTwoPane && (
-                <span className="inline-block px-3 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold text-zinc-400">
-                  {viewportDevice.kind === 'tablet' ? 'iPad / Tablet' : 'Desktop'} • Phase {activePhase.toUpperCase()}
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 relative">
@@ -6365,8 +7254,8 @@ function OLLDaySuite() {
                 <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
-                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 backdrop-blur-2xl border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
-                      cfopMenuOpen ? 'liquid-pour-open' : 'liquid-pour-closed'
+                    className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
+                      cfopMenuOpen ? 'backdrop-blur-2xl liquid-pour-open' : 'liquid-pour-closed'
                     }`}
                   >
                     {[
@@ -6509,7 +7398,12 @@ function OLLDaySuite() {
 
         {/* FULL-SCREEN 3x3x3 CFOP TIMER MODAL */}
         {fullTimerOpen && (
-          <div onClick={handleFullTimerScreenTap} className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer">
+          <div
+            onPointerDown={handleFullTimerScreenTap}
+            onClick={handleFullTimerScreenTap}
+            style={{ touchAction: 'manipulation' }}
+            className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer"
+          >
             <AmbientGlows
               topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
               topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
@@ -6517,7 +7411,7 @@ function OLLDaySuite() {
               bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.16) 0%, rgba(234, 88, 12, 0) 70%)"
             />
 
-            <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
+            <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">OLLDay Everyday • 3x3x3 CFOP Timer</span>
                 <button type="button" onClick={() => { emitBeep(440); setFullTimerState('idle'); setFullTimerOpen(false); }} className="w-9 h-9 rounded-xl bg-transparent hover:bg-white/[0.08] text-white font-bold cursor-pointer"><X className="w-3.5 h-3.5 inline-block" /></button>
@@ -6537,7 +7431,7 @@ function OLLDaySuite() {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/60 mt-3">{fullTimerState === 'running' ? 'Tap or Press Space to Stop' : 'Tap or Press Space to Start'}</p>
             </div>
 
-            <div onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-2.5">
+            <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-2.5">
               {fullTimerState === 'stopped' && currentUser.fullSolveHistory?.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   <button type="button" onClick={() => toggleFullSolvePenalty('+2')} className={`py-2.5 rounded-2xl border text-xs font-black cursor-pointer ${currentUser.fullSolveHistory[0]?.penalty === '+2' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-white/[0.08] text-amber-300'}`}>+2</button>
@@ -6740,6 +7634,12 @@ function OLLDaySuite() {
                         <p className="text-xs text-zinc-300/80">Save your daily CFOP streak, custom algorithms, and PBs</p>
                       </div>
 
+                      <SocialAuthButtons
+                        onGoogle={handleGoogleSignIn}
+                        onGameCenter={handleGameCenterSignIn}
+                        isNativeIos={isNativeIosApp}
+                      />
+
                       <div className="space-y-2.5">
                         <input
                           type="text"
@@ -6751,36 +7651,38 @@ function OLLDaySuite() {
                         <input
                           type="email"
                           value={authEmailInput}
-                          onChange={(e) => setAuthEmailInput(e.target.value)}
-                          placeholder="Email for Cloud Sync (Optional)"
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthEmailInput(e.target.value); }}
+                          placeholder="Email for Cross-Device Sync (Optional)"
                           className="w-full rounded-2xl liquid-glass-uv-well px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
                         />
+                        <input
+                          type="password"
+                          value={authPasswordInput}
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthPasswordInput(e.target.value); }}
+                          placeholder={authEmailInput.trim() ? 'Password (6+ characters)' : 'Password (Required if Email entered)'}
+                          className="w-full rounded-2xl liquid-glass-uv-well px-4 py-3 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                        <p className="text-[10px] text-zinc-300/75 px-1">
+                          Add <strong className="text-white">Email + Password</strong> to sync across phone &amp; desktop, or leave blank for a device-only profile.
+                        </p>
                       </div>
 
                       {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
 
                       <button
                         type="button"
-                        onClick={() => {
-                          const cleanName = authNameInput.trim();
-                          if (!cleanName) { setAuthErrorMsg('Enter a solver name to create your account'); return; }
-                          if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) { setAuthErrorMsg('That solver name is taken — choose another or Sign In'); return; }
-                          emitBeep(820, 'sine', 0.1);
-                          const created = sanitizeUserRecord({ email: authEmailInput.trim(), isPro: false });
-                          setUsers((prev) => ({ ...prev, [cleanName]: created }));
-                          saveUserToCloud(cleanName, created); registerDeviceAccount(cleanName); setActiveUserKey(cleanName);
-                          setAuthNameInput(''); setAuthEmailInput(''); setAuthScreenOpen(false); setActiveModal('cfopExperienceChoice');
-                        }}
-                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] cursor-pointer"
+                        disabled={authBusy}
+                        onClick={handleEmailPasswordSignUp}
+                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_28px_rgba(249,115,22,0.32)] disabled:opacity-60 cursor-pointer"
                       >
-                        Create Account &amp; Start
+                        {authBusy ? 'Creating Account…' : 'Create Account & Start'}
                       </button>
 
                       <p className="text-center text-[11px] text-zinc-400">
                         Already registered?{' '}
                         <button
                           type="button"
-                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signin'); }}
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthPasswordInput(''); setAuthMode('signin'); }}
                           className="font-bold text-orange-300 hover:underline cursor-pointer"
                         >
                           Sign In
@@ -6798,13 +7700,19 @@ function OLLDaySuite() {
                         <p className="text-xs text-zinc-300/80">Choose a saved profile on this device or sign in</p>
                       </div>
 
-                      <div className="space-y-1.5 max-h-44 overflow-y-auto no-scrollbar">
+                      <SocialAuthButtons
+                        onGoogle={handleGoogleSignIn}
+                        onGameCenter={handleGameCenterSignIn}
+                        isNativeIos={isNativeIosApp}
+                      />
+
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
                         {savedAccountKeys.map((uKey) => {
                           const uData = sanitizeUserRecord(users[uKey]);
                           return (
                             <button
                               key={uKey} type="button"
-                              onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false); }}
+                              onClick={() => { emitBeep(720, 'sine', 0.08); registerDeviceAccount(uKey); setActiveUserKey(uKey); setAuthNameInput(''); setAuthEmailInput(''); setAuthPasswordInput(''); setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthScreenOpen(false); }}
                               className="w-full p-3.5 rounded-2xl liquid-glass-uv-well hover:bg-white/[0.12] border border-white/15 hover:border-orange-400/50 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
                             >
                               <div className="text-left">
@@ -6821,32 +7729,51 @@ function OLLDaySuite() {
                       </div>
 
                       <div className="pt-2 border-t border-white/15 space-y-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80 block">Sign In From Another Device</span>
-                        <div className="flex items-center gap-1.5">
-                          <input type="text" value={authNameInput} onChange={(e) => { setAuthErrorMsg(''); setAuthNameInput(e.target.value); }} placeholder="Solver Name or Email" className="flex-1 rounded-2xl liquid-glass-uv-well px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300/80">Sign In With Email &amp; Password</span>
                           <button
                             type="button"
-                            onClick={() => {
-                              const query = authNameInput.trim();
-                              if (!query) { setAuthErrorMsg('Enter your solver name or email'); return; }
-                              const qLower = query.toLowerCase();
-                              const matchedKey = Object.keys(users).find((k) => k.toLowerCase() === qLower || users[k]?.email?.trim().toLowerCase() === qLower);
-                              if (!matchedKey) { setAuthErrorMsg('Account not found — check spelling or Create Account'); return; }
-                              emitBeep(720, 'sine', 0.08); registerDeviceAccount(matchedKey); setActiveUserKey(matchedKey); setAuthNameInput(''); setAuthErrorMsg(''); setAuthScreenOpen(false);
-                            }}
-                            className="px-4 py-2.5 rounded-2xl bg-white/[0.10] hover:bg-white/[0.18] text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] cursor-pointer"
+                            disabled={authBusy}
+                            onClick={handlePasswordReset}
+                            className="text-[10px] font-bold text-orange-300 hover:underline disabled:opacity-50 cursor-pointer"
                           >
-                            Sign In
+                            Forgot password?
+                          </button>
+                        </div>
+                        <input
+                          type="email"
+                          value={authEmailInput}
+                          onChange={(e) => { setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthEmailInput(e.target.value); }}
+                          placeholder="Email (or local Solver Name)"
+                          className="w-full rounded-2xl liquid-glass-uv-well px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="password"
+                            value={authPasswordInput}
+                            onChange={(e) => { setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthPasswordInput(e.target.value); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleEmailPasswordSignIn(); }}
+                            placeholder="Password"
+                            className="flex-1 rounded-2xl liquid-glass-uv-well px-4 py-2.5 text-xs font-bold text-white placeholder-zinc-400 focus:outline-none focus:border-orange-400/60"
+                          />
+                          <button
+                            type="button"
+                            disabled={authBusy}
+                            onClick={handleEmailPasswordSignIn}
+                            className="px-4 py-2.5 rounded-2xl bg-white/[0.12] hover:bg-white/[0.2] text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] disabled:opacity-60 cursor-pointer"
+                          >
+                            {authBusy ? '…' : 'Sign In'}
                           </button>
                         </div>
                         {authErrorMsg && <p className="text-[11px] font-bold text-rose-300 text-center">{authErrorMsg}</p>}
+                        {authInfoMsg && <p className="text-[11px] font-bold text-green-300 text-center">{authInfoMsg}</p>}
                       </div>
 
                       <p className="text-center text-[11px] text-zinc-400">
                         New to OLLDay?{' '}
                         <button
                           type="button"
-                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthMode('signup'); }}
+                          onClick={() => { emitBeep(520); setAuthErrorMsg(''); setAuthInfoMsg(''); setAuthPasswordInput(''); setAuthMode('signup'); }}
                           className="font-bold text-orange-300 hover:underline cursor-pointer"
                         >
                           Create Account
@@ -7148,26 +8075,27 @@ function OLLDaySuite() {
           const currentSpec = FACE_CAPTURE_SPECS[scannerCaptureStep] || FACE_CAPTURE_SPECS.U;
           const capturedCount = Object.keys(scannerCapturedThumbs).length;
           const analysis = scannerAnalysis;
-          if (!analysis) return null;
 
           const hasFront3Captured = Boolean(scannerCapturedThumbs.U && scannerCapturedThumbs.F && scannerCapturedThumbs.R);
           const needsBackFacesRecommendation = !scannerHasFull6Faces && (scannerThreeFaceHints.crossSolved === false || ['none', 'some'].includes(scannerThreeFaceHints.f2lCompletedStatus));
-          const stagesList = Array.isArray(analysis.cfopStages) ? analysis.cfopStages : null;
+          const stagesList = analysis && Array.isArray(analysis.cfopStages) ? analysis.cfopStages : null;
           const activeFocusedIdx = stagesList ? Math.min(scannerFocusedStageIdx, stagesList.length - 1) : 0;
           const focusedStage = stagesList ? stagesList[activeFocusedIdx] : null;
-          const baseMatched = focusedStage?.caseObj || analysis.matchedCase;
-          const activeStagePhase = focusedStage?.phaseKey || analysis.phase;
+          const baseMatched = focusedStage?.caseObj || analysis?.matchedCase || null;
+          const activeStagePhase = focusedStage?.phaseKey || analysis?.phase || 'cross';
           const activeVerification = scannerStageVerification?.stagePhase === activeStagePhase ? scannerStageVerification : null;
           const matched = activeVerification?.caseObj || baseMatched;
-          const activeStageTitle = activeVerification?.caseObj
-            ? (focusedStage ? `${focusedStage.stage}: ${activeVerification.caseObj.name}` : activeVerification.caseObj.name)
-            : (focusedStage ? `${focusedStage.stage}: ${focusedStage.label}` : matched.name);
-          const activeStageAlg = activeVerification?.alg || (focusedStage ? focusedStage.alg : matched.alg);
-          const activeStageFingertrick = activeVerification?.caseObj?.fingertrick || (focusedStage ? focusedStage.fingertrick : matched.fingertrick);
-          const activeStageOrientationTip = activeVerification?.orientationTip || focusedStage?.orientationTip || analysis.orientationTip || buildOrientationTipForStage(activeStagePhase, matched, activeStageAlg, analysis.aufHint);
-          const activeStageTags = getAlgorithmTriggerTags(activeStageAlg);
+          const activeStageTitle = matched
+            ? (activeVerification?.caseObj
+                ? (focusedStage ? `${focusedStage.stage}: ${activeVerification.caseObj.name}` : activeVerification.caseObj.name)
+                : (focusedStage ? `${focusedStage.stage}: ${focusedStage.label}` : matched.name))
+            : '';
+          const activeStageAlg = activeVerification?.alg || (focusedStage ? focusedStage.alg : matched?.alg || '');
+          const activeStageFingertrick = activeVerification?.caseObj?.fingertrick || (focusedStage ? focusedStage.fingertrick : matched?.fingertrick || '');
+          const activeStageOrientationTip = activeVerification?.orientationTip || focusedStage?.orientationTip || analysis?.orientationTip || (matched ? buildOrientationTipForStage(activeStagePhase, matched, activeStageAlg, analysis?.aufHint) : '');
+          const activeStageTags = activeStageAlg ? getAlgorithmTriggerTags(activeStageAlg) : [];
           const activeSubSteps = activeVerification?.subSteps || focusedStage?.subSteps;
-          const nextCase = analysis.nextUpCase;
+          const nextCase = analysis?.nextUpCase || null;
           const activePreviewImg = scannerCapturedThumbs[scannerCaptureStep] || null;
           const visibleFaceList = scannerHasFull6Faces
             ? [{ key: 'U', title: 'Top (U)', top: 'B', bottom: 'G', left: 'R', right: 'O' }, { key: 'F', title: 'Front (F)', top: 'Y', bottom: 'W', left: 'R', right: 'O' }, { key: 'R', title: 'Right (R)', top: 'Y', bottom: 'W', left: 'G', right: 'B' }, { key: 'D', title: 'Bottom (D)', top: 'G', bottom: 'B', left: 'R', right: 'O' }, { key: 'B', title: 'Back (B)', top: 'Y', bottom: 'W', left: 'O', right: 'R' }, { key: 'L', title: 'Left (L)', top: 'Y', bottom: 'W', left: 'B', right: 'G' }]
@@ -7189,7 +8117,7 @@ function OLLDaySuite() {
           return (
             <div className="fixed inset-0 z-[285] bg-midnight-marble flex justify-center overflow-hidden">
               <div className="w-full max-w-md md:max-w-3xl h-[100dvh] bg-midnight-marble border-x border-white/10 shadow-2xl flex flex-col">
-                <div className="px-4 pt-4 pb-3 border-b border-white/[0.08] bg-black/25 backdrop-blur-md flex items-center justify-between flex-shrink-0">
+                <div className="px-4 pt-4 pb-3 border-b border-white/[0.08] bg-[#071127]/95 flex items-center justify-between flex-shrink-0">
                   <div>
                     <h2 className="text-lg font-black text-white">Cube Scanner &amp; Solver</h2>
                   </div>
@@ -7209,7 +8137,17 @@ function OLLDaySuite() {
                       return (
                         <button
                           key={fKey} type="button"
-                          onClick={() => { emitBeep(540); setSelectedStickerEdit(null); setScannerCaptureStep(fKey); if (!scannerCapturedThumbs[fKey] && !scannerCameraReady) startScannerCamera(fKey, false); }}
+                          onClick={() => {
+                            emitBeep(540);
+                            setSelectedStickerEdit(null);
+                            setScannerCaptureStep(fKey);
+                            setScannerLivePreviewCodes(null);
+                            setScannerStabilityCount(0);
+                            setScannerCubeDetected(false);
+                            liveStableSignatureRef.current = '';
+                            liveStableStreakRef.current = 0;
+                            if (!scannerCapturedThumbs[fKey]) startScannerCamera(fKey, false);
+                          }}
                           className={`py-2 rounded-xl text-[10px] font-black uppercase border transition-all cursor-pointer ${isCurrent ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-sm' : isDone ? 'bg-green-500/15 text-green-300 border-green-500/35' : 'bg-white/[0.05] text-zinc-300 hover:bg-white/[0.1]'}`}
                         >
                           {isDone ? <>{fKey} <Check className="w-2.5 h-2.5 inline-block -mt-0.5" /></> : fKey}
@@ -7246,10 +8184,26 @@ function OLLDaySuite() {
                   </div>
 
                   <div ref={scannerViewfinderRef} className="relative w-[260px] h-[260px] shrink-0 mx-auto rounded-2xl sm:rounded-3xl overflow-hidden bg-black border border-white/15 shadow-[0_18px_40px_rgba(0,0,0,0.8)]">
-                    {activePreviewImg ? (
-                      <img src={activePreviewImg} alt={`Captured ${currentSpec.short} face`} className="w-full h-full object-cover" />
-                    ) : (
-                      <video ref={scannerVideoRef} playsInline muted className="w-full h-full object-cover" />
+                    <video
+                      ref={scannerVideoRef}
+                      playsInline
+                      muted
+                      className={`w-full h-full object-cover ${activePreviewImg ? 'hidden' : 'block'}`}
+                    />
+                    {activePreviewImg && (
+                      <img
+                        key={`${scannerCaptureStep}-${capturedCount}`}
+                        src={activePreviewImg}
+                        alt=""
+                        onError={() => {
+                          setScannerCapturedThumbs((prev) => {
+                            const copy = { ...prev };
+                            delete copy[scannerCaptureStep];
+                            return copy;
+                          });
+                        }}
+                        className="w-full h-full object-cover"
+                      />
                     )}
 
                     <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full pointer-events-none">
@@ -7295,7 +8249,7 @@ function OLLDaySuite() {
                     >
                       {activePreviewImg ? <>Retake {currentSpec.short} <RotateCw className="w-3.5 h-3.5 inline-block ml-1 -mt-0.5" /></> : scannerCameraReady ? (scannerAutoSnap && scannerStabilityCount > 0 ? `Hold Steady (${scannerStabilityCount}/5)...` : `Capture ${currentSpec.short}`) : `Start Camera (${currentSpec.short})`}
                     </button>
-                    <button type="button" onClick={() => { emitBeep(460); startScannerCamera('U', true); }} className="py-3 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 cursor-pointer">
+                    <button type="button" onClick={() => { emitBeep(460); resetAllScannerFaces(true); }} className="py-3 rounded-2xl bg-transparent hover:bg-white/[0.08] text-xs font-bold text-zinc-300 cursor-pointer">
                       Reset All Faces
                     </button>
                   </div>
@@ -7381,10 +8335,12 @@ function OLLDaySuite() {
                                   <button
                                     key={idx} type="button"
                                     onClick={() => { emitBeep(620, 'sine', 0.04, 0.06); setSelectedStickerEdit({ face: fObj.key, idx, posLabel: posLabels[idx], faceTitle: fObj.title }); }}
-                                    style={{ backgroundColor: SCANNER_COLOR_META[cCode]?.hex || '#334155' }}
-                                    className={`aspect-square rounded-xl border transition-transform cursor-pointer ${isSelected ? 'border-white scale-110 ring-2 ring-orange-400' : 'border-black/40'}`}
-                                    title={`${fObj.title} • ${posLabels[idx]}: ${SCANNER_COLOR_META[cCode]?.label || cCode}`}
-                                  />
+                                    style={{ backgroundColor: cCode && SCANNER_COLOR_META[cCode] ? SCANNER_COLOR_META[cCode].hex : 'rgba(15, 23, 42, 0.72)' }}
+                                    className={`aspect-square rounded-xl border transition-transform cursor-pointer flex items-center justify-center ${isSelected ? 'border-white scale-110 ring-2 ring-orange-400' : cCode ? 'border-black/40' : 'border-dashed border-white/20'}`}
+                                    title={`${fObj.title} • ${posLabels[idx]}: ${cCode && SCANNER_COLOR_META[cCode] ? SCANNER_COLOR_META[cCode].label : 'Unscanned — tap to set'}`}
+                                  >
+                                    {!cCode && <span className="text-[8px] font-black text-zinc-500">?</span>}
+                                  </button>
                                 );
                               })}
                             </div>
@@ -7428,6 +8384,16 @@ function OLLDaySuite() {
                   </div>
 
                   {/* Analysis Card */}
+                  {!analysis ? (
+                    <div className="liquid-glass-card liquid-rim-muted border border-white/10 rounded-3xl p-4 sm:p-5 text-center space-y-1.5 shadow-xl">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+                        Ready to Scan • Solver Cleared
+                      </span>
+                      <p className="text-xs text-zinc-300 leading-relaxed">
+                        Capture <strong className="text-white">U • F • R</strong> (or tap any sticker tile above) to identify your cube state and generate orientation &amp; algorithm steps.
+                      </p>
+                    </div>
+                  ) : (
                   <div className="liquid-glass-card liquid-rim-amber border border-orange-500/35 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
                     <div className="flex items-center justify-between gap-2">
                       <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-[9.5px] font-black uppercase tracking-wider text-orange-300">{analysis.phaseLabel}</span>
@@ -7599,15 +8565,14 @@ function OLLDaySuite() {
                         if (activeStagePhase === 'cross') { emitBeep(760); setActivePhase('cross'); setTabForPhase('cross', 'ladder'); return; }
                         if (!isCaseUnlockedForTraining(activeStagePhase, matched.id, isProUnlocked)) { openProPaywall(matched.name); return; }
                         emitBeep(760); setActivePhase(activeStagePhase); setSwRunning(false); setSwLastResult(null);
-                        if (activeStagePhase === 'f2l') setF2lDrillCase(matched);
-                        else if (activeStagePhase === 'oll') setOllDrillCase(matched);
-                        else if (activeStagePhase === 'pll') setPllDrillCase(matched);
+                        setActiveDrill({ phase: activeStagePhase, item: matched });
                       }}
                       className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer"
                     >
                       {activeStagePhase === 'cross' ? <>Practice Cross in X <ArrowRight className="w-3.5 h-3.5 inline-block ml-1 -mt-0.5" /></> : <>Drill {matched.name} Now <ArrowRight className="w-3.5 h-3.5 inline-block ml-1 -mt-0.5" /></>}
                     </button>
                   </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -7932,7 +8897,7 @@ function OLLDaySuite() {
           ];
           const currentQ = ORBIT_QUESTIONS[orbitQuiz.idx % 4];
           return (
-            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs" backdropClass="bg-black/72 backdrop-blur-md">
+            <ModalShell onClose={() => { setActiveModal(null); setOrbitQuiz((q) => ({ ...q, active: false, feedback: null })); }} zClass="z-[255]" maxWidth="max-w-xs" >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
