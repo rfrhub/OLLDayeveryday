@@ -7586,21 +7586,21 @@ function OLLDaySuite() {
             const vpW = viewportDevice.width || (isTwoPane ? 1024 : 390);
             const containerW = isTwoPane ? Math.min(1152, vpW) : Math.min(448, vpW);
             const dw = Math.max(300, containerW - (isTwoPane ? 48 : 28));
-            const dh = 68;
+            const dh = 62;
             const cx = dw / 2;
-            const cradleHalfW = 31; // 26px half-switcher + 5px uniform side clearance
-            const floorY = 41; // 36px switcher bottom + 5px uniform floor clearance
-            const lipW = 11, cornerR = 17, outerR = 20;
+            const cradleHalfW = 31; // 26px half-switcher + 5px uniform left/right clearance
+            const floorY = 39; // 34px switcher bottom inside dock + 5px uniform floor clearance
+            const lipW = 11, cornerR = 20, outerR = 20;
 
             const buildNotchSegments = (sx, sy, topY) => [
               `M ${sx(outerR)},${sy(topY)}`,
               `L ${sx(cx - cradleHalfW - lipW)},${sy(topY)}`,
-              `C ${sx(cx - cradleHalfW - 3)},${sy(topY)} ${sx(cx - cradleHalfW)},${sy(topY + 4)} ${sx(cx - cradleHalfW)},${sy(12)}`,
+              `C ${sx(cx - cradleHalfW - 3)},${sy(topY)} ${sx(cx - cradleHalfW)},${sy(topY + 4)} ${sx(cx - cradleHalfW)},${sy(11)}`,
               `L ${sx(cx - cradleHalfW)},${sy(floorY - cornerR)}`,
               `Q ${sx(cx - cradleHalfW)},${sy(floorY)} ${sx(cx - cradleHalfW + cornerR)},${sy(floorY)}`,
               `L ${sx(cx + cradleHalfW - cornerR)},${sy(floorY)}`,
               `Q ${sx(cx + cradleHalfW)},${sy(floorY)} ${sx(cx + cradleHalfW)},${sy(floorY - cornerR)}`,
-              `L ${sx(cx + cradleHalfW)},${sy(12)}`,
+              `L ${sx(cx + cradleHalfW)},${sy(11)}`,
               `C ${sx(cx + cradleHalfW)},${sy(topY + 4)} ${sx(cx + cradleHalfW + 3)},${sy(topY)} ${sx(cx + cradleHalfW + lipW)},${sy(topY)}`,
               `L ${sx(dw - outerR)},${sy(topY)}`
             ];
@@ -7666,7 +7666,7 @@ function OLLDaySuite() {
                     }}
                     aria-label="Switch CFOP Phase"
                     title={`Active Phase: ${activePhase.toUpperCase()} — Tap to Switch C / F / O / P`}
-                    className={`absolute left-1/2 -translate-x-1/2 -top-4 z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
+                    className={`absolute left-1/2 -translate-x-1/2 -top-[18px] z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
                       cfopMenuOpen
                         ? 'bg-gradient-to-b from-orange-500/40 to-[#16100c] border-orange-400 shadow-[0_0_28px_rgba(249,115,22,0.65)] scale-105'
                         : 'bg-gradient-to-b from-[#231812] to-[#0b0d15] border-orange-500/50 shadow-[0_8px_24px_rgba(249,115,22,0.4)] hover:border-orange-400'
@@ -7704,7 +7704,7 @@ function OLLDaySuite() {
                       clipPath: 'url(#olldaySaddleDockClip)',
                       WebkitClipPath: 'url(#olldaySaddleDockClip)'
                     }}
-                    className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
+                    className="relative liquid-glass-dock h-[62px] rounded-[1.35rem] px-2 flex items-center shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
                   >
                     {/* Specular Glass Top & Notch Rim Stroke */}
                     <svg viewBox={`0 0 ${dw} ${dh}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 w-full h-full">
@@ -7717,7 +7717,7 @@ function OLLDaySuite() {
                       />
                     </svg>
 
-                    <div className="grid grid-cols-5 items-center gap-1">
+                    <div className="w-full grid grid-cols-5 items-center gap-1">
                       {(activePhase === 'cross'
                         ? [
                             { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
