@@ -1814,11 +1814,8 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
   // Automatically rotates to face whichever side of the cube is actively being populated
   const activeFaceIdx = filledSquares === 0 ? 0 : Math.min(5, Math.floor((filledSquares - 1) / 9));
   const activeFaceSpec = STREAK_FACE_ORDER[activeFaceIdx];
-  const [manualSpinOffset, setManualSpinOffset] = useState(0);
-
-  useEffect(() => {
-    setManualSpinOffset(0);
-  }, [activeFaceIdx, safeCurDay]);
+  const [spinState, setSpinState] = useState({ key: `${activeFaceIdx}:${safeCurDay}`, offset: 0 });
+  const manualSpinOffset = spinState.key === `${activeFaceIdx}:${safeCurDay}` ? spinState.offset : 0;
 
   const withinFaceTile = filledSquares === 0 ? 0 : ((filledSquares - 1) % 9);
   const tileSweepYaw = filledSquares === 0 ? 0 : (withinFaceTile - 4) * 3;
@@ -1848,7 +1845,8 @@ function Streak3DCube({ streakDays = 0, currentDay = 1, totalDays = 1, progressP
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        setManualSpinOffset((prev) => prev - 90);
+        const curKey = `${activeFaceIdx}:${safeCurDay}`;
+        setSpinState((prev) => ({ key: curKey, offset: (prev.key === curKey ? prev.offset : 0) - 90 }));
       }}
       title={
         isUvCoated
@@ -1954,7 +1952,7 @@ function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
   );
 }
 
-function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-[#040814]/94 backdrop-blur-md', children }) {
+function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-[#040814]/95', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} ${backdropClass} flex items-center justify-center p-5`}>
       <div
@@ -1969,7 +1967,7 @@ function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', border
 
 function UvModalShell({ onClose, zClass = 'z-[274]', maxWidth = 'max-w-md', className = 'p-5 sm:p-6 max-h-[88dvh] overflow-y-auto no-scrollbar space-y-4', children }) {
   return (
-    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#040814]/94 backdrop-blur-md flex items-center justify-center p-5`}>
+    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#040814]/95 flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
         className={`relative liquid-glass-uv border border-white/25 rounded-3xl ${maxWidth} w-full shadow-[0_14px_38px_rgba(0,0,0,0.45)] ${className}`}
@@ -4446,32 +4444,25 @@ function OLLDaySuite() {
   }, []);
 
   useEffect(() => {
-    if (!swRunning || !isAppVisible) return;
+    const swActive = swRunning && isAppVisible;
+    const fullActive = fullTimerState === 'running' && isAppVisible;
+    if (!swActive && !fullActive) return;
     let rafId = 0, lastPaint = 0;
     const tick = (now) => {
       if (now - lastPaint >= 80) {
         lastPaint = now;
-        if (swDisplayRef.current) swDisplayRef.current.textContent = `${((now - swStartRef.current) / 1000).toFixed(2)}s — Stop`;
+        if (swActive && swDisplayRef.current) {
+          swDisplayRef.current.textContent = `${((now - swStartRef.current) / 1000).toFixed(2)}s — Stop`;
+        }
+        if (fullActive && fullTimerDisplayRef.current) {
+          fullTimerDisplayRef.current.textContent = ((now - fullStartRef.current) / 1000).toFixed(2);
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [swRunning, isAppVisible]);
-
-  useEffect(() => {
-    if (fullTimerState !== 'running' || !isAppVisible) return;
-    let rafId = 0, lastPaint = 0;
-    const tick = (now) => {
-      if (now - lastPaint >= 80) {
-        lastPaint = now;
-        if (fullTimerDisplayRef.current) fullTimerDisplayRef.current.textContent = ((now - fullStartRef.current) / 1000).toFixed(2);
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [fullTimerState, isAppVisible]);
+  }, [swRunning, fullTimerState, isAppVisible]);
 
   const resolvedUserKey = activeUserKey && users[activeUserKey] ? activeUserKey : 'Demo';
   const currentUser = useMemo(
@@ -5183,6 +5174,9 @@ function OLLDaySuite() {
     }
   }, [leftPadHeld, rightPadHeld, blindState]);
 
+  const lineupDragSnapRef = useRef({ lineupOrders, safeF2lDay, safePllDay, safeOllDay, currentUser });
+  lineupDragSnapRef.current = { lineupOrders, safeF2lDay, safePllDay, safeOllDay, currentUser };
+
   useEffect(() => {
     if (draggedLineupIdx === null) return;
     let dragRafId = 0, pendingPoint = null;
@@ -5199,12 +5193,13 @@ function OLLDaySuite() {
         if (row) {
           const targetIdx = Number(row.getAttribute('data-lineup-idx'));
           if (!Number.isNaN(targetIdx) && targetIdx !== draggedLineupIdx) {
+            const snap = lineupDragSnapRef.current;
             setLineupOverrides((prev) => {
-              const updated = [...(lineupOrders[activePhase] || [])];
+              const updated = [...(snap.lineupOrders[activePhase] || [])];
               const [moved] = updated.splice(draggedLineupIdx, 1);
               updated.splice(targetIdx, 0, moved);
-              const dayNum = activePhase === 'f2l' ? safeF2lDay : activePhase === 'pll' ? safePllDay : safeOllDay;
-              const chunksRef = activePhase === 'f2l' ? currentUser.f2lCustomChunks : activePhase === 'pll' ? currentUser.pllCustomChunks : currentUser.customChunks;
+              const dayNum = activePhase === 'f2l' ? snap.safeF2lDay : activePhase === 'pll' ? snap.safePllDay : snap.safeOllDay;
+              const chunksRef = activePhase === 'f2l' ? snap.currentUser.f2lCustomChunks : activePhase === 'pll' ? snap.currentUser.pllCustomChunks : snap.currentUser.customChunks;
               return { ...prev, [activePhase]: { sig: `${dayNum}:${chunksRef?.length || 0}`, list: updated } };
             });
             setDraggedLineupIdx(targetIdx);
@@ -5220,9 +5215,7 @@ function OLLDaySuite() {
       if (touch) processDragMove(touch.clientX, touch.clientY);
     };
 
-    const handleWindowMouseMove = (e) => {
-      processDragMove(e.clientX, e.clientY);
-    };
+    const handleWindowMouseMove = (e) => processDragMove(e.clientX, e.clientY);
 
     const handleWindowDragEnd = () => {
       if (dragRafId) cancelAnimationFrame(dragRafId);
@@ -5232,8 +5225,10 @@ function OLLDaySuite() {
     window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
     window.addEventListener('touchend', handleWindowDragEnd, { passive: true });
     window.addEventListener('touchcancel', handleWindowDragEnd, { passive: true });
-    window.addEventListener('mousemove', handleWindowMouseMove, { passive: true });
-    window.addEventListener('mouseup', handleWindowDragEnd, { passive: true });
+    if (!viewportDevice.isTouchPrimary) {
+      window.addEventListener('mousemove', handleWindowMouseMove, { passive: true });
+      window.addEventListener('mouseup', handleWindowDragEnd, { passive: true });
+    }
     return () => {
       if (dragRafId) cancelAnimationFrame(dragRafId);
       window.removeEventListener('touchmove', handleWindowTouchMove);
@@ -5242,7 +5237,7 @@ function OLLDaySuite() {
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowDragEnd);
     };
-  }, [draggedLineupIdx, activePhase]);
+  }, [draggedLineupIdx, activePhase, viewportDevice.isTouchPrimary]);
 
   const startLineupHold = (idx, clientY) => {
     preHoldStartYRef.current = clientY;
@@ -6389,7 +6384,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#040814]/94 backdrop-blur-md flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-[#040814]/95 flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
@@ -6487,7 +6482,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040814]/94 backdrop-blur-md overflow-hidden ${
+        className={`fixed inset-0 z-[245] bg-[#040814]/95 overflow-hidden ${
           isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
