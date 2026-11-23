@@ -1952,7 +1952,7 @@ function CaseWindowAvgGrid({ history, isLargeScreen = false }) {
   );
 }
 
-function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-[#040814]/95', children }) {
+function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', borderClass = 'border-white/10', backdropClass = 'bg-modal-scrim', children }) {
   return (
     <div onClick={onClose} className={`fixed inset-0 ${zClass} ${backdropClass} flex items-center justify-center p-5`}>
       <div
@@ -1967,7 +1967,7 @@ function ModalShell({ onClose, zClass = 'z-[260]', maxWidth = 'max-w-sm', border
 
 function UvModalShell({ onClose, zClass = 'z-[274]', maxWidth = 'max-w-md', className = 'p-5 sm:p-6 max-h-[88dvh] overflow-y-auto no-scrollbar space-y-4', children }) {
   return (
-    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-[#040814]/95 flex items-center justify-center p-5`}>
+    <div onClick={onClose} className={`fixed inset-0 ${zClass} bg-modal-scrim flex items-center justify-center p-5`}>
       <div
         onClick={(e) => e.stopPropagation()}
         className={`relative liquid-glass-uv border border-white/25 rounded-3xl ${maxWidth} w-full shadow-[0_14px_38px_rgba(0,0,0,0.45)] ${className}`}
@@ -3237,6 +3237,14 @@ const APP_GLOBAL_CSS = `
       radial-gradient(ellipse 80% 58% at 74% 84%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.09) 44%, transparent 74%),
       radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.72) 0%, rgba(10, 25, 58, 0.30) 48%, transparent 75%),
       linear-gradient(138deg, #0b1d42 0%, #050a16 24%, #112a5c 48%, #26140c 66%, #040812 80%, #0d234d 100%);
+  }
+  .bg-modal-scrim {
+    background-color: rgba(7, 17, 39, 0.84);
+    background-image:
+      radial-gradient(ellipse 85% 55% at 20% 18%, rgba(29, 78, 216, 0.32) 0%, rgba(15, 38, 92, 0.14) 52%, transparent 78%),
+      radial-gradient(ellipse 75% 50% at 82% 22%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.08) 48%, transparent 75%),
+      radial-gradient(ellipse 80% 55% at 72% 82%, rgba(249, 115, 22, 0.22) 0%, transparent 72%),
+      radial-gradient(ellipse 90% 60% at 24% 84%, rgba(23, 56, 118, 0.38) 0%, transparent 76%);
   }
   button, label, span, p, input, select, textarea, .font-sans {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -6384,7 +6392,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-[#040814]/95 flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        className={`fixed inset-0 z-[240] bg-modal-scrim flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
@@ -6482,7 +6490,7 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-[#040814]/95 overflow-hidden ${
+        className={`fixed inset-0 z-[245] bg-modal-scrim overflow-hidden ${
           isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
