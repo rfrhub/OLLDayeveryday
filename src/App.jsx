@@ -2923,65 +2923,57 @@ function getCloudProfilesColRef(svc, uid, ns = preferredCloudNamespace) {
 
 async function writeCloudDocWithFallback(svc, uid, docId, payload) {
   const cleanPayload = stripUndefinedDeep(payload);
-  try {
-    await svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, preferredCloudNamespace), cleanPayload, { merge: true });
+  const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
+  const [resPrimary, resAlt] = await Promise.allSettled([
+    svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, preferredCloudNamespace), cleanPayload, { merge: true }),
+    svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, altNs), cleanPayload, { merge: true })
+  ]);
+  if (resPrimary.status === 'fulfilled') {
     return { ok: true, ns: preferredCloudNamespace };
-  } catch (err) {
-    if (err?.code === 'permission-denied') {
-      const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
-      try {
-        await svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, altNs), cleanPayload, { merge: true });
-        preferredCloudNamespace = altNs;
-        return { ok: true, ns: altNs };
-      } catch (err2) {
-        return { ok: false, error: err2 };
-      }
-    }
-    return { ok: false, error: err };
   }
+  if (resAlt.status === 'fulfilled') {
+    preferredCloudNamespace = altNs;
+    return { ok: true, ns: altNs };
+  }
+  return { ok: false, error: resPrimary.reason || resAlt.reason };
 }
 
 function normalizeEmailCloudKey(email = '') {
   return String(email || '').trim().toLowerCase().replace(/[^a-z0-9._@-]/g, '_');
 }
 
-function getEmailAccountDocRef(svc, emailKey, ns = preferredCloudNamespace) {
-  return ns === 'users'
-    ? svc.fsMod.doc(svc.db, 'email_accounts', emailKey)
-    : svc.fsMod.doc(svc.db, 'artifacts', appId, 'email_accounts', emailKey);
+function getEmailAccountDocRefs(svc, emailKey) {
+  return [
+    svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'email_accounts', emailKey),
+    svc.fsMod.doc(svc.db, 'artifacts', appId, 'email_accounts', emailKey),
+    svc.fsMod.doc(svc.db, 'email_accounts', emailKey)
+  ];
 }
 
 async function writeEmailAccountBackup(svc, email, payload) {
   const emailKey = normalizeEmailCloudKey(email);
   if (!emailKey || !emailKey.includes('@')) return { ok: false };
   const cleanPayload = stripUndefinedDeep(payload);
-  try {
-    await svc.fsMod.setDoc(getEmailAccountDocRef(svc, emailKey, preferredCloudNamespace), cleanPayload, { merge: true });
-    return { ok: true };
-  } catch (err) {
-    if (err?.code === 'permission-denied') {
-      const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
-      try {
-        await svc.fsMod.setDoc(getEmailAccountDocRef(svc, emailKey, altNs), cleanPayload, { merge: true });
-        return { ok: true };
-      } catch {
-        return { ok: false };
-      }
-    }
-    return { ok: false };
-  }
+  const refs = getEmailAccountDocRefs(svc, emailKey);
+  const results = await Promise.allSettled(
+    refs.map((ref) => svc.fsMod.setDoc(ref, cleanPayload, { merge: true }))
+  );
+  return { ok: results.some((r) => r.status === 'fulfilled') };
 }
 
 async function readEmailAccountBackup(svc, email) {
   const emailKey = normalizeEmailCloudKey(email);
   if (!emailKey || !emailKey.includes('@')) return null;
-  for (const ns of [preferredCloudNamespace, preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts']) {
-    try {
-      const snap = await svc.fsMod.getDoc(getEmailAccountDocRef(svc, emailKey, ns));
-      if (snap && snap.exists()) return snap.data();
-    } catch {}
-  }
-  return null;
+  const refs = getEmailAccountDocRefs(svc, emailKey);
+  const snaps = await Promise.allSettled(refs.map((ref) => svc.fsMod.getDoc(ref)));
+  let mergedBackup = null;
+  snaps.forEach((res) => {
+    if (res.status === 'fulfilled' && res.value && res.value.exists()) {
+      const data = res.value.data();
+      mergedBackup = mergedBackup ? { ...mergedBackup, ...mergeSolverUserRecords(mergedBackup, data) } : data;
+    }
+  });
+  return mergedBackup;
 }
 
 async function readAllCloudProfilesForUser(svc, uid, email = '') {
@@ -3332,9 +3324,28 @@ function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, 
         const svc = await getFirebaseServices();
         if (!svc || cancelled) return;
 
-        // Verify readable namespace once before attaching listeners so rules mismatch never loops
-        const probe = await readCloudProfilesWithFallback(svc, uid, cloudAuthUserRef.current?.email || '').catch(() => null);
+        // Verify readable namespace once before attaching listeners AND hydrate any email-keyed cloud backup immediately
+        const authEmailNow = cloudAuthUserRef.current?.email || '';
+        const probe = await readCloudProfilesWithFallback(svc, uid, authEmailNow).catch(() => null);
         if (cancelled) return;
+        if (probe?.docs?.length > 0) {
+          const entFromProbe = probe.docs.find((d) => d.id === '_entitlements');
+          const probeHasPro = Boolean(entFromProbe?.data()?.isPro) || probe.docs.some((d) => Boolean(d.data()?.isPro));
+          const profFromProbe = probe.docs.filter((d) => d.id !== '_entitlements');
+          if (profFromProbe.length > 0) {
+            setUsers((prev) => {
+              const localCur = sanitizeUserRecord({ ...(prev[cleanActiveKey] || {}), isPro: Boolean(prev[cleanActiveKey]?.isPro || probeHasPro) });
+              let mergedProbe = localCur;
+              profFromProbe.forEach((d) => {
+                mergedProbe = mergeSolverUserRecords(mergedProbe, { ...d.data(), isPro: Boolean(d.data()?.isPro || probeHasPro) });
+              });
+              if (getRecordProgressSignature(localCur) === getRecordProgressSignature(mergedProbe)) return prev;
+              const nextUsers = { ...prev, [cleanActiveKey]: mergedProbe };
+              storage.setJson(STORAGE_KEYS.users, nextUsers);
+              return nextUsers;
+            });
+          }
+        }
         const activeNs = probe?.ns || preferredCloudNamespace;
         const colRef = getCloudProfilesColRef(svc, uid, activeNs);
 
@@ -4308,14 +4319,17 @@ function OLLDaySuite() {
     const mergedSourceUsers = { ...(diskUsers && typeof diskUsers === 'object' ? diskUsers : {}), ...users };
     const emailLower = (fbUser.email || '').trim().toLowerCase();
     const nonDemoLocalEntries = Object.entries(mergedSourceUsers).filter(([k]) => k !== 'Demo');
-    const emailMatchedLocal = emailLower
-      ? nonDemoLocalEntries.find(([, u]) => u?.email?.trim().toLowerCase() === emailLower)?.[1]
-      : null;
-    const activeLocal = activeUserKey && activeUserKey !== 'Demo' ? mergedSourceUsers[activeUserKey] : null;
-    const namedLocal = mergedSourceUsers[displayName] || null;
     let combinedLocal = sanitizeUserRecord({});
-    [emailMatchedLocal, activeLocal, namedLocal].filter(Boolean).forEach((rec) => {
-      combinedLocal = mergeSolverUserRecords(combinedLocal, rec);
+    nonDemoLocalEntries.forEach(([k, rec]) => {
+      const recEmail = (rec?.email || '').trim().toLowerCase();
+      if (
+        k === activeUserKey ||
+        k.toLowerCase() === displayName.toLowerCase() ||
+        !recEmail ||
+        (emailLower && recEmail === emailLower)
+      ) {
+        combinedLocal = mergeSolverUserRecords(combinedLocal, rec);
+      }
     });
 
     const localAnyNonDemoPro = nonDemoLocalEntries.some(([, u]) => Boolean(u?.isPro));
@@ -4463,7 +4477,21 @@ function OLLDaySuite() {
         setAuthErrorMsg('Unable to reach authentication service.');
         return;
       }
-      const cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+      let cred = null;
+      if (svc.auth.currentUser?.isAnonymous && svc.authMod.EmailAuthProvider && svc.authMod.linkWithCredential) {
+        try {
+          const emailCred = svc.authMod.EmailAuthProvider.credential(cleanEmail, cleanPass);
+          cred = await svc.authMod.linkWithCredential(svc.auth.currentUser, emailCred);
+        } catch (linkErr) {
+          if (linkErr?.code === 'auth/credential-already-in-use' || linkErr?.code === 'auth/email-already-in-use') {
+            cred = await svc.authMod.signInWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+          } else {
+            cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+          }
+        }
+      } else {
+        cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+      }
       if (svc.authMod.updateProfile) {
         await svc.authMod.updateProfile(cred.user, { displayName: cleanName }).catch(() => {});
       }
@@ -4604,7 +4632,20 @@ function OLLDaySuite() {
       const provider = new svc.authMod.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       try {
-        const cred = await svc.authMod.signInWithPopup(svc.auth, provider);
+        let cred = null;
+        if (svc.auth.currentUser?.isAnonymous && svc.authMod.linkWithPopup) {
+          try {
+            cred = await svc.authMod.linkWithPopup(svc.auth.currentUser, provider);
+          } catch (linkErr) {
+            if (linkErr?.code === 'auth/credential-already-in-use' || linkErr?.code === 'auth/email-already-in-use') {
+              cred = await svc.authMod.signInWithPopup(svc.auth, provider);
+            } else {
+              throw linkErr;
+            }
+          }
+        } else {
+          cred = await svc.authMod.signInWithPopup(svc.auth, provider);
+        }
         await syncCloudProfileAfterOAuth(svc, cred.user, 'Google Solver');
       } catch (popupErr) {
         if (popupErr?.code === 'auth/operation-not-supported-in-this-environment') {
@@ -4652,7 +4693,20 @@ function OLLDaySuite() {
       const appleProvider = new svc.authMod.OAuthProvider('apple.com');
       appleProvider.addScope('email');
       appleProvider.addScope('name');
-      const cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
+      let cred = null;
+      if (svc.auth.currentUser?.isAnonymous && svc.authMod.linkWithPopup) {
+        try {
+          cred = await svc.authMod.linkWithPopup(svc.auth.currentUser, appleProvider);
+        } catch (linkErr) {
+          if (linkErr?.code === 'auth/credential-already-in-use' || linkErr?.code === 'auth/email-already-in-use') {
+            cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
+          } else {
+            throw linkErr;
+          }
+        }
+      } else {
+        cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
+      }
       await syncCloudProfileAfterOAuth(svc, cred.user, 'Apple Solver');
     } catch (err) {
       if (err?.code === 'auth/operation-not-allowed') {
@@ -5167,13 +5221,16 @@ function OLLDaySuite() {
         setAuthScreenOpen(true);
         return;
       }
+      if (resolvedUserKey && resolvedUserKey !== 'Demo') {
+        saveUserToCloud(resolvedUserKey, { ...currentUser, email: fbUser.email || currentUser.email || '' });
+      }
       await flushPendingPersistence();
       const syncRes = await syncCloudProfileAfterOAuth(svc, fbUser, resolvedUserKey || 'Solver', false);
       if (syncRes?.record?.isPro) {
-        setRestoreStatusToast(`Synced & Pro Active (${fbUser.email || 'Gmail'}) ✓`);
+        setRestoreStatusToast(`Synced & Pro Active (${fbUser.email || 'Account'}) ✓`);
         setTimeout(() => setRestoreStatusToast(''), 3500);
       } else {
-        setRestoreStatusToast(`Synced ${fbUser.email || 'Gmail'} — no Pro purchase found on this account yet.`);
+        setRestoreStatusToast(`Synced ${fbUser.email || 'Account'} — no Pro purchase found on this account yet.`);
         setTimeout(() => setRestoreStatusToast(''), 4000);
       }
     } catch (err) {
