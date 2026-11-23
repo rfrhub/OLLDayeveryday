@@ -1978,24 +1978,15 @@ function UvModalShell({ onClose, zClass = 'z-[274]', maxWidth = 'max-w-md', clas
   );
 }
 
-function AmbientGlows() {
-  return null;
-}
-
-function OrbitRingBackdrop() {
-  return (
-    <>
-      <svg viewBox="0 0 180 180" className="pointer-events-none absolute inset-0 w-full h-full">
-        <circle cx="90" cy="90" r="84" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 5" />
-        <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="1.2" />
-        <circle cx="90" cy="6" r="2.2" fill="rgba(251,146,60,0.65)" />
-        <circle cx="174" cy="90" r="2" fill="rgba(255,255,255,0.22)" />
-        <circle cx="90" cy="174" r="2" fill="rgba(255,255,255,0.22)" />
-        <circle cx="6" cy="90" r="2" fill="rgba(255,255,255,0.22)" />
-      </svg>
-    </>
-  );
-}
+const OrbitRingBackdrop = () => (
+  <svg viewBox="0 0 180 180" className="pointer-events-none absolute inset-0 w-full h-full">
+    <circle cx="90" cy="90" r="84" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 5" />
+    <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="1.2" />
+    {[[90, 6, 2.2, 'rgba(251,146,60,0.65)'], [174, 90, 2, 'rgba(255,255,255,0.22)'], [90, 174, 2, 'rgba(255,255,255,0.22)'], [6, 90, 2, 'rgba(255,255,255,0.22)']].map(([cx, cy, r, fill], i) => (
+      <circle key={i} cx={cx} cy={cy} r={r} fill={fill} />
+    ))}
+  </svg>
+);
 
 function useCubeOrbit(initialRot, onTap) {
   const [rot, setRot] = useState(initialRot);
@@ -3020,94 +3011,44 @@ async function readEmailAccountBackup(svc, email, uid = '') {
   return mergedBackup;
 }
 
-async function readAllCloudProfilesForUser(svc, uid, email = '') {
+async function readCloudProfilesWithFallback(svc, uid, email = '') {
   const seenDocs = new Map();
   let resolvedNs = preferredCloudNamespace;
-  const namespaces = [preferredCloudNamespace, preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts'];
-  for (const ns of namespaces) {
+  const upsertDoc = (docKey, data) => {
+    if (!data || typeof data !== 'object') return;
+    const prev = seenDocs.get(docKey);
+    if (!prev) {
+      seenDocs.set(docKey, { id: docKey, data: () => data });
+    } else {
+      const pData = prev.data();
+      const merged = { ...pData, ...data, ...mergeSolverUserRecords(pData, data), isPro: Boolean(pData?.isPro || data?.isPro), updatedAt: Math.max(Number(pData?.updatedAt) || 0, Number(data?.updatedAt) || 0) };
+      seenDocs.set(docKey, { id: docKey, data: () => merged });
+    }
+  };
+  for (const ns of [preferredCloudNamespace, preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts']) {
     try {
       const snap = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, ns));
       if (snap?.docs) {
-        if (snap.docs.length > 0) {
-          resolvedNs = ns;
-          preferredCloudNamespace = ns;
-        }
-        snap.docs.forEach((d) => {
-          const prev = seenDocs.get(d.id);
-          if (!prev) {
-            seenDocs.set(d.id, { id: d.id, data: () => d.data() });
-          } else {
-            const mergedData = mergeSolverUserRecords(prev.data(), d.data());
-            seenDocs.set(d.id, {
-              id: d.id,
-              data: () => ({
-                ...d.data(),
-                ...mergedData,
-                updatedAt: Math.max(Number(prev.data()?.updatedAt) || 0, Number(d.data()?.updatedAt) || 0)
-              })
-            });
-          }
-        });
+        if (snap.docs.length > 0) { resolvedNs = ns; preferredCloudNamespace = ns; }
+        snap.docs.forEach((d) => upsertDoc(d.id, d.data()));
       }
     } catch {}
   }
   if (svc.fsMod.query && svc.fsMod.where && svc.fsMod.getDocs) {
     try {
-      const mirrorSnap = await svc.fsMod.getDocs(
-        svc.fsMod.query(
-          svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'user_sync'),
-          svc.fsMod.where('ownerUid', '==', uid)
-        )
-      );
+      const mirrorSnap = await svc.fsMod.getDocs(svc.fsMod.query(svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'user_sync'), svc.fsMod.where('ownerUid', '==', uid)));
       mirrorSnap?.docs?.forEach((d) => {
         const data = d.data();
-        const docKey = normalizeCloudDocId(data?.syncDocId || data?.profileKey || d.id.split('__')[1] || 'Solver') || 'Solver';
-        const prev = seenDocs.get(docKey);
-        if (!prev) {
-          seenDocs.set(docKey, { id: docKey, data: () => data });
-        } else {
-          const mergedData = mergeSolverUserRecords(prev.data(), data);
-          seenDocs.set(docKey, {
-            id: docKey,
-            data: () => ({
-              ...prev.data(),
-              ...data,
-              ...mergedData,
-              isPro: Boolean(prev.data()?.isPro || data?.isPro),
-              updatedAt: Math.max(Number(prev.data()?.updatedAt) || 0, Number(data?.updatedAt) || 0)
-            })
-          });
-        }
+        upsertDoc(normalizeCloudDocId(data?.syncDocId || data?.profileKey || d.id.split('__')[1] || 'Solver') || 'Solver', data);
       });
     } catch {}
   }
   const emailBackup = await readEmailAccountBackup(svc, email, uid);
   if (emailBackup && typeof emailBackup === 'object') {
-    const backupKey = normalizeCloudDocId(emailBackup.profileKey || (email.split('@')[0] || 'Solver')) || 'Solver';
-    const existing = seenDocs.get(backupKey);
-    if (!existing) {
-      seenDocs.set(backupKey, { id: backupKey, data: () => emailBackup });
-    } else {
-      const mergedData = mergeSolverUserRecords(existing.data(), emailBackup);
-      seenDocs.set(backupKey, {
-        id: backupKey,
-        data: () => ({
-          ...existing.data(),
-          ...mergedData,
-          updatedAt: Math.max(Number(existing.data()?.updatedAt) || 0, Number(emailBackup.updatedAt) || 0)
-        })
-      });
-    }
-    if (emailBackup.isPro) {
-      const prevEnt = seenDocs.get('_entitlements')?.data() || {};
-      seenDocs.set('_entitlements', { id: '_entitlements', data: () => ({ ...prevEnt, isPro: true, email }) });
-    }
+    upsertDoc(normalizeCloudDocId(emailBackup.profileKey || (email.split('@')[0] || 'Solver')) || 'Solver', emailBackup);
+    if (emailBackup.isPro) upsertDoc('_entitlements', { ...(seenDocs.get('_entitlements')?.data() || {}), isPro: true, email });
   }
   return { docs: Array.from(seenDocs.values()), ns: resolvedNs };
-}
-
-async function readCloudProfilesWithFallback(svc, uid, email = '') {
-  return readAllCloudProfilesForUser(svc, uid, email);
 }
 
 function mergeDefaultUsersWithStored(storedMap) {
@@ -3784,6 +3725,13 @@ const APP_GLOBAL_CSS = `
       color 0.2s ease;
   }
 `;
+
+const HERO_CFOP_REEL_BASE = [
+  { phase: 'C • CROSS', title: '8-Move White Cross', metric: '3D Orbit + Blind Mat', scramble: "R' F R D'", pitch: 36, mode: 'cross' },
+  { phase: 'F • F2L', title: '41 Pair Setups in 3D', metric: 'Isolated Slot Drills', scramble: "R U' R' U'", pitch: -24, mode: 'f2l' },
+  { phase: 'O • OLL', title: '57 One-Look Shapes (Sune)', metric: 'Inline Trigger Tags', scramble: "R U2 R' U' R U' R'", pitch: -32, mode: 'full' },
+  { phase: 'P • PLL', title: '25 Last-Layer Perms (T-Perm)', metric: 'Ao5 • Ao12 • PB Goals', scramble: "F R U' R' U R U R2 F' R U R U' R'", pitch: -28, mode: 'full' }
+];
 
 class AppErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, errorMessage: '' }; }
@@ -4689,6 +4637,17 @@ function OLLDaySuite() {
     return () => { cancelled = true; };
   }, []);
 
+  const signInOrLinkPopup = async (svc, provider) => {
+    if (svc.auth.currentUser?.isAnonymous && svc.authMod.linkWithPopup) {
+      try {
+        return await svc.authMod.linkWithPopup(svc.auth.currentUser, provider);
+      } catch (e) {
+        if (e?.code !== 'auth/credential-already-in-use' && e?.code !== 'auth/email-already-in-use') throw e;
+      }
+    }
+    return svc.authMod.signInWithPopup(svc.auth, provider);
+  };
+
   const handleGoogleSignIn = async () => {
     emitBeep(720, 'sine', 0.08);
     setAuthErrorMsg('');
@@ -4707,20 +4666,7 @@ function OLLDaySuite() {
       const provider = new svc.authMod.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       try {
-        let cred = null;
-        if (svc.auth.currentUser?.isAnonymous && svc.authMod.linkWithPopup) {
-          try {
-            cred = await svc.authMod.linkWithPopup(svc.auth.currentUser, provider);
-          } catch (linkErr) {
-            if (linkErr?.code === 'auth/credential-already-in-use' || linkErr?.code === 'auth/email-already-in-use') {
-              cred = await svc.authMod.signInWithPopup(svc.auth, provider);
-            } else {
-              throw linkErr;
-            }
-          }
-        } else {
-          cred = await svc.authMod.signInWithPopup(svc.auth, provider);
-        }
+        const cred = await signInOrLinkPopup(svc, provider);
         await syncCloudProfileAfterOAuth(svc, cred.user, 'Google Solver');
       } catch (popupErr) {
         if (popupErr?.code === 'auth/operation-not-supported-in-this-environment') {
@@ -4768,20 +4714,7 @@ function OLLDaySuite() {
       const appleProvider = new svc.authMod.OAuthProvider('apple.com');
       appleProvider.addScope('email');
       appleProvider.addScope('name');
-      let cred = null;
-      if (svc.auth.currentUser?.isAnonymous && svc.authMod.linkWithPopup) {
-        try {
-          cred = await svc.authMod.linkWithPopup(svc.auth.currentUser, appleProvider);
-        } catch (linkErr) {
-          if (linkErr?.code === 'auth/credential-already-in-use' || linkErr?.code === 'auth/email-already-in-use') {
-            cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
-          } else {
-            throw linkErr;
-          }
-        }
-      } else {
-        cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
-      }
+      const cred = await signInOrLinkPopup(svc, appleProvider);
       await syncCloudProfileAfterOAuth(svc, cred.user, 'Apple Solver');
     } catch (err) {
       if (err?.code === 'auth/operation-not-allowed') {
@@ -5707,16 +5640,14 @@ function OLLDaySuite() {
     updateActiveUserRecord((u) => {
       if (scope === 'both') return { ...sanitizeUserRecord(null), isPro: Boolean(u.isPro), email: u.email || '' };
       const next = { ...u };
-      if (scope === 'f2l-day' || scope === 'f2l-all') next.f2lDay = 1;
-      if (scope === 'f2l-stats' || scope === 'f2l-all') next.f2lStats = {};
-      if (scope === 'f2l-chunks' || scope === 'f2l-all') next.f2lCustomChunks = null;
-      if (scope === 'oll-day' || scope === 'oll-all') next.day = 1;
-      if (scope === 'oll-stats' || scope === 'oll-all') next.stats = {};
-      if (scope === 'oll-chunks' || scope === 'oll-all') next.customChunks = null;
-      if (scope === 'pll-day' || scope === 'pll-all') next.pllDay = 1;
-      if (scope === 'pll-stats' || scope === 'pll-all') next.pllStats = {};
-      if (scope === 'pll-chunks' || scope === 'pll-all') next.pllCustomChunks = null;
-      if (scope === 'full-timer') next.fullSolveHistory = [];
+      if (scope === 'full-timer') { next.fullSolveHistory = []; return next; }
+      const [ph, target] = scope.split('-');
+      const reg = PHASE_REGISTRY[ph];
+      if (reg) {
+        if (target === 'day' || target === 'all') next[reg.dayField] = 1;
+        if (target === 'stats' || target === 'all') next[reg.statField] = {};
+        if (target === 'chunks' || target === 'all') next[reg.chunkField] = null;
+      }
       return next;
     });
     setActiveModal(null);
@@ -7848,12 +7779,6 @@ function OLLDaySuite() {
             style={{ touchAction: 'manipulation' }}
             className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer"
           >
-            <AmbientGlows
-              topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
-              bottomClass="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.16) 0%, rgba(234, 88, 12, 0) 70%)"
-            />
 
             <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
@@ -7893,45 +7818,8 @@ function OLLDaySuite() {
 
         {/* LANDING HERO & ONBOARDING GATE */}
         {authScreenOpen && (() => {
-          const HERO_CFOP_REEL = [
-            {
-              phase: 'C • CROSS',
-              title: '8-Move White Cross',
-              metric: '3D Orbit + Blind Mat',
-              scramble: "R' F R D'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: 36,
-              mode: 'cross'
-            },
-            {
-              phase: 'F • F2L',
-              title: '41 Pair Setups in 3D',
-              metric: 'Isolated Slot Drills',
-              scramble: "R U' R' U'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: -24,
-              mode: 'f2l'
-            },
-            {
-              phase: 'O • OLL',
-              title: '57 One-Look Shapes (Sune)',
-              metric: 'Inline Trigger Tags',
-              scramble: "R U2 R' U' R U' R'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: -32,
-              mode: 'full'
-            },
-            {
-              phase: 'P • PLL',
-              title: '25 Last-Layer Perms (T-Perm)',
-              metric: 'Ao5 • Ao12 • PB Goals',
-              scramble: "F R U' R' U R U R2 F' R U R U' R'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: -28,
-              mode: 'full'
-            }
-          ];
-          const activeReel = HERO_CFOP_REEL[landingStepIdx % HERO_CFOP_REEL.length];
+          const baseReel = HERO_CFOP_REEL_BASE[landingStepIdx % HERO_CFOP_REEL_BASE.length];
+          const activeReel = { ...baseReel, yaw: -35 + landingStepIdx * 90 };
           const savedAccountKeys = Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k]));
 
           return (
