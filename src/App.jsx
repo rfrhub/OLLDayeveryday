@@ -7101,13 +7101,6 @@ function OLLDaySuite() {
       <style>{APP_GLOBAL_CSS}</style>
 
       <div className={`min-h-[100dvh] w-full bg-midnight-marble text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
-        <AmbientGlows
-          topClass="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[44vh] z-0"
-          topGradient="radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.18) 0%, rgba(249, 115, 22, 0) 68%)"
-          bottomClass="fixed bottom-0 right-0 w-3/4 h-[38vh] z-0"
-          bottomGradient="radial-gradient(circle at 80% 100%, rgba(29, 78, 216, 0.18) 0%, rgba(29, 78, 216, 0) 68%)"
-        />
-
         <div
           className={`w-full ${
             isTwoPane
