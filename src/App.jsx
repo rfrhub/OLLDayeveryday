@@ -2049,9 +2049,11 @@ function useCubeOrbit(initialRot, onTap) {
 
 function detectViewportDevice() {
   if (typeof window === 'undefined') {
-    return { kind: 'mobile', isWideTwoPane: false, isTouchPrimary: true, width: 390 };
+    return { kind: 'mobile', isWideTwoPane: false, isTouchPrimary: true, width: 390, height: 844 };
   }
-  const width = window.innerWidth || document.documentElement?.clientWidth || 390;
+  const vv = window.visualViewport;
+  const width = Math.round(vv?.width || window.innerWidth || document.documentElement?.clientWidth || 390);
+  const height = Math.round(vv?.height || window.innerHeight || document.documentElement?.clientHeight || 844);
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
   const platform = typeof navigator !== 'undefined' ? navigator.platform || '' : '';
   const maxTouch = typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0;
@@ -2062,23 +2064,25 @@ function detectViewportDevice() {
   const isGenericTablet = /Tablet|PlayBook|Silk|Kindle/i.test(ua);
   const isPhoneUA = /iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry/i.test(ua);
 
+  // iPhone Duo unfolds from 466x678pt (outer) to 669x951pt / 951x669pt (inner) while reporting iPhone UA
+  const isUnfoldedDuo = isPhoneUA && width >= 640;
+
   let kind = 'desktop';
-  if (isPhoneUA) {
-    kind = 'mobile';
-  } else if (isIPad || isAndroidTablet || isGenericTablet || (isCoarsePointer && width >= 600 && width <= 1366)) {
+  if (isUnfoldedDuo || isIPad || isAndroidTablet || isGenericTablet || (isCoarsePointer && width >= 600 && width <= 1366)) {
     kind = 'tablet';
-  } else if (isCoarsePointer || width < 768) {
+  } else if (isPhoneUA || isCoarsePointer || width < 768) {
     kind = 'mobile';
   }
 
   const isWideTwoPane =
-    kind !== 'mobile' && (kind === 'desktop' ? width >= 768 : width >= 700);
+    kind !== 'mobile' && (kind === 'desktop' ? width >= 768 : width >= 640);
 
   return {
     kind,
     isWideTwoPane,
     isTouchPrimary: isCoarsePointer || kind !== 'desktop',
-    width
+    width,
+    height
   };
 }
 
@@ -2096,7 +2100,8 @@ function useViewportDevice() {
         setDevice((prev) =>
           prev.kind === next.kind &&
           prev.isWideTwoPane === next.isWideTwoPane &&
-          prev.isTouchPrimary === next.isTouchPrimary
+          prev.isTouchPrimary === next.isTouchPrimary &&
+          prev.width === next.width
             ? prev
             : next
         );
@@ -2104,10 +2109,12 @@ function useViewportDevice() {
     };
     window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('orientationchange', handleResize, { passive: true });
+    window.visualViewport?.addEventListener('resize', handleResize, { passive: true });
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -3468,6 +3475,10 @@ const APP_GLOBAL_CSS = `
     letter-spacing: -0.01em;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
   }
   .bg-midnight-marble {
     background-color: #071127;
@@ -3824,6 +3835,7 @@ function OLLDaySuite() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerCameraReady, setScannerCameraReady] = useState(false);
   const [scannerCameraError, setScannerCameraError] = useState('');
+  const [scannerFacingMode, setScannerFacingMode] = useState('environment');
   const [scannerCaptureStep, setScannerCaptureStep] = useState('U');
   const [scannerCapturedThumbs, setScannerCapturedThumbs] = useState({});
   const [scannerRawSamples, setScannerRawSamples] = useState({});
@@ -3958,11 +3970,12 @@ function OLLDaySuite() {
     }
   };
 
-  const startScannerCamera = async (targetFace = 'U', resetAll = false) => {
+  const startScannerCamera = async (targetFace = 'U', resetAll = false, overrideFacing = null) => {
     if (resetAll) {
       resetAllScannerFaces(true);
       return;
     }
+    const desiredFacing = overrideFacing || scannerFacingMode;
     setScannerCameraError('');
     setScannerCaptureStep(targetFace);
     setScannerLivePreviewCodes(null);
@@ -3979,7 +3992,7 @@ function OLLDaySuite() {
     }
     try {
       const existingStream = scannerStreamRef.current;
-      const hasLiveTrack = existingStream && existingStream.getVideoTracks().some((t) => t.readyState === 'live');
+      const hasLiveTrack = !overrideFacing && existingStream && existingStream.getVideoTracks().some((t) => t.readyState === 'live');
       if (hasLiveTrack) {
         if (scannerVideoRef.current && scannerVideoRef.current.srcObject !== existingStream) {
           scannerVideoRef.current.srcObject = existingStream;
@@ -3992,8 +4005,13 @@ function OLLDaySuite() {
 
       stopScannerCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 480, max: 640 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 24 } },
+        video: { facingMode: { ideal: desiredFacing }, width: { ideal: 480, max: 640 }, height: { ideal: 480, max: 640 }, frameRate: { ideal: 15, max: 24 } },
         audio: false
+      });
+      stream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          setScannerCameraReady(false);
+        };
       });
       scannerStreamRef.current = stream;
       if (scannerVideoRef.current) {
@@ -8449,6 +8467,20 @@ function OLLDaySuite() {
                     <h2 className="text-lg font-black text-white">Cube Scanner &amp; Solver</h2>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        emitBeep(560);
+                        const nextMode = scannerFacingMode === 'environment' ? 'user' : 'environment';
+                        setScannerFacingMode(nextMode);
+                        if (scannerCameraReady) startScannerCamera(scannerCaptureStep, false, nextMode);
+                      }}
+                      title="Switch Rear / Front Camera"
+                      className="px-2.5 py-1 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-[9.5px] font-black uppercase text-zinc-300 cursor-pointer flex items-center gap-1"
+                    >
+                      <RotateCw className="w-3 h-3 inline-block" />
+                      {scannerFacingMode === 'environment' ? 'Rear' : 'Front'}
+                    </button>
                     <button type="button" onClick={() => { emitBeep(520); setScannerAutoSnap((v) => !v); }} className={`px-3 py-1 rounded-xl text-[9.5px] font-black uppercase cursor-pointer ${scannerAutoSnap ? 'bg-green-500/20 text-green-300' : 'bg-white/[0.06] text-zinc-400'}`}>
                       {scannerAutoSnap ? 'Auto-Snap ON' : 'Manual Snap'}
                     </button>
