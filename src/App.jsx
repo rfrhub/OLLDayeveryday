@@ -7902,7 +7902,7 @@ function OLLDaySuite() {
                       <div className="flex items-center justify-between pt-1 border-t border-white/10">
                         <span className="text-xs font-black text-white">{activeReel.title}</span>
                         <div className="flex items-center gap-1">
-                          {HERO_CFOP_REEL.map((item, idx) => (
+                          {HERO_CFOP_REEL_BASE.map((item, idx) => (
                             <button
                               key={item.phase}
                               type="button"
