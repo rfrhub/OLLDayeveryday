@@ -1978,24 +1978,15 @@ function UvModalShell({ onClose, zClass = 'z-[274]', maxWidth = 'max-w-md', clas
   );
 }
 
-function AmbientGlows() {
-  return null;
-}
-
-function OrbitRingBackdrop() {
-  return (
-    <>
-      <svg viewBox="0 0 180 180" className="pointer-events-none absolute inset-0 w-full h-full">
-        <circle cx="90" cy="90" r="84" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 5" />
-        <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="1.2" />
-        <circle cx="90" cy="6" r="2.2" fill="rgba(251,146,60,0.65)" />
-        <circle cx="174" cy="90" r="2" fill="rgba(255,255,255,0.22)" />
-        <circle cx="90" cy="174" r="2" fill="rgba(255,255,255,0.22)" />
-        <circle cx="6" cy="90" r="2" fill="rgba(255,255,255,0.22)" />
-      </svg>
-    </>
-  );
-}
+const OrbitRingBackdrop = () => (
+  <svg viewBox="0 0 180 180" className="pointer-events-none absolute inset-0 w-full h-full">
+    <circle cx="90" cy="90" r="84" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="3 5" />
+    <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="1.2" />
+    {[[90, 6, 2.2, 'rgba(251,146,60,0.65)'], [174, 90, 2, 'rgba(255,255,255,0.22)'], [90, 174, 2, 'rgba(255,255,255,0.22)'], [6, 90, 2, 'rgba(255,255,255,0.22)']].map(([cx, cy, r, fill], i) => (
+      <circle key={i} cx={cx} cy={cy} r={r} fill={fill} />
+    ))}
+  </svg>
+);
 
 function useCubeOrbit(initialRot, onTap) {
   const [rot, setRot] = useState(initialRot);
@@ -2250,11 +2241,9 @@ function CasePracticeCard({
         </div>
       </div>
       <p className={`font-mono ${isLargeScreen ? 'text-xl lg:text-2xl py-0.5' : 'text-[13.5px] leading-snug'} font-black break-words ${isF2L ? 'text-white' : 'text-amber-300'}`}>{item.alg}</p>
-      {item.hasCustomAlg && isLargeScreen && (
+      {item.hasCustomAlg && !item.usingCustomAlg && isLargeScreen && (
         <p className="text-[10px] font-mono text-zinc-400">
-          {item.usingCustomAlg
-            ? `Default: ${item.defaultAlg}`
-            : `${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
+          {`${item.customAlgList.length} Custom Alt${item.customAlgList.length === 1 ? '' : 's'} Saved`}
         </p>
       )}
       {fingertricksEnabled && (
@@ -2862,8 +2851,11 @@ function mergeSolverUserRecords(localRaw, cloudRaw) {
   const l = sanitizeUserRecord(localRaw);
   const c = sanitizeUserRecord(cloudRaw);
   const solveMap = new Map();
-  [...(c.fullSolveHistory || []), ...(l.fullSolveHistory || [])].forEach((s) => {
-    if (s && s.id != null) solveMap.set(s.id, s);
+  [...(c.fullSolveHistory || []), ...(l.fullSolveHistory || [])].forEach((s, idx) => {
+    if (!s || typeof s !== 'object') return;
+    const key = s.id != null ? String(s.id) : `${s.ms}_${s.scramble || ''}_${idx}`;
+    const prev = solveMap.get(key);
+    solveMap.set(key, prev ? { ...prev, ...s, penalty: s.penalty ?? prev.penalty ?? null } : s);
   });
   const mergedFullSolves = Array.from(solveMap.values())
     .sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0))
@@ -2923,39 +2915,140 @@ function getCloudProfilesColRef(svc, uid, ns = preferredCloudNamespace) {
     : svc.fsMod.collection(svc.db, 'artifacts', appId, 'users', uid, 'solver_profiles');
 }
 
-async function writeCloudDocWithFallback(svc, uid, docId, payload) {
-  const cleanPayload = stripUndefinedDeep(payload);
-  try {
-    await svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, preferredCloudNamespace), cleanPayload, { merge: true });
-    return { ok: true, ns: preferredCloudNamespace };
-  } catch (err) {
-    if (err?.code === 'permission-denied') {
-      const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
-      try {
-        await svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, altNs), cleanPayload, { merge: true });
-        preferredCloudNamespace = altNs;
-        return { ok: true, ns: altNs };
-      } catch (err2) {
-        return { ok: false, error: err2 };
-      }
-    }
-    return { ok: false, error: err };
-  }
+function getPublicUserMirrorDocRef(svc, uid, docId) {
+  const safeDocId = normalizeCloudDocId(docId).replace(/[^a-zA-Z0-9._-]/g, '_') || 'Solver';
+  return svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'user_sync', `${uid}__${safeDocId}`);
 }
 
-async function readCloudProfilesWithFallback(svc, uid) {
-  try {
-    const snap = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, preferredCloudNamespace));
-    return { docs: snap.docs, ns: preferredCloudNamespace };
-  } catch (err) {
-    if (err?.code === 'permission-denied') {
-      const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
-      const snapAlt = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, altNs));
-      preferredCloudNamespace = altNs;
-      return { docs: snapAlt.docs, ns: altNs };
-    }
-    throw err;
+async function writeCloudDocWithFallback(svc, uid, docId, payload) {
+  const cleanPayload = stripUndefinedDeep({ ...payload, ownerUid: uid, syncDocId: docId });
+  const altNs = preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts';
+  const [resPrimary, resAlt, resPublicMirror] = await Promise.allSettled([
+    svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, preferredCloudNamespace), cleanPayload, { merge: true }),
+    svc.fsMod.setDoc(getCloudProfileDocRef(svc, uid, docId, altNs), cleanPayload, { merge: true }),
+    svc.fsMod.setDoc(getPublicUserMirrorDocRef(svc, uid, docId), cleanPayload, { merge: true })
+  ]);
+  if (resPrimary.status === 'fulfilled') {
+    return { ok: true, ns: preferredCloudNamespace };
   }
+  if (resAlt.status === 'fulfilled') {
+    preferredCloudNamespace = altNs;
+    return { ok: true, ns: altNs };
+  }
+  if (resPublicMirror.status === 'fulfilled') {
+    return { ok: true, ns: 'public_mirror' };
+  }
+  return { ok: false, error: resPrimary.reason || resAlt.reason || resPublicMirror.reason };
+}
+
+function normalizeEmailCloudKey(email = '') {
+  return String(email || '').trim().toLowerCase().replace(/[^a-z0-9._@-]/g, '_');
+}
+
+function getEmailAccountDocRefs(svc, emailKey, uid = '') {
+  const refs = [
+    svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'email_accounts', emailKey),
+    svc.fsMod.doc(svc.db, 'artifacts', appId, 'email_accounts', emailKey),
+    svc.fsMod.doc(svc.db, 'email_accounts', emailKey)
+  ];
+  if (uid) {
+    refs.unshift(svc.fsMod.doc(svc.db, 'artifacts', appId, 'public', 'data', 'email_accounts', `${emailKey}__${uid}`));
+    refs.push(svc.fsMod.doc(svc.db, 'public', 'data', 'email_accounts', `${emailKey}__${uid}`));
+  }
+  return refs;
+}
+
+async function writeEmailAccountBackup(svc, email, payload, uid = '') {
+  const emailKey = normalizeEmailCloudKey(email);
+  if (!emailKey || !emailKey.includes('@')) return { ok: false };
+  const activeUid = uid || svc?.auth?.currentUser?.uid || '';
+  const cleanPayload = stripUndefinedDeep({ ...payload, emailLower: emailKey, ownerUid: activeUid });
+  const refs = getEmailAccountDocRefs(svc, emailKey, activeUid);
+  const results = await Promise.allSettled(
+    refs.map((ref) => svc.fsMod.setDoc(ref, cleanPayload, { merge: true }))
+  );
+  return { ok: results.some((r) => r.status === 'fulfilled') };
+}
+
+async function readEmailAccountBackup(svc, email, uid = '') {
+  const emailKey = normalizeEmailCloudKey(email);
+  if (!emailKey || !emailKey.includes('@')) return null;
+  const activeUid = uid || svc?.auth?.currentUser?.uid || '';
+  const refs = getEmailAccountDocRefs(svc, emailKey, activeUid);
+  const readTasks = refs.map((ref) => svc.fsMod.getDoc(ref));
+  if (svc.fsMod.query && svc.fsMod.where && svc.fsMod.getDocs) {
+    readTasks.push(
+      svc.fsMod.getDocs(
+        svc.fsMod.query(
+          svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'email_accounts'),
+          svc.fsMod.where('emailLower', '==', emailKey)
+        )
+      )
+    );
+  }
+  const snaps = await Promise.allSettled(readTasks);
+  let mergedBackup = null;
+  const absorbData = (data) => {
+    if (!data || typeof data !== 'object') return;
+    mergedBackup = mergedBackup
+      ? {
+          ...mergedBackup,
+          ...data,
+          ...mergeSolverUserRecords(mergedBackup, data),
+          isPro: Boolean(mergedBackup.isPro || data.isPro),
+          updatedAt: Math.max(Number(mergedBackup.updatedAt) || 0, Number(data.updatedAt) || 0)
+        }
+      : { ...data };
+  };
+  snaps.forEach((res) => {
+    if (res.status !== 'fulfilled' || !res.value) return;
+    if (typeof res.value.exists === 'function' && res.value.exists()) {
+      absorbData(res.value.data());
+    } else if (Array.isArray(res.value.docs)) {
+      res.value.docs.forEach((d) => absorbData(d.data()));
+    }
+  });
+  return mergedBackup;
+}
+
+async function readCloudProfilesWithFallback(svc, uid, email = '') {
+  const seenDocs = new Map();
+  let resolvedNs = preferredCloudNamespace;
+  const upsertDoc = (docKey, data) => {
+    if (!data || typeof data !== 'object') return;
+    const prev = seenDocs.get(docKey);
+    if (!prev) {
+      seenDocs.set(docKey, { id: docKey, data: () => data });
+    } else {
+      const pData = prev.data();
+      const merged = { ...pData, ...data, ...mergeSolverUserRecords(pData, data), isPro: Boolean(pData?.isPro || data?.isPro), updatedAt: Math.max(Number(pData?.updatedAt) || 0, Number(data?.updatedAt) || 0) };
+      seenDocs.set(docKey, { id: docKey, data: () => merged });
+    }
+  };
+  for (const ns of [preferredCloudNamespace, preferredCloudNamespace === 'artifacts' ? 'users' : 'artifacts']) {
+    try {
+      const snap = await svc.fsMod.getDocs(getCloudProfilesColRef(svc, uid, ns));
+      if (snap?.docs) {
+        if (snap.docs.length > 0) { resolvedNs = ns; preferredCloudNamespace = ns; }
+        snap.docs.forEach((d) => upsertDoc(d.id, d.data()));
+      }
+    } catch {}
+  }
+  if (svc.fsMod.query && svc.fsMod.where && svc.fsMod.getDocs) {
+    try {
+      const mirrorSnap = await svc.fsMod.getDocs(svc.fsMod.query(svc.fsMod.collection(svc.db, 'artifacts', appId, 'public', 'data', 'user_sync'), svc.fsMod.where('ownerUid', '==', uid)));
+      mirrorSnap?.docs?.forEach((d) => {
+        const data = d.data();
+        upsertDoc(normalizeCloudDocId(data?.syncDocId || data?.profileKey || d.id.split('__')[1] || 'Solver') || 'Solver', data);
+      });
+    } catch {}
+  }
+  const emailBackup = await readEmailAccountBackup(svc, email, uid);
+  if (emailBackup && typeof emailBackup === 'object') {
+    upsertDoc(normalizeCloudDocId(emailBackup.profileKey || (email.split('@')[0] || 'Solver')) || 'Solver', emailBackup);
+    if (emailBackup.isPro) upsertDoc('_entitlements', { ...(seenDocs.get('_entitlements')?.data() || {}), isPro: true, email });
+  }
+  return { docs: Array.from(seenDocs.values()), ns: resolvedNs };
 }
 
 function mergeDefaultUsersWithStored(storedMap) {
@@ -2968,16 +3061,58 @@ function mergeDefaultUsersWithStored(storedMap) {
   return Object.keys(result).length === 0 ? { ...DEFAULT_USERS } : result;
 }
 
-function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = true) {
+const CLIENT_INSTANCE_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+function normalizeCloudDocId(rawKey = '') {
+  return String(rawKey || '')
+    .replace(/[/\\#?]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getRecordProgressSignature(rec) {
+  const r = sanitizeUserRecord(rec);
+  const countAttempts = (m) => Object.values(m || {}).reduce((acc, v) => acc + (Number(v?.attempts) || 0), 0);
+  const countCustomAlgs = (m) => ['f2l', 'oll', 'pll'].reduce((acc, ph) => acc + Object.keys(m?.[ph] || {}).length, 0);
+  return [
+    r.isPro ? 1 : 0,
+    r.day,
+    r.f2lDay,
+    r.pllDay,
+    r.crossDay,
+    r.crossClears,
+    r.consecutiveStreakDays,
+    r.lastActiveDate,
+    r.fullSolveHistory.map((s) => `${s?.id}:${s?.ms}:${s?.penalty || ''}`).join(','),
+    Object.keys(r.stats).length,
+    countAttempts(r.stats),
+    Object.keys(r.f2lStats).length,
+    countAttempts(r.f2lStats),
+    Object.keys(r.pllStats).length,
+    countAttempts(r.pllStats),
+    countCustomAlgs(r.customAlgs),
+    r.fullSolveTargetPb,
+    JSON.stringify(r.phaseTargetPbs),
+    JSON.stringify(r.caseTargetPbs),
+    (r.customChunks || []).length,
+    (r.f2lCustomChunks || []).length,
+    (r.pllCustomChunks || []).length
+  ].join('|');
+}
+
+function useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, registerDeviceAccount, isAppVisible = true) {
   const [cloudAuthUser, setCloudAuthUser] = useState(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState('connecting');
   const [cloudSyncError, setCloudSyncError] = useState('');
   const latestUsersRef = useRef(users);
   latestUsersRef.current = users;
+  const activeUserKeyRef = useRef(activeUserKey);
+  activeUserKeyRef.current = activeUserKey;
   const cloudAuthUserRef = useRef(cloudAuthUser);
   cloudAuthUserRef.current = cloudAuthUser;
   const pendingCloudSyncRef = useRef(new Map());
   const lastCloudWriteRef = useRef(new Map());
+  const lastWriteIdRef = useRef(new Map());
   const failedWriteCountRef = useRef(0);
   const autoPushedSigRef = useRef('');
   const isFlushingRef = useRef(false);
@@ -2991,6 +3126,9 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     if (isFlushingRef.current) return;
 
     const svc = resolvedFirebaseConfig ? await getFirebaseServices() : null;
+    if (svc && typeof svc.auth.authStateReady === 'function') {
+      await svc.auth.authStateReady().catch(() => {});
+    }
     const activeFbUser = svc?.auth?.currentUser || cloudAuthUserRef.current;
     const uid = activeFbUser?.uid;
     if (pendingCloudSyncRef.current.size > 0 && resolvedFirebaseConfig && uid && svc) {
@@ -2999,8 +3137,11 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
       pendingCloudSyncRef.current.clear();
       try {
         const writeTs = Date.now();
+        const writeNonce = `${CLIENT_INSTANCE_ID}:${writeTs}`;
         const profileResults = await Promise.all(
-          batchEntries.map(async ([uKey, record]) => {
+          batchEntries.map(async ([rawKey, record]) => {
+            const uKey = normalizeCloudDocId(rawKey);
+            if (!uKey || uKey === 'Demo') return { ok: true };
             let finalRec = sanitizeUserRecord(record);
             try {
               const snap = await svc.fsMod.getDoc(getCloudProfileDocRef(svc, uid, uKey, preferredCloudNamespace)).catch(() => null);
@@ -3009,18 +3150,35 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
               }
             } catch {}
             lastCloudWriteRef.current.set(uKey, writeTs);
-            return writeCloudDocWithFallback(svc, uid, uKey, {
-              ...finalRec,
-              email: finalRec.email || activeFbUser?.email || '',
-              updatedAt: writeTs
+            lastWriteIdRef.current.set(uKey, writeNonce);
+            setUsers((prev) => {
+              const existing = prev[uKey];
+              if (existing && getRecordProgressSignature(existing) === getRecordProgressSignature(finalRec)) return prev;
+              const nextUsers = { ...prev, [uKey]: finalRec };
+              storage.setJson(STORAGE_KEYS.users, nextUsers);
+              return nextUsers;
             });
+            const targetEmail = finalRec.email || activeFbUser?.email || '';
+            const payload = {
+              ...finalRec,
+              profileKey: uKey,
+              email: targetEmail,
+              updatedAt: writeTs,
+              writeNonce
+            };
+            const primaryWrite = await writeCloudDocWithFallback(svc, uid, uKey, payload);
+            if (targetEmail) {
+              await writeEmailAccountBackup(svc, targetEmail, payload);
+            }
+            return primaryWrite;
           })
         );
         if (batchEntries.some(([, rec]) => Boolean(rec?.isPro))) {
           await writeCloudDocWithFallback(svc, uid, '_entitlements', {
             isPro: true,
             email: activeFbUser?.email || '',
-            updatedAt: writeTs
+            updatedAt: writeTs,
+            writeNonce
           });
         }
         const allOk = profileResults.every((r) => r.ok);
@@ -3033,7 +3191,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
           const firstErr = profileResults.find((r) => !r.ok)?.error;
           setCloudSyncError(firstErr?.code || 'sync-failed');
           setCloudSyncStatus('local');
-          if (failedWriteCountRef.current < 3) {
+          if (failedWriteCountRef.current < 4) {
             batchEntries.forEach(([k, rec]) => {
               if (!pendingCloudSyncRef.current.has(k)) pendingCloudSyncRef.current.set(k, rec);
             });
@@ -3045,19 +3203,24 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
         setCloudSyncStatus('local');
       } finally {
         isFlushingRef.current = false;
+        if (pendingCloudSyncRef.current.size > 0 && failedWriteCountRef.current < 4) {
+          cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, 600);
+        }
       }
     }
   };
 
-  const saveUserToCloud = (uKey, record) => {
+  const saveUserToCloud = (rawKey, record) => {
+    const uKey = normalizeCloudDocId(rawKey);
     if (!uKey || uKey === 'Demo' || !resolvedFirebaseConfig) return;
     pendingCloudSyncRef.current.set(uKey, record);
     if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
-    const backoffMs = failedWriteCountRef.current > 0 ? Math.min(8000, 1000 * Math.pow(2, failedWriteCountRef.current)) : 500;
+    const backoffMs = failedWriteCountRef.current > 0 ? Math.min(6000, 800 * Math.pow(2, failedWriteCountRef.current)) : 250;
     cloudSaveTimerRef.current = setTimeout(flushPendingPersistence, backoffMs);
   };
 
-  const cancelPendingWriteFor = (uKey) => {
+  const cancelPendingWriteFor = (rawKey) => {
+    const uKey = normalizeCloudDocId(rawKey);
     pendingCloudSyncRef.current.delete(uKey);
     if (pendingCloudSyncRef.current.size === 0 && cloudSaveTimerRef.current) {
       clearTimeout(cloudSaveTimerRef.current);
@@ -3065,11 +3228,22 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     }
   };
 
-  useEffect(() => () => { flushPendingPersistence(); }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleOnline = () => {
+      failedWriteCountRef.current = 0;
+      flushPendingPersistence();
+    };
+    window.addEventListener('online', handleOnline, { passive: true });
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      flushPendingPersistence();
+    };
+  }, []);
 
   useEffect(() => {
     if (localSaveTimerRef.current) clearTimeout(localSaveTimerRef.current);
-    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 350);
+    localSaveTimerRef.current = setTimeout(() => { localSaveTimerRef.current = null; storage.setJson(STORAGE_KEYS.users, users); }, 250);
     return () => clearTimeout(localSaveTimerRef.current);
   }, [users]);
 
@@ -3079,14 +3253,57 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     (async () => {
       const svc = await getFirebaseServices();
       if (!svc || cancelled) { setCloudSyncStatus('local'); return; }
-      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, (fbUser) => {
-        if (!cancelled) {
-          setCloudAuthUser(fbUser || null);
-          if (!fbUser) {
-            setCloudSyncStatus('local');
-          } else if (pendingCloudSyncRef.current.size > 0) {
-            flushPendingPersistence();
-          }
+      unsubAuth = svc.authMod.onAuthStateChanged(svc.auth, async (fbUser) => {
+        if (cancelled) return;
+        setCloudAuthUser(fbUser || null);
+        if (!fbUser) {
+          setCloudSyncStatus('local');
+          return;
+        }
+        if (pendingCloudSyncRef.current.size > 0) {
+          flushPendingPersistence();
+        }
+        // Hydrate all cloud profiles for this authenticated user across devices on boot / sign-in
+        if (!fbUser.isAnonymous) {
+          try {
+            const { docs } = await readCloudProfilesWithFallback(svc, fbUser.uid, fbUser.email || '');
+            if (cancelled) return;
+            const entDoc = docs.find((d) => d.id === '_entitlements');
+            const cloudHasPro = Boolean(entDoc?.data()?.isPro) || docs.some((d) => Boolean(d.data()?.isPro));
+            const profileDocs = docs.filter((d) => d.id !== '_entitlements');
+            if (profileDocs.length > 0) {
+              const sorted = [...profileDocs].sort((a, b) => (Number(b.data()?.updatedAt) || 0) - (Number(a.data()?.updatedAt) || 0));
+              setUsers((prev) => {
+                const nextUsers = { ...prev };
+                sorted.forEach((docSnap) => {
+                  const key = normalizeCloudDocId(docSnap.id);
+                  if (!key || key === 'Demo') return;
+                  const merged = mergeSolverUserRecords(nextUsers[key], {
+                    ...docSnap.data(),
+                    email: fbUser.email || docSnap.data()?.email || '',
+                    isPro: cloudHasPro || Boolean(docSnap.data()?.isPro)
+                  });
+                  nextUsers[key] = merged;
+                  registerDeviceAccount?.(key);
+                });
+                storage.setJson(STORAGE_KEYS.users, nextUsers);
+                return nextUsers;
+              });
+              const curActive = activeUserKeyRef.current;
+              const emailLower = (fbUser.email || '').trim().toLowerCase();
+              const hasMatchingActive =
+                curActive &&
+                curActive !== 'Demo' &&
+                sorted.some((d) => normalizeCloudDocId(d.id).toLowerCase() === curActive.toLowerCase());
+              if (!hasMatchingActive) {
+                const bestMatch =
+                  sorted.find((d) => emailLower && (d.data()?.email || '').trim().toLowerCase() === emailLower) ||
+                  sorted[0];
+                const bestKey = normalizeCloudDocId(bestMatch.id);
+                if (bestKey) setActiveUserKey?.(bestKey);
+              }
+            }
+          } catch {}
         }
       });
       if (typeof svc.auth.authStateReady === 'function') {
@@ -3108,14 +3325,14 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
 
   useEffect(() => {
     const uid = cloudAuthUser?.uid;
-    if (!resolvedFirebaseConfig || !uid || !activeUserKey || activeUserKey === 'Demo') {
+    const cleanActiveKey = normalizeCloudDocId(activeUserKey);
+    if (!resolvedFirebaseConfig || !uid || !cleanActiveKey || cleanActiveKey === 'Demo') {
       setCloudSyncStatus('local');
       return;
     }
     if (!isAppVisible) return;
     let cancelled = false;
-    let unsubSnapshot = null;
-    let unsubEntitlementSnapshot = null;
+    let unsubCollection = null;
     autoPushedSigRef.current = '';
 
     (async () => {
@@ -3123,69 +3340,97 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
         const svc = await getFirebaseServices();
         if (!svc || cancelled) return;
 
-        // Verify readable namespace once before attaching listeners so rules mismatch never loops
-        const probe = await readCloudProfilesWithFallback(svc, uid).catch(() => null);
+        // Verify readable namespace once before attaching listeners AND hydrate any email-keyed cloud backup immediately
+        const authEmailNow = cloudAuthUserRef.current?.email || '';
+        const probe = await readCloudProfilesWithFallback(svc, uid, authEmailNow).catch(() => null);
         if (cancelled) return;
-        const activeNs = probe?.ns || preferredCloudNamespace;
-        const entRef = getCloudProfileDocRef(svc, uid, '_entitlements', activeNs);
-        const docRef = getCloudProfileDocRef(svc, uid, activeUserKey, activeNs);
-
-        unsubEntitlementSnapshot = svc.fsMod.onSnapshot(
-          entRef,
-          (entSnap) => {
-            if (cancelled || !entSnap.exists()) return;
-            if (entSnap.data()?.isPro) {
-              setUsers((prev) => {
-                const cur = prev[activeUserKey];
-                if (!cur || cur.isPro) return prev;
-                const upgraded = sanitizeUserRecord({ ...cur, isPro: true });
-                storage.setJson(STORAGE_KEYS.users, { ...prev, [activeUserKey]: upgraded });
-                return { ...prev, [activeUserKey]: upgraded };
+        if (probe?.docs?.length > 0) {
+          const entFromProbe = probe.docs.find((d) => d.id === '_entitlements');
+          const probeHasPro = Boolean(entFromProbe?.data()?.isPro) || probe.docs.some((d) => Boolean(d.data()?.isPro));
+          const profFromProbe = probe.docs.filter((d) => d.id !== '_entitlements');
+          if (profFromProbe.length > 0) {
+            setUsers((prev) => {
+              const localCur = sanitizeUserRecord({ ...(prev[cleanActiveKey] || {}), isPro: Boolean(prev[cleanActiveKey]?.isPro || probeHasPro) });
+              let mergedProbe = localCur;
+              profFromProbe.forEach((d) => {
+                mergedProbe = mergeSolverUserRecords(mergedProbe, { ...d.data(), isPro: Boolean(d.data()?.isPro || probeHasPro) });
               });
-            }
-          },
-          () => {}
-        );
+              if (getRecordProgressSignature(localCur) === getRecordProgressSignature(mergedProbe)) return prev;
+              const nextUsers = { ...prev, [cleanActiveKey]: mergedProbe };
+              storage.setJson(STORAGE_KEYS.users, nextUsers);
+              return nextUsers;
+            });
+          }
+        }
+        const activeNs = probe?.ns || preferredCloudNamespace;
+        const colRef = getCloudProfilesColRef(svc, uid, activeNs);
 
-        unsubSnapshot = svc.fsMod.onSnapshot(
-          docRef,
-          (docSnap) => {
+        // Listen to the entire solver_profiles collection so updates to _entitlements OR any profile
+        // doc (including case-variant profile keys across devices) sync in real time!
+        unsubCollection = svc.fsMod.onSnapshot(
+          colRef,
+          { includeMetadataChanges: false },
+          (querySnap) => {
             if (cancelled) return;
             if (failedWriteCountRef.current === 0) {
               setCloudSyncStatus('synced');
             }
-            const localRec = latestUsersRef.current?.[activeUserKey];
-            if (!docSnap.exists()) {
-              const seedSig = `seed:${uid}:${activeUserKey}`;
+
+            const docs = querySnap.docs || [];
+            const entDoc = docs.find((d) => d.id === '_entitlements');
+            const cloudAnyPro =
+              Boolean(entDoc?.data()?.isPro) || docs.some((d) => Boolean(d.data()?.isPro));
+
+            const profileDocs = docs.filter((d) => d.id !== '_entitlements');
+            // Every doc inside this user's own UID solver_profiles collection belongs to this user—merge all of them
+            const matchedDocs = profileDocs;
+
+            const localRec = latestUsersRef.current?.[cleanActiveKey];
+            if (matchedDocs.length === 0) {
+              const seedSig = `seed:${uid}:${cleanActiveKey}`;
               if (localRec && autoPushedSigRef.current !== seedSig && failedWriteCountRef.current < 3) {
                 autoPushedSigRef.current = seedSig;
-                saveUserToCloud(activeUserKey, localRec);
+                saveUserToCloud(cleanActiveKey, { ...localRec, isPro: Boolean(localRec.isPro || cloudAnyPro) });
               }
               return;
             }
-            const data = docSnap.data();
-            if (!data || typeof data !== 'object') return;
-            if (data.updatedAt && data.updatedAt === lastCloudWriteRef.current.get(docSnap.id)) return;
-            const merged = mergeSolverUserRecords(localRec, data);
-            setUsers((prev) => {
-              const nextUsers = { ...prev, [docSnap.id]: merged };
-              storage.setJson(STORAGE_KEYS.users, nextUsers);
-              return nextUsers;
+
+            // Merge all matching cloud docs + local state so progress from any device is preserved
+            let merged = sanitizeUserRecord({
+              ...(localRec || {}),
+              isPro: Boolean(localRec?.isPro || cloudAnyPro)
             });
-            const localAhead =
-              (merged.isPro && !data.isPro) ||
-              merged.day > (Number(data.day) || 1) ||
-              merged.f2lDay > (Number(data.f2lDay) || 1) ||
-              merged.pllDay > (Number(data.pllDay) || 1) ||
-              merged.crossClears > (Number(data.crossClears) || 0) ||
-              merged.fullSolveHistory.length > (Array.isArray(data.fullSolveHistory) ? data.fullSolveHistory.length : 0) ||
-              Object.keys(merged.stats).length > Object.keys(data.stats || {}).length ||
-              Object.keys(merged.f2lStats).length > Object.keys(data.f2lStats || {}).length ||
-              Object.keys(merged.pllStats).length > Object.keys(data.pllStats || {}).length;
-            const pushSig = `push:${uid}:${docSnap.id}:${merged.isPro}:${merged.day}:${merged.f2lDay}:${merged.pllDay}:${merged.fullSolveHistory.length}:${Object.keys(merged.stats).length}:${Object.keys(merged.f2lStats).length}:${Object.keys(merged.pllStats).length}`;
-            if (localAhead && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current === 0) {
+            matchedDocs.forEach((d) => {
+              const data = d.data();
+              if (!data || typeof data !== 'object') return;
+              merged = mergeSolverUserRecords(merged, {
+                ...data,
+                isPro: Boolean(data.isPro || cloudAnyPro)
+              });
+            });
+
+            const prevSig = localRec ? getRecordProgressSignature(localRec) : '';
+            const mergedSig = getRecordProgressSignature(merged);
+            if (prevSig !== mergedSig) {
+              setUsers((prev) => {
+                const nextUsers = { ...prev, [cleanActiveKey]: merged };
+                storage.setJson(STORAGE_KEYS.users, nextUsers);
+                return nextUsers;
+              });
+            }
+
+            // Check if any cloud doc lags behind the merged record (e.g., offline progress made on this device)
+            const primaryDoc =
+              matchedDocs.find((d) => normalizeCloudDocId(d.id) === cleanActiveKey) || matchedDocs[0];
+            const primaryData = primaryDoc?.data() || {};
+            const isOwnEcho =
+              primaryData.writeNonce && primaryData.writeNonce === lastWriteIdRef.current.get(cleanActiveKey);
+            const cloudSig = getRecordProgressSignature(primaryData);
+            const pushSig = `push:${uid}:${cleanActiveKey}:${mergedSig}`;
+
+            if (!isOwnEcho && cloudSig !== mergedSig && autoPushedSigRef.current !== pushSig && failedWriteCountRef.current === 0) {
               autoPushedSigRef.current = pushSig;
-              saveUserToCloud(docSnap.id, merged);
+              saveUserToCloud(cleanActiveKey, merged);
             }
           },
           (err) => {
@@ -3204,8 +3449,7 @@ function useSolverPersistence(users, setUsers, activeUserKey, isAppVisible = tru
     })();
     return () => {
       cancelled = true;
-      if (typeof unsubSnapshot === 'function') unsubSnapshot();
-      if (typeof unsubEntitlementSnapshot === 'function') unsubEntitlementSnapshot();
+      if (typeof unsubCollection === 'function') unsubCollection();
     };
   }, [cloudAuthUser?.uid, activeUserKey, isAppVisible]);
 
@@ -3245,6 +3489,30 @@ const APP_GLOBAL_CSS = `
       radial-gradient(ellipse 75% 50% at 82% 22%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.08) 48%, transparent 75%),
       radial-gradient(ellipse 80% 55% at 72% 82%, rgba(249, 115, 22, 0.22) 0%, transparent 72%),
       radial-gradient(ellipse 90% 60% at 24% 84%, rgba(23, 56, 118, 0.38) 0%, transparent 76%);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .practice-overlay-scrim {
+    background-color: #071127;
+    background-image:
+      radial-gradient(ellipse 95% 65% at 14% 12%, rgba(23, 56, 118, 0.78) 0%, rgba(14, 34, 76, 0.35) 46%, transparent 74%),
+      radial-gradient(ellipse 75% 55% at 78% 18%, rgba(249, 115, 22, 0.26) 0%, rgba(234, 88, 12, 0.10) 44%, transparent 72%),
+      radial-gradient(ellipse 80% 58% at 74% 84%, rgba(249, 115, 22, 0.24) 0%, rgba(234, 88, 12, 0.09) 44%, transparent 74%),
+      radial-gradient(ellipse 95% 70% at 82% 88%, rgba(20, 50, 108, 0.72) 0%, rgba(10, 25, 58, 0.30) 48%, transparent 75%),
+      linear-gradient(138deg, #0b1d42 0%, #050a16 24%, #112a5c 48%, #26140c 66%, #040812 80%, #0d234d 100%);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .practice-glass-card {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.035) 48%, rgba(249, 115, 22, 0.06) 100%),
+      rgba(13, 22, 46, 0.88);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.24),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+      0 14px 36px -10px rgba(0, 0, 0, 0.45);
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
   button, label, span, p, input, select, textarea, .font-sans {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -3458,6 +3726,13 @@ const APP_GLOBAL_CSS = `
   }
 `;
 
+const HERO_CFOP_REEL_BASE = [
+  { phase: 'C • CROSS', title: '8-Move White Cross', metric: '3D Orbit + Blind Mat', scramble: "R' F R D'", pitch: 36, mode: 'cross' },
+  { phase: 'F • F2L', title: '41 Pair Setups in 3D', metric: 'Isolated Slot Drills', scramble: "R U' R' U'", pitch: -24, mode: 'f2l' },
+  { phase: 'O • OLL', title: '57 One-Look Shapes (Sune)', metric: 'Inline Trigger Tags', scramble: "R U2 R' U' R U' R'", pitch: -32, mode: 'full' },
+  { phase: 'P • PLL', title: '25 Last-Layer Perms (T-Perm)', metric: 'Ao5 • Ao12 • PB Goals', scramble: "F R U' R' U R U R2 F' R U R U' R'", pitch: -28, mode: 'full' }
+];
+
 class AppErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, errorMessage: '' }; }
   static getDerivedStateFromError(error) { return { hasError: true, errorMessage: error?.message ? String(error.message) : 'Unexpected rendering error' }; }
@@ -3507,8 +3782,27 @@ function OLLDaySuite() {
   const [phaseTabs, setPhaseTabs] = useState({ cross: 'ladder', f2l: 'grind', oll: 'grind', pll: 'grind' });
   const setTabForPhase = (phase, tab) => setPhaseTabs((prev) => ({ ...prev, [phase]: tab }));
 
+
+
+
+  const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
+    const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
+    const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
+    const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
+    if (savedActive && !list.includes(savedActive)) list.push(savedActive);
+    return list;
+  });
+  const registerDeviceAccount = (uKey) => {
+    if (!uKey || typeof uKey !== 'string') return;
+    setDeviceAccountKeys((prev) => {
+      const next = prev.includes(uKey) ? prev : [...prev, uKey];
+      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
+      return next;
+    });
+  };
+
   const { cloudAuthUser, setCloudAuthUser, cloudSyncStatus, setCloudSyncStatus, cloudSyncError, lastCloudWriteRef, saveUserToCloud, flushPendingPersistence, cancelPendingWriteFor } =
-    useSolverPersistence(users, setUsers, activeUserKey, isAppVisible);
+    useSolverPersistence(users, setUsers, activeUserKey, setActiveUserKey, registerDeviceAccount, isAppVisible);
 
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [stopwatchEnabled, setStopwatchEnabled] = useState(true);
@@ -4002,13 +4296,7 @@ function OLLDaySuite() {
   const [authErrorMsg, setAuthErrorMsg] = useState('');
   const [authInfoMsg, setAuthInfoMsg] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
-  const [deviceAccountKeys, setDeviceAccountKeys] = useState(() => {
-    const parsed = storage.getJson(STORAGE_KEYS.deviceAccounts, []);
-    const savedActive = storage.getStr(STORAGE_KEYS.activeAccount, '');
-    const list = Array.isArray(parsed) ? parsed.filter((k) => typeof k === 'string') : [];
-    if (savedActive && !list.includes(savedActive)) list.push(savedActive);
-    return list;
-  });
+
 
   const [proPaywallFeature, setProPaywallFeature] = useState('');
   const [proPurchaseToast, setProPurchaseToast] = useState('');
@@ -4048,20 +4336,23 @@ function OLLDaySuite() {
   const syncCloudProfileAfterOAuth = async (svc, fbUser, fallbackName = 'Solver', isNewSignUp = false) => {
     const rawName = (fbUser.displayName || fbUser.email?.split('@')[0] || fallbackName).trim();
     const displayName = rawName.replace(/[/\\#?]+/g, ' ').replace(/\s+/g, ' ').trim() || fallbackName;
-    const { docs: allCloudDocs } = await readCloudProfilesWithFallback(svc, fbUser.uid);
+    const { docs: allCloudDocs } = await readCloudProfilesWithFallback(svc, fbUser.uid, fbUser.email || '');
 
     const diskUsers = storage.getJson(STORAGE_KEYS.users, {});
     const mergedSourceUsers = { ...(diskUsers && typeof diskUsers === 'object' ? diskUsers : {}), ...users };
     const emailLower = (fbUser.email || '').trim().toLowerCase();
     const nonDemoLocalEntries = Object.entries(mergedSourceUsers).filter(([k]) => k !== 'Demo');
-    const emailMatchedLocal = emailLower
-      ? nonDemoLocalEntries.find(([, u]) => u?.email?.trim().toLowerCase() === emailLower)?.[1]
-      : null;
-    const activeLocal = activeUserKey && activeUserKey !== 'Demo' ? mergedSourceUsers[activeUserKey] : null;
-    const namedLocal = mergedSourceUsers[displayName] || null;
     let combinedLocal = sanitizeUserRecord({});
-    [emailMatchedLocal, activeLocal, namedLocal].filter(Boolean).forEach((rec) => {
-      combinedLocal = mergeSolverUserRecords(combinedLocal, rec);
+    nonDemoLocalEntries.forEach(([k, rec]) => {
+      const recEmail = (rec?.email || '').trim().toLowerCase();
+      if (
+        k === activeUserKey ||
+        k.toLowerCase() === displayName.toLowerCase() ||
+        !recEmail ||
+        (emailLower && recEmail === emailLower)
+      ) {
+        combinedLocal = mergeSolverUserRecords(combinedLocal, rec);
+      }
     });
 
     const localAnyNonDemoPro = nonDemoLocalEntries.some(([, u]) => Boolean(u?.isPro));
@@ -4108,8 +4399,28 @@ function OLLDaySuite() {
 
     const primaryRes = await writeCloudDocWithFallback(svc, fbUser.uid, chosenKey, {
       ...finalSyncedRecord,
+      profileKey: chosenKey,
       updatedAt: writeTs
     });
+    if (fbUser.email || finalSyncedRecord.email) {
+      await writeEmailAccountBackup(svc, fbUser.email || finalSyncedRecord.email, {
+        ...finalSyncedRecord,
+        profileKey: chosenKey,
+        updatedAt: writeTs
+      });
+    }
+    // Keep any sibling profile docs under the same UID in sync so hopping devices never loads an older copy
+    await Promise.all(
+      profileDocs
+        .filter((d) => d.id !== chosenKey)
+        .map((d) =>
+          writeCloudDocWithFallback(svc, fbUser.uid, d.id, {
+            ...mergeSolverUserRecords(d.data(), finalSyncedRecord),
+            email: fbUser.email || d.data()?.email || '',
+            updatedAt: writeTs
+          })
+        )
+    ).catch(() => {});
     if (resolvedPro) {
       await writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', {
         isPro: true,
@@ -4143,7 +4454,7 @@ function OLLDaySuite() {
       return;
     }
 
-    // Local-only solver profile when no email is entered
+    // Solver Name profile (no email/password): still ensure anonymous cloud session is active and flush immediately
     if (!cleanEmail) {
       if (Object.keys(users).some((k) => k.toLowerCase() === cleanName.toLowerCase())) {
         setAuthErrorMsg('That solver name is taken — choose another or Sign In');
@@ -4152,7 +4463,6 @@ function OLLDaySuite() {
       emitBeep(820, 'sine', 0.1);
       const created = sanitizeUserRecord({ email: '', isPro: false });
       setUsers((prev) => ({ ...prev, [cleanName]: created }));
-      saveUserToCloud(cleanName, created);
       registerDeviceAccount(cleanName);
       setActiveUserKey(cleanName);
       setAuthNameInput('');
@@ -4160,6 +4470,16 @@ function OLLDaySuite() {
       setAuthPasswordInput('');
       setAuthScreenOpen(false);
       setActiveModal('cfopExperienceChoice');
+      if (resolvedFirebaseConfig) {
+        (async () => {
+          const svc = await getFirebaseServices();
+          if (svc && !svc.auth.currentUser) {
+            await svc.authMod.signInAnonymously(svc.auth).catch(() => {});
+          }
+          saveUserToCloud(cleanName, created);
+          flushPendingPersistence();
+        })();
+      }
       return;
     }
 
@@ -4180,7 +4500,21 @@ function OLLDaySuite() {
         setAuthErrorMsg('Unable to reach authentication service.');
         return;
       }
-      const cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+      let cred = null;
+      if (svc.auth.currentUser?.isAnonymous && svc.authMod.EmailAuthProvider && svc.authMod.linkWithCredential) {
+        try {
+          const emailCred = svc.authMod.EmailAuthProvider.credential(cleanEmail, cleanPass);
+          cred = await svc.authMod.linkWithCredential(svc.auth.currentUser, emailCred);
+        } catch (linkErr) {
+          if (linkErr?.code === 'auth/credential-already-in-use' || linkErr?.code === 'auth/email-already-in-use') {
+            cred = await svc.authMod.signInWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+          } else {
+            cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+          }
+        }
+      } else {
+        cred = await svc.authMod.createUserWithEmailAndPassword(svc.auth, cleanEmail, cleanPass);
+      }
       if (svc.authMod.updateProfile) {
         await svc.authMod.updateProfile(cred.user, { displayName: cleanName }).catch(() => {});
       }
@@ -4303,6 +4637,17 @@ function OLLDaySuite() {
     return () => { cancelled = true; };
   }, []);
 
+  const signInOrLinkPopup = async (svc, provider) => {
+    if (svc.auth.currentUser?.isAnonymous && svc.authMod.linkWithPopup) {
+      try {
+        return await svc.authMod.linkWithPopup(svc.auth.currentUser, provider);
+      } catch (e) {
+        if (e?.code !== 'auth/credential-already-in-use' && e?.code !== 'auth/email-already-in-use') throw e;
+      }
+    }
+    return svc.authMod.signInWithPopup(svc.auth, provider);
+  };
+
   const handleGoogleSignIn = async () => {
     emitBeep(720, 'sine', 0.08);
     setAuthErrorMsg('');
@@ -4321,7 +4666,7 @@ function OLLDaySuite() {
       const provider = new svc.authMod.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       try {
-        const cred = await svc.authMod.signInWithPopup(svc.auth, provider);
+        const cred = await signInOrLinkPopup(svc, provider);
         await syncCloudProfileAfterOAuth(svc, cred.user, 'Google Solver');
       } catch (popupErr) {
         if (popupErr?.code === 'auth/operation-not-supported-in-this-environment') {
@@ -4369,7 +4714,7 @@ function OLLDaySuite() {
       const appleProvider = new svc.authMod.OAuthProvider('apple.com');
       appleProvider.addScope('email');
       appleProvider.addScope('name');
-      const cred = await svc.authMod.signInWithPopup(svc.auth, appleProvider);
+      const cred = await signInOrLinkPopup(svc, appleProvider);
       await syncCloudProfileAfterOAuth(svc, cred.user, 'Apple Solver');
     } catch (err) {
       if (err?.code === 'auth/operation-not-allowed') {
@@ -4379,14 +4724,7 @@ function OLLDaySuite() {
       }
     }
   };
-  const registerDeviceAccount = (uKey) => {
-    if (!uKey || typeof uKey !== 'string') return;
-    setDeviceAccountKeys((prev) => {
-      const next = prev.includes(uKey) ? prev : [...prev, uKey];
-      storage.setJson(STORAGE_KEYS.deviceAccounts, next);
-      return next;
-    });
-  };
+
 
   const startGuidedTour = () => {
     emitBeep(720, 'sine', 0.08);
@@ -4754,8 +5092,13 @@ function OLLDaySuite() {
       setFullTimerState('stopped');
       emitBeep(980, 'sine', 0.1);
       const newEntry = { id: Date.now(), ms: finalMs, penalty: null, scramble: fullScramble };
-      updateActiveUserRecord((u) => ({ ...u, fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100) }));
+      updateActiveUserRecord((u) => ({
+        ...u,
+        ...advanceDailyStreakFields(u),
+        fullSolveHistory: [newEntry, ...(u.fullSolveHistory || [])].slice(0, 100)
+      }));
       setFullScramble(generate3x3Scramble(20));
+      setTimeout(() => flushPendingPersistence(), 50);
     }
   };
 
@@ -4766,6 +5109,7 @@ function OLLDaySuite() {
       const [first, ...rest] = u.fullSolveHistory;
       return { ...u, fullSolveHistory: [{ ...first, penalty: first.penalty === pen ? null : pen }, ...rest] };
     });
+    setTimeout(() => flushPendingPersistence(), 50);
   };
 
   const deleteLastFullSolve = () => {
@@ -4831,11 +5175,14 @@ function OLLDaySuite() {
           });
         }
         lastCloudWriteRef.current.set(targetProfileKey, writeTs);
-        const [profRes, entRes] = await Promise.all([
-          writeCloudDocWithFallback(svc, fbUser.uid, targetProfileKey, { ...updatedRecord, updatedAt: writeTs }),
-          writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', { isPro: true, email: fbUser.email || emailLower, updatedAt: writeTs })
+        const [profRes, entRes, emailRes] = await Promise.all([
+          writeCloudDocWithFallback(svc, fbUser.uid, targetProfileKey, { ...updatedRecord, profileKey: targetProfileKey, isPro: true, updatedAt: writeTs }),
+          writeCloudDocWithFallback(svc, fbUser.uid, '_entitlements', { isPro: true, email: fbUser.email || emailLower, updatedAt: writeTs }),
+          (fbUser.email || emailLower)
+            ? writeEmailAccountBackup(svc, fbUser.email || emailLower, { ...updatedRecord, profileKey: targetProfileKey, isPro: true, updatedAt: writeTs }, fbUser.uid)
+            : Promise.resolve({ ok: false })
         ]);
-        const savedOk = profRes.ok || entRes.ok;
+        const savedOk = profRes.ok || entRes.ok || emailRes.ok;
         if (savedOk) {
           setCloudSyncStatus('synced');
           setProPurchaseToast(
@@ -4869,7 +5216,7 @@ function OLLDaySuite() {
       }
       return;
     }
-    setRestoreStatusToast('Syncing with Gmail cloud account...');
+    setRestoreStatusToast('Syncing & checking Pro entitlement...');
     try {
       const svc = await getFirebaseServices();
       if (!svc) {
@@ -4881,21 +5228,49 @@ function OLLDaySuite() {
         await svc.auth.authStateReady().catch(() => {});
       }
       const fbUser = svc.auth.currentUser || cloudAuthUser;
-      if (!fbUser || fbUser.isAnonymous) {
+      const knownEmail = (fbUser?.email || currentUser.email || '').trim();
+      if ((!fbUser || fbUser.isAnonymous) && !knownEmail) {
         setRestoreStatusToast('');
-        setAuthErrorMsg('Sign in with your Gmail account to sync progress & restore Pro.');
+        setAuthErrorMsg('Sign in with your Gmail or Email account to sync solves & restore Pro.');
         setAuthMode('signin');
         setAuthScreenOpen(true);
         return;
       }
-      const syncRes = await syncCloudProfileAfterOAuth(svc, fbUser, resolvedUserKey || 'Solver', false);
-      if (syncRes?.record?.isPro) {
-        setRestoreStatusToast(`Synced & Pro Active (${fbUser.email || 'Gmail'}) ✓`);
-        setTimeout(() => setRestoreStatusToast(''), 3500);
-      } else {
-        setRestoreStatusToast(`Synced ${fbUser.email || 'Gmail'} — Pro not yet saved from mobile.`);
-        setTimeout(() => setRestoreStatusToast(''), 4000);
+      // If signed in with a real account, perform a full bidirectional merge + flush
+      if (fbUser && !fbUser.isAnonymous) {
+        const effectiveFbUser = {
+          uid: fbUser.uid,
+          email: knownEmail,
+          displayName: fbUser.displayName || (resolvedUserKey !== 'Demo' ? resolvedUserKey : '')
+        };
+        const syncRes = await syncCloudProfileAfterOAuth(svc, effectiveFbUser, resolvedUserKey || 'Solver', false);
+        const mergedRecord = syncRes?.record || currentUser;
+        const solveCount = mergedRecord.fullSolveHistory?.length || 0;
+        if (mergedRecord.isPro) {
+          setRestoreStatusToast(`Pro Restored & Synced (${solveCount} 3x3 solves) ✓`);
+          setTimeout(() => setRestoreStatusToast(''), 4000);
+        } else {
+          setRestoreStatusToast(`Synced ${knownEmail} (${solveCount} 3x3 solves) — tap Unlock Pro on your purchased device first.`);
+          setTimeout(() => setRestoreStatusToast(''), 4500);
+        }
+        return;
       }
+      // Fallback: hydrate by known email if session is still anonymous
+      const backup = await readEmailAccountBackup(svc, knownEmail, fbUser?.uid || '');
+      if (backup) {
+        const merged = mergeSolverUserRecords(currentUser, { ...backup, email: knownEmail });
+        updateActiveUserRecord(() => merged);
+        await flushPendingPersistence();
+        if (merged.isPro) {
+          setRestoreStatusToast(`Pro Restored (${knownEmail}) ✓`);
+          setTimeout(() => setRestoreStatusToast(''), 3500);
+          return;
+        }
+      }
+      setRestoreStatusToast('');
+      setAuthErrorMsg('Sign in with your Gmail account to restore Pro.');
+      setAuthMode('signin');
+      setAuthScreenOpen(true);
     } catch (err) {
       setRestoreStatusToast(`Cloud sync error: ${err?.code || 'check connection'}`);
       setTimeout(() => setRestoreStatusToast(''), 3500);
@@ -5265,16 +5640,14 @@ function OLLDaySuite() {
     updateActiveUserRecord((u) => {
       if (scope === 'both') return { ...sanitizeUserRecord(null), isPro: Boolean(u.isPro), email: u.email || '' };
       const next = { ...u };
-      if (scope === 'f2l-day' || scope === 'f2l-all') next.f2lDay = 1;
-      if (scope === 'f2l-stats' || scope === 'f2l-all') next.f2lStats = {};
-      if (scope === 'f2l-chunks' || scope === 'f2l-all') next.f2lCustomChunks = null;
-      if (scope === 'oll-day' || scope === 'oll-all') next.day = 1;
-      if (scope === 'oll-stats' || scope === 'oll-all') next.stats = {};
-      if (scope === 'oll-chunks' || scope === 'oll-all') next.customChunks = null;
-      if (scope === 'pll-day' || scope === 'pll-all') next.pllDay = 1;
-      if (scope === 'pll-stats' || scope === 'pll-all') next.pllStats = {};
-      if (scope === 'pll-chunks' || scope === 'pll-all') next.pllCustomChunks = null;
-      if (scope === 'full-timer') next.fullSolveHistory = [];
+      if (scope === 'full-timer') { next.fullSolveHistory = []; return next; }
+      const [ph, target] = scope.split('-');
+      const reg = PHASE_REGISTRY[ph];
+      if (reg) {
+        if (target === 'day' || target === 'all') next[reg.dayField] = 1;
+        if (target === 'stats' || target === 'all') next[reg.statField] = {};
+        if (target === 'chunks' || target === 'all') next[reg.chunkField] = null;
+      }
       return next;
     });
     setActiveModal(null);
@@ -6392,7 +6765,8 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[240] bg-modal-scrim flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
+        style={{ touchAction: 'manipulation' }}
+        className={`fixed inset-0 z-[240] practice-overlay-scrim flex justify-center overflow-hidden ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
         <div
           className={`relative z-10 w-full h-[100dvh] overflow-hidden flex flex-col justify-between ${
@@ -6421,7 +6795,7 @@ function OLLDaySuite() {
                 isTwoPane
                   ? 'w-full h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
                   : 'w-full rounded-3xl p-4 space-y-2.5 flex flex-col items-center'
-              } liquid-glass-card liquid-rim-muted border border-white/15`}
+              } practice-glass-card liquid-rim-muted border border-white/15`}
             >
               <CasePracticeCard
                 {...sharedPracticeProps}
@@ -6490,7 +6864,8 @@ function OLLDaySuite() {
     return (
       <div
         onClick={handlePracticeTap(phaseKey, item.id)}
-        className={`fixed inset-0 z-[245] bg-modal-scrim overflow-hidden ${
+        style={{ touchAction: 'manipulation' }}
+        className={`fixed inset-0 z-[245] practice-overlay-scrim overflow-hidden ${
           isTwoPane ? 'flex flex-col justify-between px-8 py-5' : 'flex items-center justify-center px-3.5 py-2.5'
         } ${stopwatchEnabled ? 'cursor-pointer' : ''}`}
       >
@@ -6505,7 +6880,7 @@ function OLLDaySuite() {
 
         <div className={`relative z-10 w-full ${isTwoPane ? 'max-w-6xl mx-auto flex-1 min-h-0 flex items-center py-3' : 'max-w-sm'}`}>
           <div
-            className={`liquid-glass-card liquid-rim-muted border border-white/15 w-full ${
+            className={`practice-glass-card liquid-rim-muted border border-white/15 w-full ${
               isTwoPane
                 ? 'h-full max-h-[76dvh] rounded-[2.5rem] px-8 py-5 flex items-center justify-center'
                 : 'rounded-3xl p-4 space-y-2 overflow-hidden'
@@ -6726,13 +7101,6 @@ function OLLDaySuite() {
       <style>{APP_GLOBAL_CSS}</style>
 
       <div className={`min-h-[100dvh] w-full bg-midnight-marble text-slate-100 flex justify-center select-none relative overflow-hidden ${!isAppVisible ? 'app-bg-sleep' : ''}`}>
-        <AmbientGlows
-          topClass="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[44vh] z-0"
-          topGradient="radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.18) 0%, rgba(249, 115, 22, 0) 68%)"
-          bottomClass="fixed bottom-0 right-0 w-3/4 h-[38vh] z-0"
-          bottomGradient="radial-gradient(circle at 80% 100%, rgba(29, 78, 216, 0.18) 0%, rgba(29, 78, 216, 0) 68%)"
-        />
-
         <div
           className={`w-full ${
             isTwoPane
@@ -7215,22 +7583,24 @@ function OLLDaySuite() {
 
           {/* SADDLE-NOTCHED LIQUID GLASS BOTTOM DOCK + ALL-ORANGE 3x3 LIQUID PHASE SWITCHER */}
           {(() => {
-            const dw = isTwoPane ? 576 : Math.max(332, Math.min(420, (viewportDevice.width || 390) - 28));
-            const dh = 68;
+            const vpW = viewportDevice.width || (isTwoPane ? 1024 : 390);
+            const containerW = isTwoPane ? Math.min(1152, vpW) : Math.min(448, vpW);
+            const dw = Math.max(300, containerW - (isTwoPane ? 48 : 28));
+            const dh = 62;
             const cx = dw / 2;
-            const cradleHalfW = 31.5; // 26px half-switcher + 5.5px uniform side clearance
-            const floorY = 41.5; // 36px switcher bottom + 5.5px uniform floor clearance (matches 5.5px side clearance)
-            const lipW = 11, cornerR = 17, outerR = 20;
+            const cradleHalfW = 31; // 26px half-switcher + 5px uniform left/right clearance
+            const floorY = 39; // 34px switcher bottom inside dock + 5px uniform floor clearance
+            const lipW = 11, cornerR = 20, outerR = 20;
 
             const buildNotchSegments = (sx, sy, topY) => [
               `M ${sx(outerR)},${sy(topY)}`,
               `L ${sx(cx - cradleHalfW - lipW)},${sy(topY)}`,
-              `C ${sx(cx - cradleHalfW - 3)},${sy(topY)} ${sx(cx - cradleHalfW)},${sy(topY + 4)} ${sx(cx - cradleHalfW)},${sy(12)}`,
+              `C ${sx(cx - cradleHalfW - 3)},${sy(topY)} ${sx(cx - cradleHalfW)},${sy(topY + 4)} ${sx(cx - cradleHalfW)},${sy(11)}`,
               `L ${sx(cx - cradleHalfW)},${sy(floorY - cornerR)}`,
               `Q ${sx(cx - cradleHalfW)},${sy(floorY)} ${sx(cx - cradleHalfW + cornerR)},${sy(floorY)}`,
               `L ${sx(cx + cradleHalfW - cornerR)},${sy(floorY)}`,
               `Q ${sx(cx + cradleHalfW)},${sy(floorY)} ${sx(cx + cradleHalfW)},${sy(floorY - cornerR)}`,
-              `L ${sx(cx + cradleHalfW)},${sy(12)}`,
+              `L ${sx(cx + cradleHalfW)},${sy(11)}`,
               `C ${sx(cx + cradleHalfW)},${sy(topY + 4)} ${sx(cx + cradleHalfW + 3)},${sy(topY)} ${sx(cx + cradleHalfW + lipW)},${sy(topY)}`,
               `L ${sx(dw - outerR)},${sy(topY)}`
             ];
@@ -7251,7 +7621,7 @@ function OLLDaySuite() {
 
             return (
               <nav className={`pointer-events-none absolute inset-x-0 bottom-0 z-40 pt-7 pb-4 ${isTwoPane ? 'px-6' : 'px-3.5'}`}>
-                <div className={`pointer-events-auto relative ${isTwoPane ? 'max-w-xl mx-auto' : 'w-full'}`}>
+                <div className="pointer-events-auto relative w-full">
                   {/* Liquid Pour Phase Expansion Pill (C • F • O • P) */}
                   <div
                     className={`liquid-pour-container absolute left-1/2 -top-16 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#091229]/75 border border-white/15 shadow-[0_18px_44px_rgba(0,0,0,0.85),0_0_24px_rgba(249,115,22,0.28)] ${
@@ -7296,7 +7666,7 @@ function OLLDaySuite() {
                     }}
                     aria-label="Switch CFOP Phase"
                     title={`Active Phase: ${activePhase.toUpperCase()} — Tap to Switch C / F / O / P`}
-                    className={`absolute left-1/2 -translate-x-1/2 -top-4 z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
+                    className={`absolute left-1/2 -translate-x-1/2 -top-[18px] z-20 w-[52px] h-[52px] rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer active:scale-95 ${
                       cfopMenuOpen
                         ? 'bg-gradient-to-b from-orange-500/40 to-[#16100c] border-orange-400 shadow-[0_0_28px_rgba(249,115,22,0.65)] scale-105'
                         : 'bg-gradient-to-b from-[#231812] to-[#0b0d15] border-orange-500/50 shadow-[0_8px_24px_rgba(249,115,22,0.4)] hover:border-orange-400'
@@ -7334,7 +7704,7 @@ function OLLDaySuite() {
                       clipPath: 'url(#olldaySaddleDockClip)',
                       WebkitClipPath: 'url(#olldaySaddleDockClip)'
                     }}
-                    className="relative liquid-glass-dock rounded-[1.35rem] pt-2.5 pb-2.5 px-2 shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
+                    className="relative liquid-glass-dock h-[62px] rounded-[1.35rem] px-2 flex items-center shadow-[0_20px_44px_rgba(0,0,0,0.85)]"
                   >
                     {/* Specular Glass Top & Notch Rim Stroke */}
                     <svg viewBox={`0 0 ${dw} ${dh}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 w-full h-full">
@@ -7347,7 +7717,7 @@ function OLLDaySuite() {
                       />
                     </svg>
 
-                    <div className="grid grid-cols-5 items-center gap-1">
+                    <div className="w-full grid grid-cols-5 items-center gap-1">
                       {(activePhase === 'cross'
                         ? [
                             { id: 'ladder', label: 'Ladder', Icon: AlignJustify },
@@ -7404,12 +7774,6 @@ function OLLDaySuite() {
             style={{ touchAction: 'manipulation' }}
             className="fixed inset-0 z-[290] bg-midnight-marble flex flex-col justify-between p-6 select-none cursor-pointer"
           >
-            <AmbientGlows
-              topClass="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              topGradient="radial-gradient(circle, rgba(249, 115, 22, 0.24) 0%, rgba(249, 115, 22, 0) 70%)"
-              bottomClass="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full"
-              bottomGradient="radial-gradient(circle, rgba(234, 88, 12, 0.16) 0%, rgba(234, 88, 12, 0) 70%)"
-            />
 
             <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="relative z-10 max-w-md w-full mx-auto space-y-3">
               <div className="flex items-center justify-between">
@@ -7449,45 +7813,8 @@ function OLLDaySuite() {
 
         {/* LANDING HERO & ONBOARDING GATE */}
         {authScreenOpen && (() => {
-          const HERO_CFOP_REEL = [
-            {
-              phase: 'C • CROSS',
-              title: '8-Move White Cross',
-              metric: '3D Orbit + Blind Mat',
-              scramble: "R' F R D'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: 36,
-              mode: 'cross'
-            },
-            {
-              phase: 'F • F2L',
-              title: '41 Pair Setups in 3D',
-              metric: 'Isolated Slot Drills',
-              scramble: "R U' R' U'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: -24,
-              mode: 'f2l'
-            },
-            {
-              phase: 'O • OLL',
-              title: '57 One-Look Shapes (Sune)',
-              metric: 'Inline Trigger Tags',
-              scramble: "R U2 R' U' R U' R'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: -32,
-              mode: 'full'
-            },
-            {
-              phase: 'P • PLL',
-              title: '25 Last-Layer Perms (T-Perm)',
-              metric: 'Ao5 • Ao12 • PB Goals',
-              scramble: "F R U' R' U R U R2 F' R U R U' R'",
-              yaw: -35 + landingStepIdx * 90,
-              pitch: -28,
-              mode: 'full'
-            }
-          ];
-          const activeReel = HERO_CFOP_REEL[landingStepIdx % HERO_CFOP_REEL.length];
+          const baseReel = HERO_CFOP_REEL_BASE[landingStepIdx % HERO_CFOP_REEL_BASE.length];
+          const activeReel = { ...baseReel, yaw: -35 + landingStepIdx * 90 };
           const savedAccountKeys = Array.from(new Set(['Demo', ...deviceAccountKeys.filter((k) => Boolean(users[k]))])).filter((k) => Boolean(users[k]));
 
           return (
@@ -7575,7 +7902,7 @@ function OLLDaySuite() {
                       <div className="flex items-center justify-between pt-1 border-t border-white/10">
                         <span className="text-xs font-black text-white">{activeReel.title}</span>
                         <div className="flex items-center gap-1">
-                          {HERO_CFOP_REEL.map((item, idx) => (
+                          {HERO_CFOP_REEL_BASE.map((item, idx) => (
                             <button
                               key={item.phase}
                               type="button"
@@ -9427,7 +9754,8 @@ function OLLDaySuite() {
               ) : (
                 <div className="space-y-2 pt-1">
                   <button type="button" onClick={unlockLifetimePro} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 cursor-pointer">Unlock Lifetime Pro — $5.99</button>
-                  <button type="button" onClick={() => setActiveModal(null)} className="w-full py-2.5 rounded-2xl bg-white/[0.06] text-xs font-bold text-zinc-400 hover:text-white cursor-pointer">Maybe Later</button>
+                  <button type="button" onClick={() => { setActiveModal(null); restoreCloudPurchase(); }} className="w-full py-2.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] text-xs font-black text-amber-300 cursor-pointer">Already Purchased? Sync &amp; Restore</button>
+                  <button type="button" onClick={() => setActiveModal(null)} className="w-full py-2 rounded-2xl bg-transparent text-xs font-bold text-zinc-400 hover:text-white cursor-pointer">Maybe Later</button>
                 </div>
               )}
             </div>
